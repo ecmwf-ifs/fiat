@@ -17,7 +17,7 @@ c
       endif
 c
       return
-      end    
+      end
 #endif
 #ifdef SGI
       function dummytimef()
@@ -43,5 +43,21 @@ c
       endif
 c
       return
-      end    
+      end
+#endif
+#ifdef LINUX
+      function timef()
+C
+C   Returns system clock converted to nano-seconds
+C
+      call system_clock(ic,icr,icm)
+      if(icm.eq.0) then
+        print *,' no system clock'
+        timef=-99.
+      else
+        timef=1000.*ic/icr
+      endif
+!     timef=rtc()*4.167E-6
+      return
+      end
 #endif

@@ -23,6 +23,9 @@
 
 static char *start_stamp = NULL;
 static char *end_stamp = NULL;
+#ifdef VPP
+#include <ucontext.h>
+#endif
 
 static int any_memstat = 0;
 static int opt_gethwm = 0;
