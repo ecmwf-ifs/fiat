@@ -2,27 +2,30 @@
       data ifirst/0/
       save ifirst,zfirst
 c
-cportable      call system_clock(ic,icr,icm)
-cportable      if(icm.eq.0) then
-cportable        print *,' no system clock'
-cportable        ztimef=-99.
-cportable      else
-cportable        ztimef=1000.*ic/icr
-cportable      endif
+#ifdef SGI
+      call system_clock(ic,icr,icm)
+      if(icm.eq.0) then
+        print *,' no system clock'
+        ztimef=-99.
+      else
+        ztimef=1000.*ic/icr
+      endif
+#endif
+#ifdef FUJITSU
 c
 c   fujitsu special
 c
       call gettod(ztimef)
+      ztimef=ztimef/1000.0
+#endif
 c
       if(ifirst.eq.0) then
          ifirst=1
          zfirst=ztimef
-         ztimef=0.0
+         timef=0.0
       else
-         ztimef=ztimef-zfirst
+         timef=(ztimef-zfirst)
       endif
-c
-      timef=ztimef/1000.
 c
       return
       end    
