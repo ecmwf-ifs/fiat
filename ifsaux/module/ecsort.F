@@ -99,190 +99,82 @@ c----------------------------
 
       SUBROUTINE int_keysort_1D(
      $     rc, a, n,
-     $     method,
+     $     method, descending,
      $     index, init)
       implicit none
       integer, intent(out)           :: rc
       integer, intent(inout)         :: a(:)
       integer, intent(in)            :: n
       integer, intent(in), OPTIONAL  :: method
+      logical, intent(in), OPTIONAL  :: descending
       integer, intent(inout), TARGET, OPTIONAL :: index(:)
       logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
-      integer, POINTER :: iindex(:)
-      integer istride, imethod
-      integer iptr, i
-      integer, allocatable :: data(:)
-      logical iinit
-
-      istride = 1
-
-      imethod = current_method
-      if (present(method)) then
-         imethod = min(max(min_method,method),max_method)
+      integer aa(size(a),1)
+      integer ikey
+      aa(:,1) = a(:)
+      ikey = 1
+      if (present(descending)) then
+         if (descending) ikey = -1
       endif
-
-      iinit = .FALSE.
-      if (present(init)) iinit = init
-
-      if (present(index)) then
-         iindex => index(1:n)
-      else
-         allocate(iindex(n))
-         iinit = .TRUE.
-      endif
-
-      if (iinit) CALL init_index(iindex)
-
-      iptr = 1
-
-      select case (imethod)
-      case (radixsort_method)
-         CALL rsort32(11, n, istride, iptr, a(1), iindex(1), 1, rc)
-      case (heapsort_method)
-         CALL int_heapsort(n, a, iindex, rc)
-      end select
-
-      if (.not.present(index)) then
-         allocate(data(n))
-
-         do i=1,n
-            data(i) = a(iindex(i))
-         enddo
-         do i=1,n
-            a(i) = data(i)
-         enddo
-
-         deallocate(data)
-         deallocate(iindex)
-      endif
-
+      CALL keysort(rc, aa, n, 
+     $     key=ikey, method=method, 
+     $     index=index, init=init)
+      a(:) = aa(:,1)
       END SUBROUTINE int_keysort_1D
 
 
       SUBROUTINE real4_keysort_1D(
      $     rc, a, n,
-     $     method,
+     $     method, descending,
      $     index, init)
       implicit none
       integer, intent(out)           :: rc
       real(4), intent(inout)         :: a(:)
       integer, intent(in)            :: n
       integer, intent(in), OPTIONAL  :: method
+      logical, intent(in), OPTIONAL  :: descending
       integer, intent(inout), TARGET, OPTIONAL :: index(:)
       logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
-      integer, POINTER :: iindex(:)
-      integer istride, imethod
-      integer iptr, i
-      real(4), allocatable :: data(:)
-      logical iinit
-
-      istride = 1
-
-      imethod = current_method
-      if (present(method)) then
-         imethod = min(max(min_method,method),max_method)
+      real(4) aa(size(a),1)
+      integer ikey
+      aa(:,1) = a(:)
+      ikey = 1
+      if (present(descending)) then
+         if (descending) ikey = -1
       endif
-
-      iinit = .FALSE.
-      if (present(init)) iinit = init
-
-      if (present(index)) then
-         iindex => index(1:n)
-      else
-         allocate(iindex(n))
-         iinit = .TRUE.
-      endif
-
-      if (iinit) CALL init_index(iindex)
-
-      iptr = 1
-
-      select case (imethod)
-      case (radixsort_method)
-         CALL rsort32(13, n, istride, iptr, a(1), iindex(1), 1, rc)
-      case (heapsort_method)
-         CALL real4_heapsort(n, a, iindex, rc)
-      end select
-
-      if (.not.present(index)) then
-         allocate(data(n))
-
-         do i=1,n
-            data(i) = a(iindex(i))
-         enddo
-         do i=1,n
-            a(i) = data(i)
-         enddo
-
-         deallocate(data)
-         deallocate(iindex)
-      endif
-
+      CALL keysort_r4(rc, aa, n, 
+     $     key=ikey, method=method, 
+     $     index=index, init=init)
+      a(:) = aa(:,1)
       END SUBROUTINE real4_keysort_1D
 
 
       SUBROUTINE real8_keysort_1D(
      $     rc, a, n,
-     $     method,
+     $     method, descending,
      $     index, init)
       implicit none
       integer, intent(out)           :: rc
       real(8), intent(inout)         :: a(:)
       integer, intent(in)            :: n
       integer, intent(in), OPTIONAL  :: method
+      logical, intent(in), OPTIONAL  :: descending
       integer, intent(inout), TARGET, OPTIONAL :: index(:)
       logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
-      integer, POINTER :: iindex(:)
-      integer istride, imethod
-      integer iptr, i
-      real(8), allocatable :: data(:)
-      logical iinit
-
-      istride = 1
-
-      imethod = current_method
-      if (present(method)) then
-         imethod = min(max(min_method,method),max_method)
+      real(8) aa(size(a),1)
+      integer ikey
+      aa(:,1) = a(:)
+      ikey = 1
+      if (present(descending)) then
+         if (descending) ikey = -1
       endif
-
-      iinit = .FALSE.
-      if (present(init)) iinit = init
-
-      if (present(index)) then
-         iindex => index(1:n)
-      else
-         allocate(iindex(n))
-         iinit = .TRUE.
-      endif
-
-      if (iinit) CALL init_index(iindex)
-
-      iptr = 1
-
-      select case (imethod)
-      case (radixsort_method)
-         CALL rsort32(12, n, istride, iptr, a(1), iindex(1), 1, rc)
-      case (heapsort_method)
-         CALL real8_heapsort(n, a, iindex, rc)
-      end select
-
-      if (.not.present(index)) then
-         allocate(data(n))
-
-         do i=1,n
-            data(i) = a(iindex(i))
-         enddo
-         do i=1,n
-            a(i) = data(i)
-         enddo
-
-         deallocate(data)
-         deallocate(iindex)
-      endif
-
+      CALL keysort(rc, aa, n, 
+     $     key=ikey, method=method, 
+     $     index=index, init=init)
+      a(:) = aa(:,1)
       END SUBROUTINE real8_keysort_1D
 
 
@@ -305,7 +197,7 @@ c----------------------------
       integer lda, iptr, i, j, sda
       integer, allocatable :: data(:)
       integer, allocatable :: ikeys(:)
-      logical iinit
+      logical iinit, descending
 
       lda = size(a, dim=1)
       sda = size(a, dim=2)
@@ -347,13 +239,22 @@ c--   Only the RADIX-sort gives the result we want with multiple keys
       endif
 
       do j=size(ikeys),1,-1
-c--   Sort by least significant key first
-         ikey = ikeys(j)
+c--   Sort by the least significant key first
+         ikey = abs(ikeys(j))
 
          if (istride == 1) then
             iptr = lda * (ikey - 1) + 1
          else
             iptr = ikey
+         endif
+
+         descending = (ikeys(j) < 0)
+         if (descending) then
+            if (istride == 1) then
+               a(1:n,ikey) = -a(1:n,ikey)
+            else
+               a(ikey, 1:n) = -a(ikey, 1:n)
+            endif
          endif
 
          select case (imethod)
@@ -367,6 +268,14 @@ c--   Sort by least significant key first
                CALL int_heapsort(n, a(ikey, 1:n), iindex, rc)
             endif
          end select
+
+         if (descending) then
+            if (istride == 1) then
+               a(1:n,ikey) = -a(1:n,ikey)
+            else
+               a(ikey, 1:n) = -a(ikey, 1:n)
+            endif
+         endif
       enddo
 
       deallocate(ikeys)
@@ -420,7 +329,7 @@ c--   Sort by least significant key first
       integer lda, iptr, i, j, sda
       real(4), allocatable :: data(:)
       integer, allocatable :: ikeys(:)
-      logical iinit
+      logical iinit, descending
 
       lda = size(a, dim=1)
       sda = size(a, dim=2)
@@ -463,12 +372,21 @@ c--   Only the RADIX-sort gives the result we want with multiple keys
 
       do j=size(ikeys),1,-1
 c--   Sort by least significant key first
-         ikey = ikeys(j)
+         ikey = abs(ikeys(j))
 
          if (istride == 1) then
             iptr = lda * (ikey - 1) + 1
          else
             iptr = ikey
+         endif
+
+         descending = (ikeys(j) < 0)
+         if (descending) then
+            if (istride == 1) then
+               a(1:n,ikey) = -a(1:n,ikey)
+            else
+               a(ikey, 1:n) = -a(ikey, 1:n)
+            endif
          endif
 
          select case (imethod)
@@ -482,6 +400,14 @@ c--   Sort by least significant key first
                CALL real4_heapsort(n, a(ikey, 1:n), iindex, rc)
             endif
          end select
+
+         if (descending) then
+            if (istride == 1) then
+               a(1:n,ikey) = -a(1:n,ikey)
+            else
+               a(ikey, 1:n) = -a(ikey, 1:n)
+            endif
+         endif
       enddo
 
       deallocate(ikeys)
@@ -535,7 +461,7 @@ c--   Sort by least significant key first
       integer lda, iptr, i, j, sda
       real(8), allocatable :: data(:)
       integer, allocatable :: ikeys(:)
-      logical iinit
+      logical iinit, descending
 
       lda = size(a, dim=1)
       sda = size(a, dim=2)
@@ -578,12 +504,21 @@ c--   Only the RADIX-sort gives the result we want with multiple keys
 
       do j=size(ikeys),1,-1
 c--   Sort by least significant key first
-         ikey = ikeys(j)
+         ikey = abs(ikeys(j))
 
          if (istride == 1) then
             iptr = lda * (ikey - 1) + 1
          else
             iptr = ikey
+         endif
+
+         descending = (ikeys(j) < 0)
+         if (descending) then
+            if (istride == 1) then
+               a(1:n,ikey) = -a(1:n,ikey)
+            else
+               a(ikey, 1:n) = -a(ikey, 1:n)
+            endif
          endif
 
          select case (imethod)
@@ -597,6 +532,14 @@ c--   Sort by least significant key first
                CALL real8_heapsort(n, a(ikey, 1:n), iindex, rc)
             endif
          end select
+
+         if (descending) then
+            if (istride == 1) then
+               a(1:n,ikey) = -a(1:n,ikey)
+            else
+               a(ikey, 1:n) = -a(ikey, 1:n)
+            endif
+         endif
       enddo
 
       deallocate(ikeys)

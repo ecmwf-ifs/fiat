@@ -4,8 +4,29 @@
       PRIVATE
 
       PUBLIC :: tolower, toupper, expand_string
+      PUBLIC :: sadjustl, sadjustr
 
       CONTAINS
+
+      FUNCTION sadjustl(s) RESULT(c)
+      implicit none
+      character(len=*), intent(in) :: s
+      character(len=max(1,len(s))) c
+      c = ' '
+      if (len(s) > 0) then
+         if (s /= ' ') c = adjustl(s)
+      endif
+      END FUNCTION sadjustl
+
+      FUNCTION sadjustr(s) RESULT(c)
+      implicit none
+      character(len=*), intent(in) :: s
+      character(len=max(1,len(s))) c
+      c = ' '
+      if (len(s) > 0) then
+         if (s /= ' ') c = adjustr(s)
+      endif
+      END FUNCTION sadjustr
 
       SUBROUTINE tolower(cds)
       implicit none
