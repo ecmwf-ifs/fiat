@@ -11,7 +11,7 @@ c
         ztimef=1000.*ic/icr
       endif
 #endif
-#ifdef FUJITSU
+#ifdef VPP
 c
 c   fujitsu special
 c

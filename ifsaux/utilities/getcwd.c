@@ -1,4 +1,4 @@
-#if defined(__uxppx__) || defined(FUJITSU)
+#if defined(__uxppx__) || defined(VPP)
 
 #include <stdio.h>
 #include <string.h>

@@ -28,8 +28,8 @@ typedef unsigned char Uchar;
 
 #ifdef __uxppx__
 #pragma global noalias
-#ifndef FUJITSU
-#define FUJITSU
+#ifndef VPP
+#define VPP
 #endif
 #endif
 
@@ -191,7 +191,7 @@ rsort32_(const    int *Mode,
 #endif
 
   maxval = data[0];
-#ifdef FUJITSU
+#ifdef VPP
 /* 5/2/1998 : Vectorization suppressed due to a bug in "vcc" */
 #pragma loop scalar
 #endif
