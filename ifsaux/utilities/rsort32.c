@@ -3,17 +3,23 @@
 #include <limits.h>
 #include <signal.h>
 
+static int SpeedUp = 0;
+
 /* rsort32_() : 32-bit Fortran-callable RADIX-sort */
 
-/* by Sami Saarinen, ECMWF, 3/2/1998 
+/* 
+   by Sami Saarinen, ECMWF, 3/2/1998 
          - " -              1/2/2000 : BIG_ENDIAN & LITTLE_ENDIAN labels renamed to *_INDIAN
                                        since they may conflict with the ones in <sys/endian.h>
          - " -              3/1/2001 : reference to valloc() removed; ALLOC() modified
 	 - " -	           25/1/2001 : BIG_INDIAN removed (as label)
 			               LITTLE_INDIAN called as LITTLE
+         - " -            ??/9?/2001 : Speedup in rsort32 [hmmm ... under investigation]
+         - " -             14/3/2002 : rsort32_func implemeted to enable to run alternative sorting
+                                       routine than rsort32
 
    Thanks to Mike Fisher, ECMWF
-   and Cray SCILIB ORDERS()-function developers 
+   and Cray SCILIB ORDERS()-function developers
 */
 
 /* 
@@ -59,7 +65,6 @@ static const int msw   =  0;
 		     "malloc() of %s (%d bytes) failed in file=%s, line=%d\n", \
 		     #x, bytes, __FILE__, __LINE__); raise(SIGABRT); } }
 
-#define REALLOC(x,size)   x = realloc(x, sizeof(*x) * (size))
 #define FREE(x)           if (x) { free(x); x = NULL; }
 
 #define BITSUM(x) bitsum[x] += ((item & (1U << x)) >> x)
@@ -237,7 +242,7 @@ rsort32_(const    int *Mode,
   for (j=0; j<N32BITS; j++) bitsum[j] = 0;
 
   for (i=0; i<n; i++) {
-            Uint item = data[i];
+    Uint item = data[i];
     /* Unrolled, full vector */
     BITSUM(0) ; BITSUM(1) ; BITSUM(2) ; BITSUM(3) ;
     BITSUM(4) ; BITSUM(5) ; BITSUM(6) ; BITSUM(7) ;
@@ -261,9 +266,9 @@ rsort32_(const    int *Mode,
 
   jj = 0;
   for (j=0; j<nbits; j++) {
-    if (bitsum[j] > 0 && bitsum[j] < n) {
-              Uint mask = (1U << j);
-      int k = 0;
+    int sum = bitsum[j];
+    if (sum > 0 && sum < n) {
+      Uint mask = (1U << j);
       int *i1, *i2;
       
       if (jj%2 == 0) {
@@ -277,11 +282,32 @@ rsort32_(const    int *Mode,
 	copytmp = 0;
       }
       
-      for (i=0; i<n; i++) /* Gather zero bits */
-	if ( (data[i1[i]] & mask) ==    0 ) i2[k++] = i1[i];
-      
-      for (i=0; i<n; i++) /* Gather one bits */
-	if ( (data[i1[i]] & mask) == mask ) i2[k++] = i1[i];
+      if (SpeedUp) {
+	int k = 0;
+	for (i=0; i<n; i++) /* Gather zero bits */
+	  if ( (data[i1[i]] & mask) ==    0 ) i2[k++] = i1[i];
+	
+	for (i=0; i<n; i++) /* Gather one bits */
+	  if ( (data[i1[i]] & mask) == mask ) i2[k++] = i1[i];
+      }
+      else
+      {
+	int k1 = 0, k2 = n-sum;
+	for (i=0; i<n; i++) { /* Gather zero & one bits in a single sweep */
+	  if ( (data[i1[i]] & mask) ==    0 ) {
+	    i2[k1++] = i1[i];  /* Gather zero bits */
+	  }
+	  else if ( (data[i1[i]] & mask) == mask ) {
+	    i2[k2++] = i1[i];  /* Gather one bits */
+	  }
+	} /* for (i=0; i<n; i++) */
+	if (k1 + sum != n || k2 != n) {
+	  fprintf(stderr,
+		  "***Programming error in rsort32_(): k1 + sum != n || k2 != n; k1=%d,k2=%d,sum=%d,n=%d\n",
+		  k1,k2,sum,n);
+	  raise(SIGABRT);
+	}
+      }
       
       jj++;
     }
@@ -305,4 +331,50 @@ rsort32_(const    int *Mode,
  finish:
 
   *retc = rc;
+}
+
+
+static 
+void (*default_rsort32_func)(const    int *Mode,
+			     const    int *N,
+			     const    int *Inc,
+			     const    int *Start_addr,
+			     Uint     Data[],
+			     int      index[],
+			     const    int *Index_adj,
+			     int     *retc) = rsort32_;
+
+void 
+rsort32_func_(const    int *Mode,
+	      const    int *N,
+	      const    int *Inc,
+	      const    int *Start_addr,
+	      Uint     Data[],
+	      int      index[],
+	      const    int *Index_adj,
+	      int     *retc)
+{
+  default_rsort32_func(Mode,
+		       N,
+		       Inc,
+		       Start_addr,
+		       Data,
+		       index,
+		       Index_adj,
+		       retc);
+}
+
+void 
+rsort32_setup_(void (*func)(const    int *Mode,
+			    const    int *N,
+			    const    int *Inc,
+			    const    int *Start_addr,
+			    Uint     Data[],
+			    int      index[],
+			    const    int *Index_adj,
+			    int     *retc),
+	       int *speedup)
+{
+  if (func) default_rsort32_func = func;
+  if (speedup) SpeedUp = *speedup;
 }

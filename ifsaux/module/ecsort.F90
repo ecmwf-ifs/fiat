@@ -264,13 +264,13 @@ do j=size(ikeys),1,-1
 
   select case (imethod)
   case (radixsort_method)
-  CALL rsort32(11, n, istride, iptr, a(1,1), iindex(1), 1, rc)
+    CALL rsort32_func(11, n, istride, iptr, a(1,1), iindex(1), 1, rc)
   case (heapsort_method)
-  if (istride == 1) then
-    CALL int_heapsort(n, a(1:n, ikey), iindex, rc)
-  else
-    CALL int_heapsort(n, a(ikey, 1:n), iindex, rc)
-  endif
+    if (istride == 1) then
+      CALL int_heapsort(n, a(1:n, ikey), iindex, rc)
+    else
+      CALL int_heapsort(n, a(ikey, 1:n), iindex, rc)
+    endif
   end select
 
   if (descending) then
@@ -403,13 +403,13 @@ do j=size(ikeys),1,-1
 
   select case (imethod)
   case (radixsort_method)
-  CALL rsort32(13, n, istride, iptr, a(1,1), iindex(1), 1, rc)
+    CALL rsort32_func(13, n, istride, iptr, a(1,1), iindex(1), 1, rc)
   case (heapsort_method)
-  if (istride == 1) then
-    CALL real4_heapsort(n, a(1:n, ikey), iindex, rc)
-  else
-    CALL real4_heapsort(n, a(ikey, 1:n), iindex, rc)
-  endif
+    if (istride == 1) then
+      CALL real4_heapsort(n, a(1:n, ikey), iindex, rc)
+    else
+      CALL real4_heapsort(n, a(ikey, 1:n), iindex, rc)
+    endif
   end select
 
   if (descending) then
@@ -542,13 +542,13 @@ do j=size(ikeys),1,-1
 
   select case (imethod)
   case (radixsort_method)
-  CALL rsort32(12, n, istride, iptr, a(1,1), iindex(1), 1, rc)
+    CALL rsort32_func(12, n, istride, iptr, a(1,1), iindex(1), 1, rc)
   case (heapsort_method)
-  if (istride == 1) then
-    CALL real8_heapsort(n, a(1:n, ikey), iindex, rc)
-  else
-    CALL real8_heapsort(n, a(ikey, 1:n), iindex, rc)
-  endif
+    if (istride == 1) then
+      CALL real8_heapsort(n, a(1:n, ikey), iindex, rc)
+    else
+      CALL real8_heapsort(n, a(ikey, 1:n), iindex, rc)
+    endif
   end select
 
   if (descending) then
