@@ -7,6 +7,7 @@ USE strhandler, only : TOUPPER
 !     Fixes : Sami Saarinen, ECMWF, 08/11/99 : Sub-arrays go now correctly (look for addrdiff)
 !                                              Genuine real(4) sort "re-habilitated"
 !                                              sizeof_int, _real4 & _real8 HARDCODED !
+!             Sami Saarinen, ECMWF, 11/10/00 : REAL*4 version included (REAL_M)
 
 
 IMPLICIT NONE
@@ -32,7 +33,8 @@ INTEGER_M            :: current_method = default_method
 INTERFACE keysort
 MODULE PROCEDURE &
      &int_keysort_1D, int_keysort_2D, &
-     &real8_keysort_1D, real8_keysort_2D
+     &real8_keysort_1D, real8_keysort_2D, &
+     &real4_keysort_1D, real4_keysort_2D
 END INTERFACE
 
 INTERFACE sorting_method
@@ -42,7 +44,6 @@ END INTERFACE
 PUBLIC :: keysort
 PUBLIC :: init_index, get_rank
 PUBLIC :: sorting_method
-PUBLIC :: real4_keysort_1D, real4_keysort_2D
 
 CONTAINS
 
@@ -144,8 +145,7 @@ ikey = 1
 if (present(descending)) then
   if (descending) ikey = -1
 endif
-!CALL keysort(rc, aa, n, key=ikey, method=method, index=index, init=init)
-CALL real4_keysort_2D(rc, aa, n, key=ikey, method=method, index=index, init=init)
+CALL keysort(rc, aa, n, key=ikey, method=method, index=index, init=init)
 a(:) = aa(:,1)
 END SUBROUTINE real4_keysort_1D
 
