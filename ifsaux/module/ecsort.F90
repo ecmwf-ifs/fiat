@@ -33,7 +33,7 @@ MODULE PROCEDURE real4_keysort_1D, real4_keysort_2D
 END INTERFACE
 
 INTERFACE sorting_method
-MODULE PROCEDUREint_sorting_method, str_sorting_method
+MODULE PROCEDURE int_sorting_method, str_sorting_method
 END INTERFACE
 
 PUBLIC :: keysort, keysort_r4
