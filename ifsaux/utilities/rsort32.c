@@ -3,8 +3,6 @@
 #include <limits.h>
 #include <signal.h>
 
-static int SpeedUp = 0;
-
 /* rsort32_() : 32-bit Fortran-callable RADIX-sort */
 
 /* 
@@ -14,7 +12,7 @@ static int SpeedUp = 0;
          - " -              3/1/2001 : reference to valloc() removed; ALLOC() modified
 	 - " -	           25/1/2001 : BIG_INDIAN removed (as label)
 			               LITTLE_INDIAN called as LITTLE
-         - " -            ??/9?/2001 : Speedup in rsort32 [hmmm ... under investigation]
+         - " -            ??/9?/2001 : Speedup in rsort32
          - " -             14/3/2002 : rsort32_func implemeted to enable to run alternative sorting
                                        routine than rsort32
 
@@ -36,10 +34,22 @@ typedef unsigned int  Uint;
 typedef unsigned char Uchar;
 
 #ifdef __uxppx__
-#pragma global noalias
 #ifndef VPP
 #define VPP
 #endif
+#endif
+
+#ifdef VPP
+#pragma global noalias
+#pragma global novrec
+#endif
+
+#ifdef VPP
+/* .. or any vector machine */
+static int SpeedUp = 0;
+#else
+/* scalar prozezzorz */
+static int SpeedUp = 1;
 #endif
 
 #define SORT_UINT 0
@@ -282,7 +292,7 @@ rsort32_(const    int *Mode,
 	copytmp = 0;
       }
       
-      if (SpeedUp) {
+      if (SpeedUp == 0) {
 	int k = 0;
 	for (i=0; i<n; i++) /* Gather zero bits */
 	  if ( (data[i1[i]] & mask) ==    0 ) i2[k++] = i1[i];
@@ -334,6 +344,39 @@ rsort32_(const    int *Mode,
 }
 
 
+void 
+rsort32_ibm_(const    int *Mode,
+	     const    int *N,
+	     const    int *Inc,
+	     const    int *Start_addr,
+	             Uint  Data[],
+	              int  index[],
+	     const    int *Index_adj,
+	              int *retc)
+{
+#ifdef RS6K
+  int mode = *Mode;
+  int method = mode%10;
+  int index_adj = *Index_adj;
+
+  if (method == SORT_INT && index_adj == 1) { /* 32-bit ints ; Fortran-arrays */
+    jisort_( N, Inc, Start_addr, Data, index ); /* from jsort.F in ifsaux */
+    *retc = *N;
+  }
+  else if (method == SORT_R64 && index_adj == 1) { /* 64-bit reals ; Fortran-arrays */
+    jdsort_( N, Inc, Start_addr, Data, index ); /* from jsort.F in ifsaux */
+    *retc = *N;
+  }
+  else { /* Any other type => revert to generic rsort32 */
+    rsort32_(Mode, N, Inc, Start_addr, Data, index, Index_adj, retc);
+  }
+#else
+  /* Any other machine than IBM/RS6000 => revert to generic rsort32 */
+  rsort32_(Mode, N, Inc, Start_addr, Data, index, Index_adj, retc);
+#endif
+}
+
+
 static 
 void (*default_rsort32_func)(const    int *Mode,
 			     const    int *N,
@@ -342,7 +385,13 @@ void (*default_rsort32_func)(const    int *Mode,
 			     Uint     Data[],
 			     int      index[],
 			     const    int *Index_adj,
-			     int     *retc) = rsort32_;
+			     int     *retc) = 
+#ifdef RS6K
+     rsort32_ibm_
+#else
+     rsort32_
+#endif
+;
 
 void 
 rsort32_func_(const    int *Mode,

@@ -27,10 +27,12 @@ c
 #endif
 #ifdef RS6K
       function timef()
+      integer*8 irtc
+      external irtc
       data ifirst/0/
       save ifirst,zfirst
 c
-      ztimef=rtc()*1000.0
+      ztimef=irtc()*1.0e-6
 c
       if(ifirst.eq.0) then
          ifirst=1

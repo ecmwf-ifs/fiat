@@ -148,8 +148,8 @@ ELSEIF(LSTATS) THEN
         ZAVEVCPU = TVCPUSUM(JNUM)/ICALLS*1000._JPRB
         IF(ICALLS > 1 ) THEN
           ZSTDDEV = 1000._JPRB*&
-           &SQRT((TIMESQSUM(JNUM)-TIMESUM(JNUM)**2/ICALLS)&
-           &/(ICALLS-1))
+           &SQRT(MAX((TIMESQSUM(JNUM)-TIMESUM(JNUM)**2/ICALLS)&
+           &/(ICALLS-1),_ZERO_))
         ELSE
           ZSTDDEV = _ZERO_
         ENDIF
