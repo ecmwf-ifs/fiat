@@ -7,6 +7,12 @@
 
 */
 
+#if defined(SV2)
+#define DT_FLOP
+#define HPM
+#define MAX_COUNTERS 6
+#endif
+
 #ifdef RS6K
 #pragma options opt=3 halt=e
 #endif
@@ -30,7 +36,20 @@ static int opt_cpuprof = 0;
 static int opt_hpmprof = 0;
 static int opt_trim = 0;
 static int opt_calls = 0;
-static int opt_self = 1; /* 0=exclude drhook altogether, 1=include, but don't print, 2=also print */
+static int opt_self = 1; /* 0=exclude drhook altogether, 
+			    1=include, but don't print, 
+			    2=also print */
+static int opt_propagate_signals = 1;
+static int opt_sizeinfo = 1;
+static int opt_clusterinfo = 0;
+
+/* HPM-specific */
+
+static long long int opt_hpmstop_threshold = -1;
+static        double opt_hpmstop_mflops    =  1000000.0; /* Yes, 1 PetaFlop/s !! */
+
+
+#define DRHOOK_STRBUF 200
 
 #ifndef SA_SIGINFO
 #define SA_SIGINFO 0
@@ -55,10 +74,15 @@ static int opt_self = 1; /* 0=exclude drhook altogether, 1=include, but don't pr
 #define strnequ(s1,s2,n)  (memcmp(s1,s2,n) == 0)
 
 extern long long int getstk_();
+extern long long int getmaxstk_();
 extern long long int gethwm_();
 extern long long int getrss_();
 extern long long int getcurheap_();
 extern long long int getpag_();
+
+#if defined(DT_FLOP)
+extern double flop_();
+#endif
 
 #ifdef RS6K
 static long long int irtc_start = 0;
@@ -67,10 +91,20 @@ extern long long int irtc();
 extern double util_cputime_();
 #define CPUTIME() util_cputime_()
 #else
+#if defined(SV2)
+#include <intrinsics.h>
+static long long int irtc_start = 0;
+static double my_irtc_rate = 0;
+static double my_inv_irtc_rate = 0;
+#define WALLTIME() ((double)(_rtc() - irtc_start)*my_inv_irtc_rate)
+extern double util_cputime_();
+#define CPUTIME() util_cputime_()
+#else
 extern double util_walltime_();
 #define WALLTIME() util_walltime_()
 extern double util_cputime_();
 #define CPUTIME() util_cputime_()
+#endif
 #endif
 
 #define RAISE(x) { int tmp = x; c_drhook_raise_(&tmp); }
@@ -88,6 +122,11 @@ typedef struct drhook_key_t {
   double wall_in, delta_wall_all, delta_wall_child;
   double cpu_in, delta_cpu_all, delta_cpu_child;
 #ifdef HPM
+  unsigned char hpm_stopped, counter_stopped;
+  double this_delta_wall_child;
+  double avg_mipsrate, avg_mflops;
+  unsigned long long int hpm_calls;
+  double mip_count_in, mflop_count_in;
   long long int *counter_in, *counter_sum;
 #endif
   char *filename;         /* the filename where the 1st call (on this routine-name) 
@@ -143,7 +182,7 @@ typedef struct drhook_prof_t {
 /*** static (local) variables ***/
 
 static int numthreads = 0;
-static int myproc = -1;
+static int myproc = 1;
 static int nproc = -1;
 static pid_t pid = -1;
 static drhook_key_t      **keydata  = NULL;
@@ -158,6 +197,7 @@ static char *mon_out = NULL;
 static int mon_out_procs = -1;
 static double percent_limit = -10; /* Lowest percentage accepted into the printouts */
 static drhook_key_t **keyself = NULL; /* pointers to itself (per thread) */
+static double *overhead; /* Total Dr.Hook-overhead for every thread in either WALL or CPU secs */
 
 #define HASHSIZE(n) ((unsigned int)1<<(n))
 #define HASHMASK(n) (HASHSIZE(n)-1)
@@ -172,6 +212,7 @@ unsigned int hashmask = HASHMASK(NHASH);
 /* HPM-specific (static) protos */
 
 static void stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart);
+static void stop_only_hpm(int tid, drhook_key_t *pstop);
 static void init_hpm(int tid);
 static double mflops_hpm(const drhook_key_t *keyptr);
 static double mips_hpm(const drhook_key_t *keyptr);
@@ -183,6 +224,7 @@ static double mip_count(const drhook_key_t *keyptr);
 /* Dummies for HPM as macros that do nothing */
 
 #define stopstart_hpm(tid, pstop, pstart)
+#define stop_only_hpm(tid, pstop)
 #define init_hpm(tid)
 #define mflops_hpm(keyptr)  0
 #define mips_hpm(keyptr)    0
@@ -197,9 +239,10 @@ static double mip_count(const drhook_key_t *keyptr);
 static void *
 malloc_drhook(size_t size)
 {
-  void *p = malloc(size);
+  size_t size1 = MAX(1,size);
+  void *p = malloc(size1);
   if (!p) {
-    fprintf(stderr,"***Error in malloc_drhook(): Unable to allocate space for %d bytes\n", size);
+    fprintf(stderr,"***Error in malloc_drhook(): Unable to allocate space for %d bytes\n", size1);
     RAISE(SIGABRT);
   }
   return p;
@@ -295,11 +338,29 @@ insert_calltree(int tid, drhook_key_t *keyptr)
     treeptr->keyptr = keyptr;
     treeptr->active = 1;
     thiscall[tid] = treeptr;
+#ifdef HPM
     if (opt_hpmprof) {
-      stopstart_hpm(tid+1,
-		    treeptr->prev ? treeptr->prev->keyptr : NULL, /* stop current (i.e. my parent) */
-		    treeptr->keyptr);                             /* start to gather for me */
-    }
+      drhook_key_t *kptr = treeptr->keyptr;
+      if (!kptr->hpm_stopped) {
+	stopstart_hpm(tid+1,
+		      treeptr->prev ? treeptr->prev->keyptr : NULL, /* stop current (i.e. my parent) */
+		      kptr);                             /* start to gather for me */
+	kptr->this_delta_wall_child = 0;
+	kptr->mip_count_in = mip_count(kptr);
+	kptr->mflop_count_in = mflop_count(kptr);
+#ifdef DEBUG
+	fprintf(stderr,"insert[%.*s@%d]: this_delta_wall_child=%.15g, mip#%.15g, mflop#%.15g\n",
+		kptr->name_len,kptr->name,
+		tid+1,kptr->this_delta_wall_child,
+		kptr->mip_count_in,kptr->mflop_count_in);
+#endif
+      }
+      else {
+	stop_only_hpm(tid+1,
+		      treeptr->prev ? treeptr->prev->keyptr : NULL /* stop current (i.e. my parent) */);
+      } /* if (!kptr->hpm_stopped) else */
+    } /* if (opt_hpmprof) */
+#endif
   }
 }
 
@@ -307,23 +368,72 @@ insert_calltree(int tid, drhook_key_t *keyptr)
 
 static void 
 remove_calltree(int tid, drhook_key_t *keyptr, 
-		const double *delta_wall_child, const double *delta_cpu_child)
+		const double *delta_wall, const double *delta_cpu)
 {
   if (tid >= 1 && tid <= numthreads) {
     drhook_calltree_t *treeptr = thiscall[--tid];
     if (treeptr->active && treeptr->keyptr == keyptr) {
       treeptr->active = 0;
       if (treeptr->prev) {
-	if (opt_walltime) treeptr->prev->keyptr->delta_wall_child += (*delta_wall_child);
-	if (opt_cputime)  treeptr->prev->keyptr->delta_cpu_child  += (*delta_cpu_child);
+	if (opt_walltime) {
+	  treeptr->prev->keyptr->delta_wall_child += (*delta_wall);
+#ifdef HPM
+	  if (opt_hpmprof) treeptr->prev->keyptr->this_delta_wall_child += (*delta_wall);
+#endif
+	}
+	if (opt_cputime)  {
+	  treeptr->prev->keyptr->delta_cpu_child  += (*delta_cpu);
+	}
 	thiscall[tid] = treeptr->prev;
       }
       else {
 	thiscall[tid] = calltree[tid];
       }
+#ifdef HPM
       if (opt_hpmprof) {
-	stopstart_hpm(tid+1, treeptr->keyptr, thiscall[tid]->keyptr); /* stop current, (re-)start previous */
-      }
+	drhook_key_t *kptr = treeptr->keyptr;
+	if (!kptr->hpm_stopped) {
+	  double this_delta_wall_self = *delta_wall - kptr->this_delta_wall_child;
+	  stopstart_hpm(tid+1, 
+			kptr, 
+			thiscall[tid]->keyptr); /* stop current, (re-)start previous */
+	  /* Calculate moving average of mipsrate & mflops ; divpc we don't bother */
+#ifdef DEBUG
+	  fprintf(stderr,"remove[%.*s@%d]: this_delta_wall_self=%.15g i.e. %.15g - %.15g",
+		  kptr->name_len,kptr->name,
+		  tid+1,this_delta_wall_self,
+		  *delta_wall,kptr->this_delta_wall_child);
+#endif
+	  if (this_delta_wall_self > 0) {
+	    long long int hpm_calls = ++kptr->hpm_calls;
+	    double mipsrate, mflops;
+	    kptr->mip_count_in = mip_count(kptr) - kptr->mip_count_in;
+	    kptr->mflop_count_in = mflop_count(kptr) - kptr->mflop_count_in;
+	    mipsrate = kptr->mip_count_in/this_delta_wall_self;
+	    kptr->avg_mipsrate = ((hpm_calls-1)*kptr->avg_mipsrate + mipsrate)/hpm_calls;
+	    mflops = kptr->mflop_count_in/this_delta_wall_self;
+	    kptr->avg_mflops = ((hpm_calls-1)*kptr->avg_mflops + mflops)/hpm_calls;
+#ifdef DEBUG
+	    fprintf(stderr,
+		    ", mip#%.15g, mflop#%.15g : mipsrate=%.15g, avg=%.15g; mflops=%.15g, avg=%.15g",
+		    kptr->mip_count_in,kptr->mflop_count_in,
+		    mipsrate, kptr->avg_mipsrate,
+		    mflops, kptr->avg_mflops);
+#endif
+	  }
+#ifdef DEBUG
+	  fprintf(stderr,"\n");
+#endif
+	  if (opt_hpmstop_threshold > 0 && kptr->calls == opt_hpmstop_threshold) {
+	    /* check whether hpm should anymore be called for this routine */
+	    if (kptr->avg_mflops < opt_hpmstop_mflops) kptr->hpm_stopped = 1;
+	  }
+	}
+	else {
+	  stop_only_hpm(tid+1,kptr);
+	} /* if (!kptr->hpm_stopped) else */
+      } /* if (opt_hpmprof) */
+#endif
     }
   }
 }
@@ -504,13 +614,18 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     sigset_t newmask, oldmask;
     int tid;
     long long int hwm = gethwm_();
-    long long int stk = getstk_();
-    hwm /= 1024;
-    stk /= 1024;
+    long long int rss = getrss_();
+    long long int maxstack = getmaxstk_();
+    long long int pag = getpag_();
+    rss /= 1048576;
+    hwm /= 1048576;
+    maxstack /= 1048576;
     tid = get_thread_id_();
 
-    fprintf(stderr,"[myproc#%d,tid#%d,pid#%d]: Received signal#%d (%s) ; Memory: %lldK (heap), %lldK (stack)\n",
-	    myproc,tid,pid,sig,sl->name, hwm, stk);
+    fprintf(stderr,
+    "[myproc#%d,tid#%d,pid#%d]: Received signal#%d (%s) :: %lldMB (heap), %lldMB (rss), %lldMB (stack), %lld (paging)\n",
+	    myproc,tid,pid,sig,sl->name, 
+	    hwm, rss, maxstack, pag);
 
     u.func3args = signal_drhook;
 
@@ -546,12 +661,16 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 #ifdef RS6K
       xl__sigdump(sig SIG_PASS_EXTRA_ARGS); /* Can't use xl__trce(...), since it also stops */
 #endif
+#ifdef VPP
+      if (SA_SIGINFO) _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
+#endif
       fflush(NULL);
     }
     sigprocmask(SIG_SETMASK, &oldmask, 0);
     /* End critical region : the original signal state restored */
 
-    if (sl->old.sa_handler != SIG_DFL && 
+    if (opt_propagate_signals &&
+	sl->old.sa_handler != SIG_DFL && 
 	sl->old.sa_handler != SIG_IGN && 
 	sl->old.sa_handler != u.func1args) {
       fprintf(stderr,
@@ -560,13 +679,12 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       u.func1args = sl->old.sa_handler;
       u.func3args(sig SIG_PASS_EXTRA_ARGS);
     }
-    else {
-      fprintf(stderr,
-	      "[myproc#%d,tid#%d,pid#%d]: Error exit due to signal#%d (%s)\n",
-	      myproc,tid,pid,sig,sl->name);
-      fflush(NULL);
-      exit(1);
-    }
+    /* Make sure that the process really exits now */
+    fprintf(stderr,
+	    "[myproc#%d,tid#%d,pid#%d]: Error exit due to signal#%d (%s)\n",
+	    myproc,tid,pid,sig,sl->name);
+    fflush(NULL);
+    exit(1);
   }
   else {
     fprintf(stderr,
@@ -574,6 +692,9 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	    "signal_drhook",signal_drhook,sig,signals_set);
 #ifdef RS6K
     xl__sigdump(sig SIG_PASS_EXTRA_ARGS);
+#endif
+#ifdef VPP
+    if (SA_SIGINFO) _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
     fflush(NULL);
     exit(1);
@@ -588,6 +709,7 @@ signal_drhook_init(int enforce)
   int j;
   if (signals_set) return; /* Extra safety */
   dr_hook_procinfo_(&myproc, &nproc);
+  if (myproc < 1) myproc = 1; /* Just to enable output as if myproc was == 1 */
   /* Signals not (yet) set, since MPI not initialized 
      Only enforce-parameter can enforce to set these => no output on myproc=1 */
   if (!enforce && (myproc < 1 || nproc < 0)) return; 
@@ -605,12 +727,15 @@ signal_drhook_init(int enforce)
 #if !defined(LINUX)
   SETSIG(SIGEMT,0);
 #endif
+#if defined(LINUX)
+  SETSIG(SIGSTKFLT,0); /* Stack fault */
+#endif
   SETSIG(SIGFPE,0);
   SETSIG(SIGTRAP,0); /* should be switched off when used with debuggers */
   SETSIG(SIGINT,0);
   SETSIG(SIGQUIT,0);
   SETSIG(SIGTERM,0);
-  SETSIG(SIGIO,0);
+  SETSIG(SIGIOT,0);  /* Same as SIGABRT; Used to be a typo SIGIO ;-( */
   SETSIG(SIGXCPU,1); /* ignore_atexit == 1 i.e. no profile info via atexit() */
   SETSIG(SIGSYS,0);
   /* SETSIG(SIGCHLD); we may not want to catch this either; may interfere parallel processing */
@@ -628,12 +753,13 @@ signal_drhook_init(int enforce)
 static char *
 get_mon_out(int me)
 {
-  char *s = NULL;
+  char *s = mon_out;
   if (mon_out_procs == me || (mon_out_procs == -1 && me >= 1 && me <= nproc)) {
     if (!mon_out) mon_out = strdup_drhook("drhook.prof.%d");
     s = malloc_drhook((strlen(mon_out) + 20) * sizeof(*s));
     sprintf(s,mon_out,me);
   }
+  if (!s) s = strdup_drhook("drhook.prof.0");
   return s;
 }
 
@@ -659,7 +785,7 @@ process_options()
   env = getenv("DR_HOOK_PROFILE_PROC");
   if (env) {
     mon_out_procs = atoi(env);
-    fprintf(stderr,">>>process_options(): DR_HOOK_PROFILE_PROCS=%d\n",mon_out_procs);
+    fprintf(stderr,">>>process_options(): DR_HOOK_PROFILE_PROC=%d\n",mon_out_procs);
   }
 
   env = getenv("DR_HOOK_PROFILE_LIMIT");
@@ -677,6 +803,25 @@ process_options()
     hashsize = HASHSIZE(nhash);
     hashmask = HASHMASK(nhash);
     fprintf(stderr,">>>process_options(): DR_HOOK_HASHBITS=%d\n",nhash);
+  }
+
+  env = getenv("DR_HOOK_HPMSTOP");
+  if (env) {
+    char *s = strdup_drhook(env);
+    long long int a;
+    double b;
+    int n = 0;
+    env = s;
+    while (*env) {
+      if (isspace(*env) || *env == ',') *env = ' ';
+      env++;
+    }
+    n = sscanf(s,"%lld %lf",&a,&b);
+    if (n >= 1) opt_hpmstop_threshold = a;
+    if (n >= 2) opt_hpmstop_mflops = b;
+    fprintf(stderr,">>>process_options(): DR_HOOK_HPMSTOP=%lld,%.15g\n",
+	    opt_hpmstop_threshold,opt_hpmstop_mflops);
+    free_drhook(s);
   }
 
   env = getenv("DR_HOOK_OPT");
@@ -781,6 +926,19 @@ process_options()
       else if (strequ(p,"NOSELF")) {
 	opt_self = 0;
 	fprintf(stderr,"%s%s",comma,"NOSELF"); comma = ",";
+      }
+      else if (strequ(p,"NOPROP") || strequ(p,"NOPROPAGATE") ||
+	       strequ(p,"NOPROPAGATE_SIGNALS")) {
+	opt_propagate_signals = 0;
+	fprintf(stderr,"%s%s",comma,"NOPROPAGATE_SIGNALS"); comma = ",";
+      }
+      else if (strequ(p,"NOSIZE") || strequ(p,"NOSIZEINFO")) {
+	opt_sizeinfo = 0;
+	fprintf(stderr,"%s%s",comma,"NOSIZEINFO"); comma = ",";
+      }
+      else if (strequ(p,"CLUSTER") || strequ(p,"CLUSTERINFO")) {
+	opt_clusterinfo = 1;
+	fprintf(stderr,"%s%s",comma,"CLUSTERINFO"); comma = ",";
       }
       p = strtok(NULL,delim);
     }
@@ -910,7 +1068,7 @@ getkey(int tid, const char *name, int name_len,
 	keyptr = keyptr->next;
       }  /* if (found ...) else ... */
     } /* for (;;) */
-  } /* if (tid >= 0 && tid < numthreads) */
+  } /* if (tid >= 1 && tid <= numthreads) */
   return keyptr;
 }
 
@@ -967,7 +1125,7 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
     }
     if (opt_walltime) keyptr->delta_wall_all += delta_wall;
     if (opt_cputime)  keyptr->delta_cpu_all  += delta_cpu;
-    if (sizeinfo > 0) keyptr->sizeinfo += sizeinfo;
+    if (opt_sizeinfo && sizeinfo > 0) keyptr->sizeinfo += sizeinfo;
     remove_calltree(tid, keyptr, &delta_wall, &delta_cpu);
   }
 }
@@ -977,9 +1135,9 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
 static void
 init_drhook(int ntids)
 {
-  if (numthreads == 0 || !keydata || !calltree || !keyself) {
+  if (numthreads == 0 || !keydata || !calltree || !keyself || !overhead) {
     int j;
-    if (pid == -1) { /* Ensure that called just once */
+    if (pid == -1) { /* Ensure that just called once */
 #ifdef RS6K
       irtc_start = irtc();
 #endif
@@ -1006,10 +1164,13 @@ init_drhook(int ntids)
       int name_len = strlen(name);
       keyself = malloc_drhook(sizeof(**keyself) * ntids);
       for (j=0; j<ntids; j++) {
-	drhook_key_t *keyptr = keyself[j] = calloc(1,sizeof(drhook_key_t));
+	drhook_key_t *keyptr = keyself[j] = calloc_drhook(1,sizeof(drhook_key_t));
 	keyptr->name = strdup_drhook(name);
 	keyptr->name_len = name_len;
       }
+    }
+    if (!overhead) {
+      overhead = calloc_drhook(ntids,sizeof(*overhead));
     }
     numthreads = ntids;
     signal_drhook_init(0);
@@ -1017,17 +1178,32 @@ init_drhook(int ntids)
   }
 }
 
+/*-- overhead-macro --*/
+
+#define OVERHEAD(tid,walltime_in,cputime_in,delta,calc_delta) \
+if (overhead && tid >= 1 && tid <= numthreads) { \
+  if (calc_delta) { \
+    if      (opt_walltime) delta = WALLTIME() - walltime_in; \
+    else if (opt_cputime)  delta = CPUTIME()  - cputime_in; \
+    else                   delta = 0; \
+  } \
+  overhead[tid-1] += delta; \
+}
 /*--- itself ---*/
 
 #define ITSELF_0 \
+  double delta = 0; \
   drhook_key_t *keyptr_self = keyself ? itself(NULL,*thread_id,0,NULL,&walltime,&cputime) : NULL;
 
 #define ITSELF_1 \
   if (keyptr_self) { \
-    double delta = 0; \
     (void) itself(keyptr_self,*thread_id,1,&delta,&walltime,&cputime); \
     if (opt_wallprof) u.keyptr->delta_wall_child += delta; \
     else              u.keyptr->delta_cpu_child  += delta; \
+    OVERHEAD(*thread_id,walltime,cputime,delta,0); \
+  } \
+  else { \
+    OVERHEAD(*thread_id,walltime,cputime,delta,1); \
   }
 
 static drhook_key_t *
@@ -1059,6 +1235,61 @@ itself(drhook_key_t *keyptr_self,
   return keyptr;
 }
 
+/*--- commie -routines : adds "," i.e. comma after each 3 digit, e.g.:
+  1234567890 becomes more readable 1,234,567,890 */
+
+static void 
+lld_commie(long long int n, char sd[])
+{
+  const char comma = ',';
+  char s[DRHOOK_STRBUF];
+  char *p;
+  int len, ncommas;
+  sprintf(s,"%lld",n);
+  len = strlen(s);
+  ncommas = (len-1)/3;
+  if (ncommas > 0) {
+    char *pd = sd + len + ncommas;
+    *pd-- = 0;
+    p = s + len - 1;
+    len = 0;
+    while (p-s >= 0) {
+      *pd-- = *p--;
+      len++;
+      if (p-s >= 0 && len%3 == 0) *pd-- = comma;
+    }
+  }
+  else {
+    strcpy(sd,s);
+  }
+}
+
+static void 
+dbl_commie(double n, char sd[])
+{
+  const char comma = ',';
+  char s[DRHOOK_STRBUF];
+  char *p;
+  int len, ncommas;
+  sprintf(s,"%.0f",n);
+  len = strlen(s);
+  ncommas = (len-1)/3;
+  if (ncommas > 0) {
+    char *pd = sd + len + ncommas;
+    *pd-- = 0;
+    p = s + len - 1;
+    len = 0;
+    while (p-s >= 0) {
+      *pd-- = *p--;
+      len++;
+      if (p-s >= 0 && len%3 == 0) *pd-- = comma;
+    }
+  }
+  else {
+    strcpy(sd,s);
+  }
+}
+
 /*--- profiler output ---*/
 
 static int do_prof_off = 0;
@@ -1083,7 +1314,8 @@ do_prof()
 
 #define TIMERS \
 double walltime = opt_walltime ? WALLTIME() : 0; \
-double cputime  = opt_walltime ? CPUTIME()  : 0
+double cputime  = opt_cputime ? CPUTIME()  : 0
+
 
 /*=== c_drhook_set_lhook_ ===*/
 
@@ -1123,6 +1355,7 @@ c_drhook_start_(const char *name,
   ITSELF_0;
   if (!signals_set) {
     dr_hook_procinfo_(&myproc, &nproc);
+    if (myproc < 1) myproc = 1; /* Just to enable output as if myproc was == 1 */
     if (myproc >= 1 && nproc >= 1) signal_drhook_init(0);
   }
   u.keyptr = getkey(*thread_id, name, name_len, 
@@ -1218,6 +1451,19 @@ prof_pc_comp_desc(const void *v1, const void *v2)
   else return 0;
 }
 
+static const char *
+trim_and_adjust_left(const char *p, int *name_len)
+{
+  int len = strlen(p);
+  if (len > 0) {
+    const char *back = &p[len-1];
+    while (len > 0 && *back-- == ' ') len--;
+    while (len > 0 && *p == ' ') { p++; len--; }
+  }
+  if (name_len) *name_len = len;
+  return p;
+}
+
 void 
 c_drhook_print_(const int *ftnunitno,
 		const int *thread_id,
@@ -1292,10 +1538,10 @@ c_drhook_print_(const int *ftnunitno,
     }
 
     else if (*print_option == 3) { /* profiling */
+      int len;
       int t;
       double cumul;
-      double overhead, maxcumul;
-      double tottime = 0;
+      double tottime = 0, max_overhead_pc = 0;
       double *tot = NULL;
       int nprof = 0;
       drhook_prof_t *prof = NULL;
@@ -1332,8 +1578,10 @@ c_drhook_print_(const int *ftnunitno,
 	      }
 	      /* if (self < 0) self = 0; */
 	      tot[t] += self;
-	      flop[t] += mflop_count(keyptr);
-	      instr[t] += mip_count(keyptr);
+#ifdef HPM
+	      flop[t] += keyptr->avg_mflops * self; /* mflop_count(keyptr); */
+	      instr[t] += keyptr->avg_mipsrate * self; /* mip_count(keyptr); */
+#endif
 	      nprof++;
 	    }
 	    keyptr = keyptr->next;
@@ -1357,7 +1605,6 @@ c_drhook_print_(const int *ftnunitno,
 
       p = prof = calloc_drhook(nprof + 1, sizeof(*prof)); /* Make sure there is at least one entry */
 
-      maxcumul = 0;
       for (t=0; t<numthreads; t++) {
 	for (j=0; j<hashsize; j++) {
 	  drhook_key_t *keyptr = &keydata[t][j];
@@ -1378,12 +1625,13 @@ c_drhook_print_(const int *ftnunitno,
 	      }
 	      p->tid = t+1;
 	      p->index = p - prof;
+#ifdef HPM
 	      if (opt_hpmprof) {
-		p->mflops = mflops_hpm(keyptr);
-		p->mipsrate = mips_hpm(keyptr);
+		p->mflops = keyptr->avg_mflops; /* mflops_hpm(keyptr); */
+		p->mipsrate = keyptr->avg_mipsrate; /* mips_hpm(keyptr); */
 		p->divpc = divpc_hpm(keyptr);
 	      }
-	      maxcumul = MAX(maxcumul, p->total);
+#endif
 	      p->filename = keyptr->filename;
 	      p->sizeinfo = keyptr->sizeinfo;
 	      p->sizespeed = (p->self > 0 && p->sizeinfo > 0) ? p->sizeinfo/p->self : 0;
@@ -1403,8 +1651,8 @@ c_drhook_print_(const int *ftnunitno,
 	double *maxval = calloc_drhook(nprof+1, sizeof(*maxval)); /* make sure at least 1 element */
 	int *clusize = calloc_drhook(nprof+1, sizeof(*clusize)); /* make sure at least 1 element */
 	char *prevname = NULL;
-	const char *fmt1 = "%5d %8.2f %12.3f %12.3f %12.3f %14llu %11.2f %11.2f   %s%s@%d%s%s [%d,%d]";
-	const char *fmt2 = "%5d %8.2f %12.3f %12.3f %12.3f %14llu %7.0f %7.0f %7.1f   %s%s@%d%s%s [%d,%d]";
+	const char *fmt1 = "%5d %8.2f %12.3f %12.3f %12.3f %14llu %11.2f %11.2f   %s";
+	const char *fmt2 = "%5d %8.2f %12.3f %12.3f %12.3f %14llu %7.0f %7.0f %7.1f   %s";
 	const char *fmt = opt_hpmprof ? fmt2 : fmt1;
 	char *filename = get_mon_out(myproc);
 	FILE *fp = NULL;
@@ -1482,13 +1730,27 @@ c_drhook_print_(const int *ftnunitno,
 
 	flop_tot = 0;
 	instr_tot = 0;
+	max_overhead_pc = 0;
 	for (t=0; t<numthreads; t++) {
 	  flop_tot += flop[t];
 	  instr_tot += instr[t];
+	  if (overhead) {
+	    max_overhead_pc = MAX(max_overhead_pc,overhead[t]);
+#ifdef DEBUG
+	    fprintf(fp,"tid#%d: overhead = %.15g s\n",t+1,overhead[t]);
+#endif
+	  }
 	}
-
-	if (maxcumul <= 0) maxcumul = 1e-10;
-	overhead = 100.0*(1 - tottime/maxcumul);
+#ifdef DEBUG
+	fprintf(fp,"max overhead = %.15g s, tottime = %.15g s\n",
+		max_overhead_pc, tottime);
+#endif
+	if (tottime - max_overhead_pc > 0) {
+	  max_overhead_pc = 100.0*(max_overhead_pc/(tottime - max_overhead_pc));
+	}
+	else {
+	  max_overhead_pc = 100;
+	}
 
 	fprintf(fp,
 		"Profiling information for program='%s', proc#%d:\n",a_out, myproc);
@@ -1496,10 +1758,19 @@ c_drhook_print_(const int *ftnunitno,
 	fprintf(fp,"\tInstrumentation started : %s\n",start_stamp ? start_stamp : "N/A");
 	end_stamp = timestamp();
 	fprintf(fp,"\tInstrumentation   ended : %s\n",end_stamp ? end_stamp : "N/A");
-	fprintf(fp,"\tInstrumentation overhead: %.2f%%\n",overhead);
+	fprintf(fp,"\tInstrumentation overhead: %.2f%%\n",max_overhead_pc);
+	{
+	  long long int hwm = gethwm_()/1048576;
+	  long long int rss = getrss_()/1048576;
+	  long long int maxstack = getmaxstk_()/1048576;
+	  long long int pag = getpag_();
+	  fprintf(fp,
+	  "\tMemory usage (thread#1)   : %lld MBytes (heap), %lld MBytes (rss), %lld MBytes (stack), %lld (paging)\n",
+		  hwm,rss,maxstack,pag);
+	}
 	if (opt_hpmprof) {
 	  mflop_rate = flop_tot / tottime;
-	  mip_rate = instr_tot /tottime;
+	  mip_rate = instr_tot / tottime;
 	  fprintf(fp,
 		  "\t%s-time is %.2f sec on proc#%d, %.0f MFlops (ops#%.0f*10^6), %.0f MIPS (ops#%.0f*10^6) (%d procs, %d threads)\n",
 		  opt_wallprof ? "Wall" : "Total CPU", tottime, myproc,
@@ -1519,7 +1790,7 @@ c_drhook_print_(const int *ftnunitno,
 	  fprintf(stderr,"\tNo. of instrumented routines called : %d\n", numroutines);
 	  fprintf(stderr,"\tInstrumentation started : %s\n",start_stamp ? start_stamp : "N/A");
 	  fprintf(stderr,"\tInstrumentation   ended : %s\n",end_stamp ? end_stamp : "N/A");
-	  fprintf(stderr,"\tInstrumentation overhead: %.2f%%\n",overhead);
+	  fprintf(stderr,"\tInstrumentation overhead: %.2f%%\n",max_overhead_pc);
 	  if (opt_hpmprof) {
 	    fprintf(stderr,
 		  "\t%s-time is %.2f sec on proc#%d, %.0f MFlops (ops#%.0f*10^6), %.0f MIPS (ops#%.0f*10^6) (%d procs, %d threads)\n",
@@ -1559,12 +1830,22 @@ c_drhook_print_(const int *ftnunitno,
 
 	fprintf(fp,"\n");
 	if (opt_hpmprof) {
-	  fprintf(fp,"    #  %% Time         Cumul         Self        Total     # of calls    MIPS  MFlops   Div-%%    Routine@<tid> [Cluster:(id,size)] (Size,Size/sec,AvgSize)\n");
-	  fprintf(fp, "        (self)        (sec)        (sec)        (sec)                                       \n");
+	  len = 
+	    fprintf(fp,"    #  %% Time         Cumul         Self        Total     # of calls    MIPS  MFlops   Div-%%    ");
 	}
 	else {
-	  fprintf(fp,"    #  %% Time         Cumul         Self        Total     # of calls        Self       Total    Routine@<tid> [Cluster:(id,size)] (Size,Size/sec,AvgSize)\n");
-	  fprintf(fp, "        (self)        (sec)        (sec)        (sec)                    ms/call     ms/call\n");
+	  len = 
+	    fprintf(fp,"    #  %% Time         Cumul         Self        Total     # of calls        Self       Total    ");
+	}
+	fprintf(fp,"Routine@<tid>");
+	if (opt_clusterinfo) fprintf(fp," [Cluster:(id,size)]");
+	fprintf(fp,"\n");
+	if (opt_sizeinfo) fprintf(fp,"%*s %s\n",len," ","(Size; Size/sec; AvgSize/call)");
+	if (opt_hpmprof) {
+	  fprintf(fp,  "        (self)        (sec)        (sec)        (sec)                                       \n");
+	}
+	else {
+	  fprintf(fp,  "        (self)        (sec)        (sec)        (sec)                    ms/call     ms/call\n");
 	}
 	fprintf(fp,"\n");
 
@@ -1582,23 +1863,34 @@ c_drhook_print_(const int *ftnunitno,
 	    fprintf(fp, fmt,
 		    ++j, p->pc, cumul, p->self, p->total, p->calls,
 		    p->mipsrate, p->mflops, p->divpc,
-		    p->is_max ? "*" : " ",
-		    p->name, p->tid,
-		    p->filename ? ":" : "",
-		    p->filename ? p->filename : "",
-		    p->cluster, ABS(cluster_size));
+		    p->is_max ? "*" : " ");
 	  }
 	  else {
 	    fprintf(fp, fmt,
 		    ++j, p->pc, cumul, p->self, p->total, p->calls,
 		    p->percall_ms_self, p->percall_ms_total, 
-		    p->is_max ? "*" : " ",
-		    p->name, p->tid,
+		    p->is_max ? "*" : " ");
+	  }
+	  {
+	    int name_len = 0;
+	    const char *name = trim_and_adjust_left(p->name,&name_len);
+	    fprintf(fp,"%.*s@%d%s%s",
+		    name_len, name, p->tid,
 		    p->filename ? ":" : "",
-		    p->filename ? p->filename : "",
+		    p->filename ? p->filename : "");
+	  }
+	  if (opt_clusterinfo) {
+	    fprintf(fp," [%d,%d]",
 		    p->cluster, ABS(cluster_size));
 	  }
-	  if (p->sizeinfo > 0) fprintf(fp," (%lld,%.0f,%.0f)",p->sizeinfo,p->sizespeed,p->sizeavg);
+	    
+	  if (opt_sizeinfo && p->sizeinfo > 0) {
+	    char s1[DRHOOK_STRBUF], s2[DRHOOK_STRBUF], s3[DRHOOK_STRBUF];
+	    lld_commie(p->sizeinfo,s1);
+	    dbl_commie(p->sizespeed,s2);
+	    dbl_commie(p->sizeavg,s3);
+	    fprintf(fp,"\n%*s (%s  %s  %s)",len," ",s1,s2,s3);
+	  }
 	  fprintf(fp,"\n");
 	  p++;
 	} /* for (j=0; j<nprof; ) */
@@ -1695,13 +1987,15 @@ Dr_Hook(const char *name, int option, double *handle,
 #ifdef RS6K
 /**** Interface to HPM (RS6K) ****/
 
+/* Thanks to Bob Walkup & John Hague, IBM */
+
 #include <pmapi.h>
 #include <pthread.h>
 
 static pthread_mutex_t hpm_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int *hpm_tid_init = NULL;
-static double cycles = 1300000000.0; /* 1.3GHz */
+static double cycles = 1300000000.0; /* 1.3GHz ; changed via pm_cycles() in init_hpm() */
 
 #define MCYCLES (cycles * 1e-6)
 
@@ -1738,7 +2032,9 @@ init_hpm(int tid)
 		 &pminfo, &pmgroupsinfo);
     TEST_PM_ERROR((char *)name, rc);
 
-    if (myproc <= 1) fprintf(stderr,">>>pm_init() for ECMWF/OpenMP-tid#%d, pthread_self()=%d\n",tid+1,pthread_self());
+    if (myproc <= 1) fprintf(stderr,
+			     ">>>pm_init() for ECMWF/OpenMP-tid#%d, pthread_self()=%d\n",
+			     tid+1,pthread_self());
   }
 
   if (!hpm_tid_init[tid]) {
@@ -1800,6 +2096,43 @@ init_hpm(int tid)
 }
 
 static void
+stop_only_hpm(int tid, drhook_key_t *pstop) 
+{
+  const char *name = "stop_only_hpm";
+  pm_data_t pmdata;
+  int i, rc;
+
+  /* if (numthreads > 1) pthread_mutex_lock(&hpm_lock); */
+
+  if (!hpm_tid_init || !hpm_tid_init[tid-1]) init_hpm(tid);
+  --tid;
+
+  /*
+  rc = pm_stop_mythread();
+  TEST_PM_ERROR((char *)name, rc);
+  */
+
+  if (pstop && !pstop->counter_stopped) {
+    rc = pm_get_data_mythread(&pmdata);
+    TEST_PM_ERROR((char *)name, rc);
+    
+    if (pstop && pstop->counter_in && !pstop->counter_stopped) {
+      for (i=0; i<MAX_COUNTERS; i++) {
+	pstop->counter_sum[i] += (pmdata.accu[i] - pstop->counter_in[i]);
+      }
+      pstop->counter_stopped = 1;
+    }
+  }
+
+  /*
+  rc = pm_start_mythread();
+  TEST_PM_ERROR((char *)name, rc);
+  */
+
+  /* if (numthreads > 1) pthread_mutex_unlock(&hpm_lock); */
+}
+
+static void
 stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart)
 {
   const char *name = "stopstart_hpm";
@@ -1819,10 +2152,11 @@ stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart)
   rc = pm_get_data_mythread(&pmdata);
   TEST_PM_ERROR((char *)name, rc);
 
-  if (pstop && pstop->counter_in) {
+  if (pstop && pstop->counter_in && !pstop->counter_stopped) {
     for (i=0; i<MAX_COUNTERS; i++) {
       pstop->counter_sum[i] += (pmdata.accu[i] - pstop->counter_in[i]);
     }
+    pstop->counter_stopped = 1;
   }
 
   if (pstart) {
@@ -1831,6 +2165,7 @@ stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart)
      for (i=0; i<MAX_COUNTERS; i++) {
        pstart->counter_in[i] = pmdata.accu[i];
      }
+     pstart->counter_stopped = 0;
   }
 
   /*
@@ -1841,12 +2176,75 @@ stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart)
   /* if (numthreads > 1) pthread_mutex_unlock(&hpm_lock); */
 }
 
+#else
+
+/**** Interface to HPM (SV2) ****/
+
+static int *hpm_tid_init = NULL;
+static double cycles = 0;
+
+#define MCYCLES (cycles * 1e-6)
+
+#define TEST_PM_ERROR(name, rc) \
+  if (rc != 0) { \
+    fprintf(stderr,"PM_ERROR(tid#%d, pthread_self()=%d): rc=%d at %s(), line=%d, file=%s\n",\
+            tid+1,pthread_self(),rc,name,__LINE__,__FILE__); \
+    pm_error((char *)name, rc); \
+    sleep(tid+1); \
+    raise(SIGABRT); \
+  }
+
+static void
+init_hpm(int tid)
+{
+  const char *name = "init_hpm";
+  int rc;
+
+  cycles = irtc_rate_();
+}
+
+static void
+stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart)
+{
+  const char *name = "stopstart_hpm";
+  int i, rc;
+
+  if (pstop && pstop->counter_in) {
+#if defined(DT_FLOP)
+      pstop->counter_sum[0] += ((long long int) flop_() - pstop->counter_in[0]);
+      pstop->counter_sum[4] += (_rtc() - pstop->counter_in[4]);
+#endif
+  }
+
+  if (pstart) {
+    if (!pstart->counter_in ) pstart->counter_in  = calloc_drhook(MAX_COUNTERS, sizeof(*pstart->counter_in ));
+    if (!pstart->counter_sum) pstart->counter_sum = calloc_drhook(MAX_COUNTERS, sizeof(*pstart->counter_sum));
+#if defined(DT_FLOP)
+       pstart->counter_in[0] = (long long int) flop_();
+       pstart->counter_in[4] = _rtc();
+#endif
+  }
+
+  /*
+  rc = pm_start_mythread();
+  TEST_PM_ERROR((char *)name, rc);
+  */
+
+  /* if (numthreads > 1) pthread_mutex_unlock(&hpm_lock); */
+}
+
+#endif /*Interface to RS6K and SV2 */
+
 static double
 mflops_hpm(const drhook_key_t *keyptr)
 {
   double mflops = 0;
   if (keyptr && keyptr->counter_sum && keyptr->counter_sum[4] > 0) {
+#if defined(DT_FLOP)
+    long long int sum = keyptr->counter_sum[0];
+#else
     long long int sum = keyptr->counter_sum[1] + keyptr->counter_sum[2] + keyptr->counter_sum[3] - keyptr->counter_sum[5];
+#endif
     if (sum > 0)
       mflops = (sum * MCYCLES)/keyptr->counter_sum[4];
   }
@@ -1857,9 +2255,13 @@ static double
 mips_hpm(const drhook_key_t *keyptr)
 {
   double mipsrate = 0;
+#if defined(DT_FLOP)
+  mipsrate = 0;
+#else
   if (keyptr && keyptr->counter_sum && keyptr->counter_sum[4] > 0) {
     mipsrate = (keyptr->counter_sum[6] * MCYCLES)/keyptr->counter_sum[4];
   }
+#endif
   return mipsrate;
 }
 
@@ -1867,10 +2269,14 @@ static double
 divpc_hpm(const drhook_key_t *keyptr)
 {
   double divpc = 0;
+#if defined(DT_FLOP)
+  divpc = 0;
+#else
   if (keyptr && keyptr->counter_sum) {
     long long int sum = keyptr->counter_sum[1] + keyptr->counter_sum[2] + keyptr->counter_sum[3] - keyptr->counter_sum[5];
     if (sum > 0) divpc = (keyptr->counter_sum[0]*100.0)/sum;
   }
+#endif
   return divpc;
 }
 
@@ -1879,7 +2285,11 @@ mflop_count(const drhook_key_t *keyptr)
 {
   double sum = 0;
   if (keyptr && keyptr->counter_sum && keyptr->counter_sum[4] > 0) {
+#if defined(DT_FLOP)
+    sum = (keyptr->counter_sum[0]) * 1e-6;
+#else
     sum = (keyptr->counter_sum[1] + keyptr->counter_sum[2] + keyptr->counter_sum[3] - keyptr->counter_sum[5]) * 1e-6;
+#endif
     if (sum < 0) sum = 0;
   }
   return sum;
@@ -1889,12 +2299,196 @@ static double
 mip_count(const drhook_key_t *keyptr)
 {
   double sum = 0;
+#if defined(DT_FLOP)
+  sum = 0;
+#else
   if (keyptr && keyptr->counter_sum && keyptr->counter_sum[4] > 0) {
     sum = keyptr->counter_sum[6] * 1e-6;
   }
+#endif
   return sum;
 }
 
-#endif /* RS6K */
-
 #endif /* HPM */
+
+
+/* 
+   this is result of moving some code from libodb.a
+   (odb/aux/util_ccode.c) for use by libifsaux.a
+   directly ; simplifies linking sequences.
+*/
+
+#include <stdio.h>
+#include <string.h>
+/* #include <malloc.h> */
+#include <stdlib.h>
+#include <signal.h>
+
+#define FORTRAN_CALL
+
+#if defined(CRAY) && !defined(SV2)
+#define util_cputime_  UTIL_CPUTIME
+#define util_walltime_ UTIL_WALLTIME
+#endif
+
+/* Portable CPU-timer (User + Sys) ; also WALL CLOCK-timer */
+
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/times.h>
+#undef MIN
+#undef MAX
+#include <sys/param.h>
+
+#include <time.h>
+
+extern clock_t times (struct tms *buffer);
+
+FORTRAN_CALL
+double util_cputime_()
+{
+  struct tms tbuf;
+  static int first_time = 1;
+  static double clock_ticks = 0;
+
+  (void) times(&tbuf);
+
+  if (first_time) {
+    clock_ticks = (double) sysconf(_SC_CLK_TCK);
+    first_time = 0;
+  }
+
+  return (tbuf.tms_utime + tbuf.tms_stime +
+          tbuf.tms_cutime + tbuf.tms_cstime) / clock_ticks; 
+}
+
+#include <sys/time.h>
+
+#ifndef VPP
+FORTRAN_CALL
+double util_walltime_()
+{
+  static double time_init = 0;
+  double time_in_secs;
+  struct timeval tbuf;
+  if (gettimeofday(&tbuf,NULL) == -1) perror("UTIL_WALLTIME");
+
+  if (time_init == 0) time_init = 
+    (double) tbuf.tv_sec + (tbuf.tv_usec / 1000000.0);
+
+  time_in_secs = 
+  (double) tbuf.tv_sec + (tbuf.tv_usec / 1000000.0) - time_init;
+
+  return time_in_secs;
+}
+#else 
+/* VPP */
+FORTRAN_CALL
+double util_walltime_() 
+{
+  double w, time_in_secs;
+  static double wallref = 0;
+  extern FORTRAN_CALL gettod_(double *);
+  if (wallref == 0) gettod_(&wallref);
+  gettod_(&w);
+  time_in_secs = (w - wallref) * 0.000001;
+  return time_in_secs;
+}
+#endif
+
+
+#ifndef CRAY
+
+#include <sys/time.h>
+#include <sys/resource.h>
+
+#ifdef VPP
+
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/signal.h>
+#include <sys/fault.h>
+#include <sys/syscall.h>
+#include <sys/procfs.h>
+#include <sys/proc.h>
+#include <fcntl.h>
+
+static int fujitsu_getrusage(int who, struct rusage *rusage)
+{
+  int rc = -1;
+
+  if (rusage) rusage->ru_maxrss = 0;
+
+  if (who == RUSAGE_SELF && rusage) {
+    static int maxrss =  0;
+    static int oldpid = -1;
+    static char procfile[20] = "";
+    static char *pf = NULL;
+    /* static prpsinfo_t ps; */
+    static proc_t proc;
+    int pid = getpid();
+    static int fildes = -1;
+    unsigned int size;
+
+    if (oldpid != pid) {
+      oldpid = pid;
+      maxrss = 0;
+      pf = NULL;
+    }
+
+    if (!pf) {
+      sprintf(procfile,"/proc/%d",pid);
+      pf = procfile;
+      fildes = open(procfile, O_RDONLY);
+    }
+
+    if (fildes == -1) return rc;
+
+    /*
+    if (ioctl(fildes, PIOCPSINFO, &ps) == -1) {
+      perror("ioctl@fujitsu_getrusage(PIOCPSINFO)");
+      return rc;
+    }
+    */
+
+    if (ioctl(fildes, PIOCGETPR, &proc) == -1) {
+      perror("ioctl@fujitsu_getrusage(PIOCGETPR)");
+      return rc;
+    }
+
+    size  = /* ps.pr_usevpmem + */ proc.p_brksize + proc.p_stksize;
+    if (size > maxrss) maxrss = size;
+    rusage->ru_maxrss = maxrss;
+
+    /* close(fildes); */
+    rc = 0;
+  }
+  return rc;
+}
+#endif /* VPP */
+
+FORTRAN_CALL
+int util_ihpstat_(int *option)
+{
+  int ret_value = 0;
+
+#if defined(SGI) || defined(VPP)
+  if (*option == 1) {
+    struct rusage rusage;
+#ifdef SGI
+    int pagesize = 1024;
+    getrusage(0, &rusage);
+#endif
+#ifdef VPP
+    int pagesize = 1; /* getpagesize() */
+    fujitsu_getrusage(0, &rusage);
+#endif
+    ret_value = (rusage.ru_maxrss * pagesize + 7) / 8; /* In 8 byte words */
+  }
+#endif /* SGI or VPP */
+
+  return ret_value;
+}
+
+#endif /* not def CRAY */
+

@@ -12,11 +12,11 @@ INTEGER(KIND=JPIM) :: i, imyproc, inproc, iret, ioffset, ii
 INTEGER(KIND=JPIM), parameter :: JP_NPROFILE = 9 ! pls. consult ifsaux/utilities/getcurheap.c
 INTEGER(KIND=JPIM), parameter :: isize = JP_NPROFILE+1
 INTEGER(KIND=JPIB) ilimit(isize)
-INTEGER(KIND=JPIB) ihitcnt(isize)
+INTEGER(KIND=JPIB) icnt(isize)
 REAL(KIND=JPRB), allocatable :: zsend(:), zrecv(:)
 INTEGER(KIND=JPIM), allocatable :: icounts(:)
 character(len=1) CLenv
-character(len=50) CLtext(0:2)
+character(len=80) CLtext(0:4)
 
 call getenv("EC_PROFILE_HEAP", CLenv) ! turn OFF by export EC_PROFILE_HEAP=0
 
@@ -32,18 +32,19 @@ if (kout >= 0 .and. CLenv /= '0') then
   allocate(zrecv(isize * inproc))
   allocate(icounts(inproc))
 
-!!  CLtext(0) = "free()/DEALLOCATE"
-  CLtext(1) = "malloc()/ALLOCATE"
-  CLtext(2) = "malloc()/ALLOCATE minus free()/DEALLOCATE"
+  CLtext(0) = "free()/DEALLOCATE -hits per byte range"
+  CLtext(1) = "malloc()/ALLOCATE -hits per byte range"
+  CLtext(2) = "Outstanding malloc()/ALLOCATE -hits per byte range"
+  CLtext(3) = "Outstanding amount of malloc()/ALLOCATE -bytes per byte range"
+  CLtext(4) = "Average amount of outstanding malloc()/ALLOCATE -bytes per byte range"
 
-!!  do ii=0,2
-  do ii=1,2
-    ihitcnt(:) = 0
-    CALL profile_heap_get(ihitcnt, isize, ii, iret)
+  do ii=0,4
+    icnt(:) = 0
+    CALL profile_heap_get(icnt, isize, ii, iret)
 
     zsend(:) = 0
     do i=1,iret
-      zsend(i) = ihitcnt(i)
+      zsend(i) = icnt(i)
     enddo
     zrecv(:) = -1
 
@@ -54,15 +55,15 @@ if (kout >= 0 .and. CLenv /= '0') then
     if (imyproc == 1) then
       write(kout,9000) trim(CLtext(ii)),trim(cdlabel), "Node", &
                      & (ilimit(i),i=1,min(JP_NPROFILE,9)), "Larger"
-9000  format(/,"Heap Utilization Profile (",a," -hits per byte range): ",a,&
-            &/,"========================",&
+9000  format(/,"Heap Utilization Profile (",a,"): ",a,&
+            &/,136("="),&
             &//,(a4,2x,9(:,2x,5x,"< 10^",i1),:,2x,a11))
       write(kout,9001)
 9001  format(4("="),2x,10(2x,11("="))/)
       ioffset = 0
       do i=1,inproc
-        ihitcnt(:) = zrecv(ioffset+1:ioffset+isize)
-        write(kout,'(i4,2x,(10(:,2x,i11)))') i,ihitcnt(:)
+        icnt(:) = zrecv(ioffset+1:ioffset+isize)
+        write(kout,'(i4,2x,(10(:,2x,i11)))') i,icnt(:)
         ioffset = ioffset + isize
       enddo
     endif

@@ -6,11 +6,15 @@
 
 typedef  long long int  ll_t;
 
-#if defined(CRAY)
+static ll_t maxcurheap = 0;
+
+#if defined(CRAY) && !defined(SV2)
 #define getcurheap GETCURHEAP
+#define getmaxcurheap GETMAXCURHEAP
 #elif defined(HPPA)
 #else
 #define getcurheap getcurheap_
+#define getmaxcurheap getmaxcurheap_
 #endif
 
 #ifdef RS6K
@@ -29,6 +33,7 @@ static int profile_heap = -1; /* Profiling:  -1 = UNDEF, 0 = OFF, 1 = ON */
 #define NPROFILE 9 /* byte ranges: 10**1 .. 10^9 */
 static ll_t malloc_hits[NPROFILE+1]; /* +1 for ranges >= 10^9 */
 static ll_t free_hits[NPROFILE+1];
+static ll_t alloc_amount[NPROFILE+1];
 
 #define WORDLEN   sizeof(ll_t)
 #define RNDUP(i,n) (( ( (i) + (n) - 1 ) / (n) ) * (n))
@@ -61,34 +66,46 @@ Profile_heap_put(ll_t size, int is_malloc)
       n *= 10; /* increment byte range by 10X */
       /* BTW: Don't want log10() overhead here !! */
       if (size < n) { /* i.e. size < pow(10,j+1) */
+	alloc_amount[j] += is_malloc ? size : -size;
 	p[j]++;
 	return;
       }
     }
-    p[NPROFILE]++;
+    j = NPROFILE;
+    alloc_amount[j] += is_malloc ? size : -size;
+    p[j]++;
   } /* if (profile_heap == 1) */
 }
 
 void
 profile_heap_get_(ll_t val[], 
 		  const int *Nval, 
-		  const int *icase,
+		  const int *Icase,
 		  int *nret)
      /* Fortran callable */
 {
-  int Icase = *icase;
+  int icase = *Icase;
   int nval = *Nval;
   int j;
   if (nval < 0) nval = 0;
   if (nval > NPROFILE+1) nval = NPROFILE+1;
-  if (Icase == 0) {
+  if (icase == 0) { /* free() hits */
     for (j=0; j<nval; j++) val[j] = free_hits[j];
   }
-  else if (Icase == 1) {
+  else if (icase == 1) { /* malloc() hits */
     for (j=0; j<nval; j++) val[j] = malloc_hits[j];
   }
-  else if (Icase == 2) {
+  else if (icase == 2) { /* outstanding allocs (malloc minus free) */
     for (j=0; j<nval; j++) val[j] = malloc_hits[j] - free_hits[j];
+  }
+  else if (icase == 3) { /* allocation amount left per range; in bytes */
+    for (j=0; j<nval; j++) val[j] = alloc_amount[j];
+  }
+  else if (icase == 4) { /* average allocation chunk left per range; in bytes */
+    for (j=0; j<nval; j++) {
+      ll_t tmp = malloc_hits[j] - free_hits[j];
+      val[j] = (tmp > 0) ? RNDUP(alloc_amount[j],tmp)/tmp : 0;
+    }
   }
   else {
     nval = 0;
@@ -126,6 +143,7 @@ void *__malloc(ll_t size)
     *p++ = adjsize;
     pthread_mutex_lock(&getcurheap_lock);
     curalloc += adjsize;
+    if (curalloc > maxcurheap) maxcurheap = curalloc;
     /* Check_curalloc(); */
     Profile_heap_put(adjsize, 1);
     pthread_mutex_unlock(&getcurheap_lock);
@@ -208,18 +226,23 @@ getcurheap()
   pthread_mutex_unlock(&getcurheap_lock);
   return curvalue;
 #else
-  extern ll_t getrss_();
-  return getrss_();
+  extern ll_t gethwm_();
+  ll_t rc = gethwm_();
+  if (rc > maxcurheap) maxcurheap = rc;
+  return rc;
 #endif
 }
 
 
-#else
+#else /* non-defined(__64BIT__) [but still RS6K] */
+
 ll_t
 getcurheap() 
 { 
-  extern ll_t getrss_();
-  return getrss_();
+  extern ll_t gethwm_();
+  ll_t rc = gethwm_();
+  if (rc > maxcurheap) maxcurheap = rc;
+  return rc;
 }
 
 void
@@ -235,10 +258,11 @@ profile_heap_get_(ll_t val[],
 
 #else  /* non-RS6K */
 
-
 ll_t getcurheap()
 {
-  ll_t rc = (ll_t)sbrk(0);
+  extern ll_t gethwm_();
+  ll_t rc = gethwm_();
+  if (rc > maxcurheap) maxcurheap = rc;
   return rc;
 }
 
@@ -253,3 +277,10 @@ profile_heap_get_(ll_t val[],
 
 #endif
 
+/* Maximum current (virtual mem) allocation encountered */
+
+ll_t
+getmaxcurheap()
+{
+  return maxcurheap;
+}

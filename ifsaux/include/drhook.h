@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <time.h>
+#include <math.h>
 
 #ifdef RS6K
 #include <fptrap.h>

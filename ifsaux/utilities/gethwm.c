@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#if defined(CRAY)
+typedef  long long int  ll_t;
+
+#if defined(CRAY) && !defined(SV2)
 #define gethwm GETHWM
 #elif defined(HPPA)
 #else
@@ -15,12 +17,12 @@
 /* Assume AIX >= 5.1 with 64-bit addressing */
 #include <fcntl.h>
 #include <sys/procfs.h>
-long long int
+ll_t
 gethwm()
 {
   static int fd = -9999;
-  static long long int heapbase = 0;
-  long long int heapsize = 0;
+  static char *heapbase = NULL;
+  ll_t heapsize = 0;
 
   if (fd == -9999) {
     pstatus_t pstatus;
@@ -29,24 +31,24 @@ gethwm()
     sprintf(procfile,"/proc/%d/status",pid);
     fd = open(procfile, O_RDONLY);
     if (read(fd, &pstatus, sizeof(pstatus)) == sizeof(pstatus)) {
-      heapbase = (long long int)pstatus.pr_brkbase;
+      heapbase = (char *)pstatus.pr_brkbase;
       close(fd);
       fd = 0;
     }
   }
 
-  if (fd == 0 && heapbase > 0) {
-    heapsize = (long long int)sbrk(0) - heapbase;
+  if (fd == 0 && heapbase != NULL) {
+    heapsize = (ll_t)((char *)sbrk(0) - heapbase);
   }
 
   return heapsize;
 }
 
 #else
-long long int
+ll_t
 gethwm() 
 { 
-  extern long long int getrss_();
+  extern ll_t getrss_();
   return getrss_();
 }
 #endif /* defined(__64BIT__) */
@@ -54,11 +56,23 @@ gethwm()
 #else  /* non-RS6K */
 
 
-long long int gethwm()
+ll_t gethwm()
 {
-  long long int rc = (long long int)sbrk(0);
+  ll_t rc = (ll_t)((char *)sbrk(0) - (char *)0);
   return rc;
 }
 
 #endif
 
+#if defined(SV2)
+int getpid_()
+{
+  return getpid();
+}
+
+unsigned int sleep_(unsigned int seconds)
+{
+  return sleep(seconds);
+}
+
+#endif
