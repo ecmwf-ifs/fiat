@@ -27,7 +27,7 @@ PUBLIC MPL_COMM_GRID, MPL_ALL_LEVS_COMM, MPL_ALL_MS_COMM, &
 
 INTEGER_M :: MPL_COMM_GRID, MPL_ALL_LEVS_COMM, MPL_ALL_MS_COMM, &
            & MPL_GP_GRID
-
+LOGICAL,SAVE :: LGROUPSETUP=.FALSE.
 CONTAINS
 ! ------------------------------------------------------------------
 
@@ -38,6 +38,8 @@ INTEGER_M, INTENT(IN) :: kprocw, kprocv
 
 INTEGER_M :: idims(2), ierr
 LOGICAL :: ltorus(2), ldims(2), lreorder
+
+IF(LGROUPSETUP) RETURN
 
 idims(1)=kprocw
 idims(2)=kprocv
@@ -65,6 +67,8 @@ ldims(1)=.true.
 ldims(2)=.false.
 CALL mpi_cart_sub(MPL_COMM_GRID, ldims, MPL_ALL_MS_COMM, ierr)
 IF (ierr/=0) CALL mpl_message(ierr,'MPL_GROUPS_CREATE: mpi_cart_sub 2')
+
+LGROUPSETUP=.TRUE.
 
 END SUBROUTINE MPL_GROUPS_CREATE
 
