@@ -3,12 +3,19 @@ MODULE ECsort
 
 USE strhandler, only : TOUPPER
 
-!..   Author: Sami Saarinen, ECMWF, 10/2/98
+!..   Author: Sami Saarinen, ECMWF, 10/02/98
+!     Fixes : Sami Saarinen, ECMWF, 08/11/99 : Sub-arrays go now correctly (look for addrdiff)
+!                                              Genuine real(4) sort "re-habilitated"
+!                                              sizeof_int, _real4 & _real8 HARDCODED !
 
 
 IMPLICIT NONE
 
 PRIVATE
+
+INTEGER_M, parameter :: sizeof_int   = 4
+INTEGER_M, parameter :: sizeof_real4 = 4
+INTEGER_M, parameter :: sizeof_real8 = 8
 
 INTEGER_M, parameter :: min_method = 1
 INTEGER_M, parameter :: max_method = 2
@@ -28,17 +35,14 @@ MODULE PROCEDURE &
      &real8_keysort_1D, real8_keysort_2D
 END INTERFACE
 
-INTERFACE keysort_r4
-MODULE PROCEDURE real4_keysort_1D, real4_keysort_2D
-END INTERFACE
-
 INTERFACE sorting_method
 MODULE PROCEDURE int_sorting_method, str_sorting_method
 END INTERFACE
 
-PUBLIC :: keysort, keysort_r4
+PUBLIC :: keysort
 PUBLIC :: init_index, get_rank
 PUBLIC :: sorting_method
+PUBLIC :: real4_keysort_1D, real4_keysort_2D
 
 CONTAINS
 
@@ -140,7 +144,8 @@ ikey = 1
 if (present(descending)) then
   if (descending) ikey = -1
 endif
-CALL keysort_r4(rc, aa, n, key=ikey, method=method, index=index, init=init)
+!CALL keysort(rc, aa, n, key=ikey, method=method, index=index, init=init)
+CALL real4_keysort_2D(rc, aa, n, key=ikey, method=method, index=index, init=init)
 a(:) = aa(:,1)
 END SUBROUTINE real4_keysort_1D
 
@@ -164,7 +169,8 @@ ikey = 1
 if (present(descending)) then
   if (descending) ikey = -1
 endif
-CALL keysort(rc, aa, n, key=ikey, method=method, index=index, init=init)
+!CALL keysort(rc, aa, n, key=ikey, method=method, index=index, init=init)
+CALL real8_keysort_2D(rc, aa, n, key=ikey, method=method, index=index, init=init)
 a(:) = aa(:,1)
 END SUBROUTINE real8_keysort_1D
 
@@ -185,10 +191,10 @@ logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
 INTEGER_M, POINTER :: iindex(:)
 INTEGER_M :: ikey, istride, imethod
-INTEGER_M :: lda, iptr, i, j, sda
+INTEGER_M :: lda, iptr, i, j, sda, idiff
 INTEGER_M, allocatable :: data(:)
 INTEGER_M, allocatable :: ikeys(:)
-logical iinit, descending
+logical iinit, descending, LLtrans
 
 rc = 0
 lda = size(a, dim=1)
@@ -227,8 +233,14 @@ endif
 if (iinit) CALL init_index(iindex)
 
 istride = 1
-if (present(transposed)) then
-  if (transposed) istride = lda
+LLtrans = .FALSE.
+if (present(transposed)) LLtrans = transposed
+if (LLtrans) then
+  istride = lda
+else if (sda >= 2 .and. lda >= 1) then
+!-- Check for presence of sub-array and adjust lda automatically
+  call addrdiff(a(1,1),a(1,2),idiff)
+  lda = idiff/sizeof_int  ! The true leading dimension; overrides sub-array's one
 endif
 
 do j=size(ikeys),1,-1
@@ -318,10 +330,10 @@ logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
 INTEGER_M, POINTER :: iindex(:)
 INTEGER_M :: ikey, istride, imethod
-INTEGER_M :: lda, iptr, i, j, sda
+INTEGER_M :: lda, iptr, i, j, sda, idiff
 REAL_M, allocatable :: data(:)
 INTEGER_M, allocatable :: ikeys(:)
-logical iinit, descending
+logical iinit, descending, LLtrans
 
 rc = 0
 lda = size(a, dim=1)
@@ -360,8 +372,14 @@ endif
 if (iinit) CALL init_index(iindex)
 
 istride = 1
-if (present(transposed)) then
-  if (transposed) istride = lda
+LLtrans = .FALSE.
+if (present(transposed)) LLtrans = transposed
+if (LLtrans) then
+  istride = lda
+else if (sda >= 2 .and. lda >= 1) then
+!-- Check for presence of sub-array and adjust lda automatically
+  call addrdiff(a(1,1),a(1,2),idiff)
+  lda = idiff/sizeof_real4  ! The true leading dimension; overrides sub-array's one
 endif
 
 do j=size(ikeys),1,-1
@@ -451,10 +469,10 @@ logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
 INTEGER_M, POINTER :: iindex(:)
 INTEGER_M :: ikey, istride, imethod
-INTEGER_M :: lda, iptr, i, j, sda
+INTEGER_M :: lda, iptr, i, j, sda, idiff
 REAL_B, allocatable :: data(:)
 INTEGER_M, allocatable :: ikeys(:)
-logical iinit, descending
+logical iinit, descending, LLtrans
 
 rc = 0
 lda = size(a, dim=1)
@@ -493,8 +511,14 @@ endif
 if (iinit) CALL init_index(iindex)
 
 istride = 1
-if (present(transposed)) then
-  if (transposed) istride = lda
+LLtrans = .FALSE.
+if (present(transposed)) LLtrans = transposed
+if (LLtrans) then
+  istride = lda
+else if (sda >= 2 .and. lda >= 1) then
+!-- Check for presence of sub-array and adjust lda automatically
+  call addrdiff(a(1,1),a(1,2),idiff)
+  lda = idiff/sizeof_real8  ! The true leading dimension; overrides sub-array's one
 endif
 
 do j=size(ikeys),1,-1

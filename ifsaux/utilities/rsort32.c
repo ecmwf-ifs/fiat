@@ -5,6 +5,8 @@
 /* rsort32_() : 32-bit Fortran-callable RADIX-sort */
 
 /* by Sami Saarinen, ECMWF, 3/2/1998 
+         - " -              1/2/2000 : BIG_ENDIAN & LITTLE_ENDIAN labels renamed to *_INDIAN
+                                       since they may conflict with the ones in <sys/endian.h>
 
    Thanks to Mike Fisher, ECMWF
    and Cray SCILIB ORDERS()-function developers 
@@ -21,9 +23,9 @@ typedef unsigned int  Uint;
 typedef unsigned char Uchar;
 
 #if defined(__osf__)
-#define LITTLE_ENDIAN
+#define LITTLE_INDIAN
 #else
-#define BIG_ENDIAN
+#define BIG_INDIAN
 #endif
 
 #ifdef __uxppx__
@@ -40,7 +42,7 @@ typedef unsigned char Uchar;
 
 /* Offset adjustment for 64-bit double handling on big/little endian machines */
 
-#ifdef LITTLE_ENDIAN
+#ifdef LITTLE_INDIAN
 static const int lsw   =  0;
 static const int msw   =  1;
 #else
