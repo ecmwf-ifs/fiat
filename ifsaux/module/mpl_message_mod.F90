@@ -38,14 +38,13 @@ MODULE MPL_MESSAGE_MOD
 
 !     ------------------------------------------------------------------
 
+USE MPL_MPIF
 USE MPL_DATA_MODULE
 USE MPL_ABORT_MOD
 
 #include "tsmbkind.h"
 
 PRIVATE
-
-#include "mpif.h"
 
 PUBLIC MPL_MESSAGE
 
