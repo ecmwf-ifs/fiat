@@ -59,6 +59,7 @@ MODULE MPL_IOINIT_MOD
 
 #include "tsmbkind.h"
 
+USE MPl_MPIF
 USE MPL_DATA_MODULE
 USE MPL_MESSAGE_MOD
 
@@ -77,8 +78,6 @@ SUBROUTINE MPL_IOINIT(KOP,KSTROUT,KERROR)
 INTEGER_M,INTENT(IN) :: KOP,KSTROUT
 INTEGER_M,INTENT(OUT) :: KERROR
 INTEGER_M :: COLOR,KEY
-
-#include "mpif.h"
 
 !
 !     -----------------------------------------------------------------
