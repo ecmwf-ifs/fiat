@@ -26,8 +26,20 @@ c
       end
 #endif
 #ifdef RS6K
-      function dummytimef()
-      dummytimef=0
+      function timef()
+      data ifirst/0/
+      save ifirst,zfirst
+c
+      ztimef=rtc()*1000.0
+c
+      if(ifirst.eq.0) then
+         ifirst=1
+         zfirst=ztimef
+         timef=0.0
+      else
+         timef=(ztimef-zfirst)
+      endif
+c
       return
-      end
+      end    
 #endif
