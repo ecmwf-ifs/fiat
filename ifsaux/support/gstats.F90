@@ -48,6 +48,7 @@ sUBROUTINE GSTATS(KNUM,KSWITCH)
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPIB
+USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK
 
 USE YOMGSTATS
 USE MPL_MODULE
@@ -69,6 +70,7 @@ LOGICAL :: LLFIRST=.TRUE.
 LOGICAL :: LLMFIRST=.TRUE.
 SAVE ZLAST_PAR_TIME
 SAVE IIMEM, IIPAG, IIMEMC
+REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
 INTERFACE
 #include "user_clock.h"
@@ -76,11 +78,12 @@ END INTERFACE
 
 !     ------------------------------------------------------------------
 
+IF (LHOOK) CALL DR_HOOK('GSTATS',0,ZHOOK_HANDLE)
 
 IF(LSTATS) THEN
-  IF((KNUM > 1000 .AND.KNUM < 2001).AND.(.NOT.LSTATS_OMP))RETURN
-  IF((KNUM > 500  .AND.KNUM < 1001).AND.(.NOT.LSTATS_COMMS))RETURN
-  IF(OML_MY_THREAD() > 1)RETURN
+  IF((KNUM > 1000 .AND.KNUM < 2001).AND.(.NOT.LSTATS_OMP))GOTO 99999
+  IF((KNUM > 500  .AND.KNUM < 1001).AND.(.NOT.LSTATS_COMMS))GOTO 99999
+  IF(OML_MY_THREAD() > 1)GOTO 99999
 
   IF(KNUM/=0) THEN
     IF(LSYNCSTATS .AND.(KSWITCH==0.OR. KSWITCH==2)) THEN
@@ -158,7 +161,7 @@ IF(LSTATS) THEN
           WRITE(0,*) "| Header for each trace line is:"    
           WRITE(0,*) "|"
           WRITE(0,*) "|   RSS_INC: Increase in RSS_MAX (KB)"
-          WRITE(0,*) "|   RSS_MAX: Maximium real working set so far (KB)"
+          WRITE(0,*) "|   RSS_MAX: Maximum real working set so far (KB)"
           WRITE(0,*) "|   HEAP_MX: High Water Mark for heap so far (KB)"
           WRITE(0,*) "|   STK:     Current Stack usage (KB)"
           WRITE(0,*) "|   PGS:     Page faults w I/O since last trace line"
@@ -240,4 +243,6 @@ IF(LSTATS) THEN
 
 ENDIF
 
+99999 CONTINUE
+IF (LHOOK) CALL DR_HOOK('GSTATS',1,ZHOOK_HANDLE)
 END SUBROUTINE GSTATS

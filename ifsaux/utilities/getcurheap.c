@@ -184,6 +184,16 @@ char *__strdup(const char *s)
   return p;
 }
 
+#else
+
+void
+profile_heap_get_(ll_t val[], 
+		  const int *Nval, 
+		  const int *Is_malloc,
+		  int *nret)
+{
+  *nret = 0;
+}
 
 #endif /* defined(INTERCEPT_ALLOC) */
 
