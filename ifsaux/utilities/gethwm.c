@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "getstatm.h"
 
 typedef  long long int  ll_t;
 
@@ -45,22 +46,42 @@ gethwm()
 }
 
 #else
+
 ll_t
 gethwm() 
 { 
   extern ll_t getrss_();
   return getrss_();
 }
+
 #endif /* defined(__64BIT__) */
 
 #else  /* non-RS6K */
 
-
+#if defined(LINUX)
+static ll_t basesize = -1;
+static size_t pagesize = 4096;
+ll_t gethwm()
+{
+  struct statm sm;
+  ll_t rc = 0;
+  if (getstatm(&sm) == 0) {
+    if (basesize < 0) { /* the very first time */
+      basesize = sm.size;
+      pagesize = getpagesize();
+      if (pagesize <= 0) pagesize = 4096;
+    }
+    rc = (sm.size - basesize) * pagesize;
+  }
+  return rc;
+}
+#else
 ll_t gethwm()
 {
   ll_t rc = (ll_t)((char *)sbrk(0) - (char *)0);
   return rc;
 }
+#endif
 
 #endif
 

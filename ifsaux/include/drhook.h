@@ -36,7 +36,8 @@ c_drhook_getenv_(const char *s,
 
 extern void
 c_drhook_memcounter_(const int *thread_id,
-		     const long long int *size);
+		     const long long int *size,
+		     long long int *keyptr_addr);
 
 extern void
 c_drhook_raise_(const int *sig);

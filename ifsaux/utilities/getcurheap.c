@@ -15,17 +15,23 @@ extern int get_max_threads_(void);
 
 static ll_t maxcurheap = 0;
 static ll_t maxcurheapa[NTHRDS];
+static ll_t maxloc = 0;
+static ll_t begloc = 0;
 
 #if defined(CRAY) && !defined(SV2)
 #define getcurheap           GETCURHEAP
 #define getmaxcurheap        GETMAXCURHEAP
 #define getcurheap_thread    GETCURHEAP_THREAD
 #define getmaxcurheap_thread GETMAXCURHEAP_THREAD
+#define getmaxloc            GETMAXLOC
+#define resetmaxloc          RESETMAXLOC
 #else
 #define getcurheap           getcurheap_
 #define getmaxcurheap        getmaxcurheap_
 #define getcurheap_thread    getcurheap_thread_
 #define getmaxcurheap_thread getmaxcurheap_thread_
+#define getmaxloc            getmaxloc_
+#define resetmaxloc          resetmaxloc_
 #endif
 
 #ifdef RS6K
@@ -58,8 +64,9 @@ static ll_t malloc_hits_thrd[NTHRDS][NPROFILE+1];
 static ll_t free_hits_thrd[NTHRDS][NPROFILE+1];
 static ll_t alloc_amount_thrd[NTHRDS][NPROFILE+1];
 
-#define WORDLEN   sizeof(ll_t)
+#define WORDLEN   ((ll_t)sizeof(ll_t))
 #define RNDUP(i,n) (( ( (i) + (n) - 1 ) / (n) ) * (n))
+#define TRUE_BYTES(x) ((x) + 3*WORDLEN) /* the size, keyptr at start & padding at end */
 
 static void
 Check_curalloc() /* Normally not called */
@@ -180,13 +187,14 @@ void __free(void *vptr)
 {
   if (vptr) {
     ll_t *p = vptr;
-    ll_t size = *--p;
-    ll_t adjsize;
+    ll_t adjsize = *--p;
+    ll_t keyptr = *--p;
+    ll_t true_bytes;
     int it;
     if (nans_fill == 1) {
       ll_t *q = vptr;
       ll_t nans  = NANS_FILL;
-      ll_t j = size/WORDLEN;
+      ll_t j = adjsize/WORDLEN;
       if (q[j] != nans) {
         fprintf(stderr,"WARNING: NaNS at end of array overwritten with %e\n",q[j]);
         xl__trbk_();
@@ -199,11 +207,11 @@ void __free(void *vptr)
       }
     }
     it=get_thread_id_();
-    adjsize = -size;
-    if (drhook_lhook) c_drhook_memcounter_(&it, &adjsize);
+    true_bytes = -TRUE_BYTES(adjsize);
+    if (drhook_lhook) c_drhook_memcounter_(&it, &true_bytes, &keyptr);
     free(p);
-    curalloca[--it] -= size;
-    if (profile_heap != 0) Profile_heap_put_thrd(size, 0, it);
+    curalloca[--it] += true_bytes; /* += since true_bytes is negative */
+    if (profile_heap != 0) Profile_heap_put_thrd(true_bytes, 0, it);
   }
 }
 
@@ -211,7 +219,9 @@ void *__malloc(ll_t size)
 {
   double *d = NULL;
   void *vptr = NULL;
+  ll_t keyptr = 0;
   ll_t adjsize = size;
+  ll_t true_bytes;
   int it;
   if (nans_fill == -1) { /* First time */
     char *env = getenv("EC_FILL_NANS");
@@ -225,8 +235,9 @@ void *__malloc(ll_t size)
   }
   if (adjsize < 0) adjsize = 0;
   adjsize = RNDUP(adjsize,WORDLEN);
+  true_bytes = TRUE_BYTES(adjsize);
   it=get_thread_id_();
-  if (drhook_lhook) c_drhook_memcounter_(&it, &adjsize);
+  if (drhook_lhook) c_drhook_memcounter_(&it, &true_bytes, &keyptr);
   it--;
   if (TIMES == 1) {
     DRHOOK_START(dummy);
@@ -234,11 +245,11 @@ void *__malloc(ll_t size)
   }
   if (TIMES == 1) {
     DRHOOK_START(malloc);
-    d = (double *)malloc(WORDLEN + adjsize + WORDLEN); /* size at start, possible padding at end */
+    d = (double *)malloc(true_bytes); 
     DRHOOK_END(0);
   }
   else {
-    d = (double *)malloc(WORDLEN + adjsize + WORDLEN); /* size at start, possible padding at end */
+    d = (double *)malloc(true_bytes);
   }
   vptr = d;
   if (vptr) {
@@ -248,12 +259,13 @@ void *__malloc(ll_t size)
         extern ll_t getstk_();
         DRHOOK_START(lock);
         (void) getstk_(); /* to gather near up to date stack statistics */
+	*p++ = keyptr;
         *p++ = adjsize;
         pthread_mutex_lock(&getcurheap_lock);
-        curalloc += adjsize;
+        curalloc += true_bytes;
         if (curalloc > maxcurheap) maxcurheap = curalloc;
         /* Check_curalloc(); */
-        Profile_heap_put(adjsize, 1);
+        Profile_heap_put(true_bytes, 1);
         pthread_mutex_unlock(&getcurheap_lock);
         vptr = p;
         DRHOOK_END(0);
@@ -263,20 +275,22 @@ void *__malloc(ll_t size)
         extern ll_t getstk_();
         DRHOOK_START(thread);
         (void) getstk_(); /* to gather near up to date stack statistics */
-        curalloca[it] += adjsize;
+        curalloca[it] += true_bytes;
         if (curalloca[it] > maxcurheapa[it]) maxcurheapa[it] = curalloca[it];
-        if (profile_heap != 0) Profile_heap_put_thrd(adjsize, 1, it);
+        if (profile_heap != 0) Profile_heap_put_thrd(true_bytes, 1, it);
         DRHOOK_END(0);
       }
     }
     else {
       ll_t *p = vptr;
+      ll_t q;
       extern ll_t getstk_();
       (void) getstk_(); /* to gather near up to date stack statistics */
+      *p++ = keyptr;
       *p++ = adjsize;
-      curalloca[it] += adjsize;
+      curalloca[it] += true_bytes;
       if (curalloca[it] > maxcurheapa[it]) maxcurheapa[it] = curalloca[it];
-      if (profile_heap != 0) Profile_heap_put_thrd(adjsize, 1, it);
+      if (profile_heap != 0) Profile_heap_put_thrd(true_bytes, 1, it);
       if (nans_fill == 1) {
         int j;
         ll_t nans  = NANS_FILL;
@@ -284,14 +298,20 @@ void *__malloc(ll_t size)
           p[j]=nans;
         }
       }
+      q=(ll_t)p+true_bytes;
+      if (q > maxloc) maxloc=q;
+      if (begloc == 0) begloc=(ll_t)p;
+/*
+      fprintf(stderr,"JJJ pntr= %ld %ld %ld %ld\n",true_bytes,p,q,maxloc);
+*/
       vptr=p;
     }
   }
   else {
     pthread_mutex_lock(&getcurheap_lock);
     fprintf(stderr,
-	    "__malloc(size=%lld => adjsize=%lld bytes) failed in file=%s, line=%d\n",
-	    size, adjsize, __FILE__, __LINE__);
+	    "__malloc(size=%lld => adjsize=%lld, true_bytes=%lld bytes) failed in file=%s, line=%d\n",
+	    size, adjsize, true_bytes, __FILE__, __LINE__);
     xl__trbk_(); /* Oops !! */
     raise(SIGABRT);
     pthread_mutex_unlock(&getcurheap_lock);
@@ -464,4 +484,17 @@ getmaxcurheap_thread(const int *thread_id) /* ***Note: YOMOML thread id */
 {
   int it = (thread_id && (*thread_id > 0)) ? *thread_id : get_thread_id_();
   return maxcurheapa[--it];
+}
+
+ll_t
+getmaxloc()
+{
+  ll_t z=maxloc-begloc;
+  return z;
+}
+
+void
+resetmaxloc()
+{
+  maxloc=0;
 }
