@@ -10,23 +10,48 @@
 #endif
 
 #ifdef RS6K
-#include <sys/resource.h>
+
+#if defined(__64BIT__)
+/* Assume AIX >= 5.1 with 64-bit addressing */
+#include <fcntl.h>
+#include <sys/procfs.h>
 long long int
 gethwm()
 {
-  const long long int scaler = 1024; /* in kilobytes */
-#if defined(__64BIT__)
-  struct rusage64 r;
-  long long int rc = getrusage64(RUSAGE_SELF, &r);
-#else
-  struct rusage r;
-  long long int rc = getrusage(RUSAGE_SELF, &r);
-#endif
-  rc = (rc == 0) ? (long long int) r.ru_maxrss * scaler : 0;
-  return rc;
+  static int fd = -9999;
+  static long long int heapbase = 0;
+  long long int heapsize = 0;
+
+  if (fd == -9999) {
+    pstatus_t pstatus;
+    char procfile[80];
+    int pid = getpid();
+    sprintf(procfile,"/proc/%d/status",pid);
+    fd = open(procfile, O_RDONLY);
+    if (read(fd, &pstatus, sizeof(pstatus)) == sizeof(pstatus)) {
+      heapbase = (long long int)pstatus.pr_brkbase;
+      close(fd);
+      fd = 0;
+    }
+  }
+
+  if (fd == 0 && heapbase > 0) {
+    heapsize = (long long int)sbrk(0) - heapbase;
+  }
+
+  return heapsize;
 }
 
 #else
+long long int
+gethwm() 
+{ 
+  extern long long int getrss_();
+  return getrss_();
+}
+#endif /* defined(__64BIT__) */
+
+#else  /* non-RS6K */
 
 
 long long int gethwm()
