@@ -37,7 +37,7 @@ MODULE MPL_END_MOD
 
 !     ------------------------------------------------------------------
 
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
 
 USE MPL_DATA_MODULE
 USE MPL_MESSAGE_MOD
@@ -53,8 +53,8 @@ CONTAINS
 
 SUBROUTINE MPL_END(KERROR)
 
-INTEGER_M,INTENT(OUT),OPTIONAL :: KERROR
-INTEGER_M                      :: IERROR
+INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KERROR
+INTEGER(KIND=JPIM)                      :: IERROR
 LOGICAL                      :: LLABORT=.TRUE.
 
 IF(MPL_NUMPROC < 1) THEN

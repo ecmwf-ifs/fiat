@@ -1,19 +1,19 @@
 SUBROUTINE getmemstat(kout, cdlabel)
 
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPIB
 
 use mpl_module
 
 implicit none
 
-INTEGER_M, intent(in) :: kout
+INTEGER(KIND=JPIM), intent(in) :: kout
 character(len=*), intent(in) :: cdlabel
-INTEGER_M :: i, imyproc, inproc, ioffset
-INTEGER_M, PARAMETER :: JP_MEMKEYS = 5  ! pls. consult ifsaux/utilities/getmemvals.F90
-INTEGER_M imemkeys(JP_MEMKEYS)
-INTEGER_B imemvals(JP_MEMKEYS)
-REAL_B, allocatable :: zsend(:), zrecv(:)
-INTEGER_M, allocatable :: icounts(:)
+INTEGER(KIND=JPIM) :: i, imyproc, inproc, ioffset
+INTEGER(KIND=JPIM), PARAMETER :: JP_MEMKEYS = 5  ! pls. consult ifsaux/utilities/getmemvals.F90
+INTEGER(KIND=JPIM) imemkeys(JP_MEMKEYS)
+INTEGER(KIND=JPIB) imemvals(JP_MEMKEYS)
+REAL(KIND=JPRB), allocatable :: zsend(:), zrecv(:)
+INTEGER(KIND=JPIM), allocatable :: icounts(:)
 
 if (kout >= 0) then
   imyproc = mpl_myrank()

@@ -14,7 +14,7 @@ MODULE MPL_GROUPS
 !       Original: 02-03-13
 ! ------------------------------------------------------------------
 
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
 
 USE MPL_MPIF
 USE MPL_DATA_MODULE
@@ -25,7 +25,7 @@ PRIVATE
 PUBLIC MPL_COMM_GRID, MPL_ALL_LEVS_COMM, MPL_ALL_MS_COMM, &
      & MPL_GROUPS_CREATE, MPL_CART_RANK, MPL_CART_COORDS
 
-INTEGER_M :: MPL_COMM_GRID, MPL_ALL_LEVS_COMM, MPL_ALL_MS_COMM, &
+INTEGER(KIND=JPIM) :: MPL_COMM_GRID, MPL_ALL_LEVS_COMM, MPL_ALL_MS_COMM, &
            & MPL_GP_GRID
 LOGICAL,SAVE :: LGROUPSETUP=.FALSE.
 CONTAINS
@@ -34,9 +34,9 @@ CONTAINS
 SUBROUTINE MPL_GROUPS_CREATE(kprocw, kprocv)
 
 IMPLICIT NONE
-INTEGER_M, INTENT(IN) :: kprocw, kprocv
+INTEGER(KIND=JPIM), INTENT(IN) :: kprocw, kprocv
 
-INTEGER_M :: idims(2), ierr
+INTEGER(KIND=JPIM) :: idims(2), ierr
 LOGICAL :: ltorus(2), ldims(2), lreorder
 
 IF(LGROUPSETUP) RETURN
@@ -77,10 +77,10 @@ END SUBROUTINE MPL_GROUPS_CREATE
 FUNCTION MPL_CART_RANK(kprocw, kprocv)
 
 IMPLICIT NONE
-INTEGER_M, INTENT(IN)  :: kprocw, kprocv
-INTEGER_M :: MPL_CART_RANK
+INTEGER(KIND=JPIM), INTENT(IN)  :: kprocw, kprocv
+INTEGER(KIND=JPIM) :: MPL_CART_RANK
 
-INTEGER_M :: idims(2), iproc, ierr
+INTEGER(KIND=JPIM) :: idims(2), iproc, ierr
 
 idims(1)=kprocw-1
 idims(2)=kprocv-1
@@ -97,10 +97,10 @@ END FUNCTION MPL_CART_RANK
 SUBROUTINE MPL_CART_COORDS(kproc, kprocw, kprocv)
 
 IMPLICIT NONE
-INTEGER_M, INTENT(IN)   :: kproc
-INTEGER_M, INTENT(OUT)  :: kprocw, kprocv
+INTEGER(KIND=JPIM), INTENT(IN)   :: kproc
+INTEGER(KIND=JPIM), INTENT(OUT)  :: kprocw, kprocv
 
-INTEGER_M :: idims(2), iproc, ierr
+INTEGER(KIND=JPIM) :: idims(2), iproc, ierr
 
 iproc=kproc-1
 

@@ -1,14 +1,14 @@
 subroutine cmpl_recv(kbuf,kcount,ktype,ksource,ktag,kcomm,&
  &ksync,kblock,krcount,krfrom,krtag,kerror)
 
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
 
 USE MPL_MODULE
 
 implicit none
 integer kcount,ktype,ksource,ktag,kcomm
 integer krcount,krfrom,krtag,kerror,ksync,kblock
-INTEGER_M :: kbuf(*)
+INTEGER(KIND=JPIM) :: kbuf(*)
 INTEGER,EXTERNAL :: convin,convout
 
 integer ilenb,ilen
@@ -38,7 +38,7 @@ end subroutine cmpl_recv
 subroutine cmpl_send(kbuf,kcount,ktype,kdest,ktag,kcomm,&
  &ksync,kblock,kerror)
 
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
 
 USE MPL_MODULE
 

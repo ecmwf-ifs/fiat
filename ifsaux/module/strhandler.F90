@@ -1,7 +1,7 @@
 !OPTIONS NOOPT
 MODULE strhandler
 
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -35,10 +35,10 @@ END FUNCTION sadjustr
 SUBROUTINE tolower(cds)
 
 character(len=*), intent(inout) :: cds
-INTEGER_M, parameter :: ich_a = ichar('a')
-INTEGER_M, parameter :: ichA  = ichar('A')
-INTEGER_M, parameter :: ichZ  = ichar('Z')
-INTEGER_M :: i, ich, new_ich
+INTEGER(KIND=JPIM), parameter :: ich_a = ichar('a')
+INTEGER(KIND=JPIM), parameter :: ichA  = ichar('A')
+INTEGER(KIND=JPIM), parameter :: ichZ  = ichar('Z')
+INTEGER(KIND=JPIM) :: i, ich, new_ich
 character(len=1) ch
 do i=1,len(cds)
   ch = cds(i:i)
@@ -55,10 +55,10 @@ END SUBROUTINE tolower
 SUBROUTINE toupper(cds)
 
 character(len=*), intent(inout) :: cds
-INTEGER_M, parameter :: ich_A = ichar('A')
-INTEGER_M, parameter :: icha  = ichar('a')
-INTEGER_M, parameter :: ichz  = ichar('z')
-INTEGER_M :: i, ich, new_ich
+INTEGER(KIND=JPIM), parameter :: ich_A = ichar('A')
+INTEGER(KIND=JPIM), parameter :: icha  = ichar('a')
+INTEGER(KIND=JPIM), parameter :: ichz  = ichar('z')
+INTEGER(KIND=JPIM) :: i, ich, new_ich
 character(len=1) ch
 do i=1,len(cds)
   ch = cds(i:i)
@@ -79,13 +79,13 @@ SUBROUTINE expand_string(&
      &max_timestep,&
      &s)                   ! %s
 
-INTEGER_M, intent(in)          :: myproc, nproc
-INTEGER_M, intent(in)          :: timestep, max_timestep
+INTEGER(KIND=JPIM), intent(in)          :: myproc, nproc
+INTEGER(KIND=JPIM), intent(in)          :: timestep, max_timestep
 character(len=*), intent(inout) :: s(:)
 character(len=2*len(s))  t
 character(len=2*len(s)) tt
-INTEGER_M :: i, j, jj, loc_p, len_t, n
-INTEGER_M :: ndigs(4), num(4)
+INTEGER(KIND=JPIM) :: i, j, jj, loc_p, len_t, n
+INTEGER(KIND=JPIM) :: ndigs(4), num(4)
 character(len=6) fmt(4)
 
 n = size(s)

@@ -57,7 +57,7 @@ MODULE MPL_OPEN_MOD
 !
 !     -----------------------------------------------------------------
 !
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
 
 USE MPL_MPIF
 USE MPL_DATA_MODULE
@@ -71,10 +71,10 @@ PUBLIC MPL_OPEN
 CONTAINS
 
 SUBROUTINE MPL_OPEN(KFPTR,KTYPE,KNAME,KERROR)
-INTEGER_M,INTENT(IN) :: ktype
-INTEGER_M,INTENT(OUT) :: kfptr,kerror
+INTEGER(KIND=JPIM),INTENT(IN) :: ktype
+INTEGER(KIND=JPIM),INTENT(OUT) :: kfptr,kerror
 CHARACTER*(*) KNAME
-INTEGER_M :: mode,info
+INTEGER(KIND=JPIM) :: mode,info
 
 #ifdef MPI2
 

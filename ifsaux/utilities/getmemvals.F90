@@ -1,18 +1,18 @@
 SUBROUTINE getmemvals(n, key, kval)
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPIB
 implicit none
-INTEGER_M, intent(in) :: n, key(n)
-INTEGER_B, intent(out):: kval(n)
+INTEGER(KIND=JPIM), intent(in) :: n, key(n)
+INTEGER(KIND=JPIB), intent(out):: kval(n)
 !--------------------------------- key ----------------------------------------------
-INTEGER_B, external :: gethwm    !  1  High Water Mark for HEAP-alloc
-INTEGER_B, external :: getrss    !  2  Maximum resident memory so far
-INTEGER_B, external :: getcurheap!  3  Instantaneous allocation from ALLOCATE/malloc
-INTEGER_B, external :: getstk    !  4  Instantaneous stack usage
-INTEGER_B, external :: getmaxstk !  5  Maximum stack usage so far
-INTEGER_B, external :: getpag    !  6  I/O caused by paging
+INTEGER(KIND=JPIB), external :: gethwm    !  1  High Water Mark for HEAP-alloc
+INTEGER(KIND=JPIB), external :: getrss    !  2  Maximum resident memory so far
+INTEGER(KIND=JPIB), external :: getcurheap!  3  Instantaneous allocation from ALLOCATE/malloc
+INTEGER(KIND=JPIB), external :: getstk    !  4  Instantaneous stack usage
+INTEGER(KIND=JPIB), external :: getmaxstk !  5  Maximum stack usage so far
+INTEGER(KIND=JPIB), external :: getpag    !  6  I/O caused by paging
 ! -- add more as required (all 64-bit integers upon return, though) --
 
-INTEGER_M j
+INTEGER(KIND=JPIM) j
 
 do j=1,n
   if (key(j) == 1) then
