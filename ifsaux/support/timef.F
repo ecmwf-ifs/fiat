@@ -2,13 +2,18 @@
       data ifirst/0/
       save ifirst,zfirst
 c
-      call system_clock(ic,icr,icm)
-      if(icm.eq.0) then
-        print *,' no system clock'
-        ztimef=-99.
-      else
-        ztimef=1000.*ic/icr
-      endif
+cportable      call system_clock(ic,icr,icm)
+cportable      if(icm.eq.0) then
+cportable        print *,' no system clock'
+cportable        ztimef=-99.
+cportable      else
+cportable        ztimef=1000.*ic/icr
+cportable      endif
+c
+c   fujitsu special
+c
+      call gettod(ztimef)
+c
       if(ifirst.eq.0) then
          ifirst=1
          zfirst=ztimef
@@ -17,7 +22,7 @@ c
          ztimef=ztimef-zfirst
       endif
 c
-      timef=ztimef
+      timef=ztimef/1000.
 c
       return
       end    
