@@ -77,7 +77,6 @@ END SUBROUTINE str_sorting_method
 
 
 SUBROUTINE init_index(index)
-
 INTEGER_M, intent(out):: index(:)
 INTEGER_M :: i, n
 n = size(index)
@@ -88,7 +87,6 @@ END SUBROUTINE init_index
 
 
 SUBROUTINE get_rank(index, rank)
-
 INTEGER_M, intent(in) :: index(:)
 INTEGER_M, intent(out):: rank(:)
 INTEGER_M :: i, n
@@ -100,7 +98,6 @@ END SUBROUTINE get_rank
 
 
 SUBROUTINE int_keysort_1D(rc, a, n,method, descending,index, init)
-
 INTEGER_M, intent(out)           :: rc
 INTEGER_M, intent(inout)         :: a(:)
 INTEGER_M, intent(in)            :: n
@@ -111,6 +108,9 @@ logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
 INTEGER_M :: aa(size(a),1)
 INTEGER_M :: ikey
+rc = 0
+if (n <= 0) return
+if (size(a) <= 0) return
 aa(:,1) = a(:)
 ikey = 1
 if (present(descending)) then
@@ -122,7 +122,6 @@ END SUBROUTINE int_keysort_1D
 
 
 SUBROUTINE real4_keysort_1D(rc, a, n,method, descending,index, init)
-
 INTEGER_M, intent(out)           :: rc
 REAL_M, intent(inout)         :: a(:)
 INTEGER_M, intent(in)            :: n
@@ -133,6 +132,9 @@ logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
 REAL_M :: aa(size(a),1)
 INTEGER_M :: ikey
+rc = 0
+if (n <= 0) return
+if (size(a) <= 0) return
 aa(:,1) = a(:)
 ikey = 1
 if (present(descending)) then
@@ -144,7 +146,6 @@ END SUBROUTINE real4_keysort_1D
 
 
 SUBROUTINE real8_keysort_1D(rc, a, n,method, descending,index, init)
-
 INTEGER_M, intent(out)           :: rc
 REAL_B, intent(inout)         :: a(:)
 INTEGER_M, intent(in)            :: n
@@ -155,6 +156,9 @@ logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
 REAL_B :: aa(size(a),1)
 INTEGER_M :: ikey
+rc = 0
+if (n <= 0) return
+if (size(a) <= 0) return
 aa(:,1) = a(:)
 ikey = 1
 if (present(descending)) then
@@ -186,8 +190,10 @@ INTEGER_M, allocatable :: data(:)
 INTEGER_M, allocatable :: ikeys(:)
 logical iinit, descending
 
+rc = 0
 lda = size(a, dim=1)
 sda = size(a, dim=2)
+if (n <= 0 .or. lda <= 0 .or. sda <= 0) return
 
 imethod = current_method
 if (present(method)) then
@@ -317,8 +323,10 @@ REAL_M, allocatable :: data(:)
 INTEGER_M, allocatable :: ikeys(:)
 logical iinit, descending
 
+rc = 0
 lda = size(a, dim=1)
 sda = size(a, dim=2)
+if (n <= 0 .or. lda <= 0 .or. sda <= 0) return
 
 imethod = current_method
 if (present(method)) then
@@ -448,8 +456,10 @@ REAL_B, allocatable :: data(:)
 INTEGER_M, allocatable :: ikeys(:)
 logical iinit, descending
 
+rc = 0
 lda = size(a, dim=1)
 sda = size(a, dim=2)
+if (n <= 0 .or. lda <= 0 .or. sda <= 0) return
 
 imethod = current_method
 if (present(method)) then

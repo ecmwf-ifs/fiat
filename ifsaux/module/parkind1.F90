@@ -12,6 +12,15 @@ INTEGER, PARAMETER :: JPIT = SELECTED_INT_KIND(2)
 INTEGER, PARAMETER :: JPIS = SELECTED_INT_KIND(4)
 INTEGER, PARAMETER :: JPIM = SELECTED_INT_KIND(9)
 INTEGER, PARAMETER :: JPIB = SELECTED_INT_KIND(12)
+
+!Special integer type to be used for sensative adress calculations
+!should be *8 for a machine with 8byte adressing for optimum performance
+#ifdef ADDRESS64
+INTEGER, PARAMETER :: JPIA = JPIB
+#else
+INTEGER, PARAMETER :: JPIA = JPIM
+#endif
+
 !
 !     Real Kinds
 !     ----------
