@@ -28,6 +28,17 @@ extern int drhook_lhook;
 /* drhook.c external interfaces */
 
 extern void
+c_drhook_getenv_(const char *s,
+		 char *value,
+		 /* Hidden arguments */
+		 int slen,
+		 const int valuelen);
+
+extern void
+c_drhook_memcounter_(const int *thread_id,
+		     const long long int *size);
+
+extern void
 c_drhook_raise_(const int *sig);
 
 extern void

@@ -160,68 +160,44 @@ end subroutine mpei_abort
 subroutine coml_init_lockid(kmylock)
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMOML
-USE YOMHOOK, ONLY : LHOOK, DR_HOOK
 implicit none
 INTEGER(KIND=JPIM), intent(inout) :: kmylock
-!$ REAL(KIND=JPRB) :: ZHOOK_HANDLE
-!$ IF (LHOOK) CALL DR_HOOK('COML_INIT_LOCKID',0,ZHOOK_HANDLE)
 !$ CALL OML_INIT_LOCK(kmylock)
-!$ IF (LHOOK) CALL DR_HOOK('COML_INIT_LOCKID',1,ZHOOK_HANDLE)
 end subroutine coml_init_lockid
 
 subroutine coml_init_lock()
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMOML
-USE YOMHOOK, ONLY : LHOOK, DR_HOOK
 implicit none
-!$ REAL(KIND=JPRB) :: ZHOOK_HANDLE
-!$ IF (LHOOK) CALL DR_HOOK('COML_INIT_LOCK',0,ZHOOK_HANDLE)
 !$ CALL OML_INIT_LOCK()
-!$ IF (LHOOK) CALL DR_HOOK('COML_INIT_LOCK',1,ZHOOK_HANDLE)
 end subroutine coml_init_lock
 
 subroutine coml_set_lockid(kmylock)
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMOML
-USE YOMHOOK, ONLY : LHOOK, DR_HOOK
 implicit none
 INTEGER(KIND=JPIM), intent(inout) :: kmylock
-!$ REAL(KIND=JPRB) :: ZHOOK_HANDLE
-!$ IF (LHOOK) CALL DR_HOOK('COML_SET_LOCKID',0,ZHOOK_HANDLE)
 !$ CALL OML_SET_LOCK(kmylock)
-!$ IF (LHOOK) CALL DR_HOOK('COML_SET_LOCKID',1,ZHOOK_HANDLE)
 end subroutine coml_set_lockid
 
 subroutine coml_set_lock()
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMOML
-USE YOMHOOK, ONLY : LHOOK, DR_HOOK
 implicit none
-!$ REAL(KIND=JPRB) :: ZHOOK_HANDLE
-!$ IF (LHOOK) CALL DR_HOOK('COML_SET_LOCK',0,ZHOOK_HANDLE)
 !$ CALL OML_SET_LOCK()
-!$ IF (LHOOK) CALL DR_HOOK('COML_SET_LOCK',1,ZHOOK_HANDLE)
 end subroutine coml_set_lock
 
 subroutine coml_unset_lockid(kmylock)
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMOML
-USE YOMHOOK, ONLY : LHOOK, DR_HOOK
 implicit none
 INTEGER(KIND=JPIM), intent(inout) :: kmylock
-!$ REAL(KIND=JPRB) :: ZHOOK_HANDLE
-!$ IF (LHOOK) CALL DR_HOOK('COML_UNSET_LOCKID',0,ZHOOK_HANDLE)
 !$ CALL OML_UNSET_LOCK(kmylock)
-!$ IF (LHOOK) CALL DR_HOOK('COML_UNSET_LOCKID',1,ZHOOK_HANDLE)
 end subroutine coml_unset_lockid
 
 subroutine coml_unset_lock()
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMOML
-USE YOMHOOK, ONLY : LHOOK, DR_HOOK
 implicit none
-!$ REAL(KIND=JPRB) :: ZHOOK_HANDLE
-!$ IF (LHOOK) CALL DR_HOOK('COML_UNSET_LOCK',0,ZHOOK_HANDLE)
 !$ CALL OML_UNSET_LOCK()
-!$ IF (LHOOK) CALL DR_HOOK('COML_UNSET_LOCK',1,ZHOOK_HANDLE)
 end subroutine coml_unset_lock
