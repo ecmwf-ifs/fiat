@@ -7,7 +7,6 @@ typedef  long long int  ll_t;
 
 #if defined(CRAY) && !defined(SV2)
 #define gethwm GETHWM
-#elif defined(HPPA)
 #else
 #define gethwm gethwm_
 #endif

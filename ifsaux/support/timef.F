@@ -19,7 +19,7 @@ c
       return
       end
 #endif
-#ifdef SGI
+#if defined(SGI)
       function dummytimef()
       dummytimef=0
       return
@@ -45,7 +45,7 @@ c
       return
       end
 #endif
-#ifdef LINUX
+#if defined(LINUX) || defined(HPPA) || defined(ALPHA)
       function timef()
 C
 C   Returns system clock converted to nano-seconds

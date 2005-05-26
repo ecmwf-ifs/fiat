@@ -82,6 +82,15 @@ c_drhook_end_(const char *name,
 	      /* Hidden length */
 	      ,int name_len, int filename_len);
 
+extern void
+c_drhook_watch_(const int *onoff,
+		const char *array_name,
+		const void *array_ptr,
+		const int *nbytes,
+		const int *abort_if_changed
+		/* Hidden length */
+		, int array_name_len);
+
 /**** C-interface to Dr.Hook ****/
 
 extern void

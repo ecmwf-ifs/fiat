@@ -4,7 +4,6 @@
 
 #if defined(CRAY) && !defined(SV2)
 #define getpag GETPAG
-#elif defined(HPPA)
 #else
 #define getpag getpag_
 #endif

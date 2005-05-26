@@ -7,7 +7,6 @@ typedef  long long int  ll_t;
 
 #if defined(CRAY) && !defined(SV2)
 #define getrss GETRSS
-#elif defined(HPPA)
 #else
 #define getrss getrss_
 #endif
