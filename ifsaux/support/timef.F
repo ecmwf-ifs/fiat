@@ -1,4 +1,4 @@
-#ifdef VPP
+#if defined ( VPP )
       function timef()
       data ifirst/0/
       save ifirst,zfirst
@@ -19,13 +19,14 @@ c
       return
       end
 #endif
-#if defined(SGI)
+#if defined ( SGI )
       function dummytimef()
       dummytimef=0
+c    means that we use the machine-specific timef ?
       return
       end
 #endif
-#ifdef RS6K
+#if defined ( RS6K )
       function timef()
       integer*8 irtc
       external irtc
@@ -45,7 +46,7 @@ c
       return
       end
 #endif
-#if defined(LINUX) || defined(HPPA) || defined(ALPHA)
+#if defined(LINUX) || defined(HPPA) || defined(ALPHA) || defined ( SX4 )
       function timef()
 C
 C   Returns system clock converted to nano-seconds
@@ -57,7 +58,7 @@ C
       else
         timef=1000.*ic/icr
       endif
-!     timef=rtc()*4.167E-6
+
       return
       end
 #endif
