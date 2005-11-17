@@ -1,7 +1,9 @@
-/* crc.c : in fact equivalent to Unix cksum */
+/* crc.c : in fact equivalent to Unix cksum (when crc32) */
 /* Calculates 32-bit  Cyclic Redundancy Check as in Unix cksum command */
+/* Also calculates 64-bit  Cyclic Redundancy Check */
 
-/* Sami Saarinen, 17-Feb-2005 */
+/* Sami Saarinen, 17-Feb-2005 : crc32       */
+/*                24-Jun-2005 : Added crc64 */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,10 +66,22 @@ static const unsigned int crctab[256] =
 };
 
 static unsigned int 
-cksum(const char *buf, int nbuf, unsigned int nCRC)
+cksum32(const char *buf, int nbuf, unsigned int nCRC)
 {
   while (nbuf--) {
     nCRC = (nCRC << 8) ^ crctab[((nCRC >> 24) ^ *(buf++)) & 0xFF];
+  }
+  return nCRC;
+}
+
+unsigned long long int
+cksum64(const char *buf, int nbuf, unsigned long long int nCRC)
+{
+  unsigned char c;
+  while (nbuf--) {
+    c = ((unsigned char)nCRC ^ *(buf++)) & 0xFF;
+    nCRC >>= 8;
+    nCRC ^= (unsigned long long int)crctab[c] << 32;
   }
   return nCRC;
 }
@@ -80,10 +94,10 @@ crc32_(const void *vbuf, const int *pnbuf,
 {
   if (vbuf && pnbuf && *pnbuf > 0 && pnCRC) {
     const char *buf = vbuf;
-    int nCRC = *pnCRC;
+    unsigned int nCRC = *pnCRC;
     int nbuf = *pnbuf;
     /* checksum the data */
-    nCRC = cksum(buf, nbuf, nCRC);
+    nCRC = cksum32(buf, nbuf, nCRC);
     /* checksum the length */
     while (nbuf > 0) {
       nCRC = (nCRC << 8) ^ crctab[((nCRC >> 24) ^ nbuf) & 0xFF];
@@ -93,6 +107,31 @@ crc32_(const void *vbuf, const int *pnbuf,
     *pnCRC = nCRC;
   }
 }
+
+void 
+crc64_(const void *vbuf, const int *pnbuf, 
+       unsigned long long int *pnCRC /* Note: An in & out -variable */)
+{
+  if (vbuf && pnbuf && *pnbuf > 0 && pnCRC) {
+    const char *buf = vbuf;
+    unsigned long long int nCRC = *pnCRC;
+    int nbuf = *pnbuf;
+    /* checksum the data */
+    nCRC = cksum64(buf, nbuf, nCRC);
+    /* checksum the length */
+    while (nbuf > 0) {
+      unsigned char c = ((unsigned char)nCRC ^ nbuf) & 0xFF;
+      nCRC >>= 8;
+      nCRC ^= (unsigned long long int)crctab[c] << 32;
+      nbuf >>= 8;
+    }
+    nCRC = ~nCRC & 0xFFFFFFFFFFFFFFFFull;
+    *pnCRC = nCRC;
+  }
+}
+
+/* Not related to crc at all ;-( */
+/* Used in module strhandler (stransfer) */
 
 void
 ecmwf_transfer_(void *out, const int *Len_out,
