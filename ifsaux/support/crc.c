@@ -4,6 +4,8 @@
 
 /* Sami Saarinen, 17-Feb-2005 : crc32       */
 /*                24-Jun-2005 : Added crc64 */
+/*                29-Dec-2005 : Removed static in front of C-callable cksum32() */
+/*                29-Dec-2005 : Length argument for crc64 now 64-bit int */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,7 +67,7 @@ static const unsigned int crctab[256] =
   0xA2F33668, 0xBCB4666D, 0xB8757BDA, 0xB5365D03, 0xB1F740B4
 };
 
-static unsigned int 
+unsigned int 
 cksum32(const char *buf, int nbuf, unsigned int nCRC)
 {
   while (nbuf--) {
@@ -75,7 +77,7 @@ cksum32(const char *buf, int nbuf, unsigned int nCRC)
 }
 
 unsigned long long int
-cksum64(const char *buf, int nbuf, unsigned long long int nCRC)
+cksum64(const char *buf, long long int nbuf, unsigned long long int nCRC)
 {
   unsigned char c;
   while (nbuf--) {
@@ -84,6 +86,41 @@ cksum64(const char *buf, int nbuf, unsigned long long int nCRC)
     nCRC ^= (unsigned long long int)crctab[c] << 32;
   }
   return nCRC;
+}
+
+unsigned int 
+pp_cksum32(int nbuf, unsigned int nCRC)
+{
+    while (nbuf > 0) {
+	nCRC = (nCRC << 8) ^ crctab[((nCRC >> 24) ^ nbuf) & 0xFF];
+	nbuf >>= 8;
+    }
+    nCRC = ~nCRC & 0xFFFFFFFF;
+    return nCRC;
+}
+
+unsigned int 
+pp_cksum32but64len(long long int nbuf, unsigned int nCRC)
+{
+    while (nbuf > 0) {
+	nCRC = (nCRC << 8) ^ crctab[((nCRC >> 24) ^ nbuf) & 0xFF];
+	nbuf >>= 8;
+    }
+    nCRC = ~nCRC & 0xFFFFFFFF;
+    return nCRC;
+}
+
+unsigned long long int 
+pp_cksum64(long long int nbuf, unsigned long long int nCRC)
+{
+    while (nbuf > 0) {
+	unsigned char c = ((unsigned char)nCRC ^ nbuf) & 0xFF;
+	nCRC >>= 8;
+	nCRC ^= (unsigned long long int)crctab[c] << 32;
+	nbuf >>= 8;
+    }
+    nCRC = ~nCRC & 0xFFFFFFFFFFFFFFFFull;
+    return nCRC;
 }
 
 /* Fortran callable */
@@ -99,34 +136,22 @@ crc32_(const void *vbuf, const int *pnbuf,
     /* checksum the data */
     nCRC = cksum32(buf, nbuf, nCRC);
     /* checksum the length */
-    while (nbuf > 0) {
-      nCRC = (nCRC << 8) ^ crctab[((nCRC >> 24) ^ nbuf) & 0xFF];
-      nbuf >>= 8;
-    }
-    nCRC = ~nCRC & 0xFFFFFFFF;
-    *pnCRC = nCRC;
+    *pnCRC = pp_cksum32(nbuf, nCRC);
   }
 }
 
 void 
-crc64_(const void *vbuf, const int *pnbuf, 
+crc64_(const void *vbuf, const long long int *pnbuf, 
        unsigned long long int *pnCRC /* Note: An in & out -variable */)
 {
   if (vbuf && pnbuf && *pnbuf > 0 && pnCRC) {
     const char *buf = vbuf;
     unsigned long long int nCRC = *pnCRC;
-    int nbuf = *pnbuf;
+    long long int nbuf = *pnbuf;
     /* checksum the data */
     nCRC = cksum64(buf, nbuf, nCRC);
     /* checksum the length */
-    while (nbuf > 0) {
-      unsigned char c = ((unsigned char)nCRC ^ nbuf) & 0xFF;
-      nCRC >>= 8;
-      nCRC ^= (unsigned long long int)crctab[c] << 32;
-      nbuf >>= 8;
-    }
-    nCRC = ~nCRC & 0xFFFFFFFFFFFFFFFFull;
-    *pnCRC = nCRC;
+    *pnCRC = pp_cksum64(nbuf, nCRC);
   }
 }
 
@@ -137,7 +162,7 @@ void
 ecmwf_transfer_(void *out, const int *Len_out,
 		const void *in, const int *Len_in
 		/* Possible hidden argument (not referred) */
-		, int lenny_henry)
+		, int Sta_lin)
 {
   size_t len = *Len_out;
   if (*Len_in < len) len = *Len_in;

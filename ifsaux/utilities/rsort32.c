@@ -147,14 +147,16 @@ rsort32_(const    int *Mode,
   }
 
   { /* Little/big-endian selection */
-    const Uint32 ulbtest = 0x12345678;
-    const unsigned char *clbtest = (const unsigned char *)&ulbtest;
+    extern int is_little_endian();
+    int i_am_little = is_little_endian();
 
-    if (*clbtest == 0x78) { /* We are on little-endian machine */
+    if (i_am_little) { 
+      /* We are on little-endian machine */
       lsw   =  0;
       msw   =  1;
     }
-    else { /* We are on big-endian machine */
+    else { 
+      /* We are on big-endian machine */
       lsw   =  1;
       msw   =  0;
     }

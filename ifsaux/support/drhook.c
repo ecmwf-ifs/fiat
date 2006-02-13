@@ -8,7 +8,13 @@
 
    Thanks to Bob Walkup & John Hague for IBM Power4 version
    Thanks to Bob Carruthers for Cray X1 (SV2), XD1 and XT3 versions,
-    as well as David Tanqueray for the flop routines
+   as well as David Tanqueray for the flop routines
+
+   Also thanks to Roland Richter for suggesting the use
+   of "call tracebackqq()" function.
+   In our environment this is accomplished by calling fortran
+   routine intel_trbk() from ifsaux/utilities/gentrbk.F90.
+   This source must be compiled with -DINTEL flag, too.
 
 */
 
@@ -66,6 +72,12 @@ static void untrapfpe(void)
 
 static char *gdbcmd = NULL;
 
+#if !defined(ADDR2LINE)
+#define ADDR2LINE "/usr/bin/addr2line"
+#endif
+
+static char *addr2linecmd = NULL;
+
 #endif
 
 static int any_memstat = 0;
@@ -101,7 +113,7 @@ static long long int opt_hpmstop_threshold = -1;
 static        double opt_hpmstop_mflops    =  1000000.0; /* Yes, 1 PetaFlop/s !! */
 
 
-#define DRHOOK_STRBUF 200
+#define DRHOOK_STRBUF 1000
 
 #ifndef SA_SIGINFO
 #define SA_SIGINFO 0
@@ -291,7 +303,7 @@ typedef struct drhook_watch_t {
 
 /*** static (local) variables ***/
 
-static int DRHOOK_lock = 0;
+static o_lock_t DRHOOK_lock = 0;
 static int numthreads = 0;
 static int myproc = 1;
 static int nproc = -1;
@@ -782,10 +794,21 @@ ignore_signals(int silent)
 #if defined(LINUX) && !defined(XT3) && !defined(XD1)
 static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 {
-  coml_set_lockid_(&DRHOOK_lock);
+  static int who = 0; /* Current owner of the lock, if > 0 */
+  int is_set = 0;
+  int it = get_thread_id_(); 
+
+  coml_test_lockid_(&is_set, &DRHOOK_lock);
+  if (is_set && who == it) {
+    fprintf(stderr,"[gdb__sigdump] : Received (another) signal#%d, pid=%d\n",sig,pid);
+    fprintf(stderr,"[gdb__sigdump] : Called recursively by the same thread#%d !!!\n",it);
+    return;
+  }
+  if (!is_set) coml_set_lockid_(&DRHOOK_lock);
+  who = it;
   fprintf(stderr,"[gdb__sigdump] : Received signal#%d, pid=%d\n",sig,pid);
-#if defined(__GNUC__) && defined(__WORDSIZE) && __WORDSIZE == 32
-  fprintf(stderr,"[gdb__sigdump] : Simple backtrace ...\n");
+#if defined(__GNUC__)
+  fprintf(stderr,"[gdb__sigdump] : Backtrace of program '%s' :\n",a_out ? a_out : "???");
   fflush(NULL);
   {
     /* To have a desired effect, 
@@ -796,12 +819,59 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
     ucontext_t *uc = (ucontext_t *)sigcontextptr;
     int fd = fileno(stderr);
     trace_size = backtrace(trace, GNUC_BTRACE);
+#if defined(REG_EIP)
     /* overwrite sigaction with caller's address */
-    trace[1] = (void *) uc->uc_mcontext.gregs[REG_EIP]; /* Help!! REG_EIP available for 32-bit mode only ? */
-    /* Print traceback directly to fd=2 (stderr) */
-    backtrace_symbols_fd(trace, trace_size,fd);
-    fprintf(stderr,"[gdb__sigdump] : End of simple backtrace\n");
+    trace[1] = (void *) uc->uc_mcontext.gregs[REG_EIP]; /* Help!! REG_EIP available only in 32-bit mode ? */
+#endif
+    if (addr2linecmd) {
+      /* Use ADDR2LINE to obtain source file & line numbers for each trace-address */
+      int i, len = 20;
+      FILE *fp = NULL;
+      char *cmd = malloc_drhook((strlen(addr2linecmd) + trace_size * 30) * sizeof(*cmd));
+      strcpy(cmd,addr2linecmd);
+      for (i = 0; i < trace_size; i++) {
+	char s[30];
+	sprintf(s,(sizeof(void *) == 8) ? " %llx" : " %x",trace[i]);
+	strcat(cmd,s);
+      }
+      fp = popen(cmd,"r");
+      if (fp) {
+	char **strings = backtrace_symbols(trace, trace_size);
+	if (strings) {
+	  for (i = 0; i < trace_size; i++) {
+	    char line[DRHOOK_STRBUF];
+	    if (!feof(fp) && fgets(line, DRHOOK_STRBUF, fp)) {
+	      const char *last_slash = strrchr(strings[i],'/');
+	      if (last_slash) last_slash++; else last_slash = strings[i];
+	      if (*line != '?') {
+		int newlen;
+		char *nl = strchr(line,'\n');
+		if (nl) *nl = '\0';
+		newlen = strlen(line);
+		if (newlen > len) len = newlen;
+		fprintf(stderr, "%*.*s  :  %s\n", len, len, line, last_slash);
+	      }
+	      else {
+		fprintf(stderr, "%*.*s  :  %s\n", len, len, "<Unknown>", last_slash);
+	      }
+	    }
+	    else {
+	      fprintf(stderr, "%s\n", strings[i]);
+	    }
+	  } /* for (i = 0; i < trace_size; i++) */
+	} /* if (strings) */
+	/* free(strings) */
+	fflush(stderr);
+	pclose(fp);
+      } /* if (fp) */
+      free_drhook(cmd);
+    }
+    else {
+      /* Print traceback directly to fd=2 (stderr) */
+      backtrace_symbols_fd(trace, trace_size, fd);
+    } /* if (addr2linecmd) else ... */
   }
+  fprintf(stderr,"[gdb__sigdump] : End of backtrace\n");
 #endif
   if (gdbcmd) {
     char *gdb = getenv("GNUDEBUGGER");
@@ -815,6 +885,7 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
       fflush(NULL);
     }
   }
+  who = 0;
   coml_unset_lockid_(&DRHOOK_lock);
 }
 #endif
@@ -979,18 +1050,21 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 #ifdef RS6K
       xl__sigdump(sig SIG_PASS_EXTRA_ARGS); /* Can't use xl__trce(...), since it also stops */
 #endif
-#if defined(LINUX) && !defined(XT3) && !defined(XD1)
-      gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
+#ifdef INTEL
+      intel_trbk_(); /* from ../utilities/gentrbk.F90 */
 #endif
 #ifdef VPP
 #if defined(SA_SIGINFO) && SA_SIGINFO > 0
       _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
 #endif
+#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+      gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
+#endif
       fflush(NULL);
       fprintf(stderr,"Done tracebacks, calling exit with sig=%d, time =%8.2f\n",sig,WALLTIME());
       fflush(NULL);
-      exit(1);
+      _exit(1);
     }
     /* sigprocmask(SIG_SETMASK, &oldmask, 0); */
     /* End critical region : the original signal state restored */
@@ -1026,13 +1100,16 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 #ifdef RS6K
     xl__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
-#if defined(LINUX) && !defined(XT3) && !defined(XD1)
-    gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
+#ifdef INTEL
+    intel_trbk_(); /* from ../utilities/gentrbk.F90 */
 #endif
 #ifdef VPP
 #if defined(SA_SIGINFO) && SA_SIGINFO > 0
     _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
+#endif
+#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+    gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
     fflush(NULL);
     _exit(1);
@@ -1934,6 +2011,10 @@ c_drhook_init_(const char *progname,
 	    /* Related to pgf90 -mp problems ; See above */
 	    , pid, pid
 	    );
+  }
+  if (!addr2linecmd) {
+    addr2linecmd = malloc_drhook( (strlen(ADDR2LINE) + 10 + strlen(a_out)) * sizeof(*addr2linecmd) );
+    sprintf(addr2linecmd,"%s -e %s",ADDR2LINE,a_out);
   }
 #endif
 }
