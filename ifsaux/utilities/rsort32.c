@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <signal.h>
+#include "raise.h"
 
 /* rsort32_() : 32-bit Fortran-callable RADIX-sort */
 
@@ -86,7 +87,7 @@ extern void __free(void *vptr);   /* getcurheap.c */
    x = malloc(bytes); \
    if (!x) { fprintf(stderr, \
 		     "malloc() of %s (%d bytes) failed in file=%s, line=%d\n", \
-		     #x, bytes, __FILE__, __LINE__); raise(SIGABRT); } }
+		     #x, bytes, __FILE__, __LINE__); RAISE(SIGABRT); } }
 
 #define FREE(x)           if (x) { free(x); x = NULL; }
 
@@ -147,8 +148,8 @@ rsort32_(const    int *Mode,
   }
 
   { /* Little/big-endian selection */
-    extern int is_little_endian();
-    int i_am_little = is_little_endian();
+    extern int ec_is_little_endian();
+    int i_am_little = ec_is_little_endian();
 
     if (i_am_little) { 
       /* We are on little-endian machine */
@@ -330,7 +331,7 @@ rsort32_(const    int *Mode,
 	  fprintf(stderr,
 		  "***Programming error in rsort32_(): k1 + sum != n || k2 != n; k1=%d,k2=%d,sum=%d,n=%d\n",
 		  k1,k2,sum,n);
-	  raise(SIGABRT);
+	  RAISE(SIGABRT);
 	}
       }
       

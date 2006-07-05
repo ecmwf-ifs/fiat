@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include "drhook.h"
+#include "raise.h"
 
 typedef  long long int  ll_t;
 
@@ -75,8 +76,8 @@ Check_curalloc() /* Normally not called */
   if (curalloc < 0 || curalloc > big) {
     fprintf(stderr,"Check_curalloc(): curalloc has gone crazy => %lld\n",curalloc);
     xl__trbk_();
-    raise(SIGABRT);
-    exit(1);  /* Just in case, but shouldn't end up here at all */
+    RAISE(SIGABRT);
+    _exit(1);  /* Just in case, but shouldn't end up here at all */
   }
 }
 
@@ -201,8 +202,9 @@ void __free(void *vptr)
         free_error++;
         if (free_error > max_free_error) {
 	  fprintf(stderr,"ERROR: Too many NaNS overwrites at end of arrays\n");
-	  raise(SIGABRT);
-	  exit(1); /* Just in case, but shouldn't end up here at all */
+	  xl__trbk_(); /* Oops !! */
+	  RAISE(SIGABRT);
+	  _exit(1); /* Just in case, but shouldn't end up here at all */
 	}
       }
     }
@@ -313,9 +315,9 @@ void *__malloc(ll_t size)
 	    "__malloc(size=%lld => adjsize=%lld, true_bytes=%lld bytes) failed in file=%s, line=%d\n",
 	    size, adjsize, true_bytes, __FILE__, __LINE__);
     xl__trbk_(); /* Oops !! */
-    raise(SIGABRT);
+    RAISE(SIGABRT);
     pthread_mutex_unlock(&getcurheap_lock);
-    exit(1); /* Just in case, but shouldn't end up here at all */
+    _exit(1); /* Just in case, but shouldn't end up here at all */
   }
   return vptr;
 }

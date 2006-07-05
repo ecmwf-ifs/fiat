@@ -5,7 +5,7 @@ C     Fujitsu function
       return
       END
 #endif
-#if defined (RS6K) || defined (SX4)
+#if defined (RS6K) || defined (SX4) || defined(ALPHA) || defined(HPPA) || defined(SUN4)
       SUBROUTINE CPTIME(PVCP,PTCP)
       data ifirst/0/
       save ifirst,zfirst

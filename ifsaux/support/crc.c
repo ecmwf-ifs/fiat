@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "crc.h"
 
 static const unsigned int crctab[256] =
 {

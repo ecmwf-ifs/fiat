@@ -45,39 +45,37 @@ static char *end_stamp = NULL;
 #include <ucontext.h>
 #endif
 
-#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+#if defined(LINUX) && !defined(XT3) && !defined(XD1) && !defined(CYGWIN)
 
 #if defined(__GNUC__)
-#include <execinfo.h>
-#define GNUC_BTRACE 1000
-#define __USE_GNU
-#include <ucontext.h>
+
 #define _GNU_SOURCE 1
+#if defined(CYGWIN)
+#include <mingw/fenv.h>
+#else
 #include <fenv.h>
+#endif
+
 static void trapfpe(void)
 {
   /* Enable some exceptions. At startup all exceptions are masked. */
   (void) feenableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);
 }
+
 static void untrapfpe(void)
 {
   /* Disable some exceptions. At startup all exceptions are masked. */
   (void)fedisableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);
 }
+
 #endif /* defined(__GNUC__) */
 
-#if !defined(GNUDEBUGGER)
-#define GNUDEBUGGER "/usr/bin/gdb"
-#endif
+#endif /* defined(LINUX) && !defined(XT3) && !defined(XD1) */
 
-static char *gdbcmd = NULL;
-
-#if !defined(ADDR2LINE)
-#define ADDR2LINE "/usr/bin/addr2line"
-#endif
-
-static char *addr2linecmd = NULL;
-
+#if (!defined(LINUX) || defined(CYGWIN)) && defined(__GNUC__)
+/* For example Solaris with gcc */
+#define trapfpe()
+#define untrapfpe()
 #endif
 
 static int any_memstat = 0;
@@ -134,7 +132,6 @@ static        double opt_hpmstop_mflops    =  1000000.0; /* Yes, 1 PetaFlop/s !!
 #define ABS(x)   ( (x) >= 0  ? (x) : -(x) )
 
 #define strequ(s1,s2)     ((void *)s1 && (void *)s2 && strcmp(s1,s2) == 0)
-/*#define strnequ(s1,s2,n)  (strncmp(s1,s2,n) == 0)*/
 #define strnequ(s1,s2,n)  ((void *)s1 && (void *)s2 && memcmp(s1,s2,n) == 0)
 
 extern long long int getstk_();
@@ -151,11 +148,13 @@ extern long long int getpag_();
 extern double flop_();
 #endif
 
+extern double util_cputime_();
+extern double util_walltime_();
+
 #ifdef RS6K
 static long long int irtc_start = 0;
 extern long long int irtc();
 #define WALLTIME() ((double)(irtc() - irtc_start)*1.0e-9)
-extern double util_cputime_();
 #define CPUTIME() util_cputime_()
 #else
 #if defined(SV2)
@@ -174,19 +173,19 @@ static double my_inv_irtc_rate = 0;
 #else
 #define WALLTIME() ((double)(irtc_() - irtc_start)*my_inv_irtc_rate)
 #endif
-extern double util_cputime_();
 #define CPUTIME() util_cputime_()
 #else
-extern double util_walltime_();
 #define WALLTIME() util_walltime_()
-extern double util_cputime_();
 #define CPUTIME() util_cputime_()
 #endif
 #endif
 
-#define RAISE(x) { int tmp = x; c_drhook_raise_(&tmp); }
+/* #define RAISE(x) { int tmp = x; c_drhook_raise_(&tmp); } */
+#include "raise.h"
+#include "cargs.h"
 
 extern int get_thread_id_();
+extern void LinuxTraceBack(void *sigcontextptr);
 
 /*** typedefs ***/
 
@@ -674,7 +673,6 @@ flptrap(int sig)
       ret, __LINE__, __FILE__);
       perror(errmsg);
       RAISE(SIGABRT);
-      _exit(1); /* Never ending up here */
     }
     fp_enable(TRP_INVALID | TRP_DIV_BY_ZERO | TRP_OVERFLOW);
   }
@@ -791,100 +789,24 @@ ignore_signals(int silent)
 
 /*--- gdb__sigdump ---*/
 
-#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1)
 static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 {
   static int who = 0; /* Current owner of the lock, if > 0 */
   int is_set = 0;
   int it = get_thread_id_(); 
+  drhook_sig_t *sl = &siglist[sig];
 
   coml_test_lockid_(&is_set, &DRHOOK_lock);
   if (is_set && who == it) {
-    fprintf(stderr,"[gdb__sigdump] : Received (another) signal#%d, pid=%d\n",sig,pid);
-    fprintf(stderr,"[gdb__sigdump] : Called recursively by the same thread#%d !!!\n",it);
+    fprintf(stderr,"[gdb__sigdump] : Received (another) signal#%d(%s), pid=%d\n",sig,sl->name,pid);
+    fprintf(stderr,"[gdb__sigdump] : Recursive calls by the same thread#%d not allowed. Bailing out\n",it);
     return;
   }
   if (!is_set) coml_set_lockid_(&DRHOOK_lock);
   who = it;
-  fprintf(stderr,"[gdb__sigdump] : Received signal#%d, pid=%d\n",sig,pid);
-#if defined(__GNUC__)
-  fprintf(stderr,"[gdb__sigdump] : Backtrace of program '%s' :\n",a_out ? a_out : "???");
-  fflush(NULL);
-  {
-    /* To have a desired effect, 
-       compile with -g (and maybe -O1 or greater to get some optimization)
-       and link with -g -Wl,-export-dynamic */
-    void *trace[GNUC_BTRACE];
-    int trace_size = 0;
-    ucontext_t *uc = (ucontext_t *)sigcontextptr;
-    int fd = fileno(stderr);
-    trace_size = backtrace(trace, GNUC_BTRACE);
-#if defined(REG_EIP)
-    /* overwrite sigaction with caller's address */
-    trace[1] = (void *) uc->uc_mcontext.gregs[REG_EIP]; /* Help!! REG_EIP available only in 32-bit mode ? */
-#endif
-    if (addr2linecmd) {
-      /* Use ADDR2LINE to obtain source file & line numbers for each trace-address */
-      int i, len = 20;
-      FILE *fp = NULL;
-      char *cmd = malloc_drhook((strlen(addr2linecmd) + trace_size * 30) * sizeof(*cmd));
-      strcpy(cmd,addr2linecmd);
-      for (i = 0; i < trace_size; i++) {
-	char s[30];
-	sprintf(s,(sizeof(void *) == 8) ? " %llx" : " %x",trace[i]);
-	strcat(cmd,s);
-      }
-      fp = popen(cmd,"r");
-      if (fp) {
-	char **strings = backtrace_symbols(trace, trace_size);
-	if (strings) {
-	  for (i = 0; i < trace_size; i++) {
-	    char line[DRHOOK_STRBUF];
-	    if (!feof(fp) && fgets(line, DRHOOK_STRBUF, fp)) {
-	      const char *last_slash = strrchr(strings[i],'/');
-	      if (last_slash) last_slash++; else last_slash = strings[i];
-	      if (*line != '?') {
-		int newlen;
-		char *nl = strchr(line,'\n');
-		if (nl) *nl = '\0';
-		newlen = strlen(line);
-		if (newlen > len) len = newlen;
-		fprintf(stderr, "%*.*s  :  %s\n", len, len, line, last_slash);
-	      }
-	      else {
-		fprintf(stderr, "%*.*s  :  %s\n", len, len, "<Unknown>", last_slash);
-	      }
-	    }
-	    else {
-	      fprintf(stderr, "%s\n", strings[i]);
-	    }
-	  } /* for (i = 0; i < trace_size; i++) */
-	} /* if (strings) */
-	/* free(strings) */
-	fflush(stderr);
-	pclose(fp);
-      } /* if (fp) */
-      free_drhook(cmd);
-    }
-    else {
-      /* Print traceback directly to fd=2 (stderr) */
-      backtrace_symbols_fd(trace, trace_size, fd);
-    } /* if (addr2linecmd) else ... */
-  }
-  fprintf(stderr,"[gdb__sigdump] : End of backtrace\n");
-#endif
-  if (gdbcmd) {
-    char *gdb = getenv("GNUDEBUGGER");
-    if (gdb && (strequ(gdb,"1")    || 
-		strequ(gdb,"true") || 
-		strequ(gdb,"TRUE"))) {
-      fprintf(stderr,"[gdb__sigdump] : Invoking %s ...\n",GNUDEBUGGER);
-      fprintf(stderr,"%s\n",gdbcmd);
-      fflush(NULL);
-      system(gdbcmd);
-      fflush(NULL);
-    }
-  }
+  fprintf(stderr,"[gdb__sigdump] : Received signal#%d(%s), pid=%d\n",sig,sl->name,pid);
+  LinuxTraceBack(sigcontextptr);
   who = 0;
   coml_unset_lockid_(&DRHOOK_lock);
 }
@@ -976,8 +898,9 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     }
 
     fprintf(stderr,
-      "[myproc#%d,tid#%d,pid#%d]: Received signal#%d (%s) :: %lldMB (heap), %lldMB (rss), %lldMB (stack), %lld (paging), nsigs %d, time %8.2f\n",
-      myproc,tid,pid,sig,sl->name, hwm, rss, maxstack, pag, nsigs, WALLTIME());
+	    "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Received signal :: %lldMB (heap),"
+	    " %lldMB (rss), %lldMB (stack), %lld (paging), nsigs %d, time %8.2f\n",
+	    myproc,tid,pid,sig,sl->name, hwm, rss, maxstack, pag, nsigs, WALLTIME());
     fflush(NULL);
 
     /*----- 2nd (and subsequent) calls to signal handler: spin 20 sec,  _exit ---------*/
@@ -1036,7 +959,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 
     if (sl->ignore_atexit) signal_handler_ignore_atexit++;
 
-    { /* Print Dr. HOOK traceback */
+    { /* Print Dr.Hook traceback */
       const int ftnunitno = 0; /* stderr */
       const int print_option = 2; /* calling tree */
       int level = 0;
@@ -1058,17 +981,19 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
 #endif
-#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1)
       gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
       fflush(NULL);
       fprintf(stderr,"Done tracebacks, calling exit with sig=%d, time =%8.2f\n",sig,WALLTIME());
       fflush(NULL);
+      if (sig != SIGABRT && sig != SIGTERM) ABOR1("Dr.Hook calls ABOR1 ...");
       _exit(1);
     }
     /* sigprocmask(SIG_SETMASK, &oldmask, 0); */
     /* End critical region : the original signal state restored */
 
+#if 1
     /*-------------- Following code currently redundant---------------*/
     if (opt_propagate_signals &&
 	sl->old.sa_handler != SIG_DFL && 
@@ -1087,11 +1012,13 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     }
     /* Make sure that the process really exits now */
     fprintf(stderr,
-	    "[myproc#%d,tid#%d,pid#%d]: Error exit due to signal#%d (%s)\n",
+	    "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Error exit due to this signal\n",
 	    myproc,tid,pid,sig,sl->name);
     fflush(NULL);
     _exit(1);
     /*---------------- End of redundant code---------------------*/
+#endif
+
   }
   else {
     fprintf(stderr,
@@ -1108,7 +1035,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
 #endif
-#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1)
     gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
     fflush(NULL);
@@ -1148,10 +1075,10 @@ signal_drhook_init(int enforce)
   SETSIG(SIGBUS,0);
   SETSIG(SIGSEGV,0);
   SETSIG(SIGILL,0);
-#if !defined(LINUX)
+#if defined(SIGEMT)
   SETSIG(SIGEMT,0);
 #endif
-#if defined(LINUX)
+#if defined(SIGSTKFLT)
   SETSIG(SIGSTKFLT,0); /* Stack fault */
 #endif
   SETSIG(SIGFPE,0);
@@ -1159,9 +1086,11 @@ signal_drhook_init(int enforce)
   SETSIG(SIGINT,0);
   SETSIG(SIGQUIT,0);
   SETSIG(SIGTERM,0);
+#if defined(SIGIOT)
   SETSIG(SIGIOT,0);  /* Same as SIGABRT; Used to be a typo SIGIO ;-( */
+#endif
   SETSIG(SIGXCPU,1); /* ignore_atexit == 1 i.e. no profile info via atexit() */
-#ifdef RS6K
+#if defined(SIGDANGER)
   SETSIG(SIGDANGER,1); /* To catch the place where paging space gets dangerously low */
 #endif
   SETSIG(SIGSYS,0);
@@ -1453,7 +1382,12 @@ trim(const char *name, int *n)
     name_len--;
   }
   *n = len;
-  return name;
+  if (name) return name;
+  else {
+    /* Never actually called (unless a true fatality) */
+    ABOR1("***Fatal error in drhook.c:trim()-function");
+    return NULL;
+  }
 }
 
 /*--- insertkey ---*/
@@ -1582,6 +1516,8 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
 {
   drhook_calltree_t *treeptr = (tid >= 1 && tid <= numthreads) ? thiscall[tid-1] : NULL;
   if (!treeptr || !treeptr->active || !(treeptr->keyptr == keyptr)) {
+    const int sig = SIGABRT;
+    const char sl_name[] = "SIGABRT";
     char *s;
     if (opt_trim) name = trim(name,&name_len);
     s = strdup2_drhook(name,name_len);
@@ -1593,23 +1529,25 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
       }
     }
     fprintf(stderr,
-	    "[myproc#%d,tid#%d,pid#%d]: Dr.Hook has detected an invalid key-pointer/handle while leaving routine '%s'\n",
-	    myproc,tid,pid,s);
+	    "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Dr.Hook has detected an invalid"
+	    " key-pointer/handle while leaving routine '%s'\n",
+	    myproc,tid,pid,sig,sl_name,s);
     if (treeptr) {
       equivalence_t u;
       u.keyptr = treeptr->keyptr;
       fprintf(stderr,
-	      "[myproc#%d,tid#%d,pid#%d]: Expecting key-pointer=0x%x (%.20g) and treeptr->active-flag == 1\n",
-	      myproc,tid,pid,u.keyptr,u.d);
+	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Expecting key-pointer=0x%x (%.20g)"
+	      " and treeptr->active-flag == 1\n",
+	      myproc,tid,pid,sig,sl_name,u.keyptr,u.d);
       u.keyptr = keyptr;
       fprintf(stderr,
-	      "[myproc#%d,tid#%d,pid#%d]: Got a key-pointer=0x%x (%.20g) and treeptr->active-flag = %d\n",
-	      myproc,tid,pid,u.keyptr,u.d,treeptr->active);
+	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Got a key-pointer=0x%x (%.20g)"
+	      " and treeptr->active-flag = %d\n",
+	      myproc,tid,pid,sig,sl_name,u.keyptr,u.d,treeptr->active);
     }
-    fprintf(stderr,"[myproc#%d,tid#%d,pid#%d]: Aborting...\n",myproc,tid,pid);
+    fprintf(stderr,"[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Aborting...\n",myproc,tid,pid,sig,sl_name);
     free_drhook(s);
     RAISE(SIGABRT);
-    _exit(1); /* Never ending up here */
   }
   else if (tid >= 1 && tid <= numthreads) {
     double delta_wall = 0;
@@ -1639,6 +1577,16 @@ init_drhook(int ntids)
   if (numthreads == 0 || !keydata || !calltree || !keyself || !overhead || !curkeyptr) {
     int j;
     if (pid == -1) { /* Ensure that just called once */
+      {
+	/* Invoke once : timers, memory counters etc. to "wake them up" */
+	(void) util_walltime_();
+	(void) util_cputime_();
+	(void) gethwm_();
+	(void) getrss_();
+	(void) getstk_();
+	(void) getmaxstk_();
+	(void) getpag_();
+      }
 #ifdef RS6K
       irtc_start = irtc();
 #endif
@@ -1920,11 +1868,15 @@ check_watch(const char *label,
 	  int tid = get_thread_id_();
 	  if (!calc_crc) crc32_(p->ptr, &p->nbytes, &crc32);
 	  fprintf(stderr,
-   "***%s: Watch point '%s' at address 0x%x on myproc#%d has changed (detected in tid#%d when %s routine %.*s) : new crc32=%u\n",
+		  "***%s: Watch point '%s' at address 0x%x on myproc#%d has changed"
+		  " (detected in tid#%d when %s routine %.*s) : new crc32=%u\n",
 		  p->abort_if_changed ? "Error" : "Warning",
 		  p->name, p->ptr, myproc, tid,
 		  label, name_len, name, crc32);
-	  if (p->abort_if_changed) RAISE(SIGABRT);
+	  if (p->abort_if_changed) {
+	    coml_unset_lockid_(&DRHOOK_lock); /* An important unlocking on Linux; otherwise hangs (until time-out) */
+	    RAISE(SIGABRT);
+	  }
 	  p->active = 0; /* No more these messages for this array */
 	  watch_count--;
 	}
@@ -1988,35 +1940,29 @@ c_drhook_init_(const char *progname,
 {
   init_drhook(*num_threads);
   max_threads = MAX(1,*num_threads);
-  progname = trim(progname, &progname_len);
-  a_out = calloc_drhook(progname_len+1,sizeof(*progname));
-  memcpy(a_out, progname, progname_len);
-#if defined(LINUX) && !defined(XT3) && !defined(XD1)
-  if (!gdbcmd) {
-    gdbcmd = malloc_drhook( 65536 * sizeof(*gdbcmd) );
-    sprintf(gdbcmd,
-	    "/bin/echo '"
-	    "set watchdog 5\n"
-	    "set confirm off\n"
-	    "set pagination off\n"
-	    "set print elements 16\n"
-	    "set print sevenbit-strings on\n"
-	    "where\n"
-	    "quit\n' > gdb_drhook.%d ; "
-	    "(nice -10 %s -x gdb_drhook.%d -q -n -batch %s %d < /dev/null) & "
-	    /* pgf90 -mp makes the current process "pid" sometimes to hang => kill -9 for now */
-	    "pid=$!; sleep 10; /bin/kill -9 $pid %d >/dev/null 2>&1 ; /bin/rm -f gdb_drhook.%d"
-	    , pid, 
-	    GNUDEBUGGER, pid, a_out, pid
-	    /* Related to pgf90 -mp problems ; See above */
-	    , pid, pid
-	    );
+  if (a_out) free_drhook(a_out);
+  progname = trim(progname, &progname_len);  
+  if (progname_len > 0) {
+    a_out = calloc_drhook(progname_len+1,sizeof(*progname));
+    memcpy(a_out, progname, progname_len);
   }
-  if (!addr2linecmd) {
-    addr2linecmd = malloc_drhook( (strlen(ADDR2LINE) + 10 + strlen(a_out)) * sizeof(*addr2linecmd) );
-    sprintf(addr2linecmd,"%s -e %s",ADDR2LINE,a_out);
+  else {
+    /* progname is a blank string;
+       this is most likely due to a Fortran-call to getarg
+       from program that has a C-main program, thus Fortran getarg
+       may return a blank string */
+
+    const char *arg0 = ec_GetArgs(0);
+    if (arg0) {
+      const char *pc = arg0;
+      progname_len = strlen(pc);
+      pc = trim(pc, &progname_len);
+      a_out = strdup_drhook(pc);
+    }
   }
-#endif
+  if (!a_out) {
+    a_out = strdup_drhook("a.out"); /* Failed to obtain the name of the executing program */
+  }
 }
 
 
@@ -2751,7 +2697,7 @@ c_drhook_print_(const int *ftnunitno,
 	    lld_commie(p->sizeinfo,s1);
 	    dbl_commie(p->sizespeed,s2);
 	    dbl_commie(p->sizeavg,s3);
-	    fprintf(fp,"\n%*s (%s  %s  %s)",len," ",s1,s2,s3);
+	    fprintf(fp,"\n%*s (%s  %s  %s)",len-10," ",s1,s2,s3);
 	  }
 	  fprintf(fp,"\n");
 	  p++;
@@ -3040,12 +2986,12 @@ Dr_Hook(const char *name, int option, double *handle,
 {
   static int first_time = 1;
   static int value = 1; /* ON by default */
-  if (value == 0) return; /* Immediate return if OFF */
   if (first_time) { /* Not thread safe */
     extern void *cdrhookinit_(int *value); /* from ifsaux/support/cdrhookinit.F90 */
     cdrhookinit_(&value);
     first_time = 0;
   }
+  if (value == 0) return; /* Immediate return if OFF */
   if (value != 0) {
     int tid = get_thread_id_();
     if (option == 0) {

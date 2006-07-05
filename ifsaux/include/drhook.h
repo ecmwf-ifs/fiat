@@ -145,8 +145,8 @@ Dr_Hook(const char *name, int option, double *handle,
 
 #define DRHOOK_END_RECUR(sizeinfo,recur) \
   if (!recur && drhook_lhook) Dr_Hook(drhook_name, 1, &zhook_handle, \
-			    drhook_filename, sizeinfo, \
-			    drhook_name_len, drhook_filename_len)
+			              drhook_filename, sizeinfo, \
+			              drhook_name_len, drhook_filename_len)
 
 #define DRHOOK_END(sizeinfo) DRHOOK_END_RECUR(sizeinfo,0) 
 

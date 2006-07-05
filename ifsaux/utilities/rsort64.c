@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <signal.h>
+#include "raise.h"
 
 /* rsort64_() : 64-bit Fortran-callable RADIX-sort */
 
@@ -71,7 +72,7 @@ extern void __free(void *vptr);   /* getcurheap.c */
    x = malloc(bytes); \
    if (!x) { fprintf(stderr, \
 		     "malloc() of %s (%d bytes) failed in file=%s, line=%d\n", \
-		     #x, bytes, __FILE__, __LINE__); raise(SIGABRT); } }
+		     #x, bytes, __FILE__, __LINE__); RAISE(SIGABRT); } }
 
 #define FREE(x)           if (x) { free(x); x = NULL; }
 
@@ -230,7 +231,7 @@ rsort64_(const    int *Mode,       /* if < 10, then index[] needs to be initiali
 	  fprintf(stderr,
 		  "***Programming error in rsort64_(): k1 + sum != n || k2 != n; k1=%d,k2=%d,sum=%d,n=%d\n",
 		  k1,k2,sum,n);
-	  raise(SIGABRT);
+	  RAISE(SIGABRT);
 	}
       }
       
