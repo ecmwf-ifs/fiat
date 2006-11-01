@@ -35,22 +35,27 @@ USE PARKIND1  ,ONLY : JPIM, JPIB
 !                     OML_UNSET_LOCK() --> unsets nothing
 !                     OML_INIT_LOCK()  --> inits nothing
 
+!**SS/11-Sep-2006
+!--Added OML_DEBUG feature
+
 IMPLICIT NONE
 
 SAVE
 
 PRIVATE
 
+LOGICAL :: OML_DEBUG = .FALSE.
+
 PUBLIC OML_WAIT_EVENT, OML_SET_EVENT, OML_INCR_EVENT, &
    &   OML_MY_THREAD,  OML_MAX_THREADS , OML_OMP, &
    &   OML_IN_PARALLEL, OML_TEST_EVENT, &
    &   OML_UNSET_LOCK, OML_INIT_LOCK, OML_SET_LOCK, OML_DESTROY_LOCK, &
-   &   OML_LOCK_KIND, OML_TEST_LOCK
+   &   OML_LOCK_KIND, OML_TEST_LOCK, OML_DEBUG
 
 !-- The following should normally be 4 in 32-bit addressing mode
 !                                    8 in 64-bit addressing mode
 ! Since system specific omp_lib-module is not always available (e.g. pgf90)
-! we hardcore OML_LOCK_KIND to JPIB (usually 8) for now
+! we hardcode OML_LOCK_KIND to JPIB (usually 8) for now
 !!INTEGER(KIND=JPIM), PARAMETER :: OML_LOCK_KIND = OMP_LOCK_KIND
 INTEGER(KIND=JPIM), PARAMETER :: OML_LOCK_KIND = JPIB
 

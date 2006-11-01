@@ -24,6 +24,20 @@ should be activated to use pm_initialize() instead of pm_init() of PMAPI-lib ($L
 #define PMAPI_POST_P4
 */
 
+/*
+If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
+#define PMAPI_POST_P4
+#define PMAPI_P5_PLUS
+*/
+
+#if defined(PMAPI_P5_PLUS)
+#define ENTRY_4 5
+#define ENTRY_6 4
+#else
+#define ENTRY_4 4
+#define ENTRY_6 6
+#endif
+
 #if defined(SV2) || defined(XD1) || defined(XT3)
 #define DT_FLOP
 #define HPM
@@ -143,6 +157,8 @@ extern long long int getmaxcurheap_();
 extern long long int getcurheap_thread_(const int *tidnum);    /* *tidnum >= 1 && <= max_threads */
 extern long long int getmaxcurheap_thread_(const int *tidnum); /* *tidnum >= 1 && <= max_threads */
 extern long long int getpag_();
+
+extern void ec_set_umask_();
 
 #if defined(DT_FLOP)
 extern double flop_();
@@ -1600,7 +1616,29 @@ init_drhook(int ntids)
       my_inv_irtc_rate = 1.0/my_irtc_rate;
 #endif
       start_stamp = timestamp();
-      coml_init_lockid_(&DRHOOK_lock);
+      {
+	int konoff = 1;
+	int kret = 0;
+	coml_set_debug_(&konoff, &kret);
+	INIT_LOCKID_WITH_NAME(&DRHOOK_lock,"drhook.c:DRHOOK_lock");
+	if (!kret) {
+	  konoff = 0;
+	  coml_set_debug_(&konoff, &kret);
+	}
+      }
+#ifdef NEC
+      { /* If C-programs compiled with -traceback, then NEC/F90 
+	   MESPUT-call will also includes C-routines in the traceback if 
+	   in addition 'export C_TRACEBACK=YES' */
+	char *env = getenv("C_TRACEBACK");
+	if (!env) {
+	  /* Override only if C_TRACEBACK hadn't already been defined */
+	  static char s[] = "C_TRACEBACK=YES"; /* note: must be static */
+	  putenv(s);
+	}
+      }
+#endif
+      ec_set_umask_();
       pid = getpid();
       process_options();
       drhook_lhook = 1;
@@ -2493,6 +2531,7 @@ c_drhook_print_(const int *ftnunitno,
 
 	cluster = 0;
 	maxval[cluster] = p->self;
+	p->maxval = &maxval[cluster];
 	clusize[cluster] = 1;
 	prevname = p->name;
 	p++;
@@ -2819,6 +2858,7 @@ c_drhook_print_(const int *ftnunitno,
 
 	cluster = 0;
 	maxval[cluster] = p->self;
+	p->maxval = &maxval[cluster];
 	clusize[cluster] = 1;
 	prevname = p->name;
 	p++;
@@ -3077,6 +3117,22 @@ init_hpm(int tid)
   }
 
   if (!hpm_tid_init[tid]) {
+#if defined(PMAPI_P5_PLUS)
+    /* IBM Power 5+ specific */
+    const int group = 150; /* pm_hpmcount2 */
+    /*-- counters -- (from John Hague, IBM/UK, 22-Aug-2006 : Thanx!!)
+     case 150:
+       strcpy(group_label, "pm_flop, Floating point operations");
+       strcpy(label[0], "FPU executed FDIV instruction (PM_FPU_FDIV)");
+       strcpy(label[1], "FPU executed multiply-add instruction (PM_FPU_FMA)");
+       strcpy(label[2], "FPU executed FSQRT instruction (PM_FPU_SQRT)");
+       strcpy(label[3], "FPU executed one flop instruction (PM_FPU_1FLOP)");
+       strcpy(label[4], "Run instructions completed(PM_RUN_INST_CMPL)");
+       strcpy(label[5], "Run cycles (PM_RUN_CYC)");
+       strcpy(label[6], "Nothing");
+       strcpy(label[7], "Nothing");
+    */
+#else
     const int group = 60; /* pm_hpmcount2 */
     /*-- counters --
      case 60:
@@ -3090,6 +3146,8 @@ init_hpm(int tid)
        strcpy(label[6], "Instructions completed (PM_INST_CMPL)");
        strcpy(label[7], "LSU executed Floating Point load instruction (PM_LSU_LDF)");
     */
+#endif
+
     pm_prog_t pmprog;
     pm_data_t pmdata;
     int i;
@@ -3258,9 +3316,9 @@ stop_only_hpm(int tid, drhook_key_t *pstop)
 #if defined(DT_FLOP)
       pstop->counter_sum[0] += ((long long int) flop_() - pstop->counter_in[0]);
 #if defined(SV2)
-      pstop->counter_sum[4] += (_rtc() - pstop->counter_in[4]);
+      pstop->counter_sum[ENTRY_4] += (_rtc() - pstop->counter_in[ENTRY_4]);
 #else
-      pstop->counter_sum[4] += (irtc_() - pstop->counter_in[4]);
+      pstop->counter_sum[ENTRY_4] += (irtc_() - pstop->counter_in[ENTRY_4]);
 #endif
 #endif
       pstop->counter_stopped = 1;
@@ -3282,9 +3340,9 @@ stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart)
 #if defined(DT_FLOP)
       pstop->counter_sum[0] += ((long long int) flop_() - pstop->counter_in[0]);
 #if defined(SV2)
-      pstop->counter_sum[4] += (_rtc() - pstop->counter_in[4]);
+      pstop->counter_sum[ENTRY_4] += (_rtc() - pstop->counter_in[ENTRY_4]);
 #else
-      pstop->counter_sum[4] += (irtc_() - pstop->counter_in[4]);
+      pstop->counter_sum[ENTRY_4] += (irtc_() - pstop->counter_in[ENTRY_4]);
 #endif
 #endif
     pstop->counter_stopped = 1;
@@ -3296,9 +3354,9 @@ stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart)
 #if defined(DT_FLOP)
       pstart->counter_in[0] = (long long int) flop_();
 #if defined(SV2)
-      pstart->counter_in[4] = _rtc();
+      pstart->counter_in[ENTRY_4] = _rtc();
 #else
-      pstart->counter_in[4] = irtc_();
+      pstart->counter_in[ENTRY_4] = irtc_();
 #endif
 #endif
      pstart->counter_stopped = 0;
@@ -3311,14 +3369,18 @@ static double
 mflops_hpm(const drhook_key_t *keyptr)
 {
   double mflops = 0;
-  if (keyptr && keyptr->counter_sum && keyptr->counter_sum[4] > 0) {
+  if (keyptr && keyptr->counter_sum && keyptr->counter_sum[ENTRY_4] > 0) {
+    long long int sum = 0;
 #if defined(DT_FLOP)
-    long long int sum = keyptr->counter_sum[0];
+    sum = keyptr->counter_sum[0];
+#elif defined(PMAPI_P5_PLUS)
+    /* IBM Power 5+ specific */
+    sum = 2 * keyptr->counter_sum[1] + keyptr->counter_sum[3];
 #else
-    long long int sum = keyptr->counter_sum[1] + keyptr->counter_sum[2] + keyptr->counter_sum[3] - keyptr->counter_sum[5];
+    sum = keyptr->counter_sum[1] + keyptr->counter_sum[2] + keyptr->counter_sum[3] - keyptr->counter_sum[5];
 #endif
     if (sum > 0)
-      mflops = (sum * MCYCLES)/keyptr->counter_sum[4];
+      mflops = (sum * MCYCLES)/keyptr->counter_sum[ENTRY_4];
   }
   return mflops;
 }
@@ -3330,8 +3392,8 @@ mips_hpm(const drhook_key_t *keyptr)
 #if defined(DT_FLOP)
   mipsrate = 0;
 #else
-  if (keyptr && keyptr->counter_sum && keyptr->counter_sum[4] > 0) {
-    mipsrate = (keyptr->counter_sum[6] * MCYCLES)/keyptr->counter_sum[4];
+  if (keyptr && keyptr->counter_sum && keyptr->counter_sum[ENTRY_4] > 0) {
+    mipsrate = (keyptr->counter_sum[ENTRY_6] * MCYCLES)/keyptr->counter_sum[ENTRY_4];
   }
 #endif
   return mipsrate;
@@ -3345,7 +3407,13 @@ divpc_hpm(const drhook_key_t *keyptr)
   divpc = 0;
 #else
   if (keyptr && keyptr->counter_sum) {
-    long long int sum = keyptr->counter_sum[1] + keyptr->counter_sum[2] + keyptr->counter_sum[3] - keyptr->counter_sum[5];
+    long long int sum = 0;
+#if defined(PMAPI_P5_PLUS)
+    /* IBM Power 5+ specific */
+    sum = 2 * keyptr->counter_sum[1] + keyptr->counter_sum[3];
+#else
+    sum = keyptr->counter_sum[1] + keyptr->counter_sum[2] + keyptr->counter_sum[3] - keyptr->counter_sum[5];
+#endif
     if (sum > 0) divpc = (keyptr->counter_sum[0]*100.0)/sum;
   }
 #endif
@@ -3356,9 +3424,12 @@ static double
 mflop_count(const drhook_key_t *keyptr)
 {
   double sum = 0;
-  if (keyptr && keyptr->counter_sum && keyptr->counter_sum[4] > 0) {
+  if (keyptr && keyptr->counter_sum && keyptr->counter_sum[ENTRY_4] > 0) {
 #if defined(DT_FLOP)
     sum = (keyptr->counter_sum[0]) * 1e-6;
+#elif defined(PMAPI_P5_PLUS)
+    /* IBM Power 5+ specific */
+    sum = (2 * keyptr->counter_sum[1] + keyptr->counter_sum[3]) * 1e-6;
 #else
     sum = (keyptr->counter_sum[1] + keyptr->counter_sum[2] + keyptr->counter_sum[3] - keyptr->counter_sum[5]) * 1e-6;
 #endif
@@ -3374,8 +3445,8 @@ mip_count(const drhook_key_t *keyptr)
 #if defined(DT_FLOP)
   sum = 0;
 #else
-  if (keyptr && keyptr->counter_sum && keyptr->counter_sum[4] > 0) {
-    sum = keyptr->counter_sum[6] * 1e-6;
+  if (keyptr && keyptr->counter_sum && keyptr->counter_sum[ENTRY_4] > 0) {
+    sum = keyptr->counter_sum[ENTRY_6] * 1e-6;
   }
 #endif
   return sum;
@@ -3468,6 +3539,23 @@ double util_walltime_()
 }
 #endif
 
+FORTRAN_CALL
+void ec_set_umask_()
+{
+  char *env = getenv("EC_SET_UMASK");
+  if (env) {
+    int newmask;
+    int n = sscanf(env,"%o",&newmask);
+    if (n == 1) {
+      int oldmask = umask(newmask);
+      fprintf(stderr,
+	      "*** EC_SET_UMASK : new/old = %o/%o (oct), %d/%d (dec), %x/%x (hex)\n",
+	      newmask,oldmask,
+	      newmask,oldmask,
+	      newmask,oldmask);
+    }
+  }
+}
 
 #include <sys/time.h>
 #include <sys/resource.h>

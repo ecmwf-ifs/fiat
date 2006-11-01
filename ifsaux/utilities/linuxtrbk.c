@@ -15,11 +15,18 @@
 #include <signal.h>
 #include "cargs.h"
 
+#define PRETOSTR(x) #x
+#define TOSTR(x) PRETOSTR(x)
+
 #if defined(SUN4) && !defined(PSTACKTRACE)
-#define PSTACKTRACE "/bin/pstack"
+#define PSTACKTRACE /bin/pstack
 #endif
 
-#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1)
+#define strequ(s1,s2)     ((void *)s1 && (void *)s2 && strcmp(s1,s2) == 0)
+#define strnequ(s1,s2,n)  ((void *)s1 && (void *)s2 && memcmp(s1,s2,n) == 0)
+
+
+#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1) 
 
 #ifndef LINELEN
 #define LINELEN 1024
@@ -40,11 +47,9 @@
 #endif /* defined(__GNUC__) */
 
 #if !defined(ADDR2LINE)
-#define ADDR2LINE "/usr/bin/addr2line"
+#define ADDR2LINE /usr/bin/addr2line
 #endif
 
-#define strequ(s1,s2)     ((void *)s1 && (void *)s2 && strcmp(s1,s2) == 0)
-#define strnequ(s1,s2,n)  ((void *)s1 && (void *)s2 && memcmp(s1,s2,n) == 0)
 
 void
 LinuxTraceBack(void *sigcontextptr)
@@ -89,14 +94,14 @@ LinuxTraceBack(void *sigcontextptr)
     /* overwrite sigaction with caller's address */
     trace[1] = (void *) uc->uc_mcontext.gregs[REG_EIP]; /* Help!! REG_EIP only available in 32-bit mode ? */
 #endif
-    if (trace_size > 0 && (access(ADDR2LINE,X_OK) == 0)) {
+    if (trace_size > 0 && (access(TOSTR(ADDR2LINE),X_OK) == 0)) {
       /* Use ADDR2LINE to obtain source file & line numbers for each trace-address */
       int i;
       FILE *fp = NULL;
-      /* char addr2linecmd[strlen(ADDR2LINE) + 10 + strlen(a_out) + trace_size * 30]; */
-      int len_addr2linecmd = sizeof(ADDR2LINE) + 10 + strlen(a_out) + trace_size * 30;
+      /* char addr2linecmd[strlen(TOSTR(ADDR2LINE)) + 10 + strlen(a_out) + trace_size * 30]; */
+      int len_addr2linecmd = sizeof(TOSTR(ADDR2LINE)) + 10 + strlen(a_out) + trace_size * 30;
       char *addr2linecmd = malloc(len_addr2linecmd);
-      snprintf(addr2linecmd, len_addr2linecmd, "%s -e '%s'", ADDR2LINE, a_out);
+      snprintf(addr2linecmd, len_addr2linecmd, "%s -e '%s'", TOSTR(ADDR2LINE), a_out);
       for (i = 0; i < trace_size; i++) {
 	char s[30];
 	snprintf(s,sizeof(s),(sizeof(void *) == 8) ? " %llx" : " %x",trace[i]);
@@ -144,9 +149,9 @@ LinuxTraceBack(void *sigcontextptr)
 
 #if defined(PSTACKTRACE)
   /* This is normally available on Sun/Solaris ("SUN4") platforms */
-  if (access(PSTACKTRACE,X_OK) == 0) {
-    char cmd[sizeof(PSTACKTRACE) + 20];
-    snprintf(cmd,sizeof(cmd),"%s %d", PSTACKTRACE, pid);
+  if (access(TOSTR(PSTACKTRACE),X_OK) == 0) {
+    char cmd[sizeof(TOSTR(PSTACKTRACE)) + 20];
+    snprintf(cmd,sizeof(cmd),"%s %d", TOSTR(PSTACKTRACE), pid);
     fflush(NULL);
     system(cmd);
     fflush(NULL);
@@ -184,14 +189,14 @@ void linux_trbk(void)
 /* GNU-debugger traceback */
 
 #if !defined(GNUDEBUGGER)
-#define GNUDEBUGGER "/usr/bin/gdb"
+#define GNUDEBUGGER /usr/bin/gdb
 #endif
 
 void gdb_trbk_()
 {
   char *gdb = getenv("GNUDEBUGGER");
   if (gdb && 
-      (access(GNUDEBUGGER,X_OK) == 0) && /* GNUDEBUGGER was set */
+      (access(TOSTR(GNUDEBUGGER),X_OK) == 0) && /* GNUDEBUGGER was set */
       (strequ(gdb,"1")    || 
        strequ(gdb,"true") || 
        strequ(gdb,"TRUE"))) {
@@ -200,7 +205,7 @@ void gdb_trbk_()
     const char *a_out = ec_GetArgs(0);
     fprintf(stderr,
 	    "[gdb_trbk] : Invoking %s ...\n",
-	    GNUDEBUGGER);
+	    TOSTR(GNUDEBUGGER));
     snprintf(gdbcmd,sizeof(gdbcmd),
 	     "set +e; /bin/echo '"
 	     "set watchdog 1\n"
@@ -214,7 +219,7 @@ void gdb_trbk_()
 	     "%s -x ./gdb_drhook.%d -q -n -f -batch %s %d < /dev/null ; "
 	     "/bin/rm -f ./gdb_drhook.%d"
 	     , pid
-	     , GNUDEBUGGER, pid, a_out, pid
+	     , TOSTR(GNUDEBUGGER), pid, a_out, pid
 	     , pid);
     
     /* fprintf(stderr,"%s\n",gdbcmd); */
@@ -230,34 +235,39 @@ void gdb_trbk() { gdb_trbk_(); }
 /* DBX-debugger traceback */
 
 #if !defined(DBXDEBUGGER)
-#define DBXDEBUGGER "/usr/bin/dbx"
+#define DBXDEBUGGER /usr/bin/dbx
 #endif
 
 void dbx_trbk_()
 {
   char *dbx = getenv("DBXDEBUGGER");
   if (dbx && 
-      (access(DBXDEBUGGER,X_OK) == 0) && /* DBXDEBUGGER was set */
+      (access(TOSTR(DBXDEBUGGER),X_OK) == 0) && /* DBXDEBUGGER was set */
       (strequ(dbx,"1")    || 
        strequ(dbx,"true") || 
        strequ(dbx,"TRUE"))) {
     pid_t pid = getpid();
     const char *a_out = ec_GetArgs(0);
     char dbxcmd[65536];
+#if defined(SUN4)
+    const char *qopt = " -q";
+#else
+    const char *qopt = "";
+#endif
     fprintf(stderr,
 	    "[dbx_trbk] : Invoking %s ...\n",
-	    DBXDEBUGGER);
+	    TOSTR(DBXDEBUGGER));
     if (a_out && (access(a_out,X_OK|R_OK) == 0)) {
       snprintf(dbxcmd,sizeof(dbxcmd),
 	       "set +e; /bin/echo 'where; quit; '"
-	       " | %s -q %s %d ",
-	       DBXDEBUGGER, a_out, pid);
+	       " | %s%s %s %d ",
+	       TOSTR(DBXDEBUGGER), qopt, a_out, pid);
     }
     else {
       snprintf(dbxcmd,sizeof(dbxcmd),
 	       "set +e; /bin/echo 'where; quit; '"
-	       " | %s -q - %d ",
-	       DBXDEBUGGER, pid);
+	       " | %s%s - %d ",
+	       TOSTR(DBXDEBUGGER), qopt, pid);
     }
     
     /* fprintf(stderr,"%s\n",dbxcmd); */
