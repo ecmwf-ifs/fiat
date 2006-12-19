@@ -62,14 +62,14 @@ REAL(KIND=JPRB) :: ZT_SUM,ZT_SUM2,ZT_SUM3,ZT_SUMIO,ZT_SUM4
 INTEGER(KIND=JPIM) :: ICALLSX(0:JPMAXSTAT)
 
 !     LOCAL INTEGER SCALARS
-INTEGER(KIND=JPIM) :: ICALLS, IERR, ILBUF, ILSEND, &
+INTEGER(KIND=JPIM) :: ICALLS, ILBUF, ILSEND, &
              &ISEND, ITAG, JJ, JNUM, JROC, JCALL, ICALLER,IACTION
 INTEGER(KIND=JPIM) :: IMEM, INUM, JMEM
 
 !     LOCAL REAL SCALARS
 REAL(KIND=JPRB) :: ZAVE, ZAVETCPU, ZAVEVCPU, ZCOMTIM, ZDETAIL,&
           &ZFRAC, ZMAX, ZMEAN, ZSTDDEV, ZSUM, ZSUMB, &
-          &ZTOTAL, ZTOTCPU, ZTOTMEAN, ZTOTUNBAL, ZTOTVCPU, &
+          &ZTOTAL, ZTOTCPU, ZTOTUNBAL, ZTOTVCPU, &
           &ZUNBAL, ZMEANT, ZMAXT
 
 INTEGER(KIND=JPIM) :: IXMLLUN  
@@ -90,7 +90,8 @@ IXMLLUN=40
 OPEN (UNIT=IXMLLUN, FILE='gstats.xml',ACTION='write')
 WRITE(IXMLLUN,'(A)')'<?xml version="1.0" encoding="UTF-8"?>'
 WRITE(IXMLLUN,'(A)')'<gstats '
-WRITE(IXMLLUN,'(A)')' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.ecmwf.int/services/prepifs/gstats   ./gstats.xsd">'
+WRITE(IXMLLUN,'(A)')' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&
+& xsi:schemaLocation="http://www.ecmwf.int/services/prepifs/gstats   ./gstats.xsd">'
 
 WRITE(KULOUT,'(A)')'===-=== START OF TIMING STATISTICS ===-==='
 IF(LSYNCSTATS.AND.NPROC_STATS>1) THEN

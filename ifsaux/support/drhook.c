@@ -59,7 +59,7 @@ static char *end_stamp = NULL;
 #include <ucontext.h>
 #endif
 
-#if defined(LINUX) && !defined(XT3) && !defined(XD1) && !defined(CYGWIN)
+#if defined(LINUX) && !defined(XT3) && !defined(XD1) && !defined(CYGWIN) && !defined(DARWIN)
 
 #if defined(__GNUC__)
 
@@ -805,7 +805,7 @@ ignore_signals(int silent)
 
 /*--- gdb__sigdump ---*/
 
-#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1)
+#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1) && !defined(DARWIN)
 static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 {
   static int who = 0; /* Current owner of the lock, if > 0 */
@@ -997,7 +997,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
 #endif
-#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1)
+#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1) && !defined(DARWIN)
       gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
       fflush(NULL);
@@ -1051,7 +1051,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
 #endif
-#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1)
+#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1) && !defined(DARWIN)
     gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
     fflush(NULL);
@@ -1094,7 +1094,7 @@ signal_drhook_init(int enforce)
 #if defined(SIGEMT)
   SETSIG(SIGEMT,0);
 #endif
-#if defined(SIGSTKFLT)
+#if defined(SIGSTKFLT) && !defined(DARWIN)
   SETSIG(SIGSTKFLT,0); /* Stack fault */
 #endif
   SETSIG(SIGFPE,0);
@@ -1626,7 +1626,7 @@ init_drhook(int ntids)
 	  coml_set_debug_(&konoff, &kret);
 	}
       }
-#ifdef NEC
+#ifdef NECSX
       { /* If C-programs compiled with -traceback, then NEC/F90 
 	   MESPUT-call will also includes C-routines in the traceback if 
 	   in addition 'export C_TRACEBACK=YES' */

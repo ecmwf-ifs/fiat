@@ -57,17 +57,18 @@ if (kout >= 0 .and. CLenv /= '0') then
                     &precvbuf=zrecv, cdstring='GETHEAPSTAT:')
 
     if (imyproc == 1) then
+!     Not more than 132 columns, please :-)
       write(kout,9000) trim(CLtext(ii)),trim(cdlabel), "Node", &
                      & (ilimit(i),i=1,min(JP_NPROFILE,9)), "Larger"
 9000  format(/,"Heap Utilization Profile (",a,"): ",a,&
-            &/,136("="),&
-            &//,(a4,2x,9(:,2x,5x,"< 10^",i1),:,2x,a11))
+            &/,126("="),&
+            &//,(a4,2x,9(:,2x,4x,"< 10^",i1),:,2x,a10))
       write(kout,9001)
-9001  format(4("="),2x,10(2x,11("="))/)
+9001  format(4("="),2x,10(2x,10("="))/)
       ioffset = 0
       do i=1,inproc
         icnt(:) = zrecv(ioffset+1:ioffset+isize)
-        write(kout,'(i4,2x,(10(:,2x,i11)))') i,icnt(:)
+        write(kout,'(i4,2x,(10(:,2x,i10)))') i,icnt(:)
         ioffset = ioffset + isize
       enddo
     endif

@@ -38,8 +38,8 @@ SUBROUTINE SDL_TRACEBACK(KTID)
 
 INTEGER(KIND=JPIM), INTENT(IN), OPTIONAL :: KTID
 INTEGER(KIND=JPIM) ITID, IPRINT_OPTION, ILEVEL
-#ifdef NEC
-CHARACTER(LEN=*), PARAMETER :: necmsg = '*** Calling NEC traceback ***'
+#ifdef NECSX
+CHARACTER(LEN=*), PARAMETER :: CLNECMSG = '*** Calling NEC traceback ***'
 #endif
 
 IF (PRESENT(KTID)) THEN
@@ -69,9 +69,9 @@ ENDIF
   WRITE(0,*)'SDL_TRACEBACK: Calling LINUX_TRBK, THRD = ',ITID
   CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
   WRITE(0,*)'SDL_TRACEBACK: Done LINUX_TRBK, THRD = ',ITID
-#elif defined(NEC)
+#elif defined(NECSX)
   WRITE(0,*)'SDL_TRACEBACK: Calling NEC/MESPUT, THRD = ',ITID
-  CALL MESPUT(necmsg, len(necmsg), 1)
+  CALL MESPUT(CLNECMSG, LEN(CLNECMSG), 1)
   WRITE(0,*)'SDL_TRACEBACK: Done NEC/MESPUT, THRD = ',ITID
 #else
   WRITE(0,*)'SDL_TRACEBACK: No proper traceback implemented.'

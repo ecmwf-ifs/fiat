@@ -18,15 +18,7 @@ c
 c
       return
       end
-#endif
-#if defined ( SGI )
-      function dummytimef()
-      dummytimef=0
-c    means that we use the machine-specific timef ?
-      return
-      end
-#endif
-#if defined ( RS6K )
+#elif defined ( RS6K )
       function timef()
       integer*8 irtc
       external irtc
@@ -45,20 +37,25 @@ c
 c
       return
       end
-#endif
-#if defined(LINUX) || defined(HPPA) || defined(ALPHA) || defined ( SX4 ) || defined(SUN4)
+#else
       function timef()
-C
-C   Returns system clock converted to nano-seconds
-C
-      call system_clock(ic,icr,icm)
-      if(icm.eq.0) then
-        print *,' no system clock'
-        timef=-99.
+      data ifirst/0/
+      save ifirst,zfirst
+
+c     This is a real time clock in milliseconds.
+c     Usage of Fortran90 intrinsic function.
+      CALL SYSTEM_CLOCK (COUNT=i_time1,COUNT_RATE=i_rate)
+      ztimef=float(i_time1)/float(i_rate)
+
+      if(ifirst.eq.0) then
+         ifirst=1
+         zfirst=ztimef
+         timef=0.0
       else
-        timef=1000.*ic/icr
+         timef=1000.0*(ztimef-zfirst)
       endif
 
       return
       end
+
 #endif
