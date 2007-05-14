@@ -66,7 +66,10 @@ LOGICAL                      :: LLABORT=.TRUE.
 
 IF(MPL_NUMPROC < 1) THEN
   IF(MPL_NUMPROC == -1) THEN
-    CALL MPL_MESSAGE(CDMESSAGE=' MPL_END CALLED BEFORE MPL_INIT ')
+    IF (.not.LINITMPI_VIA_MPL) THEN
+      ! Neither MPL_INIT_MOD nor MPL_ARG_MOD -modules were called before this
+      CALL MPL_MESSAGE(CDMESSAGE=' MPL_END CALLED BEFORE MPL_INIT ')
+    ENDIF
 !!-- we do not want the following message to appear, since its non-fatal
 !!  ELSEIF(MPL_NUMPROC == -2) THEN
 !!    CALL MPL_MESSAGE(CDMESSAGE=' MPL_END CALLED MULTIPLE TIMES ')

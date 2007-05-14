@@ -37,7 +37,7 @@ INTEGER(KIND=JPIM), parameter :: quicksort_method = 3
 
 !-- Select such method for default_method, which also works for multikey sorts
 !   Vector machines should choose radixsort_method, others quicksort_method
-#ifdef VPP
+#if defined(VPP) || defined(NECSX)
 INTEGER(KIND=JPIM), parameter :: default_method = radixsort_method
 #else
 INTEGER(KIND=JPIM), parameter :: default_method = quicksort_method

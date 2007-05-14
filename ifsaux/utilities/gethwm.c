@@ -74,6 +74,16 @@ ll_t gethwm()
   }
   return rc;
 }
+
+#elif defined(NECSX)
+
+ll_t
+gethwm() 
+{ 
+  extern ll_t getrss_();
+  return getrss_();
+}
+
 #else
 ll_t gethwm()
 {

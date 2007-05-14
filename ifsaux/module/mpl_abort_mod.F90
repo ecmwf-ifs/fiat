@@ -22,7 +22,7 @@ ITID=OML_MY_THREAD()
 
 CLOSE(MPL_UNIT)
 CALL FLUSH(0)
-CALL SYSTEM("sleep 1")
+CALL ec_sleep(1) ! This rather than 'CALL SYSTEM("sleep 1")' ; see code ../support/env.c
 
 !------Traceback from only one thread
 CALL OML_SET_LOCK(MYLOCK=MAB_LOCK(1))
@@ -34,12 +34,12 @@ IF(MAB_CNT == 0) THEN
   MAB_CNT=1
   CALL SDL_TRACEBACK(ITID)
   CALL FLUSH(0)
-  CALL SYSTEM("sleep 1")
+  CALL ec_sleep(1) ! This rather than 'CALL SYSTEM("sleep 1")' ; see code ../support/env.c
 ENDIF
 CALL OML_UNSET_LOCK(MYLOCK=MAB_LOCK(1))
 ! ------All threads wait till traceback done
 CALL FLUSH(0)
-CALL SYSTEM("sleep 1")
+CALL ec_sleep(1) ! This rather than 'CALL SYSTEM("sleep 1")' ; see code ../support/env.c
 
 CALL SDL_DISABORT(MPL_COMM_OML(ITID))
 

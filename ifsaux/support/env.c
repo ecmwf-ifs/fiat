@@ -133,3 +133,17 @@ ec_putenv(const char *s,
 {
   ec_putenv_(s,slen);
 }
+
+
+unsigned int
+ec_sleep_(int *nsec)
+{
+  return sleep(nsec ? *nsec : 0);
+}
+
+unsigned int
+ec_sleep(int *nsec)
+{
+  return ec_sleep_(nsec);
+}
+

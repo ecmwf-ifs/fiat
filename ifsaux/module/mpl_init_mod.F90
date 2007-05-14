@@ -166,6 +166,8 @@ IF (MPL_NUMPROC > 1) THEN
     CALL MPI_BCAST(CLENV,ICOUNT,INT(MPI_BYTE),IROOT,INT(MPI_COMM_WORLD),IERROR)
     IF (MPL_RANK > 1) CALL EC_PUTENV(CLENV)
   ENDDO
+  !-- Redo some env. variables (see ../utilities/fnecsx.c)
+  CALL EC_ENVREDO()
   !-- Propagate argument list (all under the bonnet using MPL_ARG_MOD-module)
   INUM = MPL_IARGC()
 ENDIF
@@ -235,9 +237,6 @@ LUSEHLMPI = .TRUE.
 ALLOCATE(MPL_OPPONENT(MPL_NUMPROC+1))
 CALL MPL_TOUR_TABLE(MPL_OPPONENT)
 
-#ifdef RS6K
-CALL JFH_BIND()
-#endif
 RETURN
 END SUBROUTINE MPL_INIT
 

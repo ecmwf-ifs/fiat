@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <signal.h>
+#include "intercept_alloc.h"
 #include "raise.h"
 
 /* rsort32_() : 32-bit Fortran-callable RADIX-sort */
@@ -21,6 +22,7 @@
          - " -            21/02/2005 : Some optimization & endian detection on-the-fly
          - " -            07/07/2005 : Mods in index_adj & bitsum
 	                               Added support for 64-bit unsigned ints
+           - " -          07/02/2007 : Intercepting alloc (IBM & NEC SX) + NEC SX vectorization
 
    Thanks to Mike Fisher, ECMWF
    and Cray SCILIB ORDERS()-function developers
@@ -50,9 +52,11 @@ typedef unsigned char Uchar;
 #ifdef VPP
 #pragma global noalias
 #pragma global novrec
+#elif defined(NECSX)
+#pragma cdir options -pvctl,nodep
 #endif
 
-#ifdef VPP
+#if defined(VPP) || defined(NECSX)
 /* .. or any vector machine */
 static int SpeedUp = 0;
 #else
@@ -69,27 +73,15 @@ static int SpeedUp = 1;
 
 /* Offset adjustment for 64-bit double handling on big/little endian machines */
 
-#ifdef RS6K
-#if defined(__64BIT__)
-/* Assume AIX >= 5.1 with 64-bit addressing */
-#if defined(INTERCEPT_ALLOC)
-#define malloc __malloc
-#define free   __free
-extern void *__malloc(long long int size); /* getcurheap.c */
-extern void __free(void *vptr);   /* getcurheap.c */
-#endif
-#endif
-#endif
-
 #define  ALLOC(x,size)    \
  { int bytes = sizeof(*x) * (size); \
    bytes = (bytes < 1) ? 1 : bytes; \
-   x = malloc(bytes); \
+   x = THEmalloc(bytes); \
    if (!x) { fprintf(stderr, \
 		     "malloc() of %s (%d bytes) failed in file=%s, line=%d\n", \
 		     #x, bytes, __FILE__, __LINE__); RAISE(SIGABRT); } }
 
-#define FREE(x)           if (x) { free(x); x = NULL; }
+#define FREE(x)           if (x) { THEfree(x); x = NULL; }
 
 #define BITSUM(x) bitsum[x] += ((item >> x) & 1U)
 
