@@ -45,6 +45,7 @@ If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
 
 #ifdef RS6K
 #pragma options opt=3 halt=e
+#include <pthread.h>
 #endif
 
 /* === This doesn't handle recursive calls correctly (yet) === */
@@ -3413,7 +3414,6 @@ Dr_Hook(const char *name, int option, double *handle,
 /**** Interface to HPM (RS6K) ****/
 
 #include <pmapi.h>
-#include <pthread.h>
 
 static pthread_mutex_t hpm_lock = PTHREAD_MUTEX_INITIALIZER;
 

@@ -15,8 +15,9 @@ INTEGER(KIND=JPIM) :: INEWMASK, IOLDMASK, UMASK
 INTEGER(KIND=JPIM) :: IRET, SETVBUF3F
 #endif
 LOGICAL,SAVE :: LL_FIRST_TIME = .TRUE.
-CHARACTER(LEN=256),SAVE :: CLENV
+CHARACTER(LEN=512) :: CLENV
 INTEGER(KIND=JPIM) INUMTIDS, IMYTID
+LOGICAL :: LLMPI
 
 ! -----------------------------------------------------------------
 
@@ -26,15 +27,25 @@ IF (LL_FIRST_TIME) THEN
 #ifdef CRAYXT
   IRET = SETVBUF3F(0, 1, 0) ! Set unit#0 into line-buffering mode to avoid messy output
 #endif
-  CALL MPL_INIT(LDINFO=.FALSE.) ! Do not produce any output
+  CALL EC_GETENV('DR_HOOK_NOT_MPI',CLENV)
+  IF (CLENV == ' ' .OR. CLENV == '0' .OR. &
+    & CLENV == 'false' .OR. CLENV == 'FALSE') THEN
+    LLMPI=.TRUE.
+    CALL MPL_INIT(LDINFO=.FALSE.) ! Do not produce any output
+  ENDIF
   CALL EC_GETENV('DR_HOOK',CLENV)
   IF (CLENV == ' ' .OR. CLENV == '0' .OR. &
     & CLENV == 'false' .OR. CLENV == 'FALSE') THEN
     LHOOK = .FALSE.
     CALL C_DRHOOK_SET_LHOOK(0)
-    RETURN
   ENDIF
-  CALL MPL_GETARG(0, CLENV)
+  IF (LLMPI) THEN
+    CALL MPL_GETARG(0, CLENV)
+  ELSE
+    CALL GETARG(0, CLENV)
+  ENDIF
+  IF (.not.LHOOK) RETURN
+  
   INUMTIDS = OML_MAX_THREADS()
   CALL C_DRHOOK_INIT(CLENV, INUMTIDS)
 ENDIF

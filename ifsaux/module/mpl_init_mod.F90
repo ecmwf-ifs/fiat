@@ -41,7 +41,7 @@ MODULE MPL_INIT_MOD
 !     Modifications.
 !     --------------
 !        Original: 2000-09-01
-
+!        R. El Khatib  14-May-2007 Do not propagate environment if NECSX
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
@@ -78,7 +78,7 @@ INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KOUTPUT,KUNIT
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KERROR,KPROCS
 LOGICAL,INTENT(IN),OPTIONAL :: LDINFO
 INTEGER(KIND=JPIM) :: IERROR,IP,ICOMM,IRANK
-INTEGER(KIND=JPIM) :: IMAX_THREADS, IRET, IROOT, INUM, ICOUNT
+INTEGER(KIND=JPIM) :: IMAX_THREADS, IRET, IROOT, INUM(2), ICOUNT
 LOGICAL            :: LLABORT=.TRUE., LLINIT, LLINFO
 CHARACTER(LEN=12)  :: CL_MBX_SIZE
 CHARACTER(LEN=1024) :: CLENV
@@ -146,31 +146,47 @@ ENDDO
 CALL MPI_COMM_RANK(INT(MPI_COMM_WORLD), IRANK, IERROR)
 MPL_RANK=IRANK+1
 
+#ifndef NECSX
+
 !-- Propagate environment variables & argument lists
 !   Here we have to be careful and use MPI_BCAST directly (not MPL_BROADCAST) since
 !   1) MPL_BUFFER_METHOD has not been called
 !   2) MPL_COMM_OML has not been initialized since it is possible that only the 
 !      master proc knows the # of threads (i.e. OMP_NUM_THREADS may be set only for master)
 
+! Do not propagate on nec machine because the environment variables could be mpi-task-specific.
+
 IF (MPL_NUMPROC > 1) THEN
   IROOT = 0
   !-- Progate environment variables
-  INUM = 0
-  IF (MPL_RANK == 1) CALL EC_NUMENV(INUM) ! Master proc
+  INUM(1) = 0 ! The number of environment variables
+  INUM(2) = 0 ! Do not (=0) or do (=1) overwrite if particular environment variable already exists (0 = default)
+  IF (MPL_RANK == 1) THEN ! Master proc inquires
+    CALL EC_NUMENV(INUM(1))        ! ../support/env.c
+    CALL EC_OVERWRITE_ENV(INUM(2)) ! ../support/env.c
+  ENDIF
   ! The following broadcast does not use "mailbox" nor attached buffer, both potentially yet to be allocated
-  CALL MPI_BCAST(INUM,1,INT(MPI_INTEGER),IROOT,INT(MPI_COMM_WORLD),IERROR)
+  CALL MPI_BCAST(INUM(1),2,INT(MPI_INTEGER),IROOT,INT(MPI_COMM_WORLD),IERROR)
   ICOUNT = LEN(CLENV)
-  DO IP=1,INUM
+  DO IP=1,INUM(1)
     IF (MPL_RANK == 1) CALL EC_STRENV(IP,CLENV)
     ! The following broadcast does not use "mailbox" nor attached buffer, both potentially yet to be allocated
     CALL MPI_BCAST(CLENV,ICOUNT,INT(MPI_BYTE),IROOT,INT(MPI_COMM_WORLD),IERROR)
-    IF (MPL_RANK > 1) CALL EC_PUTENV(CLENV)
+    IF (MPL_RANK > 1) THEN
+      IF (INUM(2) == 1) THEN
+        CALL EC_PUTENV(CLENV) ! ../support/env.c ; Unconditionally overwrite, even if already exists
+      ELSE
+        CALL EC_PUTENV_NOOVERWRITE(CLENV) ! ../support/env.c ; Do not overwrite, if exists
+      ENDIF
+    ENDIF
   ENDDO
   !-- Redo some env. variables (see ../utilities/fnecsx.c)
   CALL EC_ENVREDO()
   !-- Propagate argument list (all under the bonnet using MPL_ARG_MOD-module)
   INUM = MPL_IARGC()
 ENDIF
+
+#endif
 
 IMAX_THREADS = OML_MAX_THREADS()
 ALLOCATE(MPL_COMM_OML(IMAX_THREADS))

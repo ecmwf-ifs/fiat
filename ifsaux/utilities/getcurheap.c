@@ -1,3 +1,6 @@
+#if defined(RS6K) && defined(__64BIT__)
+#include <pthread.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -73,7 +76,6 @@ extern void necsx_trbk_fl_(const char *msg, const char *filename, int *lineno,
 #if defined(RS6K) && defined(__64BIT__)
 /* Assume AIX >= 5.1 with 64-bit addressing */
 
-#include <pthread.h>
 pthread_mutex_t getcurheap_lock = PTHREAD_MUTEX_INITIALIZER;
 #define CLSZ_OPT 1
 

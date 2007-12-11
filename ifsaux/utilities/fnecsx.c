@@ -83,7 +83,7 @@ extern void necsx_trbk_fl_(const char *msg, const char *filename, int *lineno,
 
 /* Other than NEC SX machines or when -DINTERCEPT_ALLOC was NOT supplied */
 
-void ec_envredo_() { };
+void ec_envredo_() { }
 
 #else /* is indeed defined(INTERCEPT_ALLOC) */
 
@@ -385,4 +385,4 @@ void f_deallcl(ll_t arg1, desc_t *d, ll_t *stat)
 
 #endif /* #if !defined(INTERCEPT_ALLOC) ... #else ... */
 
-void ec_envredo() { ec_envredo_(); };
+void ec_envredo() { ec_envredo_(); }

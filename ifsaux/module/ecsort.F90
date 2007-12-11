@@ -15,6 +15,7 @@ USE STRHANDLER , ONLY : TOUPPER
 !             Sami Saarinen, ECMWF, 06/07/05 : "current_method" made OpenMP-thread aware (for max. # of threads = NTHRDS)
 !             Sami Saarinen, ECMWF, 07/07/05 : Quick-sort method finally arrived (and applicable to multikeys, too)
 !                                              Quick-sort the default for scalar machines ("non-VPP"), VPPs is radix-sort
+!             Sami Saarinen, ECMWF, 03/07/07 : Quick-sort method uses stable approach (wasn't guaranteed so before)
 
 
 IMPLICIT NONE
@@ -337,7 +338,7 @@ do j=size(ikeys),1,-1
   case (radixsort_method)
     IF (LHOOK) CALL DR_HOOK('RSORT32_FUNC_11',0,ZHOOK_HANDLE_RSORT)
     CALL rsort32_func(11, n, istride, iptr, a(1,1), iindex(1), 1, rc)
-    IF (LHOOK) CALL DR_HOOK('RSORT32_FUNC_11',1,ZHOOK_HANDLE_RSORT)
+    IF (LHOOK) CALL DR_HOOK('RSORT32_FUNC_11',1,ZHOOK_HANDLE_RSORT, n)
   case (heapsort_method)
     if (istride == 1) then
       CALL int_heapsort(n, a(1:n, ikey), iindex, rc)
@@ -347,7 +348,7 @@ do j=size(ikeys),1,-1
   case (quicksort_method)
     IF (LHOOK) CALL DR_HOOK('ECQSORT_11',0,ZHOOK_HANDLE_ECQSORT)
     CALL ecqsort(11, n, istride, iptr, a(1,1), iindex(1), 1, rc)
-    IF (LHOOK) CALL DR_HOOK('ECQSORT_11',1,ZHOOK_HANDLE_ECQSORT)
+    IF (LHOOK) CALL DR_HOOK('ECQSORT_11',1,ZHOOK_HANDLE_ECQSORT, n)
   end select
 
   if (descending) then
@@ -492,7 +493,7 @@ do j=size(ikeys),1,-1
     IF (LHOOK) CALL DR_HOOK('RSORT64_14',0,ZHOOK_HANDLE_RSORT)
     CALL rsort64(14, n, istride, iptr, a(1,1), iindex(1), 1, rc)
 !    CALL rsort32_func(14, n, istride, iptr, a(1,1), iindex(1), 1, rc)
-    IF (LHOOK) CALL DR_HOOK('RSORT64_14',1,ZHOOK_HANDLE_RSORT)
+    IF (LHOOK) CALL DR_HOOK('RSORT64_14',1,ZHOOK_HANDLE_RSORT, n)
   case (heapsort_method)
     if (istride == 1) then
       CALL int8_heapsort(n, a(1:n, ikey), iindex, rc)
@@ -502,7 +503,7 @@ do j=size(ikeys),1,-1
   case (quicksort_method)
     IF (LHOOK) CALL DR_HOOK('ECQSORT_14',0,ZHOOK_HANDLE_ECQSORT)
     CALL ecqsort(14, n, istride, iptr, a(1,1), iindex(1), 1, rc)
-    IF (LHOOK) CALL DR_HOOK('ECQSORT_14',1,ZHOOK_HANDLE_ECQSORT)
+    IF (LHOOK) CALL DR_HOOK('ECQSORT_14',1,ZHOOK_HANDLE_ECQSORT, n)
   end select
 
   if (descending) then
@@ -646,7 +647,7 @@ do j=size(ikeys),1,-1
   case (radixsort_method)
     IF (LHOOK) CALL DR_HOOK('RSORT32_FUNC_13',0,ZHOOK_HANDLE_RSORT)
     CALL rsort32_func(13, n, istride, iptr, a(1,1), iindex(1), 1, rc)
-    IF (LHOOK) CALL DR_HOOK('RSORT32_FUNC_13',1,ZHOOK_HANDLE_RSORT)
+    IF (LHOOK) CALL DR_HOOK('RSORT32_FUNC_13',1,ZHOOK_HANDLE_RSORT, n)
   case (heapsort_method)
     if (istride == 1) then
       CALL real4_heapsort(n, a(1:n, ikey), iindex, rc)
@@ -656,7 +657,7 @@ do j=size(ikeys),1,-1
   case (quicksort_method)
     IF (LHOOK) CALL DR_HOOK('ECQSORT_13',0,ZHOOK_HANDLE_ECQSORT)
     CALL ecqsort(13, n, istride, iptr, a(1,1), iindex(1), 1, rc)
-    IF (LHOOK) CALL DR_HOOK('ECQSORT_13',1,ZHOOK_HANDLE_ECQSORT)
+    IF (LHOOK) CALL DR_HOOK('ECQSORT_13',1,ZHOOK_HANDLE_ECQSORT, n)
   end select
 
   if (descending) then
@@ -801,7 +802,7 @@ do j=size(ikeys),1,-1
     IF (LHOOK) CALL DR_HOOK('RSORT64_12',0,ZHOOK_HANDLE_RSORT)
     CALL rsort64(12, n, istride, iptr, a(1,1), iindex(1), 1, rc)
 !    CALL rsort32_func(12, n, istride, iptr, a(1,1), iindex(1), 1, rc)
-    IF (LHOOK) CALL DR_HOOK('RSORT64_12',1,ZHOOK_HANDLE_RSORT)
+    IF (LHOOK) CALL DR_HOOK('RSORT64_12',1,ZHOOK_HANDLE_RSORT, n)
   case (heapsort_method)
     if (istride == 1) then
       CALL real8_heapsort(n, a(1:n, ikey), iindex, rc)
@@ -811,7 +812,7 @@ do j=size(ikeys),1,-1
   case (quicksort_method)
     IF (LHOOK) CALL DR_HOOK('ECQSORT_12',0,ZHOOK_HANDLE_ECQSORT)
     CALL ecqsort(12, n, istride, iptr, a(1,1), iindex(1), 1, rc)
-    IF (LHOOK) CALL DR_HOOK('ECQSORT_12',1,ZHOOK_HANDLE_ECQSORT)
+    IF (LHOOK) CALL DR_HOOK('ECQSORT_12',1,ZHOOK_HANDLE_ECQSORT, n)
   end select
 
   if (descending) then
