@@ -139,6 +139,9 @@ static int opt_timeline_unitno = 6; /* Fortran unit number : default = 6 i.e. st
 static long long int opt_timeline_freq = 1000000; /* How often to print : every n-th call : default = every 10^6 th call or ... */
 static double opt_timeline_MB = 1.0; /* ... rss or curheap jumps up/down by more than this many MBytes (default = 1) : unit MBytes */
 
+static int opt_gencore = 0;
+static int opt_gencore_signal = 0;
+
 typedef struct drhook_timeline_t {
   unsigned long long int calls[2]; /* 0=drhook_begin , 1=drhook_end */
   double last_curheap_MB;
@@ -164,6 +167,8 @@ static        double opt_hpmstop_mflops    =  1000000.0; /* Yes, 1 PetaFlop/s !!
 #define SIG_EXTRA_ARGS       , siginfo_t *sigcode, void *sigcontextptr
 #define SIG_PASS_EXTRA_ARGS  , sigcode, sigcontextptr
 #endif
+
+#define NIL "(nil)"
 
 #undef MIN
 #define MIN(a,b) ( (a) < (b) ? (a) :  (b) )
@@ -268,6 +273,7 @@ typedef struct drhook_key_t {
   char *filename;         /* the filename where the 1st call (on this routine-name) 
 			     to dr_hook() occurred */
   long long int sizeinfo; /* # of data elements, bytes, etc. */
+  long long int min_sizeinfo, max_sizeinfo; /* min & max of # of data elements, bytes, etc. */
   /* memprof specific */
   long long int mem_seenmax;
   long long int mem_child, mem_curdelta;
@@ -313,7 +319,8 @@ typedef struct drhook_prof_t {
   unsigned char is_max;
   char *name;
   char *filename;
-  unsigned long long int sizeinfo;
+  long long int sizeinfo;
+  long long int min_sizeinfo, max_sizeinfo;
   double sizespeed, sizeavg;
   const equivalence_t *callpath; /* parent's tree down to callpath_depth */
   int callpath_len;
@@ -380,11 +387,11 @@ static int watch_count = 0; /* No. of *active* watch points */
 #define HASHSIZE(n) ((unsigned int)1<<(n))
 #define HASHMASK(n) (HASHSIZE(n)-1)
 
-#define NHASH    15
+#define NHASH    16
 #define NHASHMAX 24
 static int nhash = NHASH;
-unsigned int hashsize = HASHSIZE(NHASH);
-unsigned int hashmask = HASHMASK(NHASH);
+static unsigned int hashsize = HASHSIZE(NHASH);
+static unsigned int hashmask = HASHMASK(NHASH);
 
 #ifdef HPM
 /* HPM-specific (static) protos */
@@ -747,6 +754,8 @@ flptrap(int sig)
 
 /*--- catch_signals ---*/
 
+static void signal_gencore(int sig SIG_EXTRA_ARGS);
+static void signal_harakiri(int sig SIG_EXTRA_ARGS);
 static void signal_drhook(int sig SIG_EXTRA_ARGS);
 
 #define CATCHSIG(x) {\
@@ -865,31 +874,40 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 
 /*--- signal_drhook ---*/
 
-#define SETSIG(x,ignore_flag) {\
+#define SETSIG5(x,ignore_flag,handler_name,preserve_old,xstr) {\
   drhook_sig_t *sl = &siglist[x];\
   if (sl->active == 0) {\
     drhook_sigfunc_t u;\
-    u.func3args = signal_drhook;\
+    u.func3args = handler_name;\
     sl->active = 1;\
-    strcpy(sl->name,#x);\
+    strcpy(sl->name,xstr);\
     sigemptyset(&sl->new.sa_mask);\
     sl->new.sa_handler = u.func1args;\
     sl->new.sa_flags = SA_SIGINFO;\
-    sigaction(x,&sl->new,&sl->old);\
+    sigaction(x,&sl->new,preserve_old ? &sl->old : NULL);\
     sl->ignore_atexit = ignore_flag;\
     flptrap(x);\
     if (!silent && myproc == 1) {\
-      fprintf(stderr,"%s(%s=%d): New handler installed at 0x%x; old preserved at 0x%x\n",\
-              "signal_drhook", sl->name, x, sl->new.sa_handler, sl->old.sa_handler);\
+      const char *fmt = "%s(%s=%d): New handler installed at 0x%llx; old %spreserved at 0x%llx\n"; \
+      if (sizeof(void *) == 4) { \
+                  fmt = "%s(%s=%d): New handler installed at 0x%x; old %spreserved at 0x%x\n"; \
+      } \
+      fprintf(stderr,fmt,\
+            #handler_name, sl->name, x, \
+            sl->new.sa_handler, \
+            preserve_old ? "" : "NOT ", \
+            preserve_old ? sl->old.sa_handler : NULL);\
     }\
   }\
 }
+
+#define SETSIG(x,ignore_flag) SETSIG5(x,ignore_flag,signal_drhook,1,#x)
 
 #define JSETSIG(x,ignore_flag) {\
   drhook_sig_t *sl = &siglist[x];\
   drhook_sigfunc_t u;\
   fprintf(stderr,"JSETSIG: sl->active = %d\n",sl->active);\
-  u.func3args = signal_drhook;\
+  u.func3args = signal_harakiri;\
   sl->active = 1;\
   strcpy(sl->name,#x);\
   sigemptyset(&sl->new.sa_mask);\
@@ -898,8 +916,63 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
   sigaction(x,&sl->new,&sl->old);\
   sl->ignore_atexit = ignore_flag;\
   flptrap(x);\
-  fprintf(stderr,"%s(%s=%d): New handler installed at 0x%x; old preserved at 0x%x\n",\
-            "signal_drhook", sl->name, x, sl->new.sa_handler, sl->old.sa_handler);\
+  { \
+    const char *fmt = "%s(%s=%d): New handler installed at 0x%llx; old preserved at 0x%llx\n"; \
+    if (sizeof(void *) == 4) { \
+                fmt = "%s(%s=%d): New handler installed at 0x%x; old preserved at 0x%x\n"; \
+    } \
+    fprintf(stderr,fmt,\
+            "signal_harakiri", sl->name, x, \
+            sl->new.sa_handler, \
+            sl->old.sa_handler);\
+  } \
+}
+
+#if defined(RS6K) && defined(__64BIT__)
+#define DRH_STRUCT_RLIMIT struct rlimit64
+#define DRH_GETRLIMIT getrlimit64
+#define DRH_SETRLIMIT setrlimit64
+#define DRH_MASKALL   0xFFFFFFFFFFFFFFFFull
+#else
+#define DRH_STRUCT_RLIMIT struct rlimit
+#define DRH_GETRLIMIT getrlimit
+#define DRH_SETRLIMIT setrlimit
+#define DRH_MASKALL   0xFFFFFFFFu
+#endif
+
+static void 
+signal_gencore(int sig SIG_EXTRA_ARGS)
+{
+  if (opt_gencore > 0) { 
+    opt_gencore = 0; /* A tiny chance for a race condition between threads */
+    if (sig == opt_gencore_signal && sig >= 1 && sig <= NSIG) {
+      signal(sig, SIG_IGN);
+      signal(SIGABRT, SIG_DFL);
+      { /* Enable unlimited cores (up to hard-limit) and call abort() --> generates core dump */
+	DRH_STRUCT_RLIMIT r;
+	if (DRH_GETRLIMIT(RLIMIT_CORE, &r) == 0) {
+	  /* r.rlim_cur = DRH_MASKALL; */
+	  r.rlim_cur = r.rlim_max;
+	  if (DRH_SETRLIMIT(RLIMIT_CORE, &r) == 0) {
+	    int tid = get_thread_id_();
+	    fprintf(stderr,"signal_gencore(sig=%d): pid#%d, tid#%d : Calling abort() ...\n",
+		    sig, pid, tid);
+	    abort(); /* Dump core, too */
+	  }
+	}
+      }
+      /* Should never end up here */
+      _exit(1);
+    } /* if (sig >= 1 && sig <= NSIG && sig == opt_gencore_signal) */
+  }
+}
+
+static void 
+signal_harakiri(int sig SIG_EXTRA_ARGS)
+{
+  /* A signal handler that will force to exit the current thread immediately for sure */
+  raise(SIGKILL); /* Use raise, not RAISE here */
+  _exit(1); /* Should never reach here, bu' in case it does, then ... */
 }
 
 static void 
@@ -908,22 +981,15 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
   /* signal(sig, SIG_IGN); */
   if (signals_set && sig >= 1 && sig <= NSIG) { 
     /* Signal catching */
+    int nsigs = (++signal_handler_called); /* A tiny chance for a race condition between threads */
     drhook_sig_t *sl = &siglist[sig];
     drhook_sigfunc_t u;
     sigset_t newmask, oldmask;
-    int tid, nsigs;
-    long long int hwm = gethwm_();
-    long long int rss = getrss_();
-    long long int maxstack = getmaxstk_();
-    long long int pag = getpag_();
-    rss /= 1048576;
-    hwm /= 1048576;
-    maxstack /= 1048576;
-    tid = get_thread_id_();
+    int tid = 0;
 
     /*------------------------------------------------------------ 
       Strategy:
-      - drhook intercepts most interupts.
+      - drhook intercepts most interrupts.
       - 1st interupt will 
         - call alarm(10) to try to make sure 2nd interrupt received
         - try to call tracebacks and exit (which includes atexits)
@@ -934,25 +1000,35 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       
     /* if (sig != SIGTERM) signal(SIGTERM, SIG_DFL); */  /* Let the default SIGTERM to occur */
 
-    nsigs=1+signal_handler_called++;
-
-    if (nsigs > 3 * max_threads) {
-      /* Note: Cannot even print & flush the msg below */
-      /*
+    if (nsigs == 1) {
+      /*---- First call to signal handler: call alarm(10), tracebacks,  exit ------*/
+      
+      JSETSIG(SIGALRM,1); /* This will now set another signal handler than signal_drhook */
+      alarm(10);
       fprintf(stderr,
-	      "***Error: Too deep recursion in signal handling. Issuing 'kill -9 %d' now !!\n",
-	      pid);
+	      "***Received signal = %d and ActivatED SIGALRM=%d and calling alarm(10), time =%8.2f\n",
+	      sig,SIGALRM,WALLTIME());
       fflush(NULL);
-      */
-      raise(SIGKILL); /* Use raise, not RAISE here */
-      _exit(1); /* Should never reach here, bu' in case it does, then ... */
-    }
 
-    fprintf(stderr,
-	    "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Received signal :: %lldMB (heap),"
-	    " %lldMB (rss), %lldMB (stack), %lld (paging), nsigs %d, time %8.2f\n",
-	    myproc,tid,pid,sig,sl->name, hwm, rss, maxstack, pag, nsigs, WALLTIME());
-    fflush(NULL);
+      { /* Enjoy some output (only from the first guy that came in) */
+	long long int hwm = gethwm_();
+	long long int rss = getrss_();
+	long long int maxstack = getmaxstk_();
+	long long int pag = getpag_();
+	rss /= 1048576;
+	hwm /= 1048576;
+	maxstack /= 1048576;
+	tid = get_thread_id_();
+	fprintf(stderr,
+		"[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Received signal :: %lldMB (heap),"
+		" %lldMB (rss), %lldMB (stack), %lld (paging), nsigs %d, time %8.2f\n",
+		myproc,tid,pid,sig,sl->name, hwm, rss, maxstack, pag, nsigs, WALLTIME());
+	fflush(NULL);
+      }
+    }
+    else if (nsigs > max_threads) {
+      signal_harakiri(sig SIG_PASS_EXTRA_ARGS);
+    }
 
     /*----- 2nd (and subsequent) calls to signal handler: spin 20 sec,  _exit ---------*/
     if (nsigs > 1) {
@@ -970,16 +1046,8 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	fprintf(stderr,"tid#%d calling _exit with sig=%d, time =%8.2f\n",tid,sig,WALLTIME());
 	fflush(NULL);
       }
-      raise(SIGKILL); /* Use raise, not RAISE here */
-      _exit(1); /* Should never reach here, bu' in case it does, then ... */
+      signal_harakiri(sig SIG_PASS_EXTRA_ARGS);
     }
-
-    /*---- First call to signal handler: call alarm(10), tracebacks,  exit ------*/
-
-    fprintf(stderr,"Activating SIGALRM=%d and calling alarm(10), time =%8.2f\n",SIGALRM,WALLTIME());
-    fflush(NULL);
-    JSETSIG(SIGALRM,1);
-    alarm(10);
 
 #ifdef RS6K
     /*-- llcancel attempted but sometimes hangs ---
@@ -1184,6 +1252,11 @@ signal_drhook_init(int enforce)
     #endif
   */
   catch_signals(silent); /* Additional signals to be seen by DR_HOOK */
+  if (opt_gencore > 0 && opt_gencore_signal >= 1 && opt_gencore_signal <= NSIG) {
+    drhook_sigfunc_t u;
+    u.func3args = signal_gencore;
+    signal(opt_gencore_signal, u.func1args); /* A facility to dump core */
+  }
   signals_set = 1; /* Signals are set now */
 }
 
@@ -1321,6 +1394,21 @@ process_options()
     hashsize = HASHSIZE(nhash);
     hashmask = HASHMASK(nhash);
     if (fp) fprintf(fp,">>>process_options(): DR_HOOK_HASHBITS=%d\n",nhash);
+  }
+
+  env = getenv("DR_HOOK_GENCORE");
+  if (env) {
+    opt_gencore = atoi(env);
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_GENCORE=%d\n",opt_gencore);
+  }
+
+  env = getenv("DR_HOOK_GENCORE_SIGNAL");
+  if (env) {
+    int itmp = atoi(env);
+    if (itmp >= 1 && itmp <= NSIG && itmp != SIGABRT) {
+      opt_gencore_signal = itmp;
+    }
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_GENCORE_SIGNAL=%d\n",opt_gencore_signal);
   }
 
   env = getenv("DR_HOOK_HPMSTOP");
@@ -1659,14 +1747,22 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
       equivalence_t u;
       u.keyptr = treeptr->keyptr;
       fprintf(stderr,
-	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Expecting key-pointer=0x%x (%.20g)"
+	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Expecting the key-pointer=0x%llx"
 	      " and treeptr->active-flag == 1\n",
-	      myproc,tid,pid,sig,sl_name,u.keyptr,u.d);
+	      myproc,tid,pid,sig,sl_name,u.ull);
+      fprintf(stderr,
+	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: A probable routine missing the closing DR_HOOK-call is '%s'\n",
+	      myproc,tid,pid,sig,sl_name,
+	      u.keyptr->name ? u.keyptr->name : NIL);
       u.keyptr = keyptr;
       fprintf(stderr,
-	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Got a key-pointer=0x%x (%.20g)"
+	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Got a key-pointer=0x%llx"
 	      " and treeptr->active-flag = %d\n",
-	      myproc,tid,pid,sig,sl_name,u.keyptr,u.d,treeptr->active);
+	      myproc,tid,pid,sig,sl_name,u.ull,treeptr->active);
+      fprintf(stderr,
+	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: This key-pointer maybe associated with the routine '%s'\n",
+	      myproc,tid,pid,sig,sl_name,
+	      u.keyptr->name ? u.keyptr->name : NIL);
     }
     fprintf(stderr,"[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Aborting...\n",myproc,tid,pid,sig,sl_name);
     free_drhook(s);
@@ -1687,7 +1783,17 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
     }
     if (opt_walltime) keyptr->delta_wall_all += delta_wall;
     if (opt_cputime)  keyptr->delta_cpu_all  += delta_cpu;
-    if (opt_sizeinfo && sizeinfo > 0) keyptr->sizeinfo += sizeinfo;
+    if (opt_sizeinfo && sizeinfo > 0) {
+      if (keyptr->sizeinfo == 0) { /* First time */
+	keyptr->min_sizeinfo = sizeinfo;
+	keyptr->max_sizeinfo = sizeinfo;
+      }
+      else {
+	keyptr->min_sizeinfo = MIN(keyptr->min_sizeinfo, sizeinfo);
+	keyptr->max_sizeinfo = MAX(keyptr->max_sizeinfo, sizeinfo);
+      }
+      keyptr->sizeinfo += sizeinfo;
+    }
     remove_calltree(tid, keyptr, &delta_wall, &delta_cpu);
   }
 }
@@ -1941,7 +2047,7 @@ unroll_callpath(FILE *fp, int len,
 		"\n????callpath=0x%x, callpath->keyptr=0x%x,  callpath->keyptr->name='%s'",
 		callpath, callpath ? callpath->keyptr : 0,
 		(callpath && callpath->keyptr && callpath->keyptr->name) ?
-		callpath->keyptr->name : "(nil)");
+		callpath->keyptr->name : NIL);
       }
 #endif
     }
@@ -2841,6 +2947,8 @@ c_drhook_print_(const int *ftnunitno,
 #endif
 	      p->filename = keyptr->filename;
 	      p->sizeinfo = keyptr->sizeinfo;
+	      p->min_sizeinfo = keyptr->min_sizeinfo;
+	      p->max_sizeinfo = keyptr->max_sizeinfo;
 	      p->sizespeed = (p->self > 0 && p->sizeinfo > 0) ? p->sizeinfo/p->self : 0;
 	      p->sizeavg = (p->calls > 0 && p->sizeinfo > 0) ? p->sizeinfo/p->calls : 0;
 	      p->callpath = keyptr->callpath;
@@ -3050,7 +3158,7 @@ c_drhook_print_(const int *ftnunitno,
 	fprintf(fp,"Routine@<thread-id>");
 	if (opt_clusterinfo) fprintf(fp," [Cluster:(id,size)]");
 	fprintf(fp,"\n");
-	if (opt_sizeinfo) fprintf(fp,"%*s %s\n",len," ","(Size; Size/sec; AvgSize/call)");
+	if (opt_sizeinfo) fprintf(fp,"%*s %s\n",len-20," ","(Size; Size/sec; Size/call; MinSize; MaxSize)");
 	if (opt_hpmprof) {
 	  fprintf(fp,  "        (self)        (sec)        (sec)        (sec)                                       \n");
 	}
@@ -3086,10 +3194,13 @@ c_drhook_print_(const int *ftnunitno,
 	    
 	  if (opt_sizeinfo && p->sizeinfo > 0) {
 	    char s1[DRHOOK_STRBUF], s2[DRHOOK_STRBUF], s3[DRHOOK_STRBUF];
+	    char s4[DRHOOK_STRBUF], s5[DRHOOK_STRBUF];
 	    lld_commie(p->sizeinfo,s1);
 	    dbl_commie(p->sizespeed,s2);
 	    dbl_commie(p->sizeavg,s3);
-	    fprintf(fp,"\n%*s (%s  %s  %s)",len-10," ",s1,s2,s3);
+	    lld_commie(p->min_sizeinfo,s4);
+	    lld_commie(p->max_sizeinfo,s5);
+	    fprintf(fp,"\n%*s (%s; %s; %s; %s; %s)",len-20," ",s1,s2,s3,s4,s5);
 	  }
 	  fprintf(fp,"\n");
 	  p++;
@@ -3908,9 +4019,6 @@ double util_walltime_()
   return time_in_secs;
 }
 #endif
-
-#include <sys/time.h>
-#include <sys/resource.h>
 
 #ifdef VPP
 
