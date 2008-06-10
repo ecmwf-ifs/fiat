@@ -58,7 +58,7 @@ REAL(KIND=JPRB) :: ZREABUF(JPARRAYS*(JPMAXSTAT+1))
 REAL(KIND=JPRB) :: ZAVEAVE(0:JPMAXSTAT),ZAVEMAX(0:JPMAXSTAT),ZTIMELCALL(0:JPMAXSTAT),&
          &ZTHISTIME(0:JPMAXSTAT),ZFRACMAX(0:JPMAXSTAT),&
          &ZSUMMAX(0:JPMAXSTAT),ZSUMTOT(0:JPMAXSTAT)
-REAL(KIND=JPRB) :: ZT_SUM,ZT_SUM2,ZT_SUM3,ZT_SUMIO,ZT_SUM4
+REAL(KIND=JPRB) :: ZT_SUM,ZT_SUM2,ZT_SUM3,ZT_SUMIO,ZT_SUM4,ZT_SUM5,ZT_SUMB
 
 INTEGER(KIND=JPIM) :: ICALLSX(0:JPMAXSTAT)
 
@@ -157,7 +157,9 @@ ELSEIF(LSTATS) THEN
       ZT_SUM2=0.0_JPRB
       ZT_SUM3=0.0_JPRB
       ZT_SUM4=0.0_JPRB
+      ZT_SUM5=0.0_JPRB
       ZT_SUMIO=0.0_JPRB
+      ZT_SUMB=0.0_JPRB
       WRITE(KULOUT,'(A,I4)') 'TIMING STATISTICS:PROCESSOR=',JROC
       IF(LXML_STATS)THEN
         WRITE(IXMLLUN,'(A,I4,A)')'<timing processor="',JROC,'">'
@@ -167,7 +169,7 @@ ELSEIF(LSTATS) THEN
          &TIME_START(JROC),' SECONDS'
       ENDIF
       WRITE(KULOUT,'(A)')&
-       &'NUM  ROUTINE                                  '//&
+       &' NUM     ROUTINE                                  '//&
        &'CALLS  SUM(s)   AVE(ms)   CPUAVE(ms) VAVE(ms) '//&
        &'STDDEV(ms)  MAX(ms) '//&
        &'SUMB(s) FRAC(%)'
@@ -196,18 +198,27 @@ ELSEIF(LSTATS) THEN
         ENDIF
         IF(CCTYPE(JNUM).EQ.'MPL') THEN
           ZT_SUM=ZT_SUM+ZSUM
+          ZT_SUMB=ZT_SUMB+ZSUMB
         ENDIF
         IF(CCTYPE(JNUM).EQ.'BAR') THEN
           ZT_SUM4=ZT_SUM4+ZSUM
+          ZT_SUMB=ZT_SUMB+ZSUMB
         ENDIF
         IF(CCTYPE(JNUM).EQ.'OMP') THEN
           ZT_SUM2=ZT_SUM2+ZSUM
+          ZT_SUMB=ZT_SUMB+ZSUMB
         ENDIF
         IF(CCTYPE(JNUM).EQ.'IO-') THEN
           ZT_SUMIO=ZT_SUMIO+ZSUM
+          ZT_SUMB=ZT_SUMB+ZSUMB
         ENDIF
         IF(CCTYPE(JNUM).EQ.'SER') THEN
           ZT_SUM3=ZT_SUM3+ZSUM
+          ZT_SUMB=ZT_SUMB+ZSUMB
+        ENDIF
+        IF(CCTYPE(JNUM).EQ.'MXD') THEN
+          ZT_SUM5=ZT_SUM5+ZSUM
+          ZT_SUMB=ZT_SUMB+ZSUMB
         ENDIF
         IF( LDETAILED_STATS .AND. JROC <= NPRNT_STATS ) THEN
 !         IF(JNUM < 501 .OR. LSTATS_COMMS .OR. LSTATS_OMP) THEN 
@@ -310,12 +321,25 @@ ELSEIF(LSTATS) THEN
            & ZT_SUM4/TIMESUM(0)*100.0_JPRB,'</fracbarrierztime>'
         ENDIF
       ENDIF
+      IF(ZT_SUM5 > 0.0_JPRB) THEN
+        WRITE(KULOUT,'(A,F10.1,A,F6.2,A)')'SUMMED TIME IN MIXED SECTIONS   = '&
+         & ,ZT_SUM5, ' SECONDS ',ZT_SUM5/TIMESUM(0)*100.0_JPRB,&
+         &' PERCENT OF TOTAL'
+        WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)')&
+         &'<mixedztime unit="seconds">',&
+         &ZT_SUM5,'</mixedztime>',&
+         & '<fracmixedztime unit="percent">',&
+         & ZT_SUM5/TIMESUM(0)*100.0_JPRB,'</fracmixedztime>'
+      ENDIF
       IF(LSTATS_COMMS.AND.LSTATS_OMP)THEN
         WRITE(KULOUT,'(A,F8.2)')'FRACTION OF TOTAL TIME ACCOUNTED FOR ',&
-         & (ZT_SUM+ZT_SUM2+ZT_SUMIO+ZT_SUM3+ZT_SUM4)/TIMESUM(0)*100.0_JPRB
+         & (ZT_SUM+ZT_SUM2+ZT_SUMIO+ZT_SUM3+ZT_SUM4+ZT_SUM5)/TIMESUM(0)*100.0_JPRB
+        WRITE(KULOUT,'(A,F8.2)')'FRACTION OF TOTAL TIME ACCOUNTED FOR INCLUDING SUMB ',&
+         & (ZT_SUM+ZT_SUM2+ZT_SUMIO+ZT_SUM3+ZT_SUM4+ZT_SUM5+ZT_SUMB)/TIMESUM(0)*100.0_JPRB
+        WRITE(KULOUT,'(" ")')
         IF(LXML_STATS)THEN
           WRITE(IXMLLUN,'(A,F8.2,A)')'<fractotal unit="percent">',&
-           &(ZT_SUM+ZT_SUM2+ZT_SUMIO+ZT_SUM3+ZT_SUM4)/TIMESUM(0)*100.0_JPRB,&
+           &(ZT_SUM+ZT_SUM2+ZT_SUMIO+ZT_SUM3+ZT_SUM4+ZT_SUM5)/TIMESUM(0)*100.0_JPRB,&
            &'</fractotal>'
         ENDIF
       ENDIF
@@ -347,7 +371,6 @@ ELSEIF(LSTATS) THEN
         ZUNBAL=0.0
       ENDIF
       ZFRAC=ZFRACMAX(JNUM)
-      ZTOTUNBAL = ZTOTUNBAL+(ZMAXT-ZMEANT)
       WRITE(KULOUT,'(I4,1X,A40,1X,I5,2(1X,F9.1),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
 
@@ -473,7 +496,7 @@ IF(LSTATS_OMP)THEN
    &'NUM ROUTINE                CALLS    MEAN(ms)  MAX(ms)   FRAC(%)  UNBAL(%)'
   ZT_SUM=0.0
   DO JNUM=500,JPMAXSTAT
-    IF(CCTYPE(JNUM).eq."I/O".AND.NCALLS(JNUM) > 1) THEN
+    IF(CCTYPE(JNUM).eq."IO-".AND.NCALLS(JNUM) > 1) THEN
       ICALLS = NCALLS(JNUM)/2
       ZMEAN = ZAVEAVE(JNUM)/NPROC_STATS
       ZMAX  = ZAVEMAX(JNUM)
@@ -557,6 +580,50 @@ IF(LSTATS_OMP)THEN
      &ZT_SUM, '</zserial>'
   ENDIF
 
+  WRITE(KULOUT,*) ''
+  WRITE(KULOUT,*) 'STATS FOR MIXED SECTIONS'
+  WRITE(KULOUT,*)  &
+   &'NUM ROUTINE                CALLS    MEAN(ms)  MAX(ms)   FRAC(%)  UNBAL(%)'
+  ZT_SUM=0.0
+  DO JNUM=500,JPMAXSTAT
+    IF(CCTYPE(JNUM).eq."MXD".AND.NCALLS(JNUM) > 1) THEN
+      ICALLS = NCALLS(JNUM)/2
+      ZMEAN = ZAVEAVE(JNUM)/NPROC_STATS
+      ZMAX  = ZAVEMAX(JNUM)
+      ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
+      ZMAXT  = ZSUMMAX(JNUM)
+      IF(ZMEANT .NE. 0.0)THEN
+        ZUNBAL= (ZMAXT-ZMEANT)/ZMEANT*100._JPRB
+      ELSE
+        ZUNBAL=0.0
+      ENDIF
+      ZFRAC=ZFRACMAX(JNUM)
+      ZTOTUNBAL = ZTOTUNBAL+(ZMAXT-ZMEANT)
+      WRITE(KULOUT,'(I4,1X,A22,1X,I5,2(1X,F9.1),2(1X,F9.2))')&
+       &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
+      IF(LXML_STATS)THEN
+        WRITE(IXMLLUN,'(A,I4,A,A,A22,A,A,I5,A,2(A,F9.1,A),2(A,F9.2,A,//),A)')&
+         &'<mixeditem id="',JNUM,'">',&
+         &'<description>',CCDESC(JNUM),'</description>',&
+         &'<calls>',ICALLS,'</calls>',&
+         &'<mean unit="ms">',ZMEAN,'</mean>','<max unit="ms">',ZMAX,'</max>',&
+         &'<fraction unit="percent">',ZFRAC,'</fraction>',&
+         &'<unbalanced unit="percent">',ZUNBAL,'</unbalanced>','</mixeditem>'
+      ENDIF
+
+      ZT_SUM=ZT_SUM+ZMEANT
+    ENDIF
+  ENDDO
+
+  WRITE(KULOUT,*) ''
+  WRITE(KULOUT,'(A,F10.1,A)')'SUMMED TIME IN MIXED SECTIONS = ',ZT_SUM, ' SECONDS '
+  WRITE(KULOUT,*) ''
+
+  IF(LXML_STATS)THEN
+    WRITE(IXMLLUN,'(A,F10.1,A)')'<zmixed unit="seconds">',&
+     &ZT_SUM, '</zmixed>'
+  ENDIF
+
   IF(LXML_STATS)THEN
     WRITE(IXMLLUN,'(A)')'</timing_parallel>'
   ENDIF
@@ -571,6 +638,7 @@ ELSE
   ZTOTCPU = TTCPUSUM(0)
   ZTOTVCPU = TVCPUSUM(0)
 ENDIF
+
 IF ( MYPROC_STATS == 1) THEN
   WRITE(KULOUT,'(3(A,F10.1)/)')'TOTAL WALLCLOCK TIME ',ZTOTAL,&
    &' CPU TIME',ZTOTCPU,' VECTOR TIME ',ZTOTVCPU
@@ -636,7 +704,6 @@ IF(LSTATS_MEM)THEN
  &' NUM ROUTINE               CALLS  CALL    MAXINCR   TOTINCR   MININCR'
   WRITE(KULOUT,*)  &
  &'                                   NO      (KB)      (KB)      (KB)'
-! DO JNUM=1001,JPMAXSTAT
   DO JNUM=0,JPMAXSTAT
     IF(NCALLS(JNUM) > 1) THEN
       ICALLS = NCALLS(JNUM)/2
