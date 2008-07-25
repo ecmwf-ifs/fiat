@@ -69,7 +69,7 @@ static char *end_stamp = NULL;
 extern void necsx_trbk_(const char *msg, int msglen); /* from ../utilities/gentrbk.F90 */
 #endif
 
-#if defined(LINUX) && !defined(XT3) && !defined(XD1) && !defined(CYGWIN) && !defined(DARWIN)
+#if defined(LINUX) && !defined(XT3) && !defined(XD1) && !defined(CYGWIN)
 
 #if defined(__GNUC__)
 
@@ -79,6 +79,12 @@ extern void necsx_trbk_(const char *msg, int msglen); /* from ../utilities/gentr
 #else
 #include <fenv.h>
 #endif
+#if defined(DARWIN)
+  /*  A temporary fix to link on MacIntosh. Something more clever will be done later -REK. */
+void feenableexcept() { }
+void fedisableexcept() { }
+#endif
+
 
 static void trapfpe(void)
 {
@@ -849,7 +855,7 @@ ignore_signals(int silent)
 
 /*--- gdb__sigdump ---*/
 
-#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1) && !defined(DARWIN)
+#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1)
 static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 {
   static int who = 0; /* Current owner of the lock, if > 0 */
@@ -1103,7 +1109,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
 #endif
-#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1) && !defined(DARWIN)
+#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1)
       gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
       fflush(NULL);
@@ -1157,7 +1163,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
 #endif
-#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1) && !defined(DARWIN)
+#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1)
     gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
     fflush(NULL);
@@ -1199,7 +1205,7 @@ signal_drhook_init(int enforce)
 #if defined(SIGEMT)
   SETSIG(SIGEMT,0);
 #endif
-#if defined(SIGSTKFLT) && !defined(DARWIN)
+#if defined(SIGSTKFLT)
   SETSIG(SIGSTKFLT,0); /* Stack fault */
 #endif
 #if !defined(NECSX)
