@@ -1,6 +1,6 @@
 FUNCTION get_thread_id() RESULT(tid)
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE yomoml
+USE oml_mod
 implicit none
 INTEGER(KIND=JPIM) :: tid
 tid = OML_MY_THREAD()

@@ -1,10 +1,10 @@
-MODULE SDL_MODULE
+MODULE SDL_MOD
 
 !    Interface between user applications and system-dependent intrinsic
 !    routines, provided by the computer vendors.
 
 !    All routines which wish to call these routines must contain:
-!    USE SDL_MODULE
+!    USE SDL_MOD
 
 ! Author :
 ! ------
@@ -13,7 +13,7 @@ MODULE SDL_MODULE
 
 USE PARKIND1  ,ONLY : JPIM  ,JPRB
 USE YOMHOOK   ,ONLY : LHOOK ,DR_HOOK
-USE YOMOML, ONLY : OML_MY_THREAD
+USE OML_MOD, ONLY : OML_MY_THREAD
 
 IMPLICIT NONE
 
@@ -126,4 +126,4 @@ STOP 'SDL_DISABORT'
 END SUBROUTINE SDL_DISABORT
 !-----------------------------------------------------------------------------
 
-END MODULE SDL_MODULE
+END MODULE SDL_MOD

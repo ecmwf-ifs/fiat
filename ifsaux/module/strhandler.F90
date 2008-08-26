@@ -1,5 +1,5 @@
 !OPTIONS NOOPT
-MODULE strhandler
+MODULE strhandler_mod
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 
@@ -209,4 +209,4 @@ enddo
 
 END SUBROUTINE expand_string
 
-END MODULE strhandler
+END MODULE strhandler_mod

@@ -32,7 +32,7 @@ extern int drhook_lhook;
 
 /* OpenMP/ODB lock type */
 /* Keep consistent with "odb/include/privpub.h" */
-/* Be ALSO consistent with OML_LOCK_KIND in ifsaux/module/yomoml.F90 */
+/* Be ALSO consistent with OML_LOCK_KIND in ifsaux/module/oml_mod.F90 */
 
 typedef long long int o_lock_t; /* i.e. 64-bit integer */
 
