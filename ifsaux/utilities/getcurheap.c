@@ -36,7 +36,7 @@ typedef  long long int  ll_t;
 #endif
 
 #if !defined(NTHRDS)
-#define NTHRDS 32   /* ***Note: A hardcoded max number of threads !!! */
+#define NTHRDS 64   /* ***Note: A hardcoded max number of threads !!! */
 #endif
 
 #if !defined(CACHELINESIZE)

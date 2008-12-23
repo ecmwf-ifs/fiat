@@ -6,7 +6,9 @@ END SUBROUTINE gentrbk_dummy
 #ifdef __INTEL_COMPILER
 SUBROUTINE intel_trbk()
 USE IFCORE
+#ifndef BOM
 CALL TRACEBACKQQ('Calling traceback from intel_trbk()', USER_EXIT_CODE=-1)
+#endif
 #ifdef LINUX
 CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
 #endif

@@ -534,7 +534,7 @@ static void
 insert_calltree(int tid, drhook_key_t *keyptr)
 {
   if (tid >= 1 && tid <= numthreads) {
-    drhook_calltree_t *treeptr = thiscall[--tid];
+    drhook_calltree_t *treeptr = thiscall[tid-1];
     while (treeptr->active) {
       if (!treeptr->next) {
 	treeptr->next = calloc_drhook(1,sizeof(drhook_calltree_t));
@@ -544,12 +544,12 @@ insert_calltree(int tid, drhook_key_t *keyptr)
     }
     treeptr->keyptr = keyptr;
     treeptr->active = 1;
-    thiscall[tid] = treeptr;
+    thiscall[tid-1] = treeptr;
 #ifdef HPM
     if (opt_hpmprof) {
       drhook_key_t *kptr = treeptr->keyptr;
       if (!kptr->hpm_stopped) {
-	stopstart_hpm(tid+1,
+	stopstart_hpm(tid,
 		      treeptr->prev ? treeptr->prev->keyptr : NULL, /* stop current (i.e. my parent) */
 		      kptr);                             /* start to gather for me */
 	kptr->this_delta_wall_child = 0;
@@ -558,12 +558,12 @@ insert_calltree(int tid, drhook_key_t *keyptr)
 #ifdef DEBUG
 	fprintf(stderr,"insert[%.*s@%d]: this_delta_wall_child=%.15g, mip#%.15g, mflop#%.15g\n",
 		kptr->name_len,kptr->name,
-		tid+1,kptr->this_delta_wall_child,
+		tid,kptr->this_delta_wall_child,
 		kptr->mip_count_in,kptr->mflop_count_in);
 #endif
       }
       else {
-	stop_only_hpm(tid+1,
+	stop_only_hpm(tid,
 		      treeptr->prev ? treeptr->prev->keyptr : NULL /* stop current (i.e. my parent) */);
       } /* if (!kptr->hpm_stopped) else */
     } /* if (opt_hpmprof) */
@@ -578,7 +578,7 @@ remove_calltree(int tid, drhook_key_t *keyptr,
 		const double *delta_wall, const double *delta_cpu)
 {
   if (tid >= 1 && tid <= numthreads) {
-    drhook_calltree_t *treeptr = thiscall[--tid];
+    drhook_calltree_t *treeptr = thiscall[tid-1];
     if (treeptr->active && treeptr->keyptr == keyptr) {
       treeptr->active = 0;
       if (treeptr->prev) {
@@ -595,9 +595,8 @@ remove_calltree(int tid, drhook_key_t *keyptr,
 	  }
 	  if (opt_memprof) {
 	    /*
-	    int tmp_tid = tid+1;
 	    const long long int size = 0;
-	    c_drhook_memcounter_(&tmp_tid, &size, NULL);
+	    c_drhook_memcounter_(&tid, &size, NULL);
 	    fprintf(stderr,
 		    ">parent(%.*s)->mem_child = %lld ; this(%.*s)->alldelta = %lld, mem_child = %lld\n",
 		    parent_keyptr->name_len, parent_keyptr->name, parent_keyptr->mem_child,
@@ -612,25 +611,24 @@ remove_calltree(int tid, drhook_key_t *keyptr,
 	    */
 	  }
 	} /* if (parent_keyptr) */
-	thiscall[tid] = treeptr->prev;
+	thiscall[tid-1] = treeptr->prev;
       }
       else {
-
-	thiscall[tid] = calltree[tid];
+	thiscall[tid-1] = calltree[tid-1];
       }
 #ifdef HPM
       if (opt_hpmprof) {
 	drhook_key_t *kptr = treeptr->keyptr;
 	if (!kptr->hpm_stopped) {
 	  double this_delta_wall_self = *delta_wall - kptr->this_delta_wall_child;
-	  stopstart_hpm(tid+1, 
+	  stopstart_hpm(tid, 
 			kptr, 
-			thiscall[tid]->keyptr); /* stop current, (re-)start previous */
+			thiscall[tid-1]->keyptr); /* stop current, (re-)start previous */
 	  /* Calculate moving average of mipsrate & mflops ; divpc we don't bother */
 #ifdef DEBUG
 	  fprintf(stderr,"remove[%.*s@%d]: this_delta_wall_self=%.15g i.e. %.15g - %.15g",
 		  kptr->name_len,kptr->name,
-		  tid+1,this_delta_wall_self,
+		  tid,this_delta_wall_self,
 		  *delta_wall,kptr->this_delta_wall_child);
 #endif
 	  if (this_delta_wall_self > 0) {
@@ -659,14 +657,14 @@ remove_calltree(int tid, drhook_key_t *keyptr,
 	  }
 	}
 	else {
-	  stop_only_hpm(tid+1,kptr);
+	  stop_only_hpm(tid,kptr);
 	} /* if (!kptr->hpm_stopped) else ... */
       } /* if (opt_hpmprof) */
 #endif
-      curkeyptr[tid] = thiscall[tid]->keyptr;
+      curkeyptr[tid-1] = thiscall[tid-1]->keyptr;
     }
     else {
-      curkeyptr[tid] = NULL;
+      curkeyptr[tid-1] = NULL;
     } /* if (treeptr->active && treeptr->keyptr == keyptr) else ... */
   }
 }
@@ -938,12 +936,10 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 #define DRH_STRUCT_RLIMIT struct rlimit64
 #define DRH_GETRLIMIT getrlimit64
 #define DRH_SETRLIMIT setrlimit64
-#define DRH_MASKALL   0xFFFFFFFFFFFFFFFFull
 #else
 #define DRH_STRUCT_RLIMIT struct rlimit
 #define DRH_GETRLIMIT getrlimit
 #define DRH_SETRLIMIT setrlimit
-#define DRH_MASKALL   0xFFFFFFFFu
 #endif
 
 static void 
@@ -957,7 +953,6 @@ signal_gencore(int sig SIG_EXTRA_ARGS)
       { /* Enable unlimited cores (up to hard-limit) and call abort() --> generates core dump */
 	DRH_STRUCT_RLIMIT r;
 	if (DRH_GETRLIMIT(RLIMIT_CORE, &r) == 0) {
-	  /* r.rlim_cur = DRH_MASKALL; */
 	  r.rlim_cur = r.rlim_max;
 	  if (DRH_SETRLIMIT(RLIMIT_CORE, &r) == 0) {
 	    int tid = get_thread_id_();
@@ -1630,7 +1625,7 @@ insertkey(int tid, const drhook_key_t *keyptr_in)
 	keyptr = keyptr->next;
       }  /* if (!keyptr->name) ... else ... */
     } /* for (;;) */
-  } /* if (tid >= 0 && tid < numthreads) */
+  } /* if (tid >= 1 && tid <= numthreads) */
   return keyptr;
 }
 
@@ -1731,12 +1726,14 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
        int sizeinfo,
        double *walltime, double *cputime)
 {
+  const int sig = SIGABRT;
+  const char sl_name[] = "SIGABRT";
   drhook_calltree_t *treeptr = (tid >= 1 && tid <= numthreads) ? thiscall[tid-1] : NULL;
-  if (!treeptr || !treeptr->active || !(treeptr->keyptr == keyptr)) {
-    const int sig = SIGABRT;
-    const char sl_name[] = "SIGABRT";
+  if (!treeptr || !treeptr->active || treeptr->keyptr != keyptr) {
     char *s;
-    if (opt_trim) name = trim(name,&name_len);
+    unsigned int hash;
+    if (opt_trim) name = trim(name, &name_len);
+    hash = hashfunc(name, name_len);
     s = strdup2_drhook(name,name_len);
     if (opt_trim) {
       char *p = s;
@@ -1747,31 +1744,47 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
     }
     fprintf(stderr,
 	    "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Dr.Hook has detected an invalid"
-	    " key-pointer/handle while leaving routine '%s'\n",
-	    myproc,tid,pid,sig,sl_name,s);
+	    " key-pointer/handle while leaving the routine '%s' [hash=%u]\n",
+	    myproc,tid,pid,sig,sl_name,s,hash);
+
     if (treeptr) {
       equivalence_t u;
+
       u.keyptr = treeptr->keyptr;
+      hash = (u.keyptr && u.keyptr->name) ? hashfunc(u.keyptr->name,u.keyptr->name_len) : 0;
       fprintf(stderr,
 	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Expecting the key-pointer=0x%llx"
-	      " and treeptr->active-flag == 1\n",
+	      " and treeptr->active-flag = 1\n",
 	      myproc,tid,pid,sig,sl_name,u.ull);
       fprintf(stderr,
-	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: A probable routine missing the closing DR_HOOK-call is '%s'\n",
+	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: A probable routine missing the closing"
+	      " DR_HOOK-call is '%s' [hash=%u]\n",
 	      myproc,tid,pid,sig,sl_name,
-	      u.keyptr->name ? u.keyptr->name : NIL);
+	      (u.keyptr && u.keyptr->name) ? u.keyptr->name : NIL, hash);
+
       u.keyptr = keyptr;
+      hash = (u.keyptr && u.keyptr->name) ? hashfunc(u.keyptr->name,u.keyptr->name_len) : 0;
       fprintf(stderr,
 	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Got a key-pointer=0x%llx"
 	      " and treeptr->active-flag = %d\n",
 	      myproc,tid,pid,sig,sl_name,u.ull,treeptr->active);
       fprintf(stderr,
-	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: This key-pointer maybe associated with the routine '%s'\n",
+	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: This key-pointer maybe associated with"
+	      " the routine '%s' [hash=%u]\n",
 	      myproc,tid,pid,sig,sl_name,
-	      u.keyptr->name ? u.keyptr->name : NIL);
+	      (u.keyptr && u.keyptr->name) ? u.keyptr->name : NIL, hash);
+
+      u.keyptr = curkeyptr[tid-1];
+      hash = (u.keyptr && u.keyptr->name) ? hashfunc(u.keyptr->name,u.keyptr->name_len) : 0;
+      fprintf(stderr,
+	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: The current key-pointer (=0x%llx) thinks"
+	      " it maybe associated with the routine '%s' [hash=%u]\n",
+	      myproc,tid,pid,sig,sl_name,
+	      u.ull,
+	      (u.keyptr && u.keyptr->name) ? u.keyptr->name : NIL, hash);
     }
-    fprintf(stderr,"[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Aborting...\n",myproc,tid,pid,sig,sl_name);
     free_drhook(s);
+    fprintf(stderr,"[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Aborting...\n",myproc,tid,pid,sig,sl_name);
     RAISE(SIGABRT);
   }
   else if (tid >= 1 && tid <= numthreads) {
@@ -1779,16 +1792,6 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
     double delta_cpu  = 0;
     if (any_memstat) memstat(keyptr,&tid,0);
     if (opt_calls)   keyptr->status--;
-    if (opt_cputime && cputime) {
-      *cputime = CPUTIME();
-      delta_cpu = *cputime - keyptr->cpu_in;
-    }
-    if (opt_walltime && walltime) {
-      *walltime = WALLTIME();
-      delta_wall = *walltime - keyptr->wall_in;
-    }
-    if (opt_walltime) keyptr->delta_wall_all += delta_wall;
-    if (opt_cputime)  keyptr->delta_cpu_all  += delta_cpu;
     if (opt_sizeinfo && sizeinfo > 0) {
       if (keyptr->sizeinfo == 0) { /* First time */
 	keyptr->min_sizeinfo = sizeinfo;
@@ -1800,6 +1803,16 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
       }
       keyptr->sizeinfo += sizeinfo;
     }
+    if (opt_cputime && cputime) {
+      *cputime = CPUTIME();
+      delta_cpu = *cputime - keyptr->cpu_in;
+    }
+    if (opt_walltime && walltime) {
+      *walltime = WALLTIME();
+      delta_wall = *walltime - keyptr->wall_in;
+    }
+    if (opt_walltime) keyptr->delta_wall_all += delta_wall;
+    if (opt_cputime)  keyptr->delta_cpu_all  += delta_cpu;
     remove_calltree(tid, keyptr, &delta_wall, &delta_cpu);
   }
 }
@@ -1954,7 +1967,7 @@ itself(drhook_key_t *keyptr_self,
 {
   drhook_key_t *keyptr = NULL;
   if (keyself) {
-    keyptr = keyptr_self ? keyptr_self : keyself[--tid];
+    keyptr = keyptr_self ? keyptr_self : keyself[tid-1];
     if (opt == 0) {
       if (opt_wallprof) keyptr->wall_in = walltime ? *walltime : WALLTIME();
       else              keyptr->cpu_in = cputime ? *cputime : CPUTIME();
@@ -2067,7 +2080,7 @@ get_callpath(int tid, int *callpath_len)
   int depth = 0;
   equivalence_t *callpath = NULL;
   if (tid >= 1 && tid <= numthreads) {
-    const drhook_calltree_t *treeptr = thiscall[--tid];
+    const drhook_calltree_t *treeptr = thiscall[tid-1];
     while (treeptr && treeptr->active && depth < callpath_depth) {
       depth++;
       treeptr = treeptr->prev;
@@ -2075,7 +2088,7 @@ get_callpath(int tid, int *callpath_len)
     if (depth > 0) {
       int j = 0;
       callpath = malloc_drhook(sizeof(*callpath) * depth);
-      treeptr = thiscall[tid];
+      treeptr = thiscall[tid-1];
       while (treeptr && treeptr->active && j < callpath_depth) {
 	callpath[j].keyptr = treeptr->keyptr;
 	j++;
@@ -2473,10 +2486,9 @@ c_drhook_memcounter_(const int *thread_id,
 	drhook_key_t *keyptr;
       } u;
       long long int alldelta;
-      tid--;
       if (*size > 0) { /* Memory is being allocated */
-	if (curkeyptr[tid]) {
-	  drhook_key_t *keyptr = curkeyptr[tid];
+	if (curkeyptr[tid-1]) {
+	  drhook_key_t *keyptr = curkeyptr[tid-1];
 	  keyptr->mem_curdelta += *size;
 	  alldelta = keyptr->mem_curdelta + keyptr->mem_child;
 	  if (alldelta > keyptr->maxmem_alldelta) keyptr->maxmem_alldelta = alldelta;
@@ -2490,7 +2502,7 @@ c_drhook_memcounter_(const int *thread_id,
 	}
 	else {
 	  if (keyptr_addr) *keyptr_addr = 0;
-	} /* if (curkeyptr[tid]) */
+	} /* if (curkeyptr[tid-1]) */
 	/*
 	fprintf(stderr,
 		"memcounter: allocated %lld bytes ; *keyptr_addr = %lld\n",
@@ -2504,7 +2516,7 @@ c_drhook_memcounter_(const int *thread_id,
 	  keyptr = u.keyptr;
 	}
 	else 
-	  keyptr = curkeyptr[tid];
+	  keyptr = curkeyptr[tid-1];
 	/*
 	fprintf(stderr,
 		"memcounter: DE-allocated %lld bytes ; *keyptr_addr = %lld\n",
@@ -2690,8 +2702,9 @@ c_drhook_print_(const int *ftnunitno,
 		int *level
 		)
 {
-  int tid = (thread_id && (*thread_id > 0)) ? *thread_id : get_thread_id_();
-  if (ftnunitno && keydata && calltree && tid >= 1 && tid <= numthreads) {
+  int tid = (thread_id && (*thread_id >= 1) && (*thread_id <= numthreads))
+    ? *thread_id : get_thread_id_();
+  if (ftnunitno && keydata && calltree) {
     char line[4096];
     int abs_print_option = ABS(*print_option);
     int j;
@@ -2736,7 +2749,7 @@ c_drhook_print_(const int *ftnunitno,
 
       if (tid > 1) {
 	if (*print_option == 2) { 
-	  /* I'm not master thread, but my master has the beginning of the calltree */
+	  /* I'm not a master thread, but my master has the beginning of the calltree */
 	  int initlev = 0;
 	  const int master = 1;
 	  c_drhook_print_(ftnunitno, &master, print_option, &initlev);
@@ -2963,8 +2976,8 @@ c_drhook_print_(const int *ftnunitno,
 	    }
 	    keyptr = keyptr->next;
 	  } /* while (keyptr && keyptr->status == 0) */
-	} /* for (t=0; t<numthreads; t++) */
-      } /* for (j=0; j<hashsize; j++) */
+	} /* for (j=0; j<hashsize; j++) */
+      } /* for (t=0; t<numthreads; t++) */
 
       do {
 	double mflop_rate = 0;
@@ -3542,9 +3555,9 @@ static double cycles = 1300000000.0; /* 1.3GHz ; changed via pm_cycles() in init
 #define TEST_PM_ERROR(name, rc) \
   if (rc != 0) { \
     fprintf(stderr,"PM_ERROR(tid#%d, pthread_self()=%d): rc=%d at %s(), line=%d, file=%s\n",\
-	    tid+1,pthread_self(),rc,name,__LINE__,__FILE__); \
+	    tid,pthread_self(),rc,name,__LINE__,__FILE__); \
     pm_error((char *)name, rc); \
-    sleep(tid+1); \
+    sleep(tid); \
     RAISE(SIGABRT); \
   }
 
@@ -3554,14 +3567,12 @@ init_hpm(int tid)
   const char *name = "init_hpm";
   int rc;
 
-  --tid;
-
   if (!hpm_tid_init) {
     hpm_tid_init = calloc_drhook(numthreads, sizeof(*hpm_tid_init));
     cycles = pm_cycles();
   }
 
-  if (!hpm_tid_init[tid]) {
+  if (!hpm_tid_init[tid-1]) {
 #ifdef PMAPI_POST_P4
     pm_info2_t pminfo;
 #else
@@ -3583,10 +3594,10 @@ init_hpm(int tid)
 
     if (myproc <= 1) fprintf(stderr,
 			     ">>>pm_init() for ECMWF/OpenMP-tid#%d, pthread_self()=%d\n",
-			     tid+1,pthread_self());
+			     tid,pthread_self());
   }
 
-  if (!hpm_tid_init[tid]) {
+  if (!hpm_tid_init[tid-1]) {
 #if defined(PMAPI_P5_PLUS)
     /* IBM Power 5+ specific */
     const int group = 150; /* pm_hpmcount2 */
@@ -3652,7 +3663,7 @@ init_hpm(int tid)
     /*-----------------------------------------*/
     /* initialize the group and start counting */
     /*-----------------------------------------*/
-    hpm_tid_init[tid] = pthread_self(); /* Always > 0 */
+    hpm_tid_init[tid-1] = pthread_self(); /* Always > 0 */
 
     rc = pm_set_program_mythread(&pmprog); 
     TEST_PM_ERROR((char *)name, rc);
@@ -3672,7 +3683,6 @@ stop_only_hpm(int tid, drhook_key_t *pstop)
   /* if (numthreads > 1) pthread_mutex_lock(&hpm_lock); */
 
   if (!hpm_tid_init || !hpm_tid_init[tid-1]) init_hpm(tid);
-  --tid;
 
   /*
   rc = pm_stop_mythread();
@@ -3709,7 +3719,6 @@ stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart)
   /* if (numthreads > 1) pthread_mutex_lock(&hpm_lock); */
 
   if (!hpm_tid_init || !hpm_tid_init[tid-1]) init_hpm(tid);
-  --tid;
 
   /*
   rc = pm_stop_mythread();
@@ -3755,9 +3764,9 @@ static double cycles = 0;
 #define TEST_PM_ERROR(name, rc) \
   if (rc != 0) { \
     fprintf(stderr,"PM_ERROR(tid#%d, pthread_self()=%d): rc=%d at %s(), line=%d, file=%s\n",\
-            tid+1,pthread_self(),rc,name,__LINE__,__FILE__); \
+            tid,pthread_self(),rc,name,__LINE__,__FILE__); \
     pm_error((char *)name, rc); \
-    sleep(tid+1); \
+    sleep(tid); \
     RAISE(SIGABRT); \
   }
 
@@ -3777,8 +3786,6 @@ stop_only_hpm(int tid, drhook_key_t *pstop)
   int i, rc;
 
   if (!hpm_tid_init || !hpm_tid_init[tid-1]) init_hpm(tid);
-  --tid;
-
 
   if (pstop && !pstop->counter_stopped) {
 
@@ -3804,7 +3811,6 @@ stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart)
   int i, rc;
 
   if (!hpm_tid_init || !hpm_tid_init[tid-1]) init_hpm(tid);
-  --tid;
 
   if (pstop && pstop->counter_in && !pstop->counter_stopped) {
 #if defined(DT_FLOP)

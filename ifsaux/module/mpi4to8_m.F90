@@ -1,4 +1,5 @@
 Module MPI4TO8_M
+#ifdef USE_8_BYTE_WORDS
 
 Use PARKIND1, Only : JPIM, JPRM, JPRB
 USE MPL_MPIF
@@ -3295,4 +3296,5 @@ End Subroutine MPI_SCATTERV8_I4S
 ! =========================================================
 ! =========================================================
 
+#endif
 End Module MPI4TO8_M

@@ -82,6 +82,11 @@ ENDIF
   WRITE(0,*)'SDL_TRACEBACK: Calling DBX_TRBK, THRD = ',ITID
   CALL DBX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
   WRITE(0,*)'SDL_TRACEBACK: Done DBX_TRBK, THRD = ',ITID
+  ! A traceback using gdb-debugger, if available AND 
+  ! activated via 'export GDBDEBUGGER=1'
+  WRITE(0,*)'SDL_TRACEBACK: Calling GDB_TRBK, THRD = ',ITID
+  CALL GDB_TRBK() ! See ifsaux/utilities/linuxtrbk.c
+  WRITE(0,*)'SDL_TRACEBACK: Done GDB_TRBK, THRD = ',ITID
 #endif
 
 END SUBROUTINE SDL_TRACEBACK

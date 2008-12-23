@@ -12,6 +12,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <unistd.h>
 #include "raise.h"
 
 extern char **environ; /* Global Unix var */
@@ -206,15 +209,41 @@ ec_putenv_nooverwrite(const char *s,
 
 
 unsigned int
-ec_sleep_(int *nsec)
+ec_sleep_(const int *nsec)
 {
-  return sleep(nsec ? *nsec : 0);
+  return sleep((nsec && *nsec > 0) ? *nsec : 0);
 }
 
 
 unsigned int
-ec_sleep(int *nsec)
+ec_sleep(const int *nsec)
 {
   return ec_sleep_(nsec);
 }
 
+
+/* Microsecond-sleep, by S.Saarinen, 25-jan-2008 */
+
+void  /* Global, C-callable, too */
+ec_microsleep(int usecs) {
+  if (usecs > 0) {
+    struct timeval t;
+    t.tv_sec =  usecs/1000000;
+    t.tv_usec = usecs%1000000;
+    (void) select(0, NULL, NULL, NULL, &t);
+  }
+}
+
+
+void
+ec_usleep_(const int *usecs)
+{
+  if (usecs && *usecs > 0) ec_microsleep(*usecs);
+}
+
+
+void
+ec_usleep(const int *usecs)
+{
+  ec_usleep_(usecs);
+}

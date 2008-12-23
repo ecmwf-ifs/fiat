@@ -45,7 +45,7 @@ MODULE MPL_INIT_MOD
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-
+USE OML_MOD, ONLY : OML_INIT, OML_MAX_THREADS
 USE MPL_MPIF
 USE MPL_DATA_MODULE
 USE MPL_MESSAGE_MOD
@@ -129,6 +129,9 @@ CALL MPI_INITIALIZED(LLINIT, IRET)
 
 IF (.NOT.LLINIT) THEN
   CALL MPI_INIT(IERROR)
+#ifdef RS6K
+  CALL EC_BIND()
+#endif
   LINITMPI_VIA_MPL = .TRUE.
   CALL ec_mpi_atexit() ! ifsaux/support/endian.c: to make sure MPI_FINALIZE gets called
 ELSE
@@ -199,6 +202,7 @@ ENDIF
 
 #endif
 
+CALL OML_INIT()
 IMAX_THREADS = OML_MAX_THREADS()
 ALLOCATE(MPL_COMM_OML(IMAX_THREADS))
 MPL_COMM_OML(1) = MPL_COMM

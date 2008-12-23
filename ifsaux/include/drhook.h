@@ -57,28 +57,28 @@ extern void coml_in_parallel_(int *is_parallel_region);
 
 extern void
 c_drhook_getenv_(const char *s,
-		 char *value,
-		 /* Hidden arguments */
-		 int slen,
-		 const int valuelen);
+                 char *value,
+                 /* Hidden arguments */
+                 int slen,
+                 const int valuelen);
 
 extern void
 c_drhook_memcounter_(const int *thread_id,
-		     const long long int *size,
-		     long long int *keyptr_addr);
+                     const long long int *size,
+                     long long int *keyptr_addr);
 
 extern void
 c_drhook_raise_(const int *sig);
 
 extern void
 c_drhook_print_(const int *ftnunitno,
-		const int *thread_id,
-		const int *print_option, /* 
-					    1=raw call counts 
-					    2=calling tree
-					    3=profiling info
-					 */
-		int *level);
+                const int *thread_id,
+                const int *print_option, /* 
+                                            1=raw call counts 
+                                            2=calling tree
+                                            3=profiling info
+                                         */
+                int *level);
 
 extern void
 c_drhook_init_signals_(const int *enforce);
@@ -88,43 +88,43 @@ c_drhook_set_lhook_(const int *lhook);
 
 extern void 
 c_drhook_init_(const char *progname,
-	       const int *num_threads
-	       /* Hidden length */
-	       ,int progname_len);
+               const int *num_threads
+               /* Hidden length */
+               ,int progname_len);
 
 extern void
 c_drhook_start_(const char *name, 
-		const int *thread_id, 
-		double *key,
-		const char *filename,
-		const int *sizeinfo
-		/* Hidden length */
-		,int name_len, int filename_len);
+                const int *thread_id, 
+                double *key,
+                const char *filename,
+                const int *sizeinfo
+                /* Hidden length */
+                ,int name_len, int filename_len);
 
 extern void
 c_drhook_end_(const char *name,
-	      const int *thread_id,
-	      const double *key,
-	      const char *filename,
-	      const int *sizeinfo
-	      /* Hidden length */
-	      ,int name_len, int filename_len);
+              const int *thread_id,
+              const double *key,
+              const char *filename,
+              const int *sizeinfo
+              /* Hidden length */
+              ,int name_len, int filename_len);
 
 extern void
 c_drhook_watch_(const int *onoff,
-		const char *array_name,
-		const void *array_ptr,
-		const int *nbytes,
-		const int *abort_if_changed
-		/* Hidden length */
-		, int array_name_len);
+                const char *array_name,
+                const void *array_ptr,
+                const int *nbytes,
+                const int *abort_if_changed
+                /* Hidden length */
+                , int array_name_len);
 
 /**** C-interface to Dr.Hook ****/
 
 extern void
 Dr_Hook(const char *name, int option, double *handle, 
-	const char *filename, int sizeinfo,
-	int name_len, int filename_len);
+        const char *filename, int sizeinfo,
+        int name_len, int filename_len);
 
 #define DRHOOK_START_RECUR(name,recur) \
   static const char *drhook_name = #name; \
@@ -133,8 +133,8 @@ Dr_Hook(const char *name, int option, double *handle,
   static const int drhook_filename_len = sizeof(__FILE__) - 1; /* Compile time eval */ \
   double zhook_handle; \
   if (!recur && drhook_lhook) Dr_Hook(drhook_name, 0, &zhook_handle, \
-      			              drhook_filename, 0, \
-			              drhook_name_len, drhook_filename_len)
+                                      drhook_filename, 0, \
+                                      drhook_name_len, drhook_filename_len); {
 
 #define DRHOOK_START(name) DRHOOK_START_RECUR(name,0)
 
@@ -145,26 +145,29 @@ Dr_Hook(const char *name, int option, double *handle,
   static const int drhook_filename_len = sizeof(__FILE__) - 1; /* Compile time eval */ \
   double zhook_handle; \
   if (!recur && drhook_lhook) Dr_Hook(drhook_name, 0, &zhook_handle, \
-			              drhook_filename, 0, \
-			              drhook_name_len, drhook_filename_len)
+                                      drhook_filename, 0, \
+                                      drhook_name_len, drhook_filename_len); {
 
 #define DRHOOK_START_BY_STRING(name) DRHOOK_START_BY_STRING_RECUR(name,0)
 
-#define DRHOOK_END_RECUR(sizeinfo,recur) \
+#define DRHOOK_RETURN_RECUR(sizeinfo,recur) \
   if (!recur && drhook_lhook) Dr_Hook(drhook_name, 1, &zhook_handle, \
-			              drhook_filename, sizeinfo, \
-			              drhook_name_len, drhook_filename_len)
+                                      drhook_filename, sizeinfo, \
+                                      drhook_name_len, drhook_filename_len)
+
+#define DRHOOK_RETURN(sizeinfo) DRHOOK_RETURN_RECUR(sizeinfo,0)
+
+#define DRHOOK_END_RECUR(sizeinfo,recur) ; } DRHOOK_RETURN_RECUR(sizeinfo,recur)
 
 #define DRHOOK_END(sizeinfo) DRHOOK_END_RECUR(sizeinfo,0) 
-
 
 /* Fortran routines */
 
 extern void
 dr_hook_prt_(const int *ftnunitno,
-	     const char *s
-	     /* Hidden arguments */
-	     , int s_len);
+             const char *s
+             /* Hidden arguments */
+             , int s_len);
 
 extern void
 dr_hook_procinfo_(int *myproc, int *nproc);

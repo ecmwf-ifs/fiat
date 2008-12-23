@@ -56,14 +56,14 @@ static int SpeedUp = 1;
 #define SORT_I64  4
 #define SORT_U64  5
 
-/* Offset adjustment for 64-bit double handling on big/little endian machines */
+typedef long long int ll_t;
 
 #define  ALLOC(x,size)    \
- { int bytes = sizeof(*x) * (size); \
+ { ll_t bytes = (ll_t)sizeof(*x) * (size); \
    bytes = (bytes < 1) ? 1 : bytes; \
    x = THEmalloc(bytes); \
    if (!x) { fprintf(stderr, \
-		     "malloc() of %s (%d bytes) failed in file=%s, line=%d\n", \
+		     "malloc() of %s (%lld bytes) failed in file=%s, line=%d\n", \
 		     #x, bytes, __FILE__, __LINE__); RAISE(SIGABRT); } }
 
 #define FREE(x)           if (x) { THEfree(x); x = NULL; }

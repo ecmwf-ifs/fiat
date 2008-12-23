@@ -1,6 +1,8 @@
 SUBROUTINE DR_HOOK_UTIL(CDNAME,KCASE,PKEY,CDFILENAME,KSIZEINFO)
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMHOOK,ONLY : LHOOK
+USE OML_MOD,ONLY : OML_MAX_THREADS,OML_MY_THREAD,OML_INIT
+USE ECSORT_MIX, ONLY : SORTING_METHOD
 USE OML_MOD,ONLY : OML_MAX_THREADS,OML_MY_THREAD
 USE MPL_INIT_MOD
 USE MPL_ARG_MOD
@@ -27,6 +29,7 @@ IF (LL_FIRST_TIME) THEN
 #ifdef CRAYXT
   IRET = SETVBUF3F(0, 1, 0) ! Set unit#0 into line-buffering mode to avoid messy output
 #endif
+  CALL OML_INIT()
   CALL EC_GETENV('DR_HOOK_NOT_MPI',CLENV)
   IF (CLENV == ' ' .OR. CLENV == '0' .OR. &
     & CLENV == 'false' .OR. CLENV == 'FALSE') THEN
@@ -40,10 +43,14 @@ IF (LL_FIRST_TIME) THEN
     CALL C_DRHOOK_SET_LHOOK(0)
   ENDIF
   IF (LLMPI) THEN
-    CALL MPL_GETARG(0, CLENV)
+    CALL MPL_GETARG(0, CLENV)  ! Get executable name & also propagate args
   ELSE
     CALL GETARG(0, CLENV)
   ENDIF
+! A way to override the default ECSORT_MIX'ing method (export EC_SORTING_METHOD=[<number>|<string>])
+! For example: export EC_SORTING_METHOD=radix
+! See more ifsaux/module/ecsort_mix.F90
+  CALL SORTING_METHOD()
   IF (.not.LHOOK) RETURN
   
   INUMTIDS = OML_MAX_THREADS()
