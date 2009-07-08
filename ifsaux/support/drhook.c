@@ -29,7 +29,16 @@ If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
 #define PMAPI_P5_PLUS
 */
 
-#if defined(PMAPI_P5_PLUS)
+/* Thanks to John Hague (IBM) 
+ If intending to run on IBM p6 systems, then set also BOTH
+#define PMAPI_POST_P4
+#define PMAPI_P6
+ */
+
+#if defined(PMAPI_P6)
+#define ENTRY_4 5
+#define ENTRY_6 4
+#elif defined(PMAPI_P5_PLUS)
 #define ENTRY_4 5
 #define ENTRY_6 4
 #else
@@ -3598,7 +3607,21 @@ init_hpm(int tid)
   }
 
   if (!hpm_tid_init[tid-1]) {
-#if defined(PMAPI_P5_PLUS)
+#if defined(PMAPI_P6)
+    const int group = 186; /* pm_hpm1 */
+    /*-- counters --
+     case 186:
+       strcpy(group_label, "HPM group");
+       strcpy(label[0], "FPU executed one flop instruction (PM_FPU_1FLOP)");
+       strcpy(label[1], "FPU executed multiply-add instruction (PM_FPU_FMA)");
+       strcpy(label[2], "FPU executed FSQRT or FDIV instruction (PM_FPU_SQRT_FDIV)");
+       strcpy(label[3], "Processor Cycles (PM_CYC [shared chip])");
+       strcpy(label[4], "Run instructions completed(PM_RUN_INST_CMPL)");
+       strcpy(label[5], "Run cycles (PM_RUN_CYC)");
+       strcpy(label[6], "Nothing");
+       strcpy(label[7], "Nothing");
+    */
+#elif defined(PMAPI_P5_PLUS)
     /* IBM Power 5+ specific */
     const int group = 150; /* pm_hpmcount2 */
     /*-- counters -- (from John Hague, IBM/UK, 22-Aug-2006 : Thanx!!)
@@ -3628,6 +3651,8 @@ init_hpm(int tid)
        strcpy(label[7], "LSU executed Floating Point load instruction (PM_LSU_LDF)");
     */
 #endif
+
+    fprintf(stderr,"group = %d\n",group);
 
     pm_prog_t pmprog;
     pm_data_t pmdata;
@@ -3849,6 +3874,9 @@ mflops_hpm(const drhook_key_t *keyptr)
     long long int sum = 0;
 #if defined(DT_FLOP)
     sum = keyptr->counter_sum[0];
+#elif defined(PMAPI_P6)
+    /* IBM Power 6 specific */
+    sum = keyptr->counter_sum[0] + 2 * keyptr->counter_sum[1];
 #elif defined(PMAPI_P5_PLUS)
     /* IBM Power 5+ specific */
     sum = 2 * keyptr->counter_sum[1] + keyptr->counter_sum[3];
@@ -3884,13 +3912,18 @@ divpc_hpm(const drhook_key_t *keyptr)
 #else
   if (keyptr && keyptr->counter_sum) {
     long long int sum = 0;
-#if defined(PMAPI_P5_PLUS)
+#if defined(PMAPI_P6)
+    /* IBM Power 6 specific */
+    sum = keyptr->counter_sum[0] + 2 * keyptr->counter_sum[1];
+    if (sum > 0) divpc = (keyptr->counter_sum[2]*100.0)/sum;
+#elif defined(PMAPI_P5_PLUS)
     /* IBM Power 5+ specific */
     sum = 2 * keyptr->counter_sum[1] + keyptr->counter_sum[3];
+    if (sum > 0) divpc = (keyptr->counter_sum[0]*100.0)/sum;
 #else
     sum = keyptr->counter_sum[1] + keyptr->counter_sum[2] + keyptr->counter_sum[3] - keyptr->counter_sum[5];
-#endif
     if (sum > 0) divpc = (keyptr->counter_sum[0]*100.0)/sum;
+#endif
   }
 #endif
   return divpc;
@@ -3903,6 +3936,9 @@ mflop_count(const drhook_key_t *keyptr)
   if (keyptr && keyptr->counter_sum && keyptr->counter_sum[ENTRY_4] > 0) {
 #if defined(DT_FLOP)
     sum = (keyptr->counter_sum[0]) * 1e-6;
+#elif defined(PMAPI_P6)
+    /* IBM Power 6 specific */
+    sum = (keyptr->counter_sum[0] + 2 * keyptr->counter_sum[1]) * 1e-6;
 #elif defined(PMAPI_P5_PLUS)
     /* IBM Power 5+ specific */
     sum = (2 * keyptr->counter_sum[1] + keyptr->counter_sum[3]) * 1e-6;
