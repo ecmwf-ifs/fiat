@@ -611,7 +611,7 @@ julianToDate(const _int32_t  julian, yyyymmdd_t *const date_ptr)
 	 * Modified Julian date
 	 */
 	jdate = julian + MJDSHIFT;
-#if defined(LINUX)
+#if defined(LINUX) || defined(linux)
 	if ( (_int32_t) jdate < (_int32_t) JULIAN_MIN ) {
 #else
 	if ( jdate < JULIAN_MIN ) {
