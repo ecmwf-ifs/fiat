@@ -45,12 +45,12 @@ typedef  long long int  ll_t;
 
 #define TIMES  0    /* 0=Normal, 1=timing locks v threads */
 
-#if 0
-static ll_t maxloc = 0;
-static ll_t begloc = 0;
-#endif
+static ll_t maxloc = 0;    /* For stackcheck */
+static ll_t begloc = 0;    /* For stackcheck */
+static int heapcheck = 0;  /* Fro heapcheck */
 
 extern int get_thread_id_(void);   /* ***Note: Returns YOMOML-value [1..max_threads] */
+extern int get_proc_id_(void);  
 extern int get_max_threads_(void);
 extern ll_t getstk_();
 extern ll_t gethwm_();
@@ -435,6 +435,7 @@ void *EC_malloc(ll_t size)
       }
     }
     else {
+      int ip;
       ll_t *p = vptr;
       ll_t q;
       (void) getstk_(); /* to gather near up to date stack statistics */
@@ -455,14 +456,21 @@ void *EC_malloc(ll_t size)
           p[j]=nans;
         }
       }
-#if 0
-      q=(ll_t)p+true_bytes;
-      if (q > maxloc) maxloc=q;
-      if (begloc == 0) begloc=(ll_t)p;
+      if(heapcheck == 1) {
+        it=get_thread_id_();
+        ip=get_proc_id_();
+        if (it == 1 && ip == 1 ) {
+          if (begloc == 0) begloc=(ll_t)p;
+          q=(ll_t)p+true_bytes;
+          if (q > maxloc) {
+            maxloc=q;
 /*
-      fprintf(stderr,"JJJ pntr= %ld %ld %ld %ld\n",true_bytes,p,q,maxloc);
+            fprintf(stderr,"JJJ pntr= %d %ld %ld %ld %ld %ld\n",it,maxloc-begloc,maxloc,begloc,p,true_bytes);
+            xl__trbk_();
 */
-#endif
+          }
+        }
+      }
       vptr=p;
     }
   }
@@ -584,7 +592,7 @@ getmaxcurheap_thread(const int *thread_id) /* ***Note: YOMOML thread id */
 #endif
 }
 
-#if 0
+#if 1
 ll_t
 getmaxloc()
 {
@@ -597,5 +605,13 @@ resetmaxloc()
 {
   maxloc=0;
 }
+
+void
+
+setheapcheck_()
+{
+  heapcheck=1;
+}
+
 #endif
 

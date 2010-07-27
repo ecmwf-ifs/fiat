@@ -106,12 +106,16 @@ ENDIF
 ! If LMPLUSERCOMM is not set use MPI_COMM_WORLD
 IF(LMPLUSERCOMM) THEN
   MPL_COMM = MPLUSERCOMM
-  WRITE(MPL_UNIT,'(A)')'MPL_INIT : LMPLUSERCOMM used'
-  WRITE(MPL_UNIT,'(A,I8)')'Communicator : ',MPL_COMM
+  if (LLINFO) then
+    WRITE(MPL_UNIT,'(A)')'MPL_INIT : LMPLUSERCOMM used'
+    WRITE(MPL_UNIT,'(A,I8)')'Communicator : ',MPL_COMM
+  end if
 ELSE
   MPL_COMM = MPI_COMM_WORLD
-  WRITE(MPL_UNIT,'(A)')'MPL_INIT : LMPLUSERCOMM not used'
-  WRITE(MPL_UNIT,'(A,I8)')'Communicator : ',MPL_COMM
+  if (LLINFO) then
+    WRITE(MPL_UNIT,'(A)')'MPL_INIT : LMPLUSERCOMM not used'
+    WRITE(MPL_UNIT,'(A,I8)')'Communicator : ',MPL_COMM
+  end if
 ENDIF
 
 IF(MPL_NUMPROC /= -1) THEN
