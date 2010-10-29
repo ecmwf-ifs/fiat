@@ -80,7 +80,7 @@ extern void necsx_trbk_(const char *msg, int msglen); /* from ../utilities/gentr
 
 #if defined(LINUX) && !defined(XT3) && !defined(XD1) && !defined(CYGWIN)
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(NO_TRAPFPE)
 
 #define _GNU_SOURCE 1
 #if defined(CYGWIN)
@@ -111,7 +111,7 @@ static void untrapfpe(void)
 
 #endif /* defined(LINUX) && !defined(XT3) && !defined(XD1) */
 
-#if (!defined(LINUX) || defined(CYGWIN)) && defined(__GNUC__)
+#if (!defined(LINUX) || defined(CYGWIN) || defined(NO_TRAPFPE)) && defined(__GNUC__)
 /* For example Solaris with gcc */
 #define trapfpe()
 #define untrapfpe()
@@ -748,7 +748,7 @@ flptrap(int sig)
     fp_enable(TRP_INVALID | TRP_DIV_BY_ZERO | TRP_OVERFLOW);
   }
 }
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) && !defined(NO_TRAPFPE)
 static void
 flptrap(int sig)
 {
@@ -834,7 +834,7 @@ ignore_signals(int silent)
 	  fprintf(stderr,
 		  ">>>ignore_signals(): DR_HOOK will ignore signal#%d altogether\n", sig);
 	}
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(NO_TRAPFPE)
 	if (sig == SIGFPE) untrapfpe(); /* Turns off a possible -Ktrap=fp from pgf90 */
 #endif
 	sl->active = -1;
@@ -847,7 +847,7 @@ ignore_signals(int silent)
 	    fprintf(stderr,
 		    ">>>ignore_signals(): DR_HOOK will ignore signal#%d altogether\n", j);
 	  }
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(NO_TRAPFPE)
 	  if (sig == SIGFPE) untrapfpe(); /* Turns off a possible -Ktrap=fp from pgf90 */
 #endif
 	  sl->active = -1;
@@ -1181,6 +1181,15 @@ c_drhook_set_mpi_()
   dr_hook_procinfo_(&myproc, &nproc);
 }
 
+void
+c_drhook_not_mpi_()
+{
+  /* Emulates in a one call : export DR_HOOK_NOT_MPI=1" */
+  /* To have a desired effect, call BEFORE the very first call to DR_HOOK */
+  static char s[] = "DR_HOOK_NOT_MPI=1"; /* note: must be static */
+  putenv(s);
+}
+
 
 /*--- signal_drhook_init ---*/
 
@@ -1304,11 +1313,25 @@ get_memmon_out(int me)
 
 static void do_prof();
 
+static void process_options();
+
+void /* Fortran callable */
+c_drhook_process_options_(const int *lhook, const int *Myproc, const int *Nproc)
+{
+    c_drhook_set_lhook_(lhook);
+    if (Myproc) myproc = *Myproc;
+    if (Nproc)  nproc  = *Nproc;
+    process_options();
+}
+
 static void
 process_options()
 {
   char *env;
   FILE *fp = stderr;
+  static int processed = 0;
+
+  if (processed) return;
 
   env = getenv("DR_HOOK_SHOW_PROCESS_OPTIONS");
   if (env) {
@@ -1580,6 +1603,8 @@ process_options()
   else {
     if (opt_timeline) atexit(do_prof);
   } /* if (env) */
+
+  processed = 1;
 }
 
 /*--- trim ---*/
@@ -3493,6 +3518,10 @@ c_drhook_print_(const int *ftnunitno,
 void
 c_drhook_init_signals_(const int *enforce)
 {
+  /* To present sumpini.F90 (f.ex.) initializing DrHook-signals in case of 
+     DR_HOOK was turned off (=0), then set also export DR_HOOK_INIT_SIGNALS=0 */
+  char *env = getenv("DR_HOOK_INIT_SIGNALS");
+  if (env && *env == '0') return; /* Never initialize signals for DrHook (dangerous, but sometimes necessary) */
   signal_drhook_init(*enforce);
 }
 

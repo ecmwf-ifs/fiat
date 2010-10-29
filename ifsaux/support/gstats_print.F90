@@ -243,12 +243,12 @@ ELSEIF(LSTATS) THEN
         ENDIF
         IF( LDETAILED_STATS .AND. JROC <= NPRNT_STATS ) THEN
 !         IF(JNUM < 501 .OR. LSTATS_COMMS .OR. LSTATS_OMP) THEN 
-            WRITE(KULOUT,'(I4,1X,A3,1X,A40,1X,I8,6(1X,F9.1),1X,F5.1,1X,F8.2))')&
+            WRITE(KULOUT,'(I4,1X,A3,1X,A40,1X,I5,6(1X,F9.1),1X,F5.1,1X,F8.2)')&
              &JNUM,CCTYPE(JNUM),CCDESC(JNUM),ICALLS,ZSUM,ZAVE,ZAVETCPU,ZAVEVCPU,&
              &ZSTDDEV,ZMAX,ZSUMB,ZFRAC
             IF(LXML_STATS)THEN
               WRITE(IXMLLUN,&
-               & '(A,I4,A,//,A,A40,A,//,A,I8,A,//,6(A,F9.1,A,//),A,F5.1,A,//,A,F8.2,A),//,A)')&
+               & '(A,I4,A,//,A,A40,A,//,A,I5,A,//,6(A,F9.1,A,//),A,F5.1,A,//,A,F8.2,A,//,A)')&
                & '<num id="',JNUM,'">',&
                & '<description>',CCDESC(JNUM),'</description>',&
                & '<sum unit="seconds">',ICALLS,'</sum>',&
@@ -726,7 +726,7 @@ IF( LDETAILED_STATS )THEN
       WRITE(KULOUT,'("TOTAL UNEXPECTED DELAY TIME (SECS) =",F9.1)') ZDELAY
       ZDELAY_MAX=MAX(ZDELAY_MAX,ZDELAY)
       DO JDELAY=1,NDELAY_INDEX
-        WRITE(KULOUT,'(A,":",A,":",A,1X,I4,1X,A3,1X,A40,1X,F6.1))')&
+        WRITE(KULOUT,'(A,":",A,":",A,1X,I4,1X,A3,1X,A40,1X,F6.1)')&
          &CDELAY_TIME(JDELAY)(1:2),CDELAY_TIME(JDELAY)(3:4),CDELAY_TIME(JDELAY)(5:6),&
          &NDELAY_COUNTER(JDELAY),CCTYPE(NDELAY_COUNTER(JDELAY)),&
          &CCDESC(NDELAY_COUNTER(JDELAY)),TDELAY_VALUE(JDELAY)

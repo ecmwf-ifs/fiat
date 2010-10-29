@@ -1,21 +1,5 @@
 /*
 
-$Header: /home/us/usu/dates/my/newdate/RCS/julian.h,v 1.1 1998/03/26 17:49:42 usu Exp usu $
-
-
-$Revision: 1.1 $
-$Date: 1998/03/26 17:49:42 $
-$Source: /home/us/usu/dates/my/newdate/RCS/julian.h,v $
-$Author: usu $
-$Locker: usu $
-
-
-$Log: julian.h,v $
- * Revision 1.1  1998/03/26  17:49:42  usu
- * Initial revision
- *
-
-
 Author: Dr. Umberto Modigliani, User Support.
 
 */

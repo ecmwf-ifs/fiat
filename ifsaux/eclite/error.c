@@ -5,7 +5,7 @@
 
 /* #include <pfmt.h> */
 
-#include	"myhdr.h"
+#include "myhdr.h"
 
 static void	err_doit(int, const char *, va_list);
 static void	err_ret(const char *fmt, ...);
