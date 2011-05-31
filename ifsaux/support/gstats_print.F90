@@ -41,12 +41,14 @@ SUBROUTINE GSTATS_PRINT(KULOUT,PAVEAVE,KLEN)
 !        G.Mozdzynski 05-09-25 : fix master ncalls overwrite for nproc>1
 !        C.Larsson    8-May-2006 : Added xml file output
 !        G.Mozdzynski 16-Oct-2007 : xml file output under switch LXML_STATS
+!        P.Towers     11-May-2011 : mpl comms statistics output
 !     ------------------------------------------------------------------
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 
 USE YOMGSTATS
 USE YOMMPI   , ONLY : MREALT
 USE MPL_MODULE
+USE MPL_STATS_MOD
 
 IMPLICIT NONE
 
@@ -74,16 +76,23 @@ REAL(KIND=JPRB) :: ZMXD(NPROC_STATS)
 INTEGER(KIND=JPIM) :: ICALLSX(0:JPMAXSTAT)
 
 !     LOCAL INTEGER SCALARS
-INTEGER(KIND=JPIM) :: ICALLS, ILBUF, ILSEND, &
+INTEGER(KIND=JPIM) :: ICALLS, ILBUF, ILSEND, ILRECV, &
              &ISEND, ITAG, JJ, JNUM, JROC, JCALL, ICALLER,IACTION
 INTEGER(KIND=JPIM) :: IMEM, INUM, JMEM
 INTEGER(KIND=JPIM) :: JDELAY, IDELAY
+INTEGER(KIND=JPIM) :: NSEND,NRECV
 
 !     LOCAL REAL SCALARS
 REAL(KIND=JPRB) :: ZAVE, ZAVETCPU, ZAVEVCPU, ZCOMTIM, ZDETAIL,&
           &ZFRAC, ZMAX, ZMEAN, ZSTDDEV, ZSUM, ZSUMB, &
           &ZTOTAL, ZTOTCPU, ZTOTUNBAL, ZTOTVCPU, &
           &ZUNBAL, ZMEANT, ZMAXT
+
+REAL(KIND=JPRB)    :: SBYTES,RBYTES,SENDRATE,RECVRATE
+REAL(KIND=JPRB)    :: AVGSENDLEN,AVGRECVLEN
+REAL(KIND=JPRB)    :: MAXCOMMTIME(501:1000)
+REAL(KIND=JPRB)    :: TOTSENDBYTES(501:1000)
+REAL(KIND=JPRB)    :: TOTRECVBYTES(501:1000)
 
 INTEGER(KIND=JPIM) :: IXMLLUN  
 
@@ -92,6 +101,7 @@ INTEGER(KIND=JPIM) :: IXMLLUN
 ! write(0,*) "JPMAXSTAT,NPRNT_STATS =",JPMAXSTAT,NPRNT_STATS
 
 ILBUF = JPARRAYS*(JPMAXSTAT+1)
+ILRECV = 500*4
 ZAVEAVE(:) = 0.0_JPRB
 ZAVEMAX(:) = 0.0_JPRB
 ZFRACMAX(:)= 0.0_JPRB
@@ -143,7 +153,32 @@ IF (LSTATS .AND. MYPROC_STATS /= 1) THEN
   ITAG = JPTAGSTAT
   CALL MPL_SEND(ZREABUF(1:ILSEND),KDEST=NPRCIDS_STATS(ISEND), &
        & KTAG=ITAG,CDSTRING='GSTATS_PRINT:')
+
+  IF(LSTATS_MPL) THEN
+    JJ=1
+    DO JNUM=501,1000
+      ZREABUF(JJ  ) = NUMSEND(JNUM)
+      ZREABUF(JJ+1) = SENDBYTES(JNUM)
+      ZREABUF(JJ+2) = NUMRECV(JNUM)
+      ZREABUF(JJ+3) = RECVBYTES(JNUM)
+      JJ=JJ+4
+    ENDDO
+
+    ILSEND = JJ-1
+    ITAG = JPTAGSTAT + 1
+
+    CALL MPL_SEND(ZREABUF(1:ILSEND),KDEST=NPRCIDS_STATS(ISEND), &
+         & KTAG=ITAG,CDSTRING='GSTATS_PRINT:')
+
+  ENDIF
 ELSEIF(LSTATS) THEN
+  IF(LSTATS_MPL) THEN
+    DO JNUM=501,1000
+      MAXCOMMTIME(JNUM)=0.0_JPRB
+      TOTSENDBYTES(JNUM)=0.0_JPRB
+      TOTRECVBYTES(JNUM)=0.0_JPRB
+    ENDDO
+  ENDIF
   DO JROC=1,NPROC_STATS
     IF (JROC /= 1) THEN
       ITAG = JPTAGSTAT
@@ -161,8 +196,24 @@ ELSEIF(LSTATS) THEN
         TVCPUSUM(JNUM)  = ZREABUF(JJ+7)
         JJ = JJ+JPARRAYS
       ENDDO
+
+      IF(LSTATS_MPL) THEN
+        ITAG = JPTAGSTAT+1
+        CALL MPL_RECV(ZREABUF(1:ILRECV),KSOURCE=NPRCIDS_STATS(JROC), &
+         & KTAG=ITAG,CDSTRING='GSTATS_PRINT:')
+        JJ = 1
+        DO JNUM=501,1000
+          NUMSEND(JNUM)   = NINT(ZREABUF(JJ))
+          SENDBYTES(JNUM) = ZREABUF(JJ+1)
+          NUMRECV(JNUM)   = NINT(ZREABUF(JJ+2))
+          RECVBYTES(JNUM) = ZREABUF(JJ+3)
+          JJ=JJ+4
+        ENDDO
+      ENDIF
+
     ELSE
       ICALLSX(:)=NCALLS(:)
+
     ENDIF
     IF (JROC == 1) THEN
       ZTOTAL=TIMESUM(0)
@@ -370,6 +421,68 @@ ELSEIF(LSTATS) THEN
         WRITE(IXMLLUN,'(A)')'</timing>'
       ENDIF
     ENDIF
+    IF( LSTATS_MPL .AND. JROC <= NPRNT_STATS ) THEN
+      WRITE(KULOUT,'(/,A,I4,/)') 'COMMUNICATIONS STATISTICS:PROCESSOR=',JROC
+      WRITE(KULOUT,'(A)') &
+       &' NUM     ROUTINE                              '//&
+       &'  SUM(s)   SENDS  AVG(kb) TOTAL(MB) MB/s '//&
+       &'  RECVS  AVG(kb) TOTAL(MB) MB/s '
+
+      do jnum=501,1000
+        if(numsend(jnum) /= 0 .or. numrecv(jnum) /= 0 ) then
+           sendrate=sendbytes(jnum)*1.e-6/timesum(jnum)
+           recvrate=recvbytes(jnum)*1.e-6/timesum(jnum)
+           if(numsend(jnum) /= 0) then
+             avgsendlen=sendbytes(jnum)*1.e-3/numsend(jnum)
+           else
+             avgsendlen=0.0_JPRB
+           endif
+           if(numrecv(jnum) /= 0) then
+             avgrecvlen=recvbytes(jnum)*1.e-3/numrecv(jnum)
+           else
+             avgsendlen=0.0_JPRB
+           endif
+           if(numrecv(jnum) /= 0) then
+             avgrecvlen=recvbytes(jnum)*1.e-3/numrecv(jnum)
+           else
+             avgrecvlen=0.0_JPRB
+           endif
+           write(kulout,'(I6,1X,A40,f6.1,2(I8,3F8.1))') &
+            &  jnum,ccdesc(jnum),timesum(jnum),&
+            &  numsend(jnum),avgsendlen,sendbytes(jnum)*1.e-6, sendrate, &
+            &  numrecv(jnum),avgrecvlen,recvbytes(jnum)*1.e-6, recvrate
+        endif
+      enddo
+      WRITE(KULOUT,'(/,A,I4,/)') 'UNKNOWN COMMUNICATIONS STATISTICS:PROCESSOR=', JROC
+      WRITE(KULOUT,'(A)') &
+       &' NUM     BEFORE ROUTINE                        '//&
+       &'    SENDS TOTAL(MB) '//&
+       &'RECVS TOTAL(MB)  '
+      do jnum=501,1000
+        if(unknown_numsend(jnum) /= 0 .or. unknown_numrecv(jnum) /= 0 ) then
+           write(kulout,'(I6,1X,A40,2(I8,F8.1))') &
+            &  jnum,ccdesc(jnum),&
+            &  unknown_numsend(jnum),unknown_sendbytes(jnum)*1.e-6, &
+            &  unknown_numrecv(jnum),unknown_recvbytes(jnum)*1.e-6
+        endif
+      enddo
+      write(kulout,'(7x,"TOTAL",35x,2(I8,F8.1),//)') &
+       & sum(unknown_numsend(:)),sum(unknown_sendbytes(:))*1.e-6 , &
+       & sum(unknown_numrecv(:)),sum(unknown_recvbytes(:))*1.e-6
+
+     ENDIF
+
+     if(lstats_mpl) then
+      do jnum=501,1000
+         totsendbytes(jnum) = totsendbytes(jnum) + sendbytes(jnum)
+         totrecvbytes(jnum) = totrecvbytes(jnum) + recvbytes(jnum)
+         if(sendbytes(jnum).gt.0.0_JPRB.or. &
+         &  recvbytes(jnum).gt.0.0_JPRB) then
+           maxcommtime(jnum)  = MAX(maxcommtime(jnum),timesum(jnum))
+         endif
+      enddo
+     endif
+
   ENDDO
   IF(LXML_STATS)THEN
     WRITE(IXMLLUN,'(A)')'<timing_all_processors>'
@@ -454,6 +567,28 @@ IF(LSTATS_COMMS)THEN
 
   WRITE(KULOUT,*) ''
   WRITE(KULOUT,'(A,F10.1,A)')'SUMMED TIME IN COMMUNICATIONS   = ',ZT_SUM, ' SECONDS '
+  if(lstats_mpl) then
+    WRITE(KULOUT,'(/,A,/)') 'TOTAL COMMUNICATIONS VOLUMES AND BANDWIDTH'
+    WRITE(KULOUT,'(A)') &
+     &'   NUM   ROUTINE                              '//&
+     &'  SUM(s)  SEND(GB)  RECV(GB)    GB/s'
+    do jnum=501,1000
+       if(totsendbytes(jnum).gt.0.0_JPRB.or.totrecvbytes(jnum).gt.0.0_JPRB) then
+          write(kulout,'(I6,1X,A40,f6.1,2F10.1,F8.1)') &
+           &  jnum,ccdesc(jnum),maxcommtime(jnum),&
+           &  totsendbytes(jnum)*1.e-9, &
+           &  totrecvbytes(jnum)*1.e-9 , &
+           &  (totsendbytes(jnum)*1.e-9)/maxcommtime(jnum)
+       endif
+    enddo
+    write(kulout,'(/,A,42x,f6.1,2F10.1,F8.1)') &
+     &   'TOTAL', &
+     &   SUM(maxcommtime) , &
+     &   SUM(totsendbytes)*1.e-9, &
+     &   SUM(totrecvbytes)*1.e-9, &
+     &   (SUM(totsendbytes)*1.e-9)/SUM(maxcommtime)
+  endif
+
   IF(LXML_STATS)THEN
     WRITE(IXMLLUN,'(A,F10.1,A)')'<zcom unit="seconds">',ZT_SUM, '</zcom>'
   ENDIF
