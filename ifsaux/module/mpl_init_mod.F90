@@ -164,7 +164,7 @@ IF (.NOT.LLINIT) THEN
 #endif
 
   LINITMPI_VIA_MPL = .TRUE.
-!  CALL ec_mpi_atexit() ! ifsaux/support/endian.c: to make sure MPI_FINALIZE gets called
+   CALL ec_mpi_atexit() ! ifsaux/support/endian.c: to make sure MPI_FINALIZE gets called
 
 ELSE
   IERROR = 0

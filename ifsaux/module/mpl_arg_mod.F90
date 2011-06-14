@@ -104,7 +104,7 @@ IF (N_ARGS == -1) THEN
     IF (.not.LLINIT) THEN
       CALL MPI_INIT(IERROR)
       LINITMPI_VIA_MPL = .TRUE.
-!     CALL ec_mpi_atexit() ! ifsaux/support/endian.c: to make sure MPI_FINALIZE gets called
+      CALL ec_mpi_atexit() ! ifsaux/support/endian.c: to make sure MPI_FINALIZE gets called
     ENDIF
   ENDIF
 
