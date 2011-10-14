@@ -57,7 +57,7 @@ MODULE MPL_READ_MOD
 !     Modifications.
 !     --------------
 !        Original : 2000-12-11
-!
+!        R. EL Khatib 24-May-2011 Change ifdef MPI2 into ifndef MPI1
 !     -----------------------------------------------------------------
 !
 USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPRM
@@ -97,7 +97,7 @@ INTEGER(KIND=JPIM) KREQ
 
 INTEGER(KIND=JPIM) status(MPI_STATUS_SIZE)
 !
-#ifdef MPI2
+#ifndef MPI1
 
 !     -----------------------------------------------------------------
 !
@@ -216,7 +216,7 @@ INTEGER(KIND=JPIM) KREQ
 
 INTEGER(KIND=JPIM) status(MPI_STATUS_SIZE)
 !
-#ifdef MPI2
+#ifndef MPI1
 
 !     -----------------------------------------------------------------
 !

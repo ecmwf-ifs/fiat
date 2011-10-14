@@ -54,7 +54,7 @@ MODULE MPL_OPEN_MOD
 !     Modifications.
 !     --------------
 !        Original : 2000-12-08 (Based on MPE_OPEN)
-!
+!        R. EL Khatib 24-May-2011 Change ifdef MPI2 into ifndef MPI1
 !     -----------------------------------------------------------------
 !
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
@@ -83,7 +83,7 @@ INTEGER(KIND=JPIM),INTENT(OUT) :: kfptr,kerror
 CHARACTER*(*) KNAME
 INTEGER(KIND=JPIM) :: mode,info
 
-#ifdef MPI2
+#ifndef MPI1
 
 !
 !     -----------------------------------------------------------------

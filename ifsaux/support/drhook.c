@@ -3681,7 +3681,7 @@ init_hpm(int tid)
     */
 #endif
 
-    fprintf(stderr,"group = %d\n",group);
+    if (myproc <= 1) fprintf(stderr,"group = %d\n",group);
 
     pm_prog_t pmprog;
     pm_data_t pmdata;
