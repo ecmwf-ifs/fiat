@@ -45,6 +45,8 @@ SUBROUTINE GSTATS(KNUM,KSWITCH)
 !        D.Salmond: 02-02-25  Return if not master thread when called from a 
 !                             parallel region. 
 !        J.Hague:   03-06-11  Memory tracing (for NSTATS_MEM MPI tasks)
+!        G.Mozdzynski: 18 Apr 2008 Many corrections to gstats,
+!                             see LLFINDSUMB - when set is used detect gstat counter problems.
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPIB
@@ -65,12 +67,10 @@ INTEGER(KIND=JPIB) :: IMEM, IMEMH, IMEMS, IMEMC, IPAG, INUM
 INTEGER(KIND=JPIB) :: GETRSS, GETHWM, GETSTK, GETCURHEAP, GETPAG
 EXTERNAL GETRSS, GETHWM, GETSTK, GETCURHEAP, GETPAG
 REAL(KIND=JPRB) :: ZTIMED,ZCLOCK,ZTIME,ZTCPU,ZVCPU
-REAL(KIND=JPRB) :: ZLAST_PAR_TIME
 LOGICAL :: LLFIRST=.TRUE.
 LOGICAL :: LLMFIRST=.TRUE.
   CHARACTER(LEN=32), SAVE :: CCDESC_DRHOOK(JPMAXSTAT)
   CHARACTER(LEN=32), SAVE :: CCDESC_BARR(JPMAXSTAT)
-SAVE ZLAST_PAR_TIME
 SAVE IIMEM, IIPAG, IIMEMC
 
 INTEGER(KIND=JPIM),SAVE :: NUM_THREADS
@@ -82,6 +82,10 @@ CHARACTER*4 CC
 
 INTEGER(KIND=JPIM) :: NMAX_STATS, KULNAM
 
+LOGICAL :: LLFINDSUMB=.FALSE.
+INTEGER(KIND=JPIM),SAVE :: ISUMBSTACK(10)
+INTEGER(KIND=JPIM) :: J
+
 INTERFACE
 #include "user_clock.h"
 END INTERFACE
@@ -89,6 +93,10 @@ END INTERFACE
 ! write(0,*) "GSTATS:LSTATS,JPMAXSTAT,LGSTATS_LABEL,KNUM=",LSTATS,JPMAXSTAT,LGSTATS_LABEL,KNUM
 
 IF(LSTATS) THEN
+
+! only process gstats calls for master thread
+
+  IF(OML_MY_THREAD() > 1)GOTO 99999
 
   IF(.NOT.ALLOCATED(ZHOOK_HANDLE))THEN
     NUM_THREADS=OML_MAX_THREADS()
@@ -111,10 +119,6 @@ IF(LSTATS) THEN
     LGSTATS_LABEL=.FALSE.
   ENDIF
 !     ------------------------------------------------------------------
-
-!J  IF((KNUM > 1000 .AND.KNUM < 2001).AND.(.NOT.LSTATS_OMP))GOTO 99999
-!J  IF((KNUM > 500  .AND.KNUM < 1001).AND.(.NOT.LSTATS_COMMS))GOTO 99999
-  IF(OML_MY_THREAD() > 1)GOTO 99999
 
 !J  IF(KNUM/=0) THEN
 !J    IF(LSYNCSTATS .AND.(KSWITCH==0.OR. KSWITCH==2)) THEN
@@ -156,10 +160,14 @@ IF(LSTATS) THEN
 !   write(0,*) "JPMAXSTAT:2=",JPMAXSTAT
 
     NCALLS(:) = 0
+    NSWITCHVAL(:) = -1
     TIMESUM(:) = 0.0_JPRB
     TIMESQSUM(:) = 0.0_JPRB
     TIMEMAX(:) = 0.0_JPRB
     TIMESUMB(:) = 0.0_JPRB
+    IF( LLFINDSUMB )THEN
+      ISUMBSTACK(:)=0
+    ENDIF
     TTCPUSUM(:) = 0.0_JPRB
     TVCPUSUM(:) = 0.0_JPRB
     TIMELCALL(:) = ZCLOCK
@@ -171,7 +179,6 @@ IF(LSTATS) THEN
     IIPAG=0
     IIMEMC=0
     TIME_LAST_CALL = ZCLOCK
-    ZLAST_PAR_TIME=ZCLOCK
     LLFIRST = .FALSE.
   ENDIF
 
@@ -189,14 +196,43 @@ IF(LSTATS) THEN
     CALL ABOR1('GSTATS')
   ENDIF
 
+! WRITE(0,'("GSTATS(SUMB): ",I4,2X,I1,2X,A40)') KNUM,KSWITCH,CCDESC(KNUM)
+
+  NSWITCHVAL(KNUM)=KSWITCH
+
   IF( KSWITCH == 0 ) THEN
 ! Start timing event
-    IF(KNUM < 500) THEN
-      ZTIMED = ZCLOCK-TIME_LAST_CALL
-    ELSE
-      ZTIMED = ZCLOCK - ZLAST_PAR_TIME
-    ENDIF
+    ZTIMED = ZCLOCK-TIME_LAST_CALL
     TIMESUMB(KNUM) = TIMESUMB(KNUM)+ZTIMED
+
+    IF( LLFINDSUMB )THEN
+!     diagnostic code to find source of sumb (this should only be activated temporarily)
+      DO J=9,1,-1
+        ISUMBSTACK(J+1)=ISUMBSTACK(J)
+      ENDDO
+      ISUMBSTACK(1)=KNUM
+      IF( ZTIMED > 0.1 .OR. TIMESUMB(KNUM) > 2.0 )THEN
+        WRITE(0,'("GSTATS(SUMB): KNUM=",I4," ZTIMED=",F10.6," TIMESUMB=",F10.6)')&
+        & KNUM,ZTIMED,TIMESUMB(KNUM)
+        DO J=1,10
+          IF( ISUMBSTACK(J) > 0 )THEN
+            WRITE(0,'("GSTATS(SUMB): ",I4,2X,A40)')ISUMBSTACK(J),CCDESC(ISUMBSTACK(J))
+          ENDIF
+        ENDDO
+      ENDIF
+!     check if grouped counters are overlapping
+      DO J=0,JPMAXSTAT
+        IF( J /= KNUM )THEN
+          IF( CCTYPE(J   )/='   '.AND.CCTYPE(J   )/='TRS'.AND.CCTYPE(J   )/='MP-' .AND.&
+           &  CCTYPE(KNUM)/='   '.AND.CCTYPE(KNUM)/='TRS'.AND.CCTYPE(KNUM)/='MP-' )THEN
+            IF( NSWITCHVAL(J)==0.OR.NSWITCHVAL(J)==3 )THEN
+              WRITE(0,'("GSTATS(SUMB): OVERLAPPING COUNTERS ",I4,2X,I4)')KNUM,J
+            ENDIF
+          ENDIF
+        ENDIF
+      ENDDO
+    ENDIF
+
     THISTIME(KNUM) = 0.0_JPRB
     TIMELCALL(KNUM) = ZCLOCK
     TTCPULCALL(KNUM) = ZTCPU
@@ -291,7 +327,6 @@ IF(LSTATS) THEN
     TVCPULCALL(KNUM) = ZVCPU
   ENDIF
   TIME_LAST_CALL = ZCLOCK
-  IF(KNUM > 500.OR.KNUM == 102.OR.KNUM == 103) ZLAST_PAR_TIME = ZCLOCK
 !   Trace stats
   NCALLS_TOTAL = NCALLS_TOTAL+1
   IF (LTRACE_STATS .AND. NCALLS_TOTAL <= NTRACE_STATS) THEN
