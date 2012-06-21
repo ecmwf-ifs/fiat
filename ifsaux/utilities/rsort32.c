@@ -48,6 +48,10 @@ static const int lsw   =  1;
 static const int msw   =  0;
 #endif
 
+#ifdef CRAY
+#define valloc malloc
+#endif
+
 #define   ALLOC(x,size)   x = valloc(sizeof(*x) * (size))
 #define REALLOC(x,size)   x = realloc(x, sizeof(*x) * (size))
 #define FREE(x)           if (x) { free(x); x = NULL; }

@@ -4,8 +4,7 @@ C        Fujitsu function
 C
 #ifdef VPP
       call clockv(PVCP,PTCP,0,2)
-#endif
-#ifdef SGI
+#else
       data ifirst/0/
       save ifirst,zfirst
       if(ifirst.eq.0) then
