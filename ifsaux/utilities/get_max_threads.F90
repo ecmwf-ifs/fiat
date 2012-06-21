@@ -1,7 +1,7 @@
 FUNCTION get_max_threads() RESULT(imaxt)
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE yomoml
 implicit none
-INTEGER_M :: imaxt
+INTEGER(KIND=JPIM) :: imaxt
 imaxt = OML_MAX_THREADS()
 END FUNCTION get_max_threads

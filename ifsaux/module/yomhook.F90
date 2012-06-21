@@ -1,6 +1,6 @@
 MODULE YOMHOOK
 
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
 
 ! Used by "hook" function
 ! LHOOK = true implies "hook" function will be called
@@ -13,8 +13,8 @@ CONTAINS
 
 SUBROUTINE DR_HOOK(CDNAME,KSWITCH,PKEY)
 CHARACTER(LEN=*), INTENT(IN) :: CDNAME
-INTEGER_M,        INTENT(IN) :: KSWITCH
-REAL_B,        INTENT(INOUT) :: PKEY
+INTEGER(KIND=JPIM),        INTENT(IN) :: KSWITCH
+REAL(KIND=JPRB),        INTENT(INOUT) :: PKEY
 
 CALL DR_HOOK_UTIL(CDNAME,KSWITCH,PKEY)
 

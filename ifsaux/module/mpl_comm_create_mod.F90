@@ -33,7 +33,7 @@ MODULE MPL_COMM_CREATE_MOD
 
 !     ------------------------------------------------------------------
 
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
 
 USE MPL_MPIF
 USE MPL_DATA_MODULE
@@ -48,7 +48,7 @@ CONTAINS
 SUBROUTINE MPL_COMM_CREATE(KERROR)
 
 
-INTEGER_M,OPTIONAL,INTENT(OUT) :: KERROR
+INTEGER(KIND=JPIM),OPTIONAL,INTENT(OUT) :: KERROR
 
 !   this line to be replaced
 MPL_COMM=MPI_COMM_WORLD

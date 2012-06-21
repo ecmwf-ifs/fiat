@@ -1,5 +1,5 @@
 MODULE ECsort
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPRM
 
 USE strhandler, only : TOUPPER
 
@@ -14,21 +14,21 @@ IMPLICIT NONE
 
 PRIVATE
 
-INTEGER_M, parameter :: sizeof_int   = 4
-INTEGER_M, parameter :: sizeof_real4 = 4
-INTEGER_M, parameter :: sizeof_real8 = 8
+INTEGER(KIND=JPIM), parameter :: sizeof_int   = 4
+INTEGER(KIND=JPIM), parameter :: sizeof_real4 = 4
+INTEGER(KIND=JPIM), parameter :: sizeof_real8 = 8
 
-INTEGER_M, parameter :: min_method = 1
-INTEGER_M, parameter :: max_method = 2
+INTEGER(KIND=JPIM), parameter :: min_method = 1
+INTEGER(KIND=JPIM), parameter :: max_method = 2
 !     integer, parameter :: max_method = 3
 
-INTEGER_M, parameter :: radixsort_method = 1
-INTEGER_M, parameter :: heapsort_method  = 2
+INTEGER(KIND=JPIM), parameter :: radixsort_method = 1
+INTEGER(KIND=JPIM), parameter :: heapsort_method  = 2
 !--   To be implemented: QuickSort
 !     integer, parameter :: quicksort_method = 3
 
-INTEGER_M, parameter :: default_method = radixsort_method
-INTEGER_M            :: current_method = default_method
+INTEGER(KIND=JPIM), parameter :: default_method = radixsort_method
+INTEGER(KIND=JPIM)            :: current_method = default_method
 
 INTERFACE keysort
 MODULE PROCEDURE &
@@ -52,9 +52,9 @@ CONTAINS
 !----------------------------
 
 SUBROUTINE int_sorting_method(inew, iold)
-INTEGER_M, intent(in)  :: inew
-INTEGER_M, intent(out) :: iold
-INTEGER_M :: itmp
+INTEGER(KIND=JPIM), intent(in)  :: inew
+INTEGER(KIND=JPIM), intent(out) :: iold
+INTEGER(KIND=JPIM) :: itmp
 itmp = inew
 if (itmp == -1) itmp = default_method
 iold = current_method
@@ -64,7 +64,7 @@ END SUBROUTINE int_sorting_method
 
 SUBROUTINE str_sorting_method(cdnew, iold)
 character(len=*), intent(in) :: cdnew
-INTEGER_M, intent(out) :: iold
+INTEGER(KIND=JPIM), intent(out) :: iold
 character(len=len(cdnew)) clnew
 clnew = cdnew
 CALL toupper(clnew)
@@ -82,8 +82,8 @@ END SUBROUTINE str_sorting_method
 
 
 SUBROUTINE init_index(index)
-INTEGER_M, intent(out):: index(:)
-INTEGER_M :: i, n
+INTEGER(KIND=JPIM), intent(out):: index(:)
+INTEGER(KIND=JPIM) :: i, n
 n = size(index)
 do i=1,n
   index(i) = i
@@ -92,9 +92,9 @@ END SUBROUTINE init_index
 
 
 SUBROUTINE get_rank(index, rank)
-INTEGER_M, intent(in) :: index(:)
-INTEGER_M, intent(out):: rank(:)
-INTEGER_M :: i, n
+INTEGER(KIND=JPIM), intent(in) :: index(:)
+INTEGER(KIND=JPIM), intent(out):: rank(:)
+INTEGER(KIND=JPIM) :: i, n
 n = min(size(index),size(rank))
 do i=1,n
   rank(index(i)) = i
@@ -103,16 +103,16 @@ END SUBROUTINE get_rank
 
 
 SUBROUTINE int_keysort_1D(rc, a, n,method, descending,index, init)
-INTEGER_M, intent(out)           :: rc
-INTEGER_M, intent(inout)         :: a(:)
-INTEGER_M, intent(in)            :: n
-INTEGER_M, intent(in), OPTIONAL  :: method
+INTEGER(KIND=JPIM), intent(out)           :: rc
+INTEGER(KIND=JPIM), intent(inout)         :: a(:)
+INTEGER(KIND=JPIM), intent(in)            :: n
+INTEGER(KIND=JPIM), intent(in), OPTIONAL  :: method
 logical, intent(in), OPTIONAL  :: descending
-INTEGER_M, intent(inout), TARGET, OPTIONAL :: index(:)
+INTEGER(KIND=JPIM), intent(inout), TARGET, OPTIONAL :: index(:)
 logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
-INTEGER_M :: aa(size(a),1)
-INTEGER_M :: ikey
+INTEGER(KIND=JPIM) :: aa(size(a),1)
+INTEGER(KIND=JPIM) :: ikey
 rc = 0
 if (n <= 0) return
 if (size(a) <= 0) return
@@ -127,16 +127,16 @@ END SUBROUTINE int_keysort_1D
 
 
 SUBROUTINE real4_keysort_1D(rc, a, n,method, descending,index, init)
-INTEGER_M, intent(out)           :: rc
-REAL_M, intent(inout)         :: a(:)
-INTEGER_M, intent(in)            :: n
-INTEGER_M, intent(in), OPTIONAL  :: method
+INTEGER(KIND=JPIM), intent(out)           :: rc
+REAL(KIND=JPRM), intent(inout)         :: a(:)
+INTEGER(KIND=JPIM), intent(in)            :: n
+INTEGER(KIND=JPIM), intent(in), OPTIONAL  :: method
 logical, intent(in), OPTIONAL  :: descending
-INTEGER_M, intent(inout), TARGET, OPTIONAL :: index(:)
+INTEGER(KIND=JPIM), intent(inout), TARGET, OPTIONAL :: index(:)
 logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
-REAL_M :: aa(size(a),1)
-INTEGER_M :: ikey
+REAL(KIND=JPRM) :: aa(size(a),1)
+INTEGER(KIND=JPIM) :: ikey
 rc = 0
 if (n <= 0) return
 if (size(a) <= 0) return
@@ -151,16 +151,16 @@ END SUBROUTINE real4_keysort_1D
 
 
 SUBROUTINE real8_keysort_1D(rc, a, n,method, descending,index, init)
-INTEGER_M, intent(out)           :: rc
-REAL_B, intent(inout)         :: a(:)
-INTEGER_M, intent(in)            :: n
-INTEGER_M, intent(in), OPTIONAL  :: method
+INTEGER(KIND=JPIM), intent(out)           :: rc
+REAL(KIND=JPRB), intent(inout)         :: a(:)
+INTEGER(KIND=JPIM), intent(in)            :: n
+INTEGER(KIND=JPIM), intent(in), OPTIONAL  :: method
 logical, intent(in), OPTIONAL  :: descending
-INTEGER_M, intent(inout), TARGET, OPTIONAL :: index(:)
+INTEGER(KIND=JPIM), intent(inout), TARGET, OPTIONAL :: index(:)
 logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
-REAL_B :: aa(size(a),1)
-INTEGER_M :: ikey
+REAL(KIND=JPRB) :: aa(size(a),1)
+INTEGER(KIND=JPIM) :: ikey
 rc = 0
 if (n <= 0) return
 if (size(a) <= 0) return
@@ -180,20 +180,20 @@ SUBROUTINE int_keysort_2D(&
      &key, multikey, method,&
      &index, init, transposed)
 
-INTEGER_M, intent(out)           :: rc
-INTEGER_M, intent(inout)         :: a(:,:)
-INTEGER_M, intent(in)            :: n
-INTEGER_M, intent(in), OPTIONAL  :: key, method
-INTEGER_M, intent(in), OPTIONAL  :: multikey(:)
+INTEGER(KIND=JPIM), intent(out)           :: rc
+INTEGER(KIND=JPIM), intent(inout)         :: a(:,:)
+INTEGER(KIND=JPIM), intent(in)            :: n
+INTEGER(KIND=JPIM), intent(in), OPTIONAL  :: key, method
+INTEGER(KIND=JPIM), intent(in), OPTIONAL  :: multikey(:)
 logical, intent(in), OPTIONAL  :: transposed
-INTEGER_M, intent(inout), TARGET, OPTIONAL :: index(:)
+INTEGER(KIND=JPIM), intent(inout), TARGET, OPTIONAL :: index(:)
 logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
-INTEGER_M, POINTER :: iindex(:)
-INTEGER_M :: ikey, istride, imethod
-INTEGER_M :: lda, iptr, i, j, sda, idiff
-INTEGER_M, allocatable :: data(:)
-INTEGER_M, allocatable :: ikeys(:)
+INTEGER(KIND=JPIM), POINTER :: iindex(:)
+INTEGER(KIND=JPIM) :: ikey, istride, imethod
+INTEGER(KIND=JPIM) :: lda, iptr, i, j, sda, idiff
+INTEGER(KIND=JPIM), allocatable :: data(:)
+INTEGER(KIND=JPIM), allocatable :: ikeys(:)
 logical iinit, descending, LLtrans
 
 rc = 0
@@ -319,20 +319,20 @@ SUBROUTINE real4_keysort_2D(&
      &key, multikey, method,&
      &index, init, transposed)
 
-INTEGER_M, intent(out)           :: rc
-REAL_M, intent(inout)         :: a(:,:)
-INTEGER_M, intent(in)            :: n
-INTEGER_M, intent(in), OPTIONAL  :: key, method
-INTEGER_M, intent(in), OPTIONAL  :: multikey(:)
+INTEGER(KIND=JPIM), intent(out)           :: rc
+REAL(KIND=JPRM), intent(inout)         :: a(:,:)
+INTEGER(KIND=JPIM), intent(in)            :: n
+INTEGER(KIND=JPIM), intent(in), OPTIONAL  :: key, method
+INTEGER(KIND=JPIM), intent(in), OPTIONAL  :: multikey(:)
 logical, intent(in), OPTIONAL  :: transposed
-INTEGER_M, intent(inout), TARGET, OPTIONAL :: index(:)
+INTEGER(KIND=JPIM), intent(inout), TARGET, OPTIONAL :: index(:)
 logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
-INTEGER_M, POINTER :: iindex(:)
-INTEGER_M :: ikey, istride, imethod
-INTEGER_M :: lda, iptr, i, j, sda, idiff
-REAL_M, allocatable :: data(:)
-INTEGER_M, allocatable :: ikeys(:)
+INTEGER(KIND=JPIM), POINTER :: iindex(:)
+INTEGER(KIND=JPIM) :: ikey, istride, imethod
+INTEGER(KIND=JPIM) :: lda, iptr, i, j, sda, idiff
+REAL(KIND=JPRM), allocatable :: data(:)
+INTEGER(KIND=JPIM), allocatable :: ikeys(:)
 logical iinit, descending, LLtrans
 
 rc = 0
@@ -458,20 +458,20 @@ SUBROUTINE real8_keysort_2D(&
      &key, multikey, method,&
      &index, init, transposed)
 
-INTEGER_M, intent(out)           :: rc
-REAL_B, intent(inout)         :: a(:,:)
-INTEGER_M, intent(in)            :: n
-INTEGER_M, intent(in), OPTIONAL  :: key, method
-INTEGER_M, intent(in), OPTIONAL  :: multikey(:)
+INTEGER(KIND=JPIM), intent(out)           :: rc
+REAL(KIND=JPRB), intent(inout)         :: a(:,:)
+INTEGER(KIND=JPIM), intent(in)            :: n
+INTEGER(KIND=JPIM), intent(in), OPTIONAL  :: key, method
+INTEGER(KIND=JPIM), intent(in), OPTIONAL  :: multikey(:)
 logical, intent(in), OPTIONAL  :: transposed
-INTEGER_M, intent(inout), TARGET, OPTIONAL :: index(:)
+INTEGER(KIND=JPIM), intent(inout), TARGET, OPTIONAL :: index(:)
 logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
-INTEGER_M, POINTER :: iindex(:)
-INTEGER_M :: ikey, istride, imethod
-INTEGER_M :: lda, iptr, i, j, sda, idiff
-REAL_B, allocatable :: data(:)
-INTEGER_M, allocatable :: ikeys(:)
+INTEGER(KIND=JPIM), POINTER :: iindex(:)
+INTEGER(KIND=JPIM) :: ikey, istride, imethod
+INTEGER(KIND=JPIM) :: lda, iptr, i, j, sda, idiff
+REAL(KIND=JPRB), allocatable :: data(:)
+INTEGER(KIND=JPIM), allocatable :: ikeys(:)
 logical iinit, descending, LLtrans
 
 rc = 0
@@ -597,11 +597,11 @@ END SUBROUTINE real8_keysort_2D
 
 SUBROUTINE int_heapsort(n, a, index, rc)
 
-INTEGER_M, intent(in)  :: n
-INTEGER_M, intent(in)  :: a(:)
-INTEGER_M, intent(inout) :: index(:), rc
-INTEGER_M :: i,j,right,left, idx
-INTEGER_M :: tmp
+INTEGER(KIND=JPIM), intent(in)  :: n
+INTEGER(KIND=JPIM), intent(in)  :: a(:)
+INTEGER(KIND=JPIM), intent(inout) :: index(:), rc
+INTEGER(KIND=JPIM) :: i,j,right,left, idx
+INTEGER(KIND=JPIM) :: tmp
 rc = n
 if (n <= 1) return
 left  = n/2+1
@@ -641,11 +641,11 @@ END SUBROUTINE int_heapsort
 
 SUBROUTINE real4_heapsort(n, a, index, rc)
 
-INTEGER_M, intent(in)  :: n
-REAL_M, intent(in)  :: a(:)
-INTEGER_M, intent(inout) :: index(:), rc
-INTEGER_M :: i,j,right,left, idx
-REAL_M :: tmp
+INTEGER(KIND=JPIM), intent(in)  :: n
+REAL(KIND=JPRM), intent(in)  :: a(:)
+INTEGER(KIND=JPIM), intent(inout) :: index(:), rc
+INTEGER(KIND=JPIM) :: i,j,right,left, idx
+REAL(KIND=JPRM) :: tmp
 rc = n
 if (n <= 1) return
 left  = n/2+1
@@ -685,11 +685,11 @@ END SUBROUTINE real4_heapsort
 
 SUBROUTINE real8_heapsort(n, a, index, rc)
 
-INTEGER_M, intent(in)  :: n
-REAL_B, intent(in)  :: a(:)
-INTEGER_M, intent(inout) :: index(:), rc
-INTEGER_M :: i,j,right,left, idx
-REAL_B :: tmp
+INTEGER(KIND=JPIM), intent(in)  :: n
+REAL(KIND=JPRB), intent(in)  :: a(:)
+INTEGER(KIND=JPIM), intent(inout) :: index(:), rc
+INTEGER(KIND=JPIM) :: i,j,right,left, idx
+REAL(KIND=JPRB) :: tmp
 rc = n
 if (n <= 1) return
 left  = n/2+1

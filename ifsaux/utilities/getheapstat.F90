@@ -1,20 +1,20 @@
 SUBROUTINE getheapstat(kout, cdlabel)
 
-#include "tsmbkind.h"
+USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPIB
 
 use mpl_module
 
 implicit none
 
-INTEGER_M, intent(in) :: kout
+INTEGER(KIND=JPIM), intent(in) :: kout
 character(len=*), intent(in) :: cdlabel
-INTEGER_M :: i, imyproc, inproc, iret, ioffset, ii
-INTEGER_M, parameter :: JP_NPROFILE = 9 ! pls. consult ifsaux/utilities/getcurheap.c
-INTEGER_M, parameter :: isize = JP_NPROFILE+1
-INTEGER_B ilimit(isize)
-INTEGER_B ihitcnt(isize)
-REAL_B, allocatable :: zsend(:), zrecv(:)
-INTEGER_M, allocatable :: icounts(:)
+INTEGER(KIND=JPIM) :: i, imyproc, inproc, iret, ioffset, ii
+INTEGER(KIND=JPIM), parameter :: JP_NPROFILE = 9 ! pls. consult ifsaux/utilities/getcurheap.c
+INTEGER(KIND=JPIM), parameter :: isize = JP_NPROFILE+1
+INTEGER(KIND=JPIB) ilimit(isize)
+INTEGER(KIND=JPIB) ihitcnt(isize)
+REAL(KIND=JPRB), allocatable :: zsend(:), zrecv(:)
+INTEGER(KIND=JPIM), allocatable :: icounts(:)
 character(len=1) CLenv
 character(len=50) CLtext(0:2)
 
