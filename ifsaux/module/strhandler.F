@@ -3,14 +3,33 @@
       implicit none
       PRIVATE
 
-      PUBLIC :: toupper, expand_string
+      PUBLIC :: tolower, toupper, expand_string
 
       CONTAINS
+
+      SUBROUTINE tolower(cds)
+      implicit none
+      character(len=*), intent(inout) :: cds
+      integer, parameter :: ich_a = ichar('a')
+      integer, parameter :: ichA  = ichar('A')
+      integer, parameter :: ichZ  = ichar('Z')
+      integer i, ich, new_ich
+      character(len=1) ch
+      do i=1,len(cds)
+         ch = cds(i:i)
+         ich = ichar(ch)
+         if ( ich >= ichA .and. ich <= ichZ ) then
+            new_ich = ich + (ich_a - ichA)
+            ch = char(new_ich)
+            cds(i:i) = ch
+         endif
+      enddo
+      END SUBROUTINE tolower
+
 
       SUBROUTINE toupper(cds)
       implicit none
       character(len=*), intent(inout) :: cds
-! === END OF INTERFACE BLOCK ===
       integer, parameter :: ich_A = ichar('A')
       integer, parameter :: icha  = ichar('a')
       integer, parameter :: ichz  = ichar('z')
@@ -38,7 +57,6 @@
       integer, intent(in)          :: myproc, nproc
       integer, intent(in)          :: timestep, max_timestep
       character(len=*), intent(inout) :: s(:)
-! === END OF INTERFACE BLOCK ===
       character(len=2*len(s))  t
       character(len=2*len(s)) tt
       integer i, j, jj, loc_p, len_t, n

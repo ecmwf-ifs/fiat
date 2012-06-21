@@ -2,7 +2,7 @@
 C
 C        Fujitsu function
 C
-#ifdef FUJITSU
+#ifdef VPP
       call clockv(PVCP,PTCP,0,2)
 #endif
 #ifdef SGI
