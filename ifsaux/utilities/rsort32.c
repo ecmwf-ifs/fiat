@@ -1,32 +1,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <signal.h>
 
 /* rsort32_() : 32-bit Fortran-callable RADIX-sort */
 
 /* by Sami Saarinen, ECMWF, 3/2/1998 
          - " -              1/2/2000 : BIG_ENDIAN & LITTLE_ENDIAN labels renamed to *_INDIAN
                                        since they may conflict with the ones in <sys/endian.h>
+         - " -              3/1/2001 : reference to valloc() removed; ALLOC() modified
+	 - " -	           25/1/2001 : BIG_INDIAN removed (as label)
+			               LITTLE_INDIAN called as LITTLE
 
    Thanks to Mike Fisher, ECMWF
    and Cray SCILIB ORDERS()-function developers 
 */
 
-/* Methods:
+/* 
+   Methods:
+
    0 : Unsigned 32-bit ints
    1 :   Signed 32-bit ints
    2 :          64-bit doubles (IEEE) : signbit + 11-bit exp + 52-bits mantissa
    3 :          32-bit floats  (IEEE) : signbit +  8-bit exp + 23-bits mantissa
+
 */
 
 typedef unsigned int  Uint;
 typedef unsigned char Uchar;
-
-#if defined(__osf__)
-#define LITTLE_INDIAN
-#else
-#define BIG_INDIAN
-#endif
 
 #ifdef __uxppx__
 #pragma global noalias
@@ -42,7 +43,7 @@ typedef unsigned char Uchar;
 
 /* Offset adjustment for 64-bit double handling on big/little endian machines */
 
-#ifdef LITTLE_INDIAN
+#ifdef LITTLE
 static const int lsw   =  0;
 static const int msw   =  1;
 #else
@@ -50,11 +51,14 @@ static const int lsw   =  1;
 static const int msw   =  0;
 #endif
 
-#ifdef CRAY
-#define valloc malloc
-#endif
+#define  ALLOC(x,size)    \
+ { int bytes = sizeof(*x) * (size); \
+   bytes = (bytes < 1) ? 1 : bytes; \
+   x = malloc(bytes); \
+   if (!x) { fprintf(stderr, \
+		     "malloc() of %s (%d bytes) failed in file=%s, line=%d\n", \
+		     #x, bytes, __FILE__, __LINE__); raise(SIGABRT); } }
 
-#define   ALLOC(x,size)   x = valloc(sizeof(*x) * (size))
 #define REALLOC(x,size)   x = realloc(x, sizeof(*x) * (size))
 #define FREE(x)           if (x) { free(x); x = NULL; }
 
