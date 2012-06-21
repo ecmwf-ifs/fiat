@@ -59,6 +59,7 @@ MODULE MPL_OPEN_MOD
 !
 #include "tsmbkind.h"
 
+USE MPL_MPIF
 USE MPL_DATA_MODULE
 USE MPL_MESSAGE_MOD
 USE MPL_IOINIT_MOD
@@ -76,8 +77,6 @@ CHARACTER*(*) KNAME
 INTEGER_M :: mode,info
 
 #ifdef MPI2
-
-#include "mpif.h"
 
 !
 !     -----------------------------------------------------------------

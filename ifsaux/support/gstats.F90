@@ -64,6 +64,9 @@ END INTERFACE
 
 !     ------------------------------------------------------------------
 
+IF((KNUM > 500  .AND.KNUM < 1001).AND.(.NOT.LSTATS_COMMS))RETURN
+IF((KNUM > 1000 .AND.KNUM < 2001).AND.(.NOT.LSTATS_OMP))RETURN
+
 IF(LSTATS) THEN
   IF(KNUM/=0) THEN
     IF(LSYNCSTATS .AND.(KSWITCH==0.OR. KSWITCH==2)) THEN

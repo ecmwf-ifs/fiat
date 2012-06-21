@@ -25,3 +25,9 @@ c
       return
       end
 #endif
+#ifdef RS6K
+      function dummytimef()
+      dummytimef=0
+      return
+      end
+#endif

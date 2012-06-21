@@ -22,6 +22,7 @@ MODULE MPL_DATA_MODULE
 !  MPL_RANK     : rank of the process within MPL_COMM
 !  MPL_NUMPROC  : number of processes in MPL_COMM
 !  MPL_IDS      : array of processor numbers
+!  LUSEHLMPI    : always use high level MPI calls (collective comm.)
 
 #include "tsmbkind.h"
 
@@ -38,6 +39,7 @@ INTEGER_M,ALLOCATABLE :: MPL_OPPONENT(:)
 !INTEGER_M,ALLOCATABLE :: MPL_ATTACHED_BUFFER(:)
 !   needs to ge a TARGET for coexistence with MPE
 INTEGER_M,ALLOCATABLE,TARGET     :: MPL_ATTACHED_BUFFER(:)
+LOGICAL :: LUSEHLMPI
 INTEGER_M,PARAMETER :: JP_ATTACHED_BUFFER_BYTES = 4
 INTEGER_M,PARAMETER :: JP_BLOCKING_STANDARD        = 1
 INTEGER_M,PARAMETER :: JP_BLOCKING_BUFFERED        = 2
