@@ -45,7 +45,7 @@ static char *end_stamp = NULL;
 #include <ucontext.h>
 #endif
 
-#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+#if defined(LINUX) && !defined(XT3) && !defined(XD1) && !defined(DARWIN)
 
 #if defined(__GNUC__)
 #include <execinfo.h>
@@ -791,7 +791,7 @@ ignore_signals(int silent)
 
 /*--- gdb__sigdump ---*/
 
-#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+#if defined(LINUX) && !defined(XT3) && !defined(XD1) && !defined(DARWIN)
 static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 {
   static int who = 0; /* Current owner of the lock, if > 0 */
@@ -1058,7 +1058,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
 #endif
-#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+#if defined(LINUX) && !defined(XT3) && !defined(XD1) && !defined(DARWIN)
       gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
       fflush(NULL);
@@ -1108,7 +1108,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
 #endif
-#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+#if defined(LINUX) && !defined(XT3) && !defined(XD1) && !defined(DARWIN)
     gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
     fflush(NULL);
@@ -1151,7 +1151,7 @@ signal_drhook_init(int enforce)
 #if !defined(LINUX)
   SETSIG(SIGEMT,0);
 #endif
-#if defined(LINUX)
+#if defined(LINUX) && !defined(DARWIN)
   SETSIG(SIGSTKFLT,0); /* Stack fault */
 #endif
   SETSIG(SIGFPE,0);
@@ -1991,7 +1991,7 @@ c_drhook_init_(const char *progname,
   progname = trim(progname, &progname_len);
   a_out = calloc_drhook(progname_len+1,sizeof(*progname));
   memcpy(a_out, progname, progname_len);
-#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+#if defined(LINUX) && !defined(XT3) && !defined(XD1) && !defined(DARWIN)
   if (!gdbcmd) {
     gdbcmd = malloc_drhook( 65536 * sizeof(*gdbcmd) );
     sprintf(gdbcmd,
