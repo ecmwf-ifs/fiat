@@ -25,6 +25,27 @@ int drhook_lhook = 1;
 extern int drhook_lhook;
 #endif
 
+#ifndef O_LOCK_DONE
+#define O_LOCK_DONE
+
+/* OpenMP/ODB lock type */
+/* Keep consistent with "odb/include/privpub.h" */
+/* Be ALSO consistent with OML_LOCK_KIND in ifsaux/module/yomoml.F90 */
+
+typedef long long int o_lock_t; /* i.e. 64-bit integer */
+
+extern void coml_init_lock_();
+extern void coml_init_lockid_(o_lock_t *mylock);
+extern void coml_set_lock_();
+extern void coml_set_lockid_(o_lock_t *mylock);
+extern void coml_unset_lock_();
+extern void coml_unset_lockid_(o_lock_t *mylock);
+extern void coml_test_lock_(int *is_set);
+extern void coml_test_lockid_(int *is_set, o_lock_t *mylock);
+extern void coml_in_parallel_(int *is_parallel_region);
+
+#endif
+
 /* drhook.c external interfaces */
 
 extern void
@@ -98,30 +119,36 @@ Dr_Hook(const char *name, int option, double *handle,
 	const char *filename, int sizeinfo,
 	int name_len, int filename_len);
 
-#define DRHOOK_START(name) \
+#define DRHOOK_START_RECUR(name,recur) \
   static const char *drhook_name = #name; \
   static const int drhook_name_len = sizeof(#name) - 1; /* Compile time eval */ \
   static const char *drhook_filename = __FILE__; \
   static const int drhook_filename_len = sizeof(__FILE__) - 1; /* Compile time eval */ \
   double zhook_handle; \
-  if (drhook_lhook) Dr_Hook(drhook_name, 0, &zhook_handle, \
-			    drhook_filename, 0, \
-			    drhook_name_len, drhook_filename_len)
+  if (!recur && drhook_lhook) Dr_Hook(drhook_name, 0, &zhook_handle, \
+      			              drhook_filename, 0, \
+			              drhook_name_len, drhook_filename_len)
 
-#define DRHOOK_START_BY_STRING(name) \
+#define DRHOOK_START(name) DRHOOK_START_RECUR(name,0)
+
+#define DRHOOK_START_BY_STRING_RECUR(name, recur) \
   static const char *drhook_name = name; \
   static const int drhook_name_len = sizeof(name) - 1; /* Compile time eval */ \
   static const char *drhook_filename = __FILE__; \
   static const int drhook_filename_len = sizeof(__FILE__) - 1; /* Compile time eval */ \
   double zhook_handle; \
-  if (drhook_lhook) Dr_Hook(drhook_name, 0, &zhook_handle, \
-			    drhook_filename, 0, \
-			    drhook_name_len, drhook_filename_len)
+  if (!recur && drhook_lhook) Dr_Hook(drhook_name, 0, &zhook_handle, \
+			              drhook_filename, 0, \
+			              drhook_name_len, drhook_filename_len)
 
-#define DRHOOK_END(sizeinfo) \
-  if (drhook_lhook) Dr_Hook(drhook_name, 1, &zhook_handle, \
+#define DRHOOK_START_BY_STRING(name) DRHOOK_START_BY_STRING_RECUR(name,0)
+
+#define DRHOOK_END_RECUR(sizeinfo,recur) \
+  if (!recur && drhook_lhook) Dr_Hook(drhook_name, 1, &zhook_handle, \
 			    drhook_filename, sizeinfo, \
 			    drhook_name_len, drhook_filename_len)
+
+#define DRHOOK_END(sizeinfo) DRHOOK_END_RECUR(sizeinfo,0) 
 
 
 /* Fortran routines */

@@ -1,7 +1,8 @@
 MODULE ECsort
-USE PARKIND1  ,ONLY : JPIM     ,JPIB     ,JPRB     ,JPRM
-USE YOMHOOK, ONLY : LHOOK, DR_HOOK
-USE strhandler, only : TOUPPER
+USE PARKIND1   , ONLY : JPIM     ,JPIB     ,JPRB     ,JPRM
+USE YOMHOOK    , ONLY : LHOOK, DR_HOOK
+USE YOMOML     , ONLY : OML_MY_THREAD
+USE STRHANDLER , ONLY : TOUPPER
 
 !..   Author: Sami Saarinen, ECMWF, 10/02/98
 !     Fixes : Sami Saarinen, ECMWF, 08/11/99 : Sub-arrays go now correctly (look for addrdiff)
@@ -11,11 +12,16 @@ USE strhandler, only : TOUPPER
 !             Sami Saarinen, ECMWF, 28/11/03 : Calls to DR_HOOK added manually (on top of CY28)
 !             Sami Saarinen, ECMWF, 18/02/05 : 64-bit integer sorting introduced (for CY30)
 !             Sami Saarinen, ECMWF, 22/02/05 : Using genuine 64-bit rsort64() => one-pass through data
+!             Sami Saarinen, ECMWF, 06/07/05 : "current_method" made OpenMP-thread aware (for max. # of threads = NTHRDS)
+!             Sami Saarinen, ECMWF, 07/07/05 : Quick-sort method finally arrived (and applicable to multikeys, too)
+!                                              Quick-sort the default for scalar machines ("non-VPP"), VPPs is radix-sort
 
 
 IMPLICIT NONE
-
+SAVE
 PRIVATE
+
+INTEGER(KIND=JPIM), parameter :: NTHRDS = 32 ! ***Note: A hardcoded max number of threads !!!
 
 INTEGER(KIND=JPIM), parameter :: sizeof_int   = 4
 INTEGER(KIND=JPIM), parameter :: sizeof_int8  = 8
@@ -23,16 +29,20 @@ INTEGER(KIND=JPIM), parameter :: sizeof_real4 = 4
 INTEGER(KIND=JPIM), parameter :: sizeof_real8 = 8
 
 INTEGER(KIND=JPIM), parameter :: min_method = 1
-INTEGER(KIND=JPIM), parameter :: max_method = 2
-!     integer, parameter :: max_method = 3
+INTEGER(KIND=JPIM), parameter :: max_method = 3
 
 INTEGER(KIND=JPIM), parameter :: radixsort_method = 1
 INTEGER(KIND=JPIM), parameter :: heapsort_method  = 2
-!--   To be implemented: QuickSort
-!     integer, parameter :: quicksort_method = 3
+INTEGER(KIND=JPIM), parameter :: quicksort_method = 3
 
+!-- Select such method for default_method, which also works for multikey sorts
+!   Vector machines should choose radixsort_method, others quicksort_method
+#ifdef VPP
 INTEGER(KIND=JPIM), parameter :: default_method = radixsort_method
-INTEGER(KIND=JPIM)            :: current_method = default_method
+#else
+INTEGER(KIND=JPIM), parameter :: default_method = quicksort_method
+#endif
+INTEGER(KIND=JPIM)            :: current_method(NTHRDS) = default_method
 
 INTERFACE keysort
 MODULE PROCEDURE &
@@ -60,10 +70,12 @@ SUBROUTINE int_sorting_method(inew, iold)
 INTEGER(KIND=JPIM), intent(in)  :: inew
 INTEGER(KIND=JPIM), intent(out) :: iold
 INTEGER(KIND=JPIM) :: itmp
+INTEGER(KIND=JPIM) :: ITID
+ITID = OML_MY_THREAD()
 itmp = inew
-if (itmp == -1) itmp = default_method
-iold = current_method
-current_method = min(max(min_method,itmp),max_method)
+if (itmp < min_method .or. itmp > max_method) itmp = default_method
+iold = current_method(ITID)
+current_method(ITID) = itmp
 END SUBROUTINE int_sorting_method
 
 
@@ -75,13 +87,15 @@ clnew = cdnew
 CALL toupper(clnew)
 select case (clnew)
 case ('RADIX')
-CALL sorting_method(radixsort_method, iold)
+  CALL sorting_method(radixsort_method, iold)
 case ('HEAP')
-CALL sorting_method(heapsort_method, iold)
-!     case ('QUICK')
-!        CALL sorting_method(quicksort_method, iold)
+  CALL sorting_method(heapsort_method, iold)
+case ('QUICK')
+  CALL sorting_method(quicksort_method, iold)
+case ('DEFAULT')
+  CALL sorting_method(default_method, iold)
 case default
-CALL sorting_method(default_method, iold)
+  CALL sorting_method(default_method, iold)
 end select
 END SUBROUTINE str_sorting_method
 
@@ -139,6 +153,7 @@ a(:) = aa(:,1)
  99   continue
 IF (LHOOK) CALL DR_HOOK('ECSORT:INT_KEYSORT_1D',1,ZHOOK_HANDLE)
 END SUBROUTINE int_keysort_1D
+
 
 SUBROUTINE int8_keysort_1D(rc, a, n,method, descending,index, init)
 INTEGER(KIND=JPIM), intent(out)           :: rc
@@ -217,8 +232,7 @@ ikey = 1
 if (present(descending)) then
   if (descending) ikey = -1
 endif
-!CALL keysort(rc, aa, n, key=ikey, method=method, index=index, init=init)
-CALL real8_keysort_2D(rc, aa, n, key=ikey, method=method, index=index, init=init)
+CALL keysort(rc, aa, n, key=ikey, method=method, index=index, init=init)
 a(:) = aa(:,1)
  99   continue
 IF (LHOOK) CALL DR_HOOK('ECSORT:REAL8_KEYSORT_1D',1,ZHOOK_HANDLE)
@@ -245,7 +259,9 @@ INTEGER(KIND=JPIM) :: lda, iptr, i, j, sda, idiff
 INTEGER(KIND=JPIM), allocatable :: data(:)
 INTEGER(KIND=JPIM), allocatable :: ikeys(:)
 logical iinit, descending, LLtrans
-REAL(KIND=JPRB) :: ZHOOK_HANDLE, ZHOOK_HANDLE_RSORT
+REAL(KIND=JPRB) :: ZHOOK_HANDLE, ZHOOK_HANDLE_RSORT, ZHOOK_HANDLE_ECQSORT
+INTEGER(KIND=JPIM) :: ITID
+ITID = OML_MY_THREAD()
 IF (LHOOK) CALL DR_HOOK('ECSORT:INT_KEYSORT_2D',0,ZHOOK_HANDLE)
 
 rc = 0
@@ -253,7 +269,7 @@ lda = size(a, dim=1)
 sda = size(a, dim=2)
 if (n <= 0 .or. lda <= 0 .or. sda <= 0) goto 99
 
-imethod = current_method
+imethod = current_method(ITID)
 if (present(method)) then
   imethod = min(max(min_method,method),max_method)
 endif
@@ -269,8 +285,10 @@ else
   ikeys(1) = ikey
 endif
 
-!--   Only the RADIX-sort gives the result we want with multiple keys
-if (size(ikeys) > 1) imethod = radixsort_method
+!--   Only the RADIX-sort & now QUICK-sort give the result we want with multiple keys
+if (size(ikeys) > 1 .and. &
+    imethod /= radixsort_method .and. &
+    imethod /= quicksort_method) imethod = default_method
 
 iinit = .FALSE.
 if (present(init)) iinit = init
@@ -298,6 +316,7 @@ endif
 do j=size(ikeys),1,-1
 !--   Sort by the least significant key first
   ikey = abs(ikeys(j))
+  if (ikey == 0) cycle
 
   if (istride == 1) then
     iptr = lda * (ikey - 1) + 1
@@ -325,6 +344,10 @@ do j=size(ikeys),1,-1
     else
       CALL int_heapsort(n, a(ikey, 1:n), iindex, rc)
     endif
+  case (quicksort_method)
+    IF (LHOOK) CALL DR_HOOK('ECQSORT_11',0,ZHOOK_HANDLE_ECQSORT)
+    CALL ecqsort(11, n, istride, iptr, a(1,1), iindex(1), 1, rc)
+    IF (LHOOK) CALL DR_HOOK('ECQSORT_11',1,ZHOOK_HANDLE_ECQSORT)
   end select
 
   if (descending) then
@@ -390,7 +413,9 @@ INTEGER(KIND=JPIM) :: lda, iptr, i, j, sda, idiff
 INTEGER(KIND=JPIB), allocatable :: data(:)
 INTEGER(KIND=JPIM), allocatable :: ikeys(:)
 logical iinit, descending, LLtrans
-REAL(KIND=JPRB) :: ZHOOK_HANDLE, ZHOOK_HANDLE_RSORT
+REAL(KIND=JPRB) :: ZHOOK_HANDLE, ZHOOK_HANDLE_RSORT, ZHOOK_HANDLE_ECQSORT
+INTEGER(KIND=JPIM) :: ITID
+ITID = OML_MY_THREAD()
 IF (LHOOK) CALL DR_HOOK('ECSORT:INT8_KEYSORT_2D',0,ZHOOK_HANDLE)
 
 rc = 0
@@ -398,7 +423,7 @@ lda = size(a, dim=1)
 sda = size(a, dim=2)
 if (n <= 0 .or. lda <= 0 .or. sda <= 0) goto 99
 
-imethod = current_method
+imethod = current_method(ITID)
 if (present(method)) then
   imethod = min(max(min_method,method),max_method)
 endif
@@ -414,8 +439,10 @@ else
   ikeys(1) = ikey
 endif
 
-!--   Only the RADIX-sort gives the result we want with multiple keys
-if (size(ikeys) > 1) imethod = radixsort_method
+!--   Only the RADIX-sort & now QUICK-sort give the result we want with multiple keys
+if (size(ikeys) > 1 .and. &
+    imethod /= radixsort_method .and. &
+    imethod /= quicksort_method) imethod = default_method
 
 iinit = .FALSE.
 if (present(init)) iinit = init
@@ -443,6 +470,7 @@ endif
 do j=size(ikeys),1,-1
 !--   Sort by the least significant key first
   ikey = abs(ikeys(j))
+  if (ikey == 0) cycle
 
   if (istride == 1) then
     iptr = lda * (ikey - 1) + 1
@@ -471,6 +499,10 @@ do j=size(ikeys),1,-1
     else
       CALL int8_heapsort(n, a(ikey, 1:n), iindex, rc)
     endif
+  case (quicksort_method)
+    IF (LHOOK) CALL DR_HOOK('ECQSORT_14',0,ZHOOK_HANDLE_ECQSORT)
+    CALL ecqsort(14, n, istride, iptr, a(1,1), iindex(1), 1, rc)
+    IF (LHOOK) CALL DR_HOOK('ECQSORT_14',1,ZHOOK_HANDLE_ECQSORT)
   end select
 
   if (descending) then
@@ -536,7 +568,9 @@ INTEGER(KIND=JPIM) :: lda, iptr, i, j, sda, idiff
 REAL(KIND=JPRM), allocatable :: data(:)
 INTEGER(KIND=JPIM), allocatable :: ikeys(:)
 logical iinit, descending, LLtrans
-REAL(KIND=JPRB) :: ZHOOK_HANDLE, ZHOOK_HANDLE_RSORT
+REAL(KIND=JPRB) :: ZHOOK_HANDLE, ZHOOK_HANDLE_RSORT, ZHOOK_HANDLE_ECQSORT
+INTEGER(KIND=JPIM) :: ITID
+ITID = OML_MY_THREAD()
 IF (LHOOK) CALL DR_HOOK('ECSORT:REAL4_KEYSORT_2D',0,ZHOOK_HANDLE)
 
 rc = 0
@@ -544,7 +578,7 @@ lda = size(a, dim=1)
 sda = size(a, dim=2)
 if (n <= 0 .or. lda <= 0 .or. sda <= 0) goto 99
 
-imethod = current_method
+imethod = current_method(ITID)
 if (present(method)) then
   imethod = min(max(min_method,method),max_method)
 endif
@@ -560,8 +594,10 @@ else
   ikeys(1) = ikey
 endif
 
-!--   Only the RADIX-sort gives the result we want with multiple keys
-if (size(ikeys) > 1) imethod = radixsort_method
+!--   Only the RADIX-sort & now QUICK-sort give the result we want with multiple keys
+if (size(ikeys) > 1 .and. &
+    imethod /= radixsort_method .and. &
+    imethod /= quicksort_method) imethod = default_method
 
 iinit = .FALSE.
 if (present(init)) iinit = init
@@ -589,6 +625,7 @@ endif
 do j=size(ikeys),1,-1
 !--   Sort by least significant key first
   ikey = abs(ikeys(j))
+  if (ikey == 0) cycle
 
   if (istride == 1) then
     iptr = lda * (ikey - 1) + 1
@@ -616,6 +653,10 @@ do j=size(ikeys),1,-1
     else
       CALL real4_heapsort(n, a(ikey, 1:n), iindex, rc)
     endif
+  case (quicksort_method)
+    IF (LHOOK) CALL DR_HOOK('ECQSORT_13',0,ZHOOK_HANDLE_ECQSORT)
+    CALL ecqsort(13, n, istride, iptr, a(1,1), iindex(1), 1, rc)
+    IF (LHOOK) CALL DR_HOOK('ECQSORT_13',1,ZHOOK_HANDLE_ECQSORT)
   end select
 
   if (descending) then
@@ -681,7 +722,9 @@ INTEGER(KIND=JPIM) :: lda, iptr, i, j, sda, idiff
 REAL(KIND=JPRB), allocatable :: data(:)
 INTEGER(KIND=JPIM), allocatable :: ikeys(:)
 logical iinit, descending, LLtrans
-REAL(KIND=JPRB) :: ZHOOK_HANDLE, ZHOOK_HANDLE_RSORT
+REAL(KIND=JPRB) :: ZHOOK_HANDLE, ZHOOK_HANDLE_RSORT, ZHOOK_HANDLE_ECQSORT
+INTEGER(KIND=JPIM) :: ITID
+ITID = OML_MY_THREAD()
 IF (LHOOK) CALL DR_HOOK('ECSORT:REAL8_KEYSORT_2D',0,ZHOOK_HANDLE)
 
 rc = 0
@@ -689,7 +732,7 @@ lda = size(a, dim=1)
 sda = size(a, dim=2)
 if (n <= 0 .or. lda <= 0 .or. sda <= 0) goto 99
 
-imethod = current_method
+imethod = current_method(ITID)
 if (present(method)) then
   imethod = min(max(min_method,method),max_method)
 endif
@@ -705,8 +748,10 @@ else
   ikeys(1) = ikey
 endif
 
-!--   Only the RADIX-sort gives the result we want with multiple keys
-if (size(ikeys) > 1) imethod = radixsort_method
+!--   Only the RADIX-sort & now QUICK-sort give the result we want with multiple keys
+if (size(ikeys) > 1 .and. &
+    imethod /= radixsort_method .and. &
+    imethod /= quicksort_method) imethod = default_method
 
 iinit = .FALSE.
 if (present(init)) iinit = init
@@ -734,6 +779,7 @@ endif
 do j=size(ikeys),1,-1
 !--   Sort by least significant key first
   ikey = abs(ikeys(j))
+  if (ikey == 0) cycle
 
   if (istride == 1) then
     iptr = lda * (ikey - 1) + 1
@@ -762,6 +808,10 @@ do j=size(ikeys),1,-1
     else
       CALL real8_heapsort(n, a(ikey, 1:n), iindex, rc)
     endif
+  case (quicksort_method)
+    IF (LHOOK) CALL DR_HOOK('ECQSORT_12',0,ZHOOK_HANDLE_ECQSORT)
+    CALL ecqsort(12, n, istride, iptr, a(1,1), iindex(1), 1, rc)
+    IF (LHOOK) CALL DR_HOOK('ECQSORT_12',1,ZHOOK_HANDLE_ECQSORT)
   end select
 
   if (descending) then

@@ -8,6 +8,7 @@
 /* 
    by Sami Saarinen, ECMWF, 22/02/2005 : Initial version derived from rsort32.c
            - " -            23/02/2005 : Fixes and some optimizations
+           - " -            07/07/2005 : Mods in index_adj & bitsum
       
 
    Thanks to Mike Fisher, ECMWF
@@ -74,7 +75,7 @@ extern void __free(void *vptr);   /* getcurheap.c */
 
 #define FREE(x)           if (x) { free(x); x = NULL; }
 
-#define BITSUM(x) bitsum[x] += ((item & (1ull << x)) >> x)
+#define BITSUM(x) bitsum[x] += ((item >> x) & 1ull)
 
 #define SIGNBIT64   0x8000000000000000ull
 #define MASKALL64   0xFFFFFFFFFFFFFFFFull
@@ -99,8 +100,8 @@ rsort64_(const    int *Mode,       /* if < 10, then index[] needs to be initiali
   int n = *N;
   int rc = n;
   int inc = *Inc;
-  int addr = (*Start_addr) - 1; /* Fortran to C */
   int index_adj = *Index_adj;
+  int addr = (*Start_addr) - 1; /* Fortran to C */
   int i, j, jj;
   Uchar xorit = 0;
   Uchar copytmp = 0;
@@ -126,20 +127,9 @@ rsort64_(const    int *Mode,       /* if < 10, then index[] needs to be initiali
     goto finish;
   }
 
-#if 0
-  printf("rsort64(%d/%d): data[length=%d, inc=%d, addr=%d, index_adj=%d] : \n",
-	 mode,method,n,inc,addr,index_adj);
-#endif
-
   if (mode < 10) {
     /* index[] needs to be initialized */
-    for (i=0; i<n; i++) index[i] = i + 1; /* Fortran-index */
-  }
-  else {
-    if (index_adj == 0) {
-      /* Convert C index[] to Fortran-index */
-      for (i=0; i<n; i++) index[i] += 1;
-    }
+    for (i=0; i<n; i++) index[i] = i + index_adj; /* Fortran-index */
   }
 
   j = addr;
@@ -159,7 +149,6 @@ rsort64_(const    int *Mode,       /* if < 10, then index[] needs to be initiali
     if (inc == 1) { /* optimization */
       for (i=0; i<n; i++) {
 	data[i] ^= SIGNBIT64;
-	j += inc;
       }
     }
     else {
@@ -176,14 +165,6 @@ rsort64_(const    int *Mode,       /* if < 10, then index[] needs to be initiali
       j += inc;
     }
   }
-
-#if 0
-  /*
-  for (i=0; i<n; i++) {
-    printf("%12llu ; %12lld ; ordered=%12llu\n",data[i], data[i], data[index[i]]);
-  }
-  */
-#endif
 
   /* Check whether particular "bit-columns" are all zero or one */
 
@@ -210,14 +191,6 @@ rsort64_(const    int *Mode,       /* if < 10, then index[] needs to be initiali
     BITSUM(60); BITSUM(61); BITSUM(62); BITSUM(63);
   }
 
-#if 0
-  printf(">> bitsum : (n=%d)\n",n);
-  for (j=0; j<N64BITS; j++) {
-     printf("%u ",bitsum[j]);
-  }
-  printf("\n");
-#endif
-
   ALLOC(tmp, n);
 
   jj = 0;
@@ -241,21 +214,17 @@ rsort64_(const    int *Mode,       /* if < 10, then index[] needs to be initiali
       if (SpeedUp == 0) {
 	int k = 0;
 	for (i=0; i<n; i++) /* Gather zero bits */
-	  if ( (data[i1[i]-1] & mask) ==    0 ) i2[k++] = i1[i];
+	  if ( (data[i1[i]-index_adj] & mask) ==    0 ) i2[k++] = i1[i];
 	
 	for (i=0; i<n; i++) /* Gather one bits */
-	  if ( (data[i1[i]-1] & mask) == mask ) i2[k++] = i1[i];
+	  if ( (data[i1[i]-index_adj] & mask) == mask ) i2[k++] = i1[i];
       }
       else
       {
 	int k1 = 0, k2 = n-sum;
 	for (i=0; i<n; i++) { /* Gather zero & one bits in a single sweep */
-	  if ( (data[i1[i]-1] & mask) ==    0 ) {
-	    i2[k1++] = i1[i];  /* Gather zero bits */
-	  }
-	  else if ( (data[i1[i]-1] & mask) == mask ) {
-	    i2[k2++] = i1[i];  /* Gather one bits */
-	  }
+	  Uint64 value = data[i1[i]-index_adj] & mask;
+	  i2[value == 0 ? k1++ : k2++] = i1[i];
 	} /* for (i=0; i<n; i++) */
 	if (k1 + sum != n || k2 != n) {
 	  fprintf(stderr,
@@ -269,21 +238,11 @@ rsort64_(const    int *Mode,       /* if < 10, then index[] needs to be initiali
     } /* if (sum > 0 && sum < n) */
   }
 
-  if (copytmp) {
-    if (index_adj == 0) {
-      for (i=0; i<n; i++) index[i] = tmp[i] - 1; /* Back to C-indexing (at the same time) */
-    }
-    else {
-      for (i=0; i<n; i++) index[i] = tmp[i];
-    }
-  }
-  else if (index_adj == 0) {
-    for (i=0; i<n; i++) index[i] -= 1; /* Back to C-indexing */
-  }
+  if (copytmp) for (i=0; i<n; i++) index[i] = tmp[i];
 
   FREE(tmp);
 
-  if (xorit && inc == 1) {
+  if (!alloc_data && xorit && inc == 1) {
     /* 64-bit signed ints : backward */
     for (i=0; i<n; i++) data[i] ^= SIGNBIT64;
   }

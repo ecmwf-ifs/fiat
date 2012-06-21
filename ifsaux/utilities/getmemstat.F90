@@ -39,10 +39,9 @@ if (kout >= 0) then
 
   if (imyproc == 1) then
      WRITE(KOUT,9000) trim(cdlabel)
-9000 FORMAT(/,"Memory Utilization Information (in bytes) : ",a,/,&
-           &79("="),//,&
-           &"Node   Max heapsize   Max resident   Current heap      Max stack   I/O-paging #",/,&
-           &"====   ============   ============   ============   ============   ============",//)
+9000 FORMAT(/,"Memory Utilization Information (in bytes) : ",a,/,79("="),//,&
+         &  "Node   Max heapsize   Max resident   Current heap      Max stack   I/O-paging #",/,&
+         &  "====   ============   ============   ============   ============   ============",//)
      IOFFSET = 0
      DO I=1,INPROC
        IMEMVALS(:) = ZRECV(IOFFSET+1:IOFFSET+JP_MEMKEYS)

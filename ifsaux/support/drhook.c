@@ -1,3 +1,4 @@
+
 #define _DRHOOK_C_   1
 
 /* 
@@ -6,7 +7,14 @@
    Author: Sami Saarinen, ECMWF, 14..24-Nov-2003
 
    Thanks to Bob Walkup & John Hague for IBM Power4 version
-   Thanks to Bob Carruthers for Cray X1 (SV2) version
+   Thanks to Bob Carruthers for Cray X1 (SV2), XD1 and XT3 versions,
+   as well as David Tanqueray for the flop routines
+
+   Also thanks to Roland Richter for suggesting the use
+   of "call tracebackqq()" function.
+   In our environment this is accomplished by calling fortran
+   routine intel_trbk() from ifsaux/utilities/gentrbk.F90.
+   This source must be compiled with -DINTEL flag, too.
 
 */
 
@@ -16,7 +24,7 @@ should be activated to use pm_initialize() instead of pm_init() of PMAPI-lib ($L
 #define PMAPI_POST_P4
 */
 
-#if defined(SV2)
+#if defined(SV2) || defined(XD1) || defined(XT3)
 #define DT_FLOP
 #define HPM
 #define MAX_COUNTERS 6
@@ -37,7 +45,7 @@ static char *end_stamp = NULL;
 #include <ucontext.h>
 #endif
 
-#ifdef LINUX
+#if defined(LINUX) && !defined(XT3) && !defined(XD1)
 
 #if defined(__GNUC__)
 #include <execinfo.h>
@@ -63,6 +71,12 @@ static void untrapfpe(void)
 #endif
 
 static char *gdbcmd = NULL;
+
+#if !defined(ADDR2LINE)
+#define ADDR2LINE "/usr/bin/addr2line"
+#endif
+
+static char *addr2linecmd = NULL;
 
 #endif
 
@@ -91,13 +105,15 @@ static int callpath_indent = callpath_indent_default;
 #define callpath_depth_default 50
 static int callpath_depth = callpath_depth_default;
 
+static int opt_calltrace = 0;
+
 /* HPM-specific */
 
 static long long int opt_hpmstop_threshold = -1;
 static        double opt_hpmstop_mflops    =  1000000.0; /* Yes, 1 PetaFlop/s !! */
 
 
-#define DRHOOK_STRBUF 200
+#define DRHOOK_STRBUF 1000
 
 #ifndef SA_SIGINFO
 #define SA_SIGINFO 0
@@ -117,9 +133,9 @@ static        double opt_hpmstop_mflops    =  1000000.0; /* Yes, 1 PetaFlop/s !!
 #undef ABS
 #define ABS(x)   ( (x) >= 0  ? (x) : -(x) )
 
-#define strequ(s1,s2)     (strcmp(s1,s2) == 0)
+#define strequ(s1,s2)     ((void *)s1 && (void *)s2 && strcmp(s1,s2) == 0)
 /*#define strnequ(s1,s2,n)  (strncmp(s1,s2,n) == 0)*/
-#define strnequ(s1,s2,n)  (memcmp(s1,s2,n) == 0)
+#define strnequ(s1,s2,n)  ((void *)s1 && (void *)s2 && memcmp(s1,s2,n) == 0)
 
 extern long long int getstk_();
 extern long long int getmaxstk_();
@@ -144,10 +160,20 @@ extern double util_cputime_();
 #else
 #if defined(SV2)
 #include <intrinsics.h>
+#endif
+#if defined(XD1) || defined(XT3)
+extern long long int irtc_();             /* integer*8 irtc() */
+extern long long int irtc_rate_();        /* integer*8 irtc_rate() */
+#endif
+#if defined(SV2) || defined(XD1) || defined(XT3)
 static long long int irtc_start = 0;
 static double my_irtc_rate = 0;
 static double my_inv_irtc_rate = 0;
+#if defined(SV2)
 #define WALLTIME() ((double)(_rtc() - irtc_start)*my_inv_irtc_rate)
+#else
+#define WALLTIME() ((double)(irtc_() - irtc_start)*my_inv_irtc_rate)
+#endif
 extern double util_cputime_();
 #define CPUTIME() util_cputime_()
 #else
@@ -277,7 +303,7 @@ typedef struct drhook_watch_t {
 
 /*** static (local) variables ***/
 
-static int DRHOOK_lock = 0;
+static o_lock_t DRHOOK_lock = 0;
 static int numthreads = 0;
 static int myproc = 1;
 static int nproc = -1;
@@ -526,6 +552,7 @@ remove_calltree(int tid, drhook_key_t *keyptr,
 	thiscall[tid] = treeptr->prev;
       }
       else {
+
 	thiscall[tid] = calltree[tid];
       }
 #ifdef HPM
@@ -764,13 +791,24 @@ ignore_signals(int silent)
 
 /*--- gdb__sigdump ---*/
 
-#ifdef LINUX
+#if defined(LINUX) && !defined(XT3) && !defined(XD1)
 static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 {
-  coml_set_lockid_(&DRHOOK_lock);
+  static int who = 0; /* Current owner of the lock, if > 0 */
+  int is_set = 0;
+  int it = get_thread_id_(); 
+
+  coml_test_lockid_(&is_set, &DRHOOK_lock);
+  if (is_set && who == it) {
+    fprintf(stderr,"[gdb__sigdump] : Received (another) signal#%d, pid=%d\n",sig,pid);
+    fprintf(stderr,"[gdb__sigdump] : Called recursively by the same thread#%d !!!\n",it);
+    return;
+  }
+  if (!is_set) coml_set_lockid_(&DRHOOK_lock);
+  who = it;
   fprintf(stderr,"[gdb__sigdump] : Received signal#%d, pid=%d\n",sig,pid);
-#if defined(__GNUC__) && defined(__WORDSIZE) && __WORDSIZE == 32
-  fprintf(stderr,"[gdb__sigdump] : Simple backtrace ...\n");
+#if defined(__GNUC__)
+  fprintf(stderr,"[gdb__sigdump] : Backtrace of program '%s' :\n",a_out ? a_out : "???");
   fflush(NULL);
   {
     /* To have a desired effect, 
@@ -781,19 +819,73 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
     ucontext_t *uc = (ucontext_t *)sigcontextptr;
     int fd = fileno(stderr);
     trace_size = backtrace(trace, GNUC_BTRACE);
+#if defined(REG_EIP)
     /* overwrite sigaction with caller's address */
-    trace[1] = (void *) uc->uc_mcontext.gregs[REG_EIP]; /* Help!! REG_EIP available for 32-bit mode only ? */
-    /* Print traceback directly to fd=2 (stderr) */
-    backtrace_symbols_fd(trace, trace_size,fd);
-    fprintf(stderr,"[gdb__sigdump] : End of simple backtrace\n");
+    trace[1] = (void *) uc->uc_mcontext.gregs[REG_EIP]; /* Help!! REG_EIP available only in 32-bit mode ? */
+#endif
+    if (addr2linecmd) {
+      /* Use ADDR2LINE to obtain source file & line numbers for each trace-address */
+      int i, len = 20;
+      FILE *fp = NULL;
+      char *cmd = malloc_drhook((strlen(addr2linecmd) + trace_size * 30) * sizeof(*cmd));
+      strcpy(cmd,addr2linecmd);
+      for (i = 0; i < trace_size; i++) {
+	char s[30];
+	sprintf(s,(sizeof(void *) == 8) ? " %llx" : " %x",trace[i]);
+	strcat(cmd,s);
+      }
+      fp = popen(cmd,"r");
+      if (fp) {
+	char **strings = backtrace_symbols(trace, trace_size);
+	if (strings) {
+	  for (i = 0; i < trace_size; i++) {
+	    char line[DRHOOK_STRBUF];
+	    if (!feof(fp) && fgets(line, DRHOOK_STRBUF, fp)) {
+	      const char *last_slash = strrchr(strings[i],'/');
+	      if (last_slash) last_slash++; else last_slash = strings[i];
+	      if (*line != '?') {
+		int newlen;
+		char *nl = strchr(line,'\n');
+		if (nl) *nl = '\0';
+		newlen = strlen(line);
+		if (newlen > len) len = newlen;
+		fprintf(stderr, "%*.*s  :  %s\n", len, len, line, last_slash);
+	      }
+	      else {
+		fprintf(stderr, "%*.*s  :  %s\n", len, len, "<Unknown>", last_slash);
+	      }
+	    }
+	    else {
+	      fprintf(stderr, "%s\n", strings[i]);
+	    }
+	  } /* for (i = 0; i < trace_size; i++) */
+	} /* if (strings) */
+	/* free(strings) */
+	fflush(stderr);
+	pclose(fp);
+      } /* if (fp) */
+      free_drhook(cmd);
+    }
+    else {
+      /* Print traceback directly to fd=2 (stderr) */
+      backtrace_symbols_fd(trace, trace_size, fd);
+    } /* if (addr2linecmd) else ... */
   }
+  fprintf(stderr,"[gdb__sigdump] : End of backtrace\n");
 #endif
   if (gdbcmd) {
-    fprintf(stderr,"[gdb__sigdump] : Invoking %s ...\n",GNUDEBUGGER);
-    fflush(NULL);
-    system(gdbcmd);
-    fflush(NULL);
+    char *gdb = getenv("GNUDEBUGGER");
+    if (gdb && (strequ(gdb,"1")    || 
+		strequ(gdb,"true") || 
+		strequ(gdb,"TRUE"))) {
+      fprintf(stderr,"[gdb__sigdump] : Invoking %s ...\n",GNUDEBUGGER);
+      fprintf(stderr,"%s\n",gdbcmd);
+      fflush(NULL);
+      system(gdbcmd);
+      fflush(NULL);
+    }
   }
+  who = 0;
   coml_unset_lockid_(&DRHOOK_lock);
 }
 #endif
@@ -958,18 +1050,21 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 #ifdef RS6K
       xl__sigdump(sig SIG_PASS_EXTRA_ARGS); /* Can't use xl__trce(...), since it also stops */
 #endif
-#ifdef LINUX
-      gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
+#ifdef INTEL
+      intel_trbk_(); /* from ../utilities/gentrbk.F90 */
 #endif
 #ifdef VPP
 #if defined(SA_SIGINFO) && SA_SIGINFO > 0
       _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
 #endif
+#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+      gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
+#endif
       fflush(NULL);
       fprintf(stderr,"Done tracebacks, calling exit with sig=%d, time =%8.2f\n",sig,WALLTIME());
       fflush(NULL);
-      exit(1);
+      _exit(1);
     }
     /* sigprocmask(SIG_SETMASK, &oldmask, 0); */
     /* End critical region : the original signal state restored */
@@ -1005,17 +1100,26 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 #ifdef RS6K
     xl__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
-#ifdef LINUX
-    gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
+#ifdef INTEL
+    intel_trbk_(); /* from ../utilities/gentrbk.F90 */
 #endif
 #ifdef VPP
 #if defined(SA_SIGINFO) && SA_SIGINFO > 0
     _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
 #endif
+#if defined(LINUX) && !defined(XT3) && !defined(XD1)
+    gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
+#endif
     fflush(NULL);
     _exit(1);
   }
+}
+
+void
+c_drhook_set_mpi_()
+{
+  dr_hook_procinfo_(&myproc, &nproc);
 }
 
 
@@ -1039,6 +1143,7 @@ signal_drhook_init(int enforce)
     sprintf(sl->name, "DR_HOOK_SIG#%d", j);
     sl->ignore_atexit = 0;
   }
+  ignore_signals(silent); /* These signals will not be seen by DR_HOOK */
   SETSIG(SIGABRT,0); /* Good to be first */
   SETSIG(SIGBUS,0);
   SETSIG(SIGSEGV,0);
@@ -1067,7 +1172,6 @@ signal_drhook_init(int enforce)
   SETSIG(SIGCONT);
   */
   catch_signals(silent); /* Additional signals to be seen by DR_HOOK */
-  ignore_signals(silent); /* These signals will not be seen by DR_HOOK */
   signals_set = 1; /* Signals are set now */
 }
 
@@ -1151,6 +1255,12 @@ process_options()
     callpath_depth = atoi(env);
     if (callpath_depth < 0) callpath_depth = callpath_depth_default;
     if (fp) fprintf(fp,">>>process_options(): DR_HOOK_CALLPATH_DEPTH=%d\n",callpath_depth);
+  }
+
+  env = getenv("DR_HOOK_CALLTRACE");
+  if (env) {
+    opt_calltrace = atoi(env);
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_CALLTRACE=%d\n",opt_calltrace);
   }
 
   env = getenv("DR_HOOK_HASHBITS");
@@ -1532,8 +1642,12 @@ init_drhook(int ntids)
 #ifdef RS6K
       irtc_start = irtc();
 #endif
+#if defined(SV2) || defined(XD1) || defined(XT3)
 #if defined(SV2)
       irtc_start = _rtc();
+#else
+      irtc_start = irtc_();
+#endif
       my_irtc_rate = irtc_rate_();
       my_inv_irtc_rate = 1.0/my_irtc_rate;
 #endif
@@ -1806,9 +1920,9 @@ check_watch(const char *label,
 	  int tid = get_thread_id_();
 	  if (!calc_crc) crc32_(p->ptr, &p->nbytes, &crc32);
 	  fprintf(stderr,
-   "***%s: Watch point '%s' at address 0x%x has changed (detected in tid#%d when %s routine %.*s) : new crc32=%u\n",
+   "***%s: Watch point '%s' at address 0x%x on myproc#%d has changed (detected in tid#%d when %s routine %.*s) : new crc32=%u\n",
 		  p->abort_if_changed ? "Error" : "Warning",
-		  p->name, p->ptr, tid,
+		  p->name, p->ptr, myproc, tid,
 		  label, name_len, name, crc32);
 	  if (p->abort_if_changed) RAISE(SIGABRT);
 	  p->active = 0; /* No more these messages for this array */
@@ -1877,25 +1991,30 @@ c_drhook_init_(const char *progname,
   progname = trim(progname, &progname_len);
   a_out = calloc_drhook(progname_len+1,sizeof(*progname));
   memcpy(a_out, progname, progname_len);
-#ifdef LINUX
+#if defined(LINUX) && !defined(XT3) && !defined(XD1)
   if (!gdbcmd) {
     gdbcmd = malloc_drhook( 65536 * sizeof(*gdbcmd) );
     sprintf(gdbcmd,
-	    "/bin/echo 'set confirm off\nset pagination off\nwhere' > gdb_drhook.%d ; "
-	    "%s -x gdb_drhook.%d -q -n -batch %s %d < /dev/null ; "
-	    "/bin/rm -f gdb_drhook.%d"
-#if 1
-	    /* pgf90 -mp makes the current process "pid" to hang => kill -9 for now */
-	    " ; /bin/kill -9 %d"
-#endif
+	    "/bin/echo '"
+	    "set watchdog 5\n"
+	    "set confirm off\n"
+	    "set pagination off\n"
+	    "set print elements 16\n"
+	    "set print sevenbit-strings on\n"
+	    "where\n"
+	    "quit\n' > gdb_drhook.%d ; "
+	    "(nice -10 %s -x gdb_drhook.%d -q -n -batch %s %d < /dev/null) & "
+	    /* pgf90 -mp makes the current process "pid" sometimes to hang => kill -9 for now */
+	    "pid=$!; sleep 10; /bin/kill -9 $pid %d >/dev/null 2>&1 ; /bin/rm -f gdb_drhook.%d"
 	    , pid, 
-	    GNUDEBUGGER, pid, a_out, pid,
-	    pid
-#if 1
+	    GNUDEBUGGER, pid, a_out, pid
 	    /* Related to pgf90 -mp problems ; See above */
-	    , pid
-#endif
+	    , pid, pid
 	    );
+  }
+  if (!addr2linecmd) {
+    addr2linecmd = malloc_drhook( (strlen(ADDR2LINE) + 10 + strlen(a_out)) * sizeof(*addr2linecmd) );
+    sprintf(addr2linecmd,"%s -e %s",ADDR2LINE,a_out);
   }
 #endif
 }
@@ -1953,8 +2072,8 @@ c_drhook_watch_(const int *onoff,
   p->crc32 = 0;
   crc32_(p->ptr, &p->nbytes, &p->crc32);
   fprintf(stderr,
-  "***Warning: Watch point '%s' was created for address 0x%x (%d bytes, tid#%d) : crc32=%u\n",
-	  p->name, p->ptr, p->nbytes, p->tid, p->crc32);
+  "***Warning: Watch point '%s' was created for address 0x%x (%d bytes, on myproc#%d, tid#%d) : crc32=%u\n",
+          p->name, p->ptr, p->nbytes, myproc, p->tid, p->crc32);
 
   coml_unset_lockid_(&DRHOOK_lock);
 }
@@ -1993,6 +2112,17 @@ c_drhook_start_(const char *name,
   }
   *key = u.d;
   ITSELF_1;
+  if (opt_calltrace) {      
+    coml_set_lockid_(&DRHOOK_lock);
+    {
+      const int ftnunitno = 0; /* stderr */
+      const int print_option = 2; /* calling tree */
+      int level = 0;
+      c_drhook_print_(&ftnunitno, thread_id, &print_option, &level);
+      /* fprintf(stderr,"%d#%d> %*.*s [%llu]\n",myproc,*thread_id,name_len,name_len,name,u.ull); */
+    }
+    coml_unset_lockid_(&DRHOOK_lock);
+  }
 }
 
 /*=== c_drhook_end_ ===*/
@@ -2009,8 +2139,15 @@ c_drhook_end_(const char *name,
   TIMERS;
   equivalence_t u;
   ITSELF_0;
-  if (watch && watch_count > 0) check_watch("leaving", name, name_len);
   u.d = *key;
+  /*
+  if (opt_calltrace) {
+    coml_set_lockid_(&DRHOOK_lock);
+    fprintf(stderr,"%d#%d< %*.*s [%llu]\n",myproc,*thread_id,name_len,name_len,name,u.ull);
+    coml_unset_lockid_(&DRHOOK_lock);
+  }
+  */
+  if (watch && watch_count > 0) check_watch("leaving", name, name_len);
   putkey(*thread_id, u.keyptr, name, name_len, 
 	 *sizeinfo,
 	 &walltime, &cputime);
@@ -2657,6 +2794,7 @@ c_drhook_print_(const int *ftnunitno,
 	  drhook_key_t *keyptr = &keydata[t][j];
 	  while (keyptr) {
 	    if (keyptr->name && (keyptr->status == 0 || signal_handler_called)) {
+
 	      long long int self;
 	      self = keyptr->maxmem_selfdelta;
 	      if (self < 0) self = 0;
@@ -3133,7 +3271,7 @@ stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart)
 
 #else
 
-/**** Interface to HPM (SV2) ****/
+/**** Interface to HPM (CRAY SV2, XD1 and XT3) ****/
 
 static int *hpm_tid_init = NULL;
 static double cycles = 0;
@@ -3159,36 +3297,31 @@ init_hpm(int tid)
 }
 
 static void
-stop_only_hpm(int tid, drhook_key_t *pstop) 
+stop_only_hpm(int tid, drhook_key_t *pstop)
 {
   const char *name = "stop_only_hpm";
   int i, rc;
 
-  /* if (numthreads > 1) pthread_mutex_lock(&hpm_lock); */
+  if (!hpm_tid_init || !hpm_tid_init[tid-1]) init_hpm(tid);
+  --tid;
 
-  /*
-  rc = pm_stop_mythread();
-  TEST_PM_ERROR((char *)name, rc);
-  */
 
   if (pstop && !pstop->counter_stopped) {
-    
+
     if (pstop && pstop->counter_in && !pstop->counter_stopped) {
 #if defined(DT_FLOP)
       pstop->counter_sum[0] += ((long long int) flop_() - pstop->counter_in[0]);
+#if defined(SV2)
       pstop->counter_sum[4] += (_rtc() - pstop->counter_in[4]);
+#else
+      pstop->counter_sum[4] += (irtc_() - pstop->counter_in[4]);
+#endif
 #endif
       pstop->counter_stopped = 1;
     }
   }
-
-  /*
-  rc = pm_start_mythread();
-  TEST_PM_ERROR((char *)name, rc);
-  */
-
-  /* if (numthreads > 1) pthread_mutex_unlock(&hpm_lock); */
 }
+
 
 static void
 stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart)
@@ -3196,31 +3329,37 @@ stopstart_hpm(int tid, drhook_key_t *pstop, drhook_key_t *pstart)
   const char *name = "stopstart_hpm";
   int i, rc;
 
-  if (pstop && pstop->counter_in) {
+  if (!hpm_tid_init || !hpm_tid_init[tid-1]) init_hpm(tid);
+  --tid;
+
+  if (pstop && pstop->counter_in && !pstop->counter_stopped) {
 #if defined(DT_FLOP)
       pstop->counter_sum[0] += ((long long int) flop_() - pstop->counter_in[0]);
+#if defined(SV2)
       pstop->counter_sum[4] += (_rtc() - pstop->counter_in[4]);
+#else
+      pstop->counter_sum[4] += (irtc_() - pstop->counter_in[4]);
 #endif
+#endif
+    pstop->counter_stopped = 1;
   }
 
   if (pstart) {
     if (!pstart->counter_in ) pstart->counter_in  = calloc_drhook(MAX_COUNTERS, sizeof(*pstart->counter_in ));
     if (!pstart->counter_sum) pstart->counter_sum = calloc_drhook(MAX_COUNTERS, sizeof(*pstart->counter_sum));
 #if defined(DT_FLOP)
-       pstart->counter_in[0] = (long long int) flop_();
-       pstart->counter_in[4] = _rtc();
+      pstart->counter_in[0] = (long long int) flop_();
+#if defined(SV2)
+      pstart->counter_in[4] = _rtc();
+#else
+      pstart->counter_in[4] = irtc_();
 #endif
+#endif
+     pstart->counter_stopped = 0;
   }
-
-  /*
-  rc = pm_start_mythread();
-  TEST_PM_ERROR((char *)name, rc);
-  */
-
-  /* if (numthreads > 1) pthread_mutex_unlock(&hpm_lock); */
 }
 
-#endif /*Interface to RS6K and SV2 */
+#endif /*Interface to RS6K and SV2, XD1, XT3 */
 
 static double
 mflops_hpm(const drhook_key_t *keyptr)
@@ -3384,8 +3523,6 @@ double util_walltime_()
 #endif
 
 
-#ifndef CRAY
-
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -3470,11 +3607,21 @@ int util_ihpstat_(int *option)
     int pagesize = 1; /* getpagesize() */
     fujitsu_getrusage(0, &rusage);
 #endif
+#if defined(SV2)
+    int pagesize = getpagesize();
+    getrusage(0, &rusage);
+#endif
+#if defined(XT3)
+    int pagesize = getpagesize();
+    getrusage(0, &rusage);
+#endif
+#if defined(XD1)
+    int pagesize = getpagesize();
+    getrusage(0, &rusage);
+#endif
     ret_value = (rusage.ru_maxrss * pagesize + 7) / 8; /* In 8 byte words */
   }
 #endif /* SGI or VPP */
 
   return ret_value;
 }
-
-#endif /* not def CRAY */

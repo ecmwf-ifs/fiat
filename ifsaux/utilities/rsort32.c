@@ -18,6 +18,8 @@
          - " -            18/02/2005 : Handle 64-bit (signed) ints
                                        IBM malloc() may call __malloc()/__free() [see getcurheap.c]
          - " -            21/02/2005 : Some optimization & endian detection on-the-fly
+         - " -            07/07/2005 : Mods in index_adj & bitsum
+	                               Added support for 64-bit unsigned ints
 
    Thanks to Mike Fisher, ECMWF
    and Cray SCILIB ORDERS()-function developers
@@ -31,10 +33,11 @@
    2 :          64-bit doubles (IEEE) : signbit + 11-bit exp + 52-bits mantissa
    3 :          32-bit floats  (IEEE) : signbit +  8-bit exp + 23-bits mantissa
    4 :   Signed 64-bit ints
+   5 : Unsigned 64-bit ints
 
 */
 
-typedef unsigned int  Uint;
+typedef unsigned int  Uint32;
 typedef unsigned char Uchar;
 
 #ifdef __uxppx__
@@ -61,6 +64,7 @@ static int SpeedUp = 1;
 #define SORT_R64  2
 #define SORT_R32  3
 #define SORT_I64  4
+#define SORT_U64  5
 
 /* Offset adjustment for 64-bit double handling on big/little endian machines */
 
@@ -86,7 +90,7 @@ extern void __free(void *vptr);   /* getcurheap.c */
 
 #define FREE(x)           if (x) { free(x); x = NULL; }
 
-#define BITSUM(x) bitsum[x] += ((item & (1U << x)) >> x)
+#define BITSUM(x) bitsum[x] += ((item >> x) & 1U)
 
 #define SIGNBIT32   0x80000000
 #define MASKALL32   0xFFFFFFFF
@@ -101,7 +105,7 @@ rsort32_(const    int *Mode,
 	 const    int *N,
 	 const    int *Inc,
 	 const    int *Start_addr,
-	         Uint  Data[],
+	       Uint32  Data[],
 	          int  index[],
 	 const    int *Index_adj,
 	          int *retc)
@@ -111,22 +115,23 @@ rsort32_(const    int *Mode,
   int n = *N;
   int rc = n;
   int inc = *Inc;
-  int addr = (*Start_addr) - 1; /* Fortran to C */
   int index_adj = *Index_adj;
+  int addr = (*Start_addr) - 1; /* Fortran to C */
   int i, j, jj;
   Uchar xorit = 0;
   Uchar copytmp = 0;
   Uchar alloc_data = 0;
-  Uint *data = NULL;
+  Uint32 *data = NULL;
   int *tmp = NULL;
-  Uint bitsum[N32BITS];
+  Uint32 bitsum[N32BITS];
   int lsw, msw;
 
   if (method != SORT_UINT   &&
       method != SORT_INT    &&
       method != SORT_R64    &&
       method != SORT_R32    &&
-      method != SORT_I64 ) {
+      method != SORT_I64    &&
+      method != SORT_U64 ) {
     rc = -1;
     goto finish;
   }
@@ -142,52 +147,45 @@ rsort32_(const    int *Mode,
   }
 
   { /* Little/big-endian selection */
-    const Uint ulbtest = 0x12345678;
-    const unsigned char *clbtest = (const unsigned char *)&ulbtest;
+    extern int is_little_endian();
+    int i_am_little = is_little_endian();
 
-    if (*clbtest == 0x78) { /* We are on little-endian machine */
+    if (i_am_little) { 
+      /* We are on little-endian machine */
       lsw   =  0;
       msw   =  1;
     }
-    else { /* We are on big-endian machine */
+    else { 
+      /* We are on big-endian machine */
       lsw   =  1;
       msw   =  0;
     }
   }
 
   if (method == SORT_R64    || 
-      method == SORT_I64) {
+      method == SORT_I64    ||
+      method == SORT_U64) {
     inc  *= 2;
     addr *= 2;
   }
 
-#if 0
-  printf("rsort32(%d/%d): data[length=%d, inc=%d, addr=%d, index_adj=%d] : \n",
-	 mode,method,n,inc,addr,index_adj);
-#endif
-
   if (mode < 10) {
     /* index[] needs to be initialized */
-    for (i=0; i<n; i++) index[i] = i; /* C-index */
-  }
-  else {
-    if (index_adj != 0) {
-      /* Convert Fortran index[] to C-index */
-      for (i=0; i<n; i++) index[i] -= index_adj;
-    }
+    for (i=0; i<n; i++) index[i] = i + index_adj;
   }
 
   alloc_data = ((inc > 1) 
 		|| (method == SORT_R32) 
 		|| (method == SORT_R64)
 		|| (method == SORT_I64)
+		|| (method == SORT_U64)
 		);
   if (alloc_data) ALLOC(data, n);
 
   if (method == SORT_R32) {
     j = addr;
     for (i=0; i<n; i++) {
-      Uint mask = CVMGM(MASKALL32, SIGNBIT32, Data[j]);
+      Uint32 mask = CVMGM(MASKALL32, SIGNBIT32, Data[j]);
       data[i] = Data[j] ^ mask;
       j += inc;
     }
@@ -199,13 +197,13 @@ rsort32_(const    int *Mode,
     const int aStart_addr = 1;
     int aN = n;
     const int aInc = 1;
-    const int aIndex_adj = 0;
+    int aIndex_adj = index_adj;
 
     /* Least significant word */
     j  = addr + lsw;
     jj = addr + msw;
     for (i=0; i<n; i++) {
-      Uint mask = CVMGM(MASKALL32, ZEROALL32, Data[jj]);
+      Uint32 mask = CVMGM(MASKALL32, ZEROALL32, Data[jj]);
       data[i] = Data[j] ^ mask;
       j += inc;
       jj += inc;
@@ -218,25 +216,25 @@ rsort32_(const    int *Mode,
     /* Most significant word */
     jj = addr + msw;
     for (i=0; i<n; i++) {
-      Uint mask = CVMGM(MASKALL32, SIGNBIT32, Data[jj]);
+      Uint32 mask = CVMGM(MASKALL32, SIGNBIT32, Data[jj]);
       data[i] = Data[jj] ^ mask;
       jj += inc;
     }
 
     method = SORT_UINT;
   }
-  else if (method == SORT_I64) {
+  else if (method == SORT_I64 || method == SORT_U64) {
     int Method = 10 + SORT_UINT;
     const int aStart_addr = 1;
     int aN = n;
     const int aInc = 1;
-    const int aIndex_adj = 0;
+    int aIndex_adj = index_adj;
 
     /* Least significant word */
-    j  = addr + lsw;
+    jj = addr + lsw;
     for (i=0; i<n; i++) {
-      data[i] = Data[j];
-      j += inc;
+      data[i] = Data[jj];
+      jj += inc;
     }
 
     rsort32_(&Method, &aN, &aInc, &aStart_addr, data, index, &aIndex_adj, &rc);
@@ -244,10 +242,19 @@ rsort32_(const    int *Mode,
     if (rc != n) goto finish;
 
     /* Most significant word */
-    jj = addr + msw;
-    for (i=0; i<n; i++) {
-      data[i] = Data[jj] ^ SIGNBIT32;
-      jj += inc;
+    if (method == SORT_I64) {
+      jj = addr + msw;
+      for (i=0; i<n; i++) {
+	data[i] = Data[jj] ^ SIGNBIT32;
+	jj += inc;
+      }
+    }
+    else { /* unsigned 64-bit ints i.e. method == SORT_U64 */
+      jj = addr + msw;
+      for (i=0; i<n; i++) {
+	data[i] = Data[jj];
+	jj += inc;
+      }
     }
 
     method = SORT_UINT;
@@ -263,26 +270,14 @@ rsort32_(const    int *Mode,
     data = &Data[addr];
   }
 
-#if 0
-  /*
-  for (i=0; i<n; i++) {
-    printf("%12u ; %12d ; ordered=%12u\n",data[i], data[i], data[index[i]]);
-  }
-  */
-#endif
-
   xorit = (method == SORT_INT);
-
-#if 0
-  printf("nbits = %d, xorit = %d\n",N32BITS,(int)xorit);
-#endif
 
   /* Check whether particular "bit-columns" are all zero or one */
 
   for (j=0; j<N32BITS; j++) bitsum[j] = 0;
 
   for (i=0; i<n; i++) {
-    Uint item;
+    Uint32 item;
     if (xorit) data[i] ^= SIGNBIT32;
     item = data[i];
     /* Unrolled, full vector */
@@ -296,21 +291,13 @@ rsort32_(const    int *Mode,
     BITSUM(28); BITSUM(29); BITSUM(30); BITSUM(31);
   }
 
-#if 0
-  printf(">> bitsum : (n=%d)\n",n);
-  for (j=0; j<N32BITS; j++) {
-     printf("%u ",bitsum[j]);
-  }
-  printf("\n");
-#endif
-
   ALLOC(tmp, n);
 
   jj = 0;
   for (j=0; j<N32BITS; j++) {
     int sum = bitsum[j];
     if (sum > 0 && sum < n) { /* if 0 or n, then the whole column of bits#j 0's or 1's */
-      Uint mask = (1U << j);
+      Uint32 mask = (1U << j);
       int *i1, *i2;
       
       if (jj%2 == 0) {
@@ -327,21 +314,17 @@ rsort32_(const    int *Mode,
       if (SpeedUp == 0) {
 	int k = 0;
 	for (i=0; i<n; i++) /* Gather zero bits */
-	  if ( (data[i1[i]] & mask) ==    0 ) i2[k++] = i1[i];
+	  if ( (data[i1[i]-index_adj] & mask) ==    0 ) i2[k++] = i1[i];
 	
 	for (i=0; i<n; i++) /* Gather one bits */
-	  if ( (data[i1[i]] & mask) == mask ) i2[k++] = i1[i];
+	  if ( (data[i1[i]-index_adj] & mask) == mask ) i2[k++] = i1[i];
       }
       else
       {
 	int k1 = 0, k2 = n-sum;
 	for (i=0; i<n; i++) { /* Gather zero & one bits in a single sweep */
-	  if ( (data[i1[i]] & mask) ==    0 ) {
-	    i2[k1++] = i1[i];  /* Gather zero bits */
-	  }
-	  else if ( (data[i1[i]] & mask) == mask ) {
-	    i2[k2++] = i1[i];  /* Gather one bits */
-	  }
+	  Uint32 value = data[i1[i]-index_adj] & mask;
+	  i2[value == 0 ? k1++ : k2++] = i1[i];
 	} /* for (i=0; i<n; i++) */
 	if (k1 + sum != n || k2 != n) {
 	  fprintf(stderr,
@@ -359,13 +342,9 @@ rsort32_(const    int *Mode,
 
   FREE(tmp);
 
-  if (xorit && inc == 1) {
+  if (!alloc_data && xorit && inc == 1) {
     /* 32-bit signed ints : backward */
     for (i=0; i<n; i++) data[i] ^= SIGNBIT32;
-  }
-
-  if (index_adj != 0) {
-    for (i=0; i<n; i++) index[i] += index_adj; /* Back to Fortran indexing */
   }
 
   if (alloc_data) FREE(data);
@@ -381,7 +360,7 @@ rsort32_ibm_(const    int *Mode,
 	     const    int *N,
 	     const    int *Inc,
 	     const    int *Start_addr,
-	             Uint  Data[],
+	           Uint32  Data[],
 	              int  index[],
 	     const    int *Index_adj,
 	              int *retc)
@@ -399,11 +378,11 @@ rsort32_ibm_(const    int *Mode,
     jdsort_( N, Inc, Start_addr, Data, index ); /* from jsort.F in ifsaux */
     *retc = *N;
   }
-  else { /* Any other type => revert to generic rsort32 */
+  else { /* Any other type => revert to the generic rsort32 */
     rsort32_(Mode, N, Inc, Start_addr, Data, index, Index_adj, retc);
   }
 #else
-  /* Any other machine than IBM/RS6000 => revert to generic rsort32 */
+  /* Any other machine than IBM/RS6000 => revert to the generic rsort32 */
   rsort32_(Mode, N, Inc, Start_addr, Data, index, Index_adj, retc);
 #endif
 }
@@ -414,10 +393,10 @@ void (*default_rsort32_func)(const    int *Mode,
 			     const    int *N,
 			     const    int *Inc,
 			     const    int *Start_addr,
-			     Uint     Data[],
-			     int      index[],
+			           Uint32  Data[],
+			              int  index[],
 			     const    int *Index_adj,
-			     int     *retc) = 
+			              int *retc) =
 #ifdef RS6K
      rsort32_ibm_
 #else
@@ -430,10 +409,10 @@ rsort32_func_(const    int *Mode,
 	      const    int *N,
 	      const    int *Inc,
 	      const    int *Start_addr,
-	      Uint     Data[],
-	      int      index[],
+	      Uint32        Data[],
+	      int           index[],
 	      const    int *Index_adj,
-	      int     *retc)
+	      int          *retc)
 {
   default_rsort32_func(Mode,
 		       N,
@@ -450,10 +429,10 @@ rsort32_setup_(void (*func)(const    int *Mode,
 			    const    int *N,
 			    const    int *Inc,
 			    const    int *Start_addr,
-			    Uint     Data[],
-			    int      index[],
+			    Uint32        Data[],
+			    int           index[],
 			    const    int *Index_adj,
-			    int     *retc),
+			    int          *retc),
 	       int *speedup)
 {
   if (func) default_rsort32_func = func;
