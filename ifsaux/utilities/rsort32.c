@@ -184,6 +184,9 @@ rsort32_(const    int *Mode,
 
   if (method == SORT_R32) {
     j = addr;
+#ifdef NECSX
+#pragma cdir nodep
+#endif
     for (i=0; i<n; i++) {
       Uint32 mask = CVMGM(MASKALL32, SIGNBIT32, Data[j]);
       data[i] = Data[j] ^ mask;
@@ -202,6 +205,9 @@ rsort32_(const    int *Mode,
     /* Least significant word */
     j  = addr + lsw;
     jj = addr + msw;
+#ifdef NECSX
+#pragma cdir nodep
+#endif
     for (i=0; i<n; i++) {
       Uint32 mask = CVMGM(MASKALL32, ZEROALL32, Data[jj]);
       data[i] = Data[j] ^ mask;
@@ -215,6 +221,9 @@ rsort32_(const    int *Mode,
 
     /* Most significant word */
     jj = addr + msw;
+#ifdef NECSX
+#pragma cdir nodep
+#endif
     for (i=0; i<n; i++) {
       Uint32 mask = CVMGM(MASKALL32, SIGNBIT32, Data[jj]);
       data[i] = Data[jj] ^ mask;
@@ -261,6 +270,9 @@ rsort32_(const    int *Mode,
   }
   else if (inc > 1) {
     j = addr;
+#ifdef NECSX
+#pragma cdir nodep
+#endif
     for (i=0; i<n; i++) {
       data[i] = Data[j];
       j += inc;
@@ -313,15 +325,24 @@ rsort32_(const    int *Mode,
       
       if (SpeedUp == 0) {
 	int k = 0;
+#ifdef NECSX
+#pragma cdir nodep
+#endif
 	for (i=0; i<n; i++) /* Gather zero bits */
 	  if ( (data[i1[i]-index_adj] & mask) ==    0 ) i2[k++] = i1[i];
 	
+#ifdef NECSX
+#pragma cdir nodep
+#endif
 	for (i=0; i<n; i++) /* Gather one bits */
 	  if ( (data[i1[i]-index_adj] & mask) == mask ) i2[k++] = i1[i];
       }
       else
       {
 	int k1 = 0, k2 = n-sum;
+#ifdef NECSX
+#pragma cdir nodep
+#endif
 	for (i=0; i<n; i++) { /* Gather zero & one bits in a single sweep */
 	  Uint32 value = data[i1[i]-index_adj] & mask;
 	  i2[value == 0 ? k1++ : k2++] = i1[i];
@@ -338,7 +359,12 @@ rsort32_(const    int *Mode,
     }
   }
 
-  if (copytmp) for (i=0; i<n; i++) index[i] = tmp[i];
+  if (copytmp) {
+#ifdef NECSX
+#pragma cdir nodep
+#endif
+	for (i=0; i<n; i++) index[i] = tmp[i];
+  }
 
   FREE(tmp);
 

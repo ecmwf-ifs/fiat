@@ -1,43 +1,16 @@
-#if defined (VPP)
-      SUBROUTINE CPTIME(PVCP,PTCP)
-C     Fujitsu function
-      call clockv(PVCP,PTCP,0,2)
-      return
-      END
-#endif
-#if defined (RS6K) || defined (SX4)
       SUBROUTINE CPTIME(PVCP,PTCP)
       data ifirst/0/
       save ifirst,zfirst
+c     Usage of Fortran90 intrinsic function for CPU timing.
       if(ifirst.eq.0) then
          ifirst=1
-         zfirst=second()
+         call cpu_time(zfirst)
          pvcp=0.0
          ptcp=pvcp
       else
-         ZSEC=SECOND()
+         call cpu_time(ZSEC)
          PVCP=ZSEC-ZFIRST
          PTCP=PVCP
       endif
       return
       END
-#endif
-#if defined (LINUX)
-      SUBROUTINE CPTIME(PVCP,PTCP)
-      integer clock
-      external clock
-      data ifirst/0/
-      save ifirst,zfirst
-      if(ifirst.eq.0) then
-         ifirst=1
-         zfirst=clock()/1000.
-         pvcp=0.0
-         ptcp=pvcp
-      else
-         ZSEC=clock()/1000.
-         PVCP=ZSEC-ZFIRST
-         PTCP=PVCP
-      endif
-      return
-      END
-#endif
