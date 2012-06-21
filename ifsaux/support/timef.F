@@ -46,7 +46,7 @@ c
       return
       end
 #endif
-#if defined ( SX4 ) || defined ( LINUX )
+#if defined(LINUX) || defined(HPPA) || defined(ALPHA) || defined ( SX4 )
       function timef()
 C
 C   Returns system clock converted to nano-seconds

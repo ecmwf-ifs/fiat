@@ -9,11 +9,35 @@ PRIVATE
 
 PUBLIC :: tolower, toupper, expand_string
 PUBLIC :: sadjustl, sadjustr
+PUBLIC :: stransfer
+
+INTERFACE stransfer
+MODULE PROCEDURE &
+  stransfer_r8_to_str, &
+  stransfer_str_to_r8
+END INTERFACE
+
 
 CONTAINS
 
-FUNCTION sadjustl(s) RESULT(c)
 
+FUNCTION stransfer_r8_to_str(source, mold) result(c)
+REAL(KIND=JPRB) , intent(in) :: source
+character(len=*), intent(in) :: mold
+character(len=8) :: c
+call ecmwf_transfer(c,MIN(8,len(mold)),source,8)
+END FUNCTION stransfer_r8_to_str
+
+
+FUNCTION stransfer_str_to_r8(source, mold) result(z)
+character(len=*), intent(in) :: source
+REAL(KIND=JPRB) , intent(in) :: mold
+REAL(KIND=JPRB) :: z
+call ecmwf_transfer(z,8,source,len(source))
+END FUNCTION stransfer_str_to_r8
+
+
+FUNCTION sadjustl(s) RESULT(c)
 character(len=*), intent(in) :: s
 character(len=max(1,len(s))) c
 c = ' '
@@ -22,8 +46,8 @@ if (len(s) > 0) then
 endif
 END FUNCTION sadjustl
 
-FUNCTION sadjustr(s) RESULT(c)
 
+FUNCTION sadjustr(s) RESULT(c)
 character(len=*), intent(in) :: s
 character(len=max(1,len(s))) c
 c = ' '
@@ -32,8 +56,8 @@ if (len(s) > 0) then
 endif
 END FUNCTION sadjustr
 
-SUBROUTINE tolower(cds)
 
+SUBROUTINE tolower(cds)
 character(len=*), intent(inout) :: cds
 INTEGER(KIND=JPIM), parameter :: ich_a = ichar('a')
 INTEGER(KIND=JPIM), parameter :: ichA  = ichar('A')
@@ -53,7 +77,6 @@ END SUBROUTINE tolower
 
 
 SUBROUTINE toupper(cds)
-
 character(len=*), intent(inout) :: cds
 INTEGER(KIND=JPIM), parameter :: ich_A = ichar('A')
 INTEGER(KIND=JPIM), parameter :: icha  = ichar('a')

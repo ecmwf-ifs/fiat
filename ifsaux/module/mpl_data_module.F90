@@ -15,16 +15,18 @@ MODULE MPL_DATA_MODULE
 !  MPL_METHOD   : buffering type
 !  MPL_MBX_SIZE : size of application mailbox, (bytes)
 !                 used when MPL_METHOD=JP_BLOCKING_BUFFERED
-!  MPL_COMM     : default communicator in use
+! (MPL_COMM     : default communicator in use; removed; corresponds now to MPL_COMM_OML(1))
+!  MPL_COMM_OML : communicators for messages between corresponding OML-threads
 !  MPL_UNIT     : Fortran I/O unit for messages
 !  MPL_ERRUNIT  : Fortran I/O unit for error messages
 !  MPL_OUTPUT   : controls contents of Output 
-!  MPL_RANK     : rank of the process within MPL_COMM
-!  MPL_NUMPROC  : number of processes in MPL_COMM
+!  MPL_RANK     : rank of the process within MPL_COMM_OML(1)
+!  MPL_NUMPROC  : number of processes in MPL_COMM_OML(1)
 !  MPL_IDS      : array of processor numbers
 !  LUSEHLMPI    : always use high level MPI calls (collective comm.)
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE YOMOML    ,ONLY : OML_MAX_THREADS, OML_MY_THREAD
 
 IMPLICIT NONE
 
@@ -32,9 +34,10 @@ SAVE
 
 PUBLIC 
 
-INTEGER(KIND=JPIM) :: MPL_METHOD, MPL_MBX_SIZE, MPL_COMM, MPL_UNIT, MPL_OUTPUT
+INTEGER(KIND=JPIM) :: MPL_METHOD, MPL_MBX_SIZE, MPL_UNIT, MPL_OUTPUT
 INTEGER(KIND=JPIM) :: MPL_RANK=0,MPL_NUMPROC = -1,MPL_ERRUNIT=0
 INTEGER(KIND=JPIM),ALLOCATABLE :: MPL_IDS(:)
+INTEGER(KIND=JPIM),ALLOCATABLE :: MPL_COMM_OML(:)
 INTEGER(KIND=JPIM),ALLOCATABLE :: MPL_OPPONENT(:)
 !INTEGER_M,ALLOCATABLE :: MPL_ATTACHED_BUFFER(:)
 !   needs to ge a TARGET for coexistence with MPE

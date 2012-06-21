@@ -13,47 +13,61 @@ MODULE SDL_MODULE
 USE PARKIND1  ,ONLY : JPIM  ,JPRB
 USE YOMHOOK   ,ONLY : LHOOK ,DR_HOOK
 
+#ifdef NAG
+USE F90_UNIX_PROC, ONLY : ABORT
+#endif
+
 IMPLICIT NONE
 
 SAVE
 
 PRIVATE
 
-PUBLIC :: SRL_ABORT, DIS_ABORT
+PUBLIC :: SDL_SRLABORT, SDL_DISABORT, SDL_TRACEBACK
 
 CONTAINS
 
 !-----------------------------------------------------------------------------
-SUBROUTINE SRL_ABORT
+SUBROUTINE SDL_TRACEBACK(KTID)
+
+! Purpose :
+! -------
+!   Traceback
+
+!   KTID : thread 
+
+INTEGER(KIND=JPIM), INTENT(IN), OPTIONAL :: KTID
+
+#ifdef VPP
+  CALL ERRTRA
+  IF (PRESENT(KTID)) CALL SLEEP(28)
+#elif RS6K
+  WRITE(0,*)'SDL_TRACEBACK: Calling XL_TRBK, THRD = ',KTID
+  CALL XL__TRBK()
+  WRITE(0,*)'SDL_TRACEBACK: Done XL_TRBK, THRD = ',KTID
+#else
+  WRITE(0,*)'SDL_TRACEBACK: No traceback implemented.'
+#endif
+
+END SUBROUTINE SDL_TRACEBACK
+!-----------------------------------------------------------------------------
+SUBROUTINE SDL_SRLABORT
 
 ! Purpose :
 ! -------
 !   To abort in serial environment
 
-#ifdef VPP
-
-CALL ERRTRA
+#if defined(VPP) || defined(RS6K) || defined(NAG)
 CALL ABORT
-
-#elif RS6K
-
-CALL XL__TRBK
-CALL FLUSH(0)
-CALL ABORT
-
 #elif SX4
-
 CALL EXIT
-
 #else
-
-STOP 'SRL_ABORT'
-
+STOP 'SDL_SRLABORT'
 #endif
 
-END SUBROUTINE SRL_ABORT
+END SUBROUTINE SDL_SRLABORT
 !-----------------------------------------------------------------------------
-SUBROUTINE DIS_ABORT(KCOMM)
+SUBROUTINE SDL_DISABORT(KCOMM)
 
 ! Purpose :
 ! -------
@@ -67,24 +81,23 @@ INTEGER(KIND=JPIM) :: IRETURN_CODE,IERROR
 
 #ifdef VPP
 
-CALL ERRTRA
-CALL SLEEP(30)
 CALL VPP_ABORT()
 
 #elif RS6K
 
-CALL XL__TRBK
-CALL FLUSH(0)
 IRETURN_CODE=1
 CALL MPI_ABORT(KCOMM,IRETURN_CODE,IERROR)
 
 #else
 
-STOP 'DIS_ABORT'
+IRETURN_CODE=1
+CALL MPI_ABORT(KCOMM,IRETURN_CODE,IERROR)
+CALL ABORT
+STOP 'SDL_DISABORT'
 
 #endif
 
-END SUBROUTINE DIS_ABORT
+END SUBROUTINE SDL_DISABORT
 !-----------------------------------------------------------------------------
 
 END MODULE SDL_MODULE

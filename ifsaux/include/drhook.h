@@ -36,7 +36,8 @@ c_drhook_getenv_(const char *s,
 
 extern void
 c_drhook_memcounter_(const int *thread_id,
-		     const long long int *size);
+		     const long long int *size,
+		     long long int *keyptr_addr);
 
 extern void
 c_drhook_raise_(const int *sig);
@@ -80,6 +81,15 @@ c_drhook_end_(const char *name,
 	      const int *sizeinfo
 	      /* Hidden length */
 	      ,int name_len, int filename_len);
+
+extern void
+c_drhook_watch_(const int *onoff,
+		const char *array_name,
+		const void *array_ptr,
+		const int *nbytes,
+		const int *abort_if_changed
+		/* Hidden length */
+		, int array_name_len);
 
 /**** C-interface to Dr.Hook ****/
 

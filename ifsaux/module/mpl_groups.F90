@@ -14,6 +14,8 @@ MODULE MPL_GROUPS
 !       Original: 02-03-13
 ! ------------------------------------------------------------------
 
+! --- *NOT* THREAD SAFE YET ---
+
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 
 USE MPL_MPIF
@@ -47,7 +49,7 @@ ltorus(1)=.false.
 ltorus(2)=.false.
 lreorder=.false.
 
-CALL MPI_CART_CREATE(MPL_COMM, 2, idims, ltorus, lreorder, &
+CALL MPI_CART_CREATE(MPL_COMM_OML(1), 2, idims, ltorus, lreorder, &
                    & MPL_COMM_GRID, ierr)
 IF (ierr/=0) CALL mpl_message(ierr,'MPL_GROUPS_CREATE: MPI_CART_CREATE')
 

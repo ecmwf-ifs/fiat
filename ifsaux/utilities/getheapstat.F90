@@ -4,6 +4,10 @@ USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPIB
 
 use mpl_module
 
+#ifdef NAG
+use f90_unix_env, only: getenv
+#endif
+
 implicit none
 
 INTEGER(KIND=JPIM), intent(in) :: kout
