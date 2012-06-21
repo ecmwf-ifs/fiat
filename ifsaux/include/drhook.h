@@ -34,8 +34,13 @@ extern int drhook_lhook;
 
 typedef long long int o_lock_t; /* i.e. 64-bit integer */
 
+#define INIT_LOCKID_WITH_NAME(mylock, lockname) \
+  coml_init_lockid_with_name_(mylock, lockname, strlen(lockname))
+
+extern void coml_set_debug_(const int *konoff, int *kret);
 extern void coml_init_lock_();
 extern void coml_init_lockid_(o_lock_t *mylock);
+extern void coml_init_lockid_with_name_(o_lock_t *mylock, const char *name, int name_len);
 extern void coml_set_lock_();
 extern void coml_set_lockid_(o_lock_t *mylock);
 extern void coml_unset_lock_();
@@ -145,8 +150,8 @@ Dr_Hook(const char *name, int option, double *handle,
 
 #define DRHOOK_END_RECUR(sizeinfo,recur) \
   if (!recur && drhook_lhook) Dr_Hook(drhook_name, 1, &zhook_handle, \
-			    drhook_filename, sizeinfo, \
-			    drhook_name_len, drhook_filename_len)
+			              drhook_filename, sizeinfo, \
+			              drhook_name_len, drhook_filename_len)
 
 #define DRHOOK_END(sizeinfo) DRHOOK_END_RECUR(sizeinfo,0) 
 
