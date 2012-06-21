@@ -1050,7 +1050,7 @@ SUBROUTINE mrfsfile(file_in, file_out)
 
 !     Author: Sami Saarinen, ECMWF, 23/1/1998 for CY18R4
 
-! modif: Ph. Caille  05/99  use of MRFS at Meteo-France
+
 
 
 
@@ -1062,11 +1062,6 @@ character(len=255), save :: mrfsdir = ' '
 logical, save :: already_called = .FALSE.
 logical, save :: has_mrfsdir    = .FALSE.
 
-! === switch to be passed through a NAMELIST for use of MRFS at MF
-logical L_fast_ms
-
-L_fast_ms = .FALSE.
-
 !--   Cache the $MRFSDIR to avoid any further calls to GET_MRFSDIR()
 if (.not. already_called) then
   CALL GET_MRFSDIR(cdout = mrfsdir)
@@ -1074,7 +1069,7 @@ if (.not. already_called) then
   already_called = .TRUE.
 endif
 
-if ( has_mrfsdir .AND. L_fast_ms ) then
+if (has_mrfsdir) then
 !--   Prepend "${MRFSDIR}/" and remove any leading/trailing blanks present
   file_out = trim(adjustl(mrfsdir))//'/'//trim(adjustl(file_in))
 else
