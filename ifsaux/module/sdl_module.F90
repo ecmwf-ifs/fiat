@@ -70,9 +70,11 @@ ENDIF
   CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
   WRITE(0,*)'SDL_TRACEBACK: Done LINUX_TRBK, THRD = ',ITID
 #elif defined(NECSX)
-  WRITE(0,*)'SDL_TRACEBACK: Calling NEC/MESPUT, THRD = ',ITID
+! MESPUT writes out onto unit 6
+  WRITE(6,*)'SDL_TRACEBACK: Calling NEC/MESPUT, THRD = ',ITID
   CALL MESPUT(CLNECMSG, LEN(CLNECMSG), 1)
-  WRITE(0,*)'SDL_TRACEBACK: Done NEC/MESPUT, THRD = ',ITID
+  CALL FLUSH(6)
+  WRITE(6,*)'SDL_TRACEBACK: Done NEC/MESPUT, THRD = ',ITID
 #else
   WRITE(0,*)'SDL_TRACEBACK: No proper traceback implemented.'
   ! A traceback using dbx-debugger, if available AND 
@@ -80,11 +82,6 @@ ENDIF
   WRITE(0,*)'SDL_TRACEBACK: Calling DBX_TRBK, THRD = ',ITID
   CALL DBX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
   WRITE(0,*)'SDL_TRACEBACK: Done DBX_TRBK, THRD = ',ITID
-  ! A traceback using gdb-debugger, if available AND 
-  ! activated via 'export GDBDEBUGGER=1'
-  WRITE(0,*)'SDL_TRACEBACK: Calling GDB_TRBK, THRD = ',ITID
-  CALL GDB_TRBK() ! See ifsaux/utilities/linuxtrbk.c
-  WRITE(0,*)'SDL_TRACEBACK: Done GDB_TRBK, THRD = ',ITID
 #endif
 
 END SUBROUTINE SDL_TRACEBACK

@@ -41,7 +41,7 @@ MODULE MPL_INIT_MOD
 !     Modifications.
 !     --------------
 !        Original: 2000-09-01
-
+!        R. El Khatib  14-May-2007 Do not propagate environment if NECSX
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
@@ -146,11 +146,15 @@ ENDDO
 CALL MPI_COMM_RANK(INT(MPI_COMM_WORLD), IRANK, IERROR)
 MPL_RANK=IRANK+1
 
+#ifndef NECSX
+
 !-- Propagate environment variables & argument lists
 !   Here we have to be careful and use MPI_BCAST directly (not MPL_BROADCAST) since
 !   1) MPL_BUFFER_METHOD has not been called
 !   2) MPL_COMM_OML has not been initialized since it is possible that only the 
 !      master proc knows the # of threads (i.e. OMP_NUM_THREADS may be set only for master)
+
+! Do not propagate on nec machine because the environment variables could be mpi-task-specific.
 
 IF (MPL_NUMPROC > 1) THEN
   IROOT = 0
@@ -169,6 +173,8 @@ IF (MPL_NUMPROC > 1) THEN
   !-- Propagate argument list (all under the bonnet using MPL_ARG_MOD-module)
   INUM = MPL_IARGC()
 ENDIF
+
+#endif
 
 IMAX_THREADS = OML_MAX_THREADS()
 ALLOCATE(MPL_COMM_OML(IMAX_THREADS))
