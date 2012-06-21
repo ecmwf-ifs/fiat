@@ -2,36 +2,37 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#if defined(CRAY)
+typedef  long long int  ll_t;
+
+#if defined(CRAY) && !defined(SV2)
 #define getrss GETRSS
 #elif defined(HPPA)
 #else
 #define getrss getrss_
 #endif
 
-#ifdef RS6K
+#if defined(RS6K) || defined(LINUX) || defined(SGI)
 #include <sys/resource.h>
-long long int
+ll_t
 getrss()
 {
-  const long long int scaler = 1024; /* in kilobytes */
+  const ll_t scaler = 1024; /* in kilobytes */
 #if defined(__64BIT__)
   struct rusage64 r;
-  long long int rc = getrusage64(RUSAGE_SELF, &r);
+  ll_t rc = getrusage64(RUSAGE_SELF, &r);
 #else
   struct rusage r;
-  long long int rc = getrusage(RUSAGE_SELF, &r);
+  ll_t rc = getrusage(RUSAGE_SELF, &r);
 #endif
-  rc = (rc == 0) ? (long long int) r.ru_maxrss * scaler : 0;
+  rc = (rc == 0) ? (ll_t) r.ru_maxrss * scaler : 0;
   return rc;
 }
 
 #else
 
-
-long long int getrss()
+ll_t getrss()
 {
-  long long int rc = (long long int)sbrk(0);
+  ll_t rc = (ll_t)((char *)sbrk(0) - (char *)0);
   return rc;
 }
 

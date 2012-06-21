@@ -75,6 +75,9 @@ getstk_()
 ll_t
 getstk_() 
 { 
+#if defined(CRAY)
+  return 0;
+#else
   extern ll_t getstackusage_();
   static ll_t init_stack = -1;
   ll_t stackused = 0;
@@ -82,6 +85,7 @@ getstk_()
   stackused = getstackusage_() - init_stack;
   if (stackused > maxstack) maxstack = stackused;
   return stackused;
+#endif
 }
 
 #endif

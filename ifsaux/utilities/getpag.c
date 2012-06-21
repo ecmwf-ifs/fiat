@@ -2,14 +2,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#if defined(CRAY)
+#if defined(CRAY) && !defined(SV2)
 #define getpag GETPAG
 #elif defined(HPPA)
 #else
 #define getpag getpag_
 #endif
 
-#ifdef RS6K
+#if defined(RS6K) || defined(SV2)
 #include <sys/resource.h>
 long long int
 getpag()

@@ -137,7 +137,6 @@ call mpl_end(KERROR=kerror)
 
 end subroutine cmpl_end
 
-!***** TEMPORARY for FDB,EMOSLIB
 function mpe_myrank()
 USE MPL_MODULE
 
@@ -157,5 +156,48 @@ character cdmess*(*)
 call mpl_abort()
 
 end subroutine mpei_abort
-!***** TEMPORARY
 
+subroutine coml_init_lockid(kmylock)
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE YOMOML
+implicit none
+INTEGER(KIND=JPIM), intent(inout) :: kmylock
+!$ CALL OML_INIT_LOCK(kmylock)
+end subroutine coml_init_lockid
+
+subroutine coml_init_lock()
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE YOMOML
+implicit none
+!$ CALL OML_INIT_LOCK()
+end subroutine coml_init_lock
+
+subroutine coml_set_lockid(kmylock)
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE YOMOML
+implicit none
+INTEGER(KIND=JPIM), intent(inout) :: kmylock
+!$ CALL OML_SET_LOCK(kmylock)
+end subroutine coml_set_lockid
+
+subroutine coml_set_lock()
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE YOMOML
+implicit none
+!$ CALL OML_SET_LOCK()
+end subroutine coml_set_lock
+
+subroutine coml_unset_lockid(kmylock)
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE YOMOML
+implicit none
+INTEGER(KIND=JPIM), intent(inout) :: kmylock
+!$ CALL OML_UNSET_LOCK(kmylock)
+end subroutine coml_unset_lockid
+
+subroutine coml_unset_lock()
+USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE YOMOML
+implicit none
+!$ CALL OML_UNSET_LOCK()
+end subroutine coml_unset_lock

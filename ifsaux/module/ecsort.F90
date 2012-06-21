@@ -1,6 +1,6 @@
 MODULE ECsort
 USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPRM
-
+USE YOMHOOK, ONLY : LHOOK, DR_HOOK
 USE strhandler, only : TOUPPER
 
 !..   Author: Sami Saarinen, ECMWF, 10/02/98
@@ -8,6 +8,7 @@ USE strhandler, only : TOUPPER
 !                                              Genuine real(4) sort "re-habilitated"
 !                                              sizeof_int, _real4 & _real8 HARDCODED !
 !             Sami Saarinen, ECMWF, 11/10/00 : REAL*4 version included (REAL_M)
+!             Sami Saarinen, ECMWF, 28/11/03 : Calls to DR_HOOK added manually (on top of CY28)
 
 
 IMPLICIT NONE
@@ -84,10 +85,13 @@ END SUBROUTINE str_sorting_method
 SUBROUTINE init_index(index)
 INTEGER(KIND=JPIM), intent(out):: index(:)
 INTEGER(KIND=JPIM) :: i, n
+REAL(KIND=JPRB) :: ZHOOK_HANDLE
+IF (LHOOK) CALL DR_HOOK('ECSORT:INIT_INDEX',0,ZHOOK_HANDLE)
 n = size(index)
 do i=1,n
   index(i) = i
 enddo
+IF (LHOOK) CALL DR_HOOK('ECSORT:INIT_INDEX',1,ZHOOK_HANDLE)
 END SUBROUTINE init_index
 
 
@@ -95,10 +99,13 @@ SUBROUTINE get_rank(index, rank)
 INTEGER(KIND=JPIM), intent(in) :: index(:)
 INTEGER(KIND=JPIM), intent(out):: rank(:)
 INTEGER(KIND=JPIM) :: i, n
+REAL(KIND=JPRB) :: ZHOOK_HANDLE
+IF (LHOOK) CALL DR_HOOK('ECSORT:GET_RANK',0,ZHOOK_HANDLE)
 n = min(size(index),size(rank))
 do i=1,n
   rank(index(i)) = i
 enddo
+IF (LHOOK) CALL DR_HOOK('ECSORT:GET_RANK',1,ZHOOK_HANDLE)
 END SUBROUTINE get_rank
 
 
@@ -113,9 +120,11 @@ logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
 INTEGER(KIND=JPIM) :: aa(size(a),1)
 INTEGER(KIND=JPIM) :: ikey
+REAL(KIND=JPRB) :: ZHOOK_HANDLE
+IF (LHOOK) CALL DR_HOOK('ECSORT:INT_KEYSORT_1D',0,ZHOOK_HANDLE)
 rc = 0
-if (n <= 0) return
-if (size(a) <= 0) return
+if (n <= 0) goto 99
+if (size(a) <= 0) goto 99
 aa(:,1) = a(:)
 ikey = 1
 if (present(descending)) then
@@ -123,6 +132,8 @@ if (present(descending)) then
 endif
 CALL keysort(rc, aa, n, key=ikey, method=method, index=index, init=init)
 a(:) = aa(:,1)
+ 99   continue
+IF (LHOOK) CALL DR_HOOK('ECSORT:INT_KEYSORT_1D',1,ZHOOK_HANDLE)
 END SUBROUTINE int_keysort_1D
 
 
@@ -137,9 +148,11 @@ logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
 REAL(KIND=JPRM) :: aa(size(a),1)
 INTEGER(KIND=JPIM) :: ikey
+REAL(KIND=JPRB) :: ZHOOK_HANDLE
+IF (LHOOK) CALL DR_HOOK('ECSORT:REAL4_KEYSORT_1D',0,ZHOOK_HANDLE)
 rc = 0
-if (n <= 0) return
-if (size(a) <= 0) return
+if (n <= 0) goto 99
+if (size(a) <= 0) goto 99
 aa(:,1) = a(:)
 ikey = 1
 if (present(descending)) then
@@ -147,6 +160,8 @@ if (present(descending)) then
 endif
 CALL keysort(rc, aa, n, key=ikey, method=method, index=index, init=init)
 a(:) = aa(:,1)
+ 99   continue
+IF (LHOOK) CALL DR_HOOK('ECSORT:REAL4_KEYSORT_1D',1,ZHOOK_HANDLE)
 END SUBROUTINE real4_keysort_1D
 
 
@@ -161,9 +176,11 @@ logical, intent(in), OPTIONAL  :: init
 ! === END OF INTERFACE BLOCK ===
 REAL(KIND=JPRB) :: aa(size(a),1)
 INTEGER(KIND=JPIM) :: ikey
+REAL(KIND=JPRB) :: ZHOOK_HANDLE
+IF (LHOOK) CALL DR_HOOK('ECSORT:REAL8_KEYSORT_1D',0,ZHOOK_HANDLE)
 rc = 0
-if (n <= 0) return
-if (size(a) <= 0) return
+if (n <= 0) goto 99
+if (size(a) <= 0) goto 99
 aa(:,1) = a(:)
 ikey = 1
 if (present(descending)) then
@@ -172,6 +189,8 @@ endif
 !CALL keysort(rc, aa, n, key=ikey, method=method, index=index, init=init)
 CALL real8_keysort_2D(rc, aa, n, key=ikey, method=method, index=index, init=init)
 a(:) = aa(:,1)
+ 99   continue
+IF (LHOOK) CALL DR_HOOK('ECSORT:REAL8_KEYSORT_1D',1,ZHOOK_HANDLE)
 END SUBROUTINE real8_keysort_1D
 
 
@@ -195,11 +214,13 @@ INTEGER(KIND=JPIM) :: lda, iptr, i, j, sda, idiff
 INTEGER(KIND=JPIM), allocatable :: data(:)
 INTEGER(KIND=JPIM), allocatable :: ikeys(:)
 logical iinit, descending, LLtrans
+REAL(KIND=JPRB) :: ZHOOK_HANDLE
+IF (LHOOK) CALL DR_HOOK('ECSORT:INT_KEYSORT_2D',0,ZHOOK_HANDLE)
 
 rc = 0
 lda = size(a, dim=1)
 sda = size(a, dim=2)
-if (n <= 0 .or. lda <= 0 .or. sda <= 0) return
+if (n <= 0 .or. lda <= 0 .or. sda <= 0) goto 99
 
 imethod = current_method
 if (present(method)) then
@@ -311,6 +332,8 @@ if (.not.present(index)) then
   deallocate(iindex)
 endif
 
+ 99   continue
+IF (LHOOK) CALL DR_HOOK('ECSORT:INT_KEYSORT_2D',1,ZHOOK_HANDLE)
 END SUBROUTINE int_keysort_2D
 
 
@@ -334,11 +357,13 @@ INTEGER(KIND=JPIM) :: lda, iptr, i, j, sda, idiff
 REAL(KIND=JPRM), allocatable :: data(:)
 INTEGER(KIND=JPIM), allocatable :: ikeys(:)
 logical iinit, descending, LLtrans
+REAL(KIND=JPRB) :: ZHOOK_HANDLE
+IF (LHOOK) CALL DR_HOOK('ECSORT:REAL4_KEYSORT_2D',0,ZHOOK_HANDLE)
 
 rc = 0
 lda = size(a, dim=1)
 sda = size(a, dim=2)
-if (n <= 0 .or. lda <= 0 .or. sda <= 0) return
+if (n <= 0 .or. lda <= 0 .or. sda <= 0) goto 99
 
 imethod = current_method
 if (present(method)) then
@@ -450,6 +475,8 @@ if (.not.present(index)) then
   deallocate(iindex)
 endif
 
+ 99   continue
+IF (LHOOK) CALL DR_HOOK('ECSORT:REAL4_KEYSORT_2D',1,ZHOOK_HANDLE)
 END SUBROUTINE real4_keysort_2D
 
 
@@ -473,11 +500,13 @@ INTEGER(KIND=JPIM) :: lda, iptr, i, j, sda, idiff
 REAL(KIND=JPRB), allocatable :: data(:)
 INTEGER(KIND=JPIM), allocatable :: ikeys(:)
 logical iinit, descending, LLtrans
+REAL(KIND=JPRB) :: ZHOOK_HANDLE
+IF (LHOOK) CALL DR_HOOK('ECSORT:REAL8_KEYSORT_2D',0,ZHOOK_HANDLE)
 
 rc = 0
 lda = size(a, dim=1)
 sda = size(a, dim=2)
-if (n <= 0 .or. lda <= 0 .or. sda <= 0) return
+if (n <= 0 .or. lda <= 0 .or. sda <= 0) goto 99
 
 imethod = current_method
 if (present(method)) then
@@ -589,6 +618,8 @@ if (.not.present(index)) then
   deallocate(iindex)
 endif
 
+ 99   continue
+IF (LHOOK) CALL DR_HOOK('ECSORT:REAL8_KEYSORT_2D',1,ZHOOK_HANDLE)
 END SUBROUTINE real8_keysort_2D
 
 !-----------------------------

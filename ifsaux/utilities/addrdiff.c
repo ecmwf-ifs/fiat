@@ -8,8 +8,8 @@ addrdiff_(const char *p1, const char *p2, int *diff)
 
 /* loc()-function */
 
-unsigned long long
-loc_addr_(const void *p)
+unsigned long long int
+loc_addr_(const char *p)
 {
-  return (unsigned long long)(p);
+  return (unsigned long long int)(p - (const char *)0);
 }
