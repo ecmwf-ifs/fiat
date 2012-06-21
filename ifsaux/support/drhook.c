@@ -22,6 +22,9 @@
 #include <fptrap.h>
 #include <pthread.h>
 #endif
+#ifdef VPP
+#include <ucontext.h>
+#endif
 
 static int any_memstat = 0;
 static int opt_gethwm = 0;
