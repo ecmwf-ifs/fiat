@@ -42,12 +42,15 @@ SUBROUTINE GSTATS(KNUM,KSWITCH)
 !     MODIFICATIONS.
 !     --------------
 !        ORIGINAL : 98-11-15
+!        D.Salmond: 02-02-25  Return if not master thread when called from a 
+!                             parallel region. 
 !     ------------------------------------------------------------------
 
 #include "tsmbkind.h"
 
 USE YOMGSTATS
 USE MPL_MODULE
+USE YOMOML
 
 IMPLICIT NONE
 
@@ -64,13 +67,14 @@ END INTERFACE
 
 !     ------------------------------------------------------------------
 
+IF(OML_MY_THREAD().GT.1)RETURN
 IF((KNUM > 500  .AND.KNUM < 1001).AND.(.NOT.LSTATS_COMMS))RETURN
 IF((KNUM > 1000 .AND.KNUM < 2001).AND.(.NOT.LSTATS_OMP))RETURN
 
 IF(LSTATS) THEN
   IF(KNUM/=0) THEN
     IF(LSYNCSTATS .AND.(KSWITCH==0.OR. KSWITCH==2)) THEN
-      CALL MPL_BARRIER(CDSTRING='GSTATS:')
+      IF(.NOT.OML_IN_PARALLEL())CALL MPL_BARRIER(CDSTRING='GSTATS:')
     ENDIF
   ENDIF
   CALL USER_CLOCK(PELAPSED_TIME=ZCLOCK)
