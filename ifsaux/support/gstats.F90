@@ -1,4 +1,4 @@
-SUBROUTINE GSTATS(KNUM,KSWITCH)
+sUBROUTINE GSTATS(KNUM,KSWITCH)
 
 !**** *GSTATS*  - Gather timing statistics
 
@@ -44,6 +44,7 @@ SUBROUTINE GSTATS(KNUM,KSWITCH)
 !        ORIGINAL : 98-11-15
 !        D.Salmond: 02-02-25  Return if not master thread when called from a 
 !                             parallel region. 
+!        J.Hague:   03-06-11  Memory tracing (for NSTATS_MEM MPI tasks)
 !     ------------------------------------------------------------------
 
 #include "tsmbkind.h"
@@ -58,8 +59,16 @@ INTEGER_M,INTENT(IN) :: KNUM
 INTEGER_M,INTENT(IN) :: KSWITCH
 
 INTEGER_M :: IMOD,ICALL
+INTEGER_M :: IIMEM, IIPAG, IIMEMC
+INTEGER_B :: IMEM, IMEMH, IMEMS, IMEMC, IPAG
+INTEGER_B :: GETRSS, GETHWM, GETSTK, GETCURHEAP, GETPAG
+EXTERNAL GETRSS, GETHWM, GETSTK, GETCURHEAP, GETPAG
 REAL_B :: ZTIMED,ZCLOCK,ZTIME,ZTCPU,ZVCPU
+REAL_B :: ZLAST_PAR_TIME
 LOGICAL :: LLFIRST=.TRUE.
+LOGICAL :: LLMFIRST=.TRUE.
+SAVE ZLAST_PAR_TIME
+SAVE IIMEM, IIPAG, IIMEMC
 
 INTERFACE
 #include "user_clock.h"
@@ -67,11 +76,12 @@ END INTERFACE
 
 !     ------------------------------------------------------------------
 
-IF(OML_MY_THREAD().GT.1)RETURN
-IF((KNUM > 500  .AND.KNUM < 1001).AND.(.NOT.LSTATS_COMMS))RETURN
-IF((KNUM > 1000 .AND.KNUM < 2001).AND.(.NOT.LSTATS_OMP))RETURN
 
 IF(LSTATS) THEN
+  IF((KNUM > 1000 .AND.KNUM < 2001).AND.(.NOT.LSTATS_OMP))RETURN
+  IF((KNUM > 500  .AND.KNUM < 1001).AND.(.NOT.LSTATS_COMMS))RETURN
+  IF(OML_MY_THREAD() > 1)RETURN
+
   IF(KNUM/=0) THEN
     IF(LSYNCSTATS .AND.(KSWITCH==0.OR. KSWITCH==2)) THEN
       IF(.NOT.OML_IN_PARALLEL())CALL MPL_BARRIER(CDSTRING='GSTATS:')
@@ -94,7 +104,12 @@ IF(LSTATS) THEN
     TTCPUSUM(:) = _ZERO_
     TVCPUSUM(:) = _ZERO_
     TIMELCALL(:) = ZCLOCK
+    NTMEM(:,5) = 99999999
+    IIMEM=0
+    IIPAG=0
+    IIMEMC=0
     TIME_LAST_CALL = ZCLOCK
+    ZLAST_PAR_TIME=ZCLOCK
     LLFIRST = .FALSE.
   ENDIF
 
@@ -114,7 +129,11 @@ IF(LSTATS) THEN
 
   IF( KSWITCH == 0 ) THEN
 ! Start timing event
-    ZTIMED = ZCLOCK-TIME_LAST_CALL
+    IF(KNUM < 500) THEN
+      ZTIMED = ZCLOCK-TIME_LAST_CALL
+    ELSE
+      ZTIMED = ZCLOCK - ZLAST_PAR_TIME
+    ENDIF
     TIMESUMB(KNUM) = TIMESUMB(KNUM)+ZTIMED
     THISTIME(KNUM) = _ZERO_
     TIMELCALL(KNUM) = ZCLOCK
@@ -122,6 +141,49 @@ IF(LSTATS) THEN
     TVCPULCALL(KNUM) = ZVCPU
     THISTCPU(KNUM) = _ZERO_
     THISVCPU(KNUM) = _ZERO_
+    IF(MYPROC_STATS.LE.NSTATS_MEM.AND.MYPROC_STATS.NE.0) THEN
+!     CALL getrss(IMEM)
+      IMEM = getrss()/1024
+      IPAG = getpag()
+      IMEMH = gethwm()/1024
+      IMEMS = getstk()/1024
+      IMEMC = 0
+      IF(LSTATS_ALLOC) IMEMC = GETCURHEAP()/1024
+      IF(IMEM > IIMEM.OR.IPAG > IIPAG.OR.(LSTATS_ALLOC.AND.(IMEMC.NE.IIMEMC))) THEN
+        IF(LLMFIRST) THEN
+          WRITE(0,*) ".---------------------------------------------------------"
+          WRITE(0,*) "| Memory trace details"
+          WRITE(0,*) "| --------------------"
+          WRITE(0,*) "| Memory examined at each GSTATS call if NSTATS_MEM>0."
+          WRITE(0,*) "| Header for each trace line is:"    
+          WRITE(0,*) "|"
+          WRITE(0,*) "|   RSS_INC: Increase in RSS_MAX (KB)"
+          WRITE(0,*) "|   RSS_MAX: Maximium real working set so far (KB)"
+          WRITE(0,*) "|   HEAP_MX: High Water Mark for heap so far (KB)"
+          WRITE(0,*) "|   STK:     Current Stack usage (KB)"
+          WRITE(0,*) "|   PGS:     Page faults w I/O since last trace line"
+          WRITE(0,*) "|   CALL:    Number of gstats call"
+          WRITE(0,*) "|   HEAP:    Current malloc'd total (KB)"
+          WRITE(0,*) "|" 
+          WRITE(0,*) "| Trace line written for NSTATS_MEM MPI tasks if RSS_MAX"
+          WRITE(0,*) "| RSS_MAX increases, PGS>0, or HEAP changed"
+          WRITE(0,*) "| (if LTATS_ALLOC=.TRUE.)"
+          WRITE(0,*) "`---------------------------------------------------------"
+          WRITE(0,*) ""
+          WRITE(0,'(A10,A5,21X,A7,2A8,A7,A5,A5,A8)') &
+           & "MEMORY    "," KNUM","RSS_INC"," RSS_MAX"," HEAP_MX","    STK", &
+           & "  PGS"," CALL","    HEAP"
+          LLMFIRST=.FALSE.
+        ENDIF
+        WRITE(0,'(A10,I5,1X,A20,1X,I6,2(1X,I7),1X,I6,1X,I4,1X,I4,1X,I7)') &
+             & "MEMORY bfr",KNUM,CCDESC(KNUM),IMEM-IIMEM,IMEM,IMEMH,IMEMS, &
+             & IPAG-IIPAG,(NCALLS(KNUM)+1)/2,IMEMC
+      ENDIF
+      NTMEM(KNUM,2)=IMEM
+      IIMEM=IMEM
+      IIPAG=IPAG
+      IIMEMC=IMEMC
+    ENDIF
   ELSEIF( KSWITCH == 1 ) THEN
 ! Finish timing event
     ZTIME = THISTIME(KNUM)+(ZCLOCK-TIMELCALL(KNUM))
@@ -130,6 +192,30 @@ IF(LSTATS) THEN
     TIMEMAX(KNUM) = MAX(TIMEMAX(KNUM),ZTIME)
     TTCPUSUM(KNUM) = TTCPUSUM(KNUM)+THISTCPU(KNUM)+ZTCPU-TTCPULCALL(KNUM)
     TVCPUSUM(KNUM) = TVCPUSUM(KNUM)+THISVCPU(KNUM)+ZVCPU-TVCPULCALL(KNUM)
+    IF(MYPROC_STATS.LE.NSTATS_MEM.AND.MYPROC_STATS.NE.0) THEN
+!     CALL getrss(IMEM)
+      IMEM = GETRSS()/1024
+      IPAG = GETPAG()
+      IMEMH = GETHWM()/1024
+      IMEMS = GETSTK()/1024
+      IMEMC = 0
+      IF(LSTATS_ALLOC) IMEMC = GETCURHEAP()/1024
+      IF(IMEM > IIMEM.OR.IPAG > IIPAG.OR.(LSTATS_ALLOC.AND.(IMEMC.NE.IIMEMC))) THEN
+        WRITE(0,'(A10,I5,1X,A20,1X,I6,2(1X,I7),1X,I6,1X,I4,1X,I4,1X,I7)') &
+             & "MEMORY aft ",KNUM,CCDESC(KNUM),IMEM-IIMEM,IMEM,IMEMH,IMEMS, &
+             & IPAG-IIPAG,NCALLS(KNUM)/2,IMEMC
+      ENDIF
+      IIMEM=IMEM
+      IIPAG=IPAG
+      IIMEMC=IMEMC 
+      IMEM=IMEM-NTMEM(KNUM,2)
+      NTMEM(KNUM,4)=NTMEM(KNUM,4)+IMEM
+      IF(IMEM > NTMEM(KNUM,1)) THEN
+        NTMEM(KNUM,1)=IMEM
+        NTMEM(KNUM,3)=NCALLS(KNUM)
+      ENDIF
+      IF(IMEM < NTMEM(KNUM,5)) NTMEM(KNUM,5)=IMEM
+    ENDIF
   ELSEIF( KSWITCH == 2 ) THEN
 ! Suspend timing event
     ZTIMED = ZCLOCK-TIMELCALL(KNUM)
@@ -143,6 +229,7 @@ IF(LSTATS) THEN
     TVCPULCALL(KNUM) = ZVCPU
   ENDIF
   TIME_LAST_CALL = ZCLOCK
+  IF(KNUM > 500.OR.KNUM == 102.OR.KNUM == 103) ZLAST_PAR_TIME = ZCLOCK
 !   Trace stats
   NCALLS_TOTAL = NCALLS_TOTAL+1
   IF (LTRACE_STATS .AND. NCALLS_TOTAL <= NTRACE_STATS) THEN
