@@ -1,4 +1,3 @@
-
 #define _DRHOOK_C_   1
 
 /* 
@@ -46,17 +45,28 @@ If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
 
 #ifdef RS6K
 #pragma options opt=3 halt=e
+#include <pthread.h>
 #endif
 
 /* === This doesn't handle recursive calls correctly (yet) === */
 
 #include "drhook.h"
+
+int drhook_memtrace = 0; /* set to 1, if opt_memprof or opt_timeline ; used in getcurheap.c to lock stuff */
+
+#if !defined(CACHELINESIZE)
+#define CACHELINESIZE 128 /* ***Note: A hardcoded cache line size in bytes !!! */
+#endif
+
 #include "crc.h"
+#include <time.h>
 
 static char *start_stamp = NULL;
 static char *end_stamp = NULL;
-#ifdef VPP
-#include <ucontext.h>
+
+#if defined(NECSX)
+#pragma cdir options -Nv -Csopt
+extern void necsx_trbk_(const char *msg, int msglen); /* from ../utilities/gentrbk.F90 */
 #endif
 
 #if defined(LINUX) && !defined(XT3) && !defined(XD1) && !defined(CYGWIN) && !defined(DARWIN)
@@ -119,6 +129,25 @@ static int callpath_depth = callpath_depth_default;
 
 static int opt_calltrace = 0;
 
+static int opt_timeline = 0; /* myproc or -1 [or 0 for --> timeline feature off (default)] */
+static int opt_timeline_thread = 1; /* thread-id control : 
+				    <= 0 print for all threads
+				       1 -> #1 only [but curheap still SUM of all threads] (default), 
+				       n -> print for increasing number of threads separately : [1..n] */
+static int opt_timeline_format = 1; /* if 1, print only {wall,hwm,rss,curheap} w/o labels "wall=" etc.; else fully expanded fmt */
+static int opt_timeline_unitno = 6; /* Fortran unit number : default = 6 i.e. stdout */
+static long long int opt_timeline_freq = 1000000; /* How often to print : every n-th call : default = every 10^6 th call or ... */
+static double opt_timeline_MB = 1.0; /* ... rss or curheap jumps up/down by more than this many MBytes (default = 1) : unit MBytes */
+
+typedef struct drhook_timeline_t {
+  unsigned long long int calls[2]; /* 0=drhook_begin , 1=drhook_end */
+  double last_curheap_MB;
+  double last_rss_MB;
+  char pad[CACHELINESIZE - (2*sizeof(unsigned long long int) + 2*sizeof(double))]; /* padding : e.g. 128 bytes - 4*8 bytes */
+} drhook_timeline_t; /* cachelinesize optimized --> less false sharing when running with OpenMP */
+
+static drhook_timeline_t *timeline = NULL;
+
 /* HPM-specific */
 
 static long long int opt_hpmstop_threshold = -1;
@@ -172,6 +201,12 @@ static long long int irtc_start = 0;
 extern long long int irtc();
 #define WALLTIME() ((double)(irtc() - irtc_start)*1.0e-9)
 #define CPUTIME() util_cputime_()
+#elif defined(CRAYXT)
+/* Cray XT3/XT4 with catamount microkernel */
+#include <catamount/dclock.h>
+static double dclock_start = 0;
+#define WALLTIME() (dclock() - dclock_start)
+#define CPUTIME()  WALLTIME()
 #else
 #if defined(SV2)
 #include <intrinsics.h>
@@ -992,6 +1027,9 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 #ifdef INTEL
       intel_trbk_(); /* from ../utilities/gentrbk.F90 */
 #endif
+#if defined(NECSX)
+      necsx_trbk_("signal_drhook",13); /* from ../utilities/gentrbk.F90 */
+#endif
 #ifdef VPP
 #if defined(SA_SIGINFO) && SA_SIGINFO > 0
       _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
@@ -1090,14 +1128,17 @@ signal_drhook_init(int enforce)
   SETSIG(SIGABRT,0); /* Good to be first */
   SETSIG(SIGBUS,0);
   SETSIG(SIGSEGV,0);
-  SETSIG(SIGILL,0);
 #if defined(SIGEMT)
   SETSIG(SIGEMT,0);
 #endif
 #if defined(SIGSTKFLT) && !defined(DARWIN)
   SETSIG(SIGSTKFLT,0); /* Stack fault */
 #endif
+#if !defined(NECSX)
+  /* For the moment turn off these on NEC SX ... */
   SETSIG(SIGFPE,0);
+  SETSIG(SIGILL,0);
+#endif
   SETSIG(SIGTRAP,0); /* should be switched off when used with debuggers */
   SETSIG(SIGINT,0);
   SETSIG(SIGQUIT,0);
@@ -1115,6 +1156,32 @@ signal_drhook_init(int enforce)
   SETSIG(SIGCHLD);
   SETSIG(SIGHUP);
   SETSIG(SIGCONT);
+  */
+#if defined(SIGCORE)
+  SETSIG(SIGCORE,0); /* NEC SX core dumping */
+#endif
+#if defined(SIGDEAD)
+  SETSIG(SIGDEAD,0); /* NEC SX dead lock */
+#endif
+#if defined(SIGXMEM)
+  SETSIG(SIGXMEM,0); /* NEC SX exceeded memory size limit */
+#endif
+#if defined(SIGXDSZ)
+  SETSIG(SIGXDSZ,0); /* NEC SX exceeded data size limit */
+#endif
+#if defined(SIGMEM32)
+  SETSIG(SIGMEM32,0); /* NEC SX exceeded memory size limit of 32KB */
+#endif
+#if defined(SIGNMEM)
+  SETSIG(SIGNMEM,0); /* NEC SX exce error for no memory */
+#endif
+#if defined(SIGXABT)
+  SETSIG(SIGXABT,0); /* NEC SX distributed parallel program aborted */
+#endif
+  /*
+    #if defined(SIG)
+    SETSIG(SIG,0);
+    #endif
   */
   catch_signals(silent); /* Additional signals to be seen by DR_HOOK */
   signals_set = 1; /* Signals are set now */
@@ -1173,7 +1240,7 @@ process_options()
     if (!strchr(env,'%')) strcat(s,".%d");
     mon_out = strdup_drhook(s);
     if (fp) fprintf(fp,">>>process_options(): DR_HOOK_PROFILE=%s\n",mon_out);
-    free(s);
+    free_drhook(s);
   }
 
   env = getenv("DR_HOOK_PROFILE_PROC");
@@ -1206,6 +1273,43 @@ process_options()
   if (env) {
     opt_calltrace = atoi(env);
     if (fp) fprintf(fp,">>>process_options(): DR_HOOK_CALLTRACE=%d\n",opt_calltrace);
+  }
+
+  env = getenv("DR_HOOK_TIMELINE");
+  if (env) {
+    opt_timeline = atoi(env);
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_TIMELINE=%d\n",opt_timeline);
+  }
+
+  env = getenv("DR_HOOK_TIMELINE_THREAD");
+  if (env) {
+    opt_timeline_thread = atoi(env);
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_TIMELINE_THREAD=%d\n",opt_timeline_thread);
+  }
+
+  env = getenv("DR_HOOK_TIMELINE_FORMAT");
+  if (env) {
+    opt_timeline_format = atoi(env);
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_TIMELINE_FORMAT=%d\n",opt_timeline_format);
+  }
+
+  env = getenv("DR_HOOK_TIMELINE_UNITNO");
+  if (env) {
+    opt_timeline_unitno = atoi(env);
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_TIMELINE_UNITNO=%d\n",opt_timeline_unitno);
+  }
+
+  env = getenv("DR_HOOK_TIMELINE_FREQ");
+  if (env) {
+    opt_timeline_freq = atoi(env);
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_TIMELINE_FREQ=%lld\n",opt_timeline_freq);
+  }
+
+  env = getenv("DR_HOOK_TIMELINE_MB");
+  if (env) {
+    opt_timeline_MB = atof(env);
+    if (opt_timeline_MB < 0) opt_timeline_MB = 1.0;
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_TIMELINE_MB=%d\n",opt_timeline_MB);
   }
 
   env = getenv("DR_HOOK_HASHBITS");
@@ -1309,6 +1413,7 @@ process_options()
       }
       else if (strequ(p,"MEMPROF")) {
 	opt_memprof = 1;
+	drhook_memtrace = 1;
 	opt_gethwm = opt_getstk = opt_getrss = 1;
 	opt_getpag = 1;
 	opt_calls = 1;
@@ -1370,10 +1475,13 @@ process_options()
     }
     free_drhook(s);
     if (*comma == ',') if (fp) fprintf(fp,"\"\n");
-    if (opt_wallprof || opt_cpuprof || opt_memprof) {
+    if (opt_wallprof || opt_cpuprof || opt_memprof || opt_timeline) {
       atexit(do_prof);
     }
   }
+  else {
+    if (opt_timeline) atexit(do_prof);
+  } /* if (env) */
 }
 
 /*--- trim ---*/
@@ -1398,12 +1506,11 @@ trim(const char *name, int *n)
     name_len--;
   }
   *n = len;
-  if (name) return name;
-  else {
+  if (!name) {
     /* Never actually called (unless a true fatality) */
     ABOR1("***Fatal error in drhook.c:trim()-function");
-    return NULL;
   }
+  return name;
 }
 
 /*--- insertkey ---*/
@@ -1595,8 +1702,8 @@ init_drhook(int ntids)
     if (pid == -1) { /* Ensure that just called once */
       {
 	/* Invoke once : timers, memory counters etc. to "wake them up" */
-	(void) util_walltime_();
-	(void) util_cputime_();
+	(void) WALLTIME();
+	(void) CPUTIME();
 	(void) gethwm_();
 	(void) getrss_();
 	(void) getstk_();
@@ -1605,6 +1712,9 @@ init_drhook(int ntids)
       }
 #ifdef RS6K
       irtc_start = irtc();
+#endif
+#ifdef CRAYXT
+      dclock_start = dclock();
 #endif
 #if defined(SV2) || defined(XD1) || defined(XT3)
 #if defined(SV2)
@@ -1617,16 +1727,17 @@ init_drhook(int ntids)
 #endif
       start_stamp = timestamp();
       {
-	int konoff = 1;
+	char *env = getenv("DR_HOOK_SHOW_LOCK"); /* export DR_HOOK_SHOW_LOCK=1 to show the lock-info */
+	int konoff = env ? atoi(env) : 0;
 	int kret = 0;
-	coml_set_debug_(&konoff, &kret);
+	if (konoff == 1) coml_set_debug_(&konoff, &kret);
 	INIT_LOCKID_WITH_NAME(&DRHOOK_lock,"drhook.c:DRHOOK_lock");
-	if (!kret) {
+	if (kret != 0) {
 	  konoff = 0;
 	  coml_set_debug_(&konoff, &kret);
 	}
       }
-#ifdef NECSX
+#if defined(NECSX)
       { /* If C-programs compiled with -traceback, then NEC/F90 
 	   MESPUT-call will also includes C-routines in the traceback if 
 	   in addition 'export C_TRACEBACK=YES' */
@@ -1677,6 +1788,21 @@ init_drhook(int ntids)
     }
     numthreads = ntids;
     signal_drhook_init(1);
+    if (!timeline) {
+      if (opt_timeline_unitno >= 0 && opt_timeline_freq >= 1 &&
+	  (opt_timeline == myproc || opt_timeline == -1)) {
+	timeline = calloc_drhook(ntids, sizeof(*timeline));
+      }
+      if (timeline) drhook_memtrace = 1;
+      if (timeline) {
+	/* The first timeline-call */
+	const int ftnunitno = opt_timeline_unitno;
+	const int master = 1;
+	const int print_option = +7;
+	int initlev = 0;
+	c_drhook_print_(&ftnunitno, &master, &print_option, &initlev);
+      }
+    }
     init_hpm(1); /* First thread */
   }
 }
@@ -1877,6 +2003,15 @@ do_prof()
     int initlev = 0;
     c_drhook_print_(&ftnunitno, &master, &print_option, &initlev);
   }
+
+  if (!do_prof_off && timeline) {
+    /* The last timeline-call */
+    const int ftnunitno = opt_timeline_unitno;
+    const int master = 1;
+    const int print_option = -7;
+    int initlev = 0;
+    c_drhook_print_(&ftnunitno, &master, &print_option, &initlev);
+  }
 }
 
 /*--- Check watch points ---*/
@@ -1964,7 +2099,7 @@ c_drhook_getenv_(const char *s,
     if (valuelen < len) len = valuelen;
     memcpy(value,env,len); 
   }
-  free(p);
+  free_drhook(p);
 }
 
 
@@ -2107,6 +2242,37 @@ c_drhook_start_(const char *name,
     }
     coml_unset_lockid_(&DRHOOK_lock);
   }
+  if (timeline) {
+    int tid = *thread_id;
+    if (opt_timeline_thread <= 0 || tid <= opt_timeline_thread) {
+      drhook_timeline_t *tl = &timeline[tid-1];
+      int bigjump = 1;
+      unsigned long long int mod = (tl->calls[0]++)%opt_timeline_freq;
+      double rss = (double)(getrss_()/1048576.0); /* in MBytes */
+      double curheap = (opt_timeline_thread == 1 && tid == 1) ?
+	(double)(getcurheap_()/1048576.0) : (double)(getcurheap_thread_(&tid)/1048576.0); /* in MBytes */
+      if (mod != 0) {
+	double inc_MB;
+	inc_MB = tl->last_rss_MB - rss;
+	if (ABS(inc_MB) < opt_timeline_MB) {
+	  inc_MB = tl->last_curheap_MB - curheap;
+	}
+	if (ABS(inc_MB) < opt_timeline_MB) bigjump = 0;
+      }
+      if (mod == 0 || bigjump) {
+	coml_set_lockid_(&DRHOOK_lock);
+	{
+	  int ftnunitno = opt_timeline_unitno;
+	  const int print_option = 5; /* calling "tree" with just the current entry */
+	  int level = 0;
+	  tl->last_rss_MB = rss;
+	  tl->last_curheap_MB = curheap;
+	  c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
+	}
+	coml_unset_lockid_(&DRHOOK_lock);
+      }
+    } /* if (opt_timeline_thread <= 0 || tid <= opt_timeline_thread) */
+  }
 }
 
 /*=== c_drhook_end_ ===*/
@@ -2131,6 +2297,37 @@ c_drhook_end_(const char *name,
     coml_unset_lockid_(&DRHOOK_lock);
   }
   */
+  if (timeline) {
+    int tid = *thread_id;
+    if (opt_timeline_thread <= 0 || tid <= opt_timeline_thread) {
+      drhook_timeline_t *tl = &timeline[tid-1];
+      int bigjump = 1;
+      unsigned long long int mod = (tl->calls[1]++)%opt_timeline_freq;
+      double rss = (double)(getrss_()/1048576.0); /* in MBytes */
+      double curheap = (opt_timeline_thread == 1 && tid == 1) ?
+	(double)(getcurheap_()/1048576.0) : (double)(getcurheap_thread_(&tid)/1048576.0); /* in MBytes */
+      if (mod != 0) {
+	double inc_MB;
+	inc_MB = tl->last_rss_MB - rss;
+	if (ABS(inc_MB) < opt_timeline_MB) {
+	  inc_MB = tl->last_curheap_MB - curheap;
+	}
+	if (ABS(inc_MB) < opt_timeline_MB) bigjump = 0;
+      }
+      if (mod == 0 || bigjump) {
+	coml_set_lockid_(&DRHOOK_lock);
+	{
+	  int ftnunitno = opt_timeline_unitno;
+	  const int print_option = -5; /* calling "tree" with just the current entry */
+	  int level = 0;
+	  tl->last_rss_MB = rss;
+	  tl->last_curheap_MB = curheap;
+	  c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
+	}
+	coml_unset_lockid_(&DRHOOK_lock);
+      }
+    } /* if (opt_timeline_thread <= 0 || tid <= opt_timeline_thread) */
+  }
   if (watch && watch_count > 0) check_watch("leaving", name, name_len);
   putkey(*thread_id, u.keyptr, name, name_len, 
 	 *sizeinfo,
@@ -2145,6 +2342,18 @@ c_drhook_memcounter_(const int *thread_id,
 		     const long long int *size,
 		     long long int *keyptr_addr)
 {
+  int tid = (thread_id && (*thread_id >= 1) && (*thread_id <= numthreads))
+    ? *thread_id : get_thread_id_();
+  int has_timeline = (timeline && size) ? opt_timeline : 0;
+  if (has_timeline) {
+    if (opt_timeline_thread <= 1 || tid <= opt_timeline_thread) {
+      double size_MB = (double)((*size)/1048576.0); /* In MBytes */
+      if (ABS(size_MB) < opt_timeline_MB) has_timeline = 0; /* Do not report */
+    }
+    else {
+      has_timeline = 0; /* Do not report */
+    }
+  } /* if (has_timeline) */
   if (opt_memprof) {
     if (size) {
       union {
@@ -2152,8 +2361,6 @@ c_drhook_memcounter_(const int *thread_id,
 	drhook_key_t *keyptr;
       } u;
       long long int alldelta;
-      int tid = (thread_id && (*thread_id >= 1) && (*thread_id <= numthreads))
-	? *thread_id : get_thread_id_();
       tid--;
       if (*size > 0) { /* Memory is being allocated */
 	if (curkeyptr[tid]) {
@@ -2198,9 +2405,26 @@ c_drhook_memcounter_(const int *thread_id,
 	  if (alldelta > keyptr->maxmem_alldelta) keyptr->maxmem_alldelta = alldelta;
 	  if (*size < 0) keyptr->free_count++;
 	} /* if (keyptr) */
-      }
+      } /* if (*size > 0) ... else */
     } /* if (size) */
-  }
+  } /* if (opt_memprof) */
+  if (has_timeline) {
+    double curheap = (opt_timeline_thread == 1 && tid == 1) ?
+      (double)(getcurheap_()/1048576.0) : (double)(getcurheap_thread_(&tid)/1048576.0); /* in MBytes */
+    double rss = (double)(getrss_()/1048576.0); /* in MBytes */
+    coml_set_lockid_(&DRHOOK_lock);
+    {
+      int ftnunitno = opt_timeline_unitno;
+      double size_MB = (double)((*size)/1048576.0); /* In MBytes */
+      int print_option = (size_MB > 0) ? 6 : -6; /* timeline upon c_drhook_memcounter_ & (big) ALLOCATE or DEALLOCATE */
+      int level = 0;
+      drhook_timeline_t *tl = &timeline[tid-1];
+      tl->last_curheap_MB = curheap;
+      tl->last_rss_MB = rss;
+      c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
+    }
+    coml_unset_lockid_(&DRHOOK_lock);
+  } /* if (has_timeline) */
 }
 
 /*=== c_drhook_print_ ===*/
@@ -2318,6 +2542,24 @@ trim_and_adjust_left(const char *p, int *name_len)
   } /* if (fp && p) */
 
 
+#ifdef NECSX
+/* We need this because NEC SX refuses to write no more than 132 character for Fortran unit = 0 */
+static void
+DrHookPrint(int ftnunitno, const char *line)
+{
+  if (line) {
+    FILE *fp = NULL;
+    if (ftnunitno <= 0) 
+      fp = stderr;
+    else if (ftnunitno == 6) 
+      fp = stdout;
+    else
+      dr_hook_prt_(&ftnunitno, line, strlen(line));
+    if (fp) fprintf(fp,"%s\n",line);
+  }
+}
+#endif
+
 void 
 c_drhook_print_(const int *ftnunitno,
 		const int *thread_id,
@@ -2325,13 +2567,21 @@ c_drhook_print_(const int *ftnunitno,
 					    1=raw call counts 
 					    2=calling tree
 					    3=profiling info
+					    4=memory profiling
+					    5=timeline upon entering the routine
+					   -5=timeline upon leaving the routine
+					    6=timeline upon c_drhook_memcounter_ & (big) ALLOCATE
+					   -6=timeline upon c_drhook_memcounter_ & (big) DEALLOCATE
+					    7=timeline : the very first call (upon setup or dr.hook)
+					   -7=timeline : the very last call (in atexit())
 					 */
 		int *level
 		)
 {
   int tid = (thread_id && (*thread_id > 0)) ? *thread_id : get_thread_id_();
-  if (keydata && calltree && tid >= 1 && tid <= numthreads) {
+  if (ftnunitno && keydata && calltree && tid >= 1 && tid <= numthreads) {
     char line[4096];
+    int abs_print_option = ABS(*print_option);
     int j;
 
     if (*print_option == 1) { /* raw call counts */
@@ -2353,7 +2603,11 @@ c_drhook_print_(const int *ftnunitno,
 	    PRINT_WALL();
 	    PRINT_CPU();
 	    *s = 0;
+#ifdef NECSX
+	    DrHookPrint(*ftnunitno, line);
+#else
 	    dr_hook_prt_(ftnunitno, line, strlen(line));
+#endif
 	  }
 	  keyptr = keyptr->next;
 	  nestlevel++;
@@ -2361,34 +2615,133 @@ c_drhook_print_(const int *ftnunitno,
       } /* for (j=0; j<hashsize; j++) */
     }
 
-    else if (*print_option == 2) { /* current calling tree */
+    else if (*print_option == 2 || 
+	     abs_print_option == 5 || 
+	     abs_print_option == 6 || 
+	     abs_print_option == 7
+	     ) { /* the current calling tree */
       drhook_calltree_t *treeptr = calltree[tid-1];
-      if (tid > 1) { /* I'm not master thread, but my master has the beginning of the calltree */
-	int initlev = 0;
-	const int master = 1;
-	c_drhook_print_(ftnunitno, &master, print_option, &initlev);
-	*level += initlev;
+
+      if (tid > 1) {
+	if (*print_option == 2) { 
+	  /* I'm not master thread, but my master has the beginning of the calltree */
+	  int initlev = 0;
+	  const int master = 1;
+	  c_drhook_print_(ftnunitno, &master, print_option, &initlev);
+	  *level += initlev;
+	}
+	else if (tid > opt_timeline_thread) {
+	  return;
+	}
       }
-      while (treeptr && treeptr->active) {
-	drhook_key_t *keyptr = treeptr->keyptr;
-	char *s = line;
-	sprintf(s,"[myproc#%d,tid#%d,pid#%d]: ",myproc,tid,pid);
-	s += strlen(s);
-	(*level)++;
-	for (j=0; j<(*level); j++) *s++ = ' ';
-	sprintf(s,"%s ",keyptr->name);
-	s += strlen(s);
-	PRINT_CALLS();
-	PRINT_HWM();
-	PRINT_RSS();
-	PRINT_STK();
-	PRINT_PAG();
-	PRINT_WALL();
-	PRINT_CPU();
-	*s = 0;
-	dr_hook_prt_(ftnunitno, line, strlen(line));
-	treeptr = treeptr->next;
-      } /* while (treeptr && treeptr->active) */
+
+      if (abs_print_option == 7) {
+	treeptr = NULL;
+      }
+      else if (abs_print_option == 5 || abs_print_option == 6) {
+	treeptr = thiscall[tid-1];
+      }
+      else {
+	treeptr = calltree[tid-1];
+      }
+
+      while (abs_print_option == 7 || (treeptr && treeptr->active)) {
+	int do_print = (*print_option == 2 || 
+			abs_print_option == 7 ||
+			abs_print_option == 5 || abs_print_option == 6);
+	if (do_print) {
+	  drhook_key_t *keyptr = (abs_print_option == 7) ? NULL : treeptr->keyptr;
+	  char *s = line;
+	  char is_timeline = 1, kind;
+	  switch (*print_option) {
+	  case -5: kind = '<'; break;
+	  case -6: kind = '-'; break;
+	  case -7: kind = 'E'; break;
+	  case  5: kind = '>'; break;
+	  case  6: kind = '+'; break;
+	  case  7: kind = 'B'; break;
+	  default:
+	  case 2: kind = ':'; is_timeline = 0; break;
+	  }
+	  if (*print_option == 2 || 
+	      (is_timeline && tid > 1 && tid <= opt_timeline_thread))  {
+	    sprintf(s,"%s[myproc#%d,tid#%d,pid#%d]%c ",
+		    is_timeline ? "tl:" : "",
+		    myproc,tid,pid,kind);
+	  }
+	  else if (is_timeline && opt_timeline_thread == 1 && tid == 1) {
+	    sprintf(s,"%s[#%d]%c ",
+		    is_timeline ? "tl:" : "",
+		    myproc,kind);
+	  }
+	  s += strlen(s);
+	  (*level)++;
+	  for (j=0; j<(*level); j++) *s++ = ' ';
+	  if (*print_option == 2) {
+	    sprintf(s,"%s ",keyptr->name);
+	    s += strlen(s);
+	  }
+	  if (is_timeline) {
+	    double wall = WALLTIME();
+	    double rss, curheap;
+	    drhook_timeline_t *tl = &timeline[tid-1];
+	    if (abs_print_option == 5 || abs_print_option == 6) { /* when called via drhook_begin/_end or memcounter */
+	      curheap = tl->last_curheap_MB;
+	      rss = tl->last_rss_MB;
+	    }
+	    else {
+	      rss = (double)(getrss_()/1048576.0); /* in MBytes */
+	      curheap = (opt_timeline_thread == 1 && tid == 1) ?
+		(double)(getcurheap_()/1048576.0) : (double)(getcurheap_thread_(&tid)/1048576.0); /* in MBytes */
+	      tl->last_curheap_MB = curheap;
+	      tl->last_rss_MB = rss;
+	    }
+	    if (opt_timeline_format == 1) {
+	      if (wall < 10000) {
+		sprintf(s, "%.4g %.4g %.4g", wall, rss, curheap);
+	      }
+	      else {
+		sprintf(s, "%.7g %.4g %.4g", wall, rss, curheap);
+	      }
+	    }
+	    else {
+	      sprintf(s,
+		      "wall=%.4g cpu=%.4g hwm=%.4g rss=%.4g curheap=%.4g stack=%.4g pag=%lld",
+		      wall, CPUTIME(),
+		      (double)(gethwm_()/1048576.0), rss,
+		      curheap,
+		      (double)(getstk_()/1048576.0),
+		      getpag_());
+	    }
+	    s += strlen(s);
+	    *s++ = ' ';
+	    if (keyptr) {
+	      sprintf(s,"'%s'",keyptr->name);
+	    }
+	    else {
+	      sprintf(s,"'#PROGRAM %s'",(*print_option == 7) ? "BEGIN" : "END");
+	    }
+	    s += strlen(s);
+	  }
+	  else {
+	    PRINT_CALLS();
+	    PRINT_HWM();
+	    PRINT_RSS();
+	    PRINT_STK();
+	    PRINT_PAG();
+	    PRINT_WALL();
+	    PRINT_CPU();
+	  }
+	  *s = 0;
+#ifdef NECSX
+	  DrHookPrint(*ftnunitno, line);
+#else
+	  dr_hook_prt_(ftnunitno, line, strlen(line));
+#endif
+	}
+	if (abs_print_option == 7 || abs_print_option == 5 || abs_print_option == 6) break;
+	if (treeptr) treeptr = treeptr->next;
+      } /* while (abs_print_option == 7 || (treeptr && treeptr->active)) */
     }
 
     else if (*print_option == 3) { /* profiling (CPU, wall-clock and/or MFlop/s) */
@@ -2926,7 +3279,7 @@ c_drhook_print_(const int *ftnunitno,
 	  long long int leaked = 0;
 	  p = prof;
 	  for (j=0; j<nprof; j++) {
-	    leaked += p->leaked;
+	    if (p->leaked > 0) leaked += p->leaked;
 	    p++;
 	  }
 	  for (t=0; t<numthreads; t++) {
@@ -2937,6 +3290,7 @@ c_drhook_print_(const int *ftnunitno,
 	  fprintf(fp,
 	  "\tMemory usage : %lld MBytes (max.seen), %lld MBytes (leaked), %lld MBytes (heap), %lld MBytes (max.rss), %lld MBytes (max.stack), %lld (paging)\n",
 		  maxseen,leaked,hwm,rss,maxstack,pag);
+	  fprintf(fp,"\tNo. of procs/threads: %d procs, %d threads\n",nproc,numthreads);
 	}
 
 	if (myproc == 1) {
@@ -3060,7 +3414,6 @@ Dr_Hook(const char *name, int option, double *handle,
 /**** Interface to HPM (RS6K) ****/
 
 #include <pmapi.h>
-#include <pthread.h>
 
 static pthread_mutex_t hpm_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -3483,7 +3836,42 @@ mip_count(const drhook_key_t *keyptr)
 #undef MAX
 #include <sys/param.h>
 
-#include <time.h>
+#include <sys/time.h>
+
+#if !defined(VPP)
+
+FORTRAN_CALL
+double util_walltime_()
+{
+  static double time_init = -1;
+  double time_in_secs;
+#if !defined(CRAYXT)
+  struct timeval tbuf;
+  if (gettimeofday(&tbuf,NULL) == -1) perror("UTIL_WALLTIME");
+
+  if (time_init == -1) time_init = 
+    (double) tbuf.tv_sec + (tbuf.tv_usec / 1000000.0);
+
+  time_in_secs = 
+  (double) tbuf.tv_sec + (tbuf.tv_usec / 1000000.0) - time_init;
+#else
+  if (time_init == -1) time_init = dclock();
+  time_in_secs = dclock() - time_init;
+#endif
+
+  return time_in_secs;
+}
+
+#if defined(CRAYXT)
+/* Cray XT3/XT4 with catamount microkernel */
+
+FORTRAN_CALL
+double util_cputime_()
+{
+  return util_walltime_(); /* In absence of anything better */
+}
+
+#else
 
 extern clock_t times (struct tms *buffer);
 
@@ -3504,26 +3892,8 @@ double util_cputime_()
   return (tbuf.tms_utime + tbuf.tms_stime +
           tbuf.tms_cutime + tbuf.tms_cstime) / clock_ticks; 
 }
+#endif
 
-#include <sys/time.h>
-
-#ifndef VPP
-FORTRAN_CALL
-double util_walltime_()
-{
-  static double time_init = 0;
-  double time_in_secs;
-  struct timeval tbuf;
-  if (gettimeofday(&tbuf,NULL) == -1) perror("UTIL_WALLTIME");
-
-  if (time_init == 0) time_init = 
-    (double) tbuf.tv_sec + (tbuf.tv_usec / 1000000.0);
-
-  time_in_secs = 
-  (double) tbuf.tv_sec + (tbuf.tv_usec / 1000000.0) - time_init;
-
-  return time_in_secs;
-}
 #else 
 /* VPP */
 FORTRAN_CALL
@@ -3538,24 +3908,6 @@ double util_walltime_()
   return time_in_secs;
 }
 #endif
-
-FORTRAN_CALL
-void ec_set_umask_()
-{
-  char *env = getenv("EC_SET_UMASK");
-  if (env) {
-    int newmask;
-    int n = sscanf(env,"%o",&newmask);
-    if (n == 1) {
-      int oldmask = umask(newmask);
-      fprintf(stderr,
-	      "*** EC_SET_UMASK : new/old = %o/%o (oct), %d/%d (dec), %x/%x (hex)\n",
-	      newmask,oldmask,
-	      newmask,oldmask,
-	      newmask,oldmask);
-    }
-  }
-}
 
 #include <sys/time.h>
 #include <sys/resource.h>

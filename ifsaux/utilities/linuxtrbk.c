@@ -34,7 +34,7 @@
 
 #if defined(__GNUC__)
 
-#if defined(LINUX) && !defined(CYGWIN)
+#if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN)
 #include <execinfo.h>
 #endif
 
@@ -74,7 +74,7 @@ LinuxTraceBack(void *sigcontextptr)
     }
   }
 
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN)
   fflush(NULL);
 
   if (!sigcontextptr) {

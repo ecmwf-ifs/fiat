@@ -12,6 +12,11 @@ void ec_PutArgs(int argc, char *argv[]);
 const char *ec_GetArgs(int argno);
 int ec_NumArgs(void);
 
+/* The following two as in C-main : "int main(int argc, char *argv[])" */
+
+int ec_argc(void);
+char **ec_argv(void);
+
 /* Fortran interface */
 
 int iargc_c_(void);

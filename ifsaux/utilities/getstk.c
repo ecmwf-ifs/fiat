@@ -1,3 +1,7 @@
+#if defined(__64BIT__) && defined(RS6K)
+#include <pthread.h> /* requires xlc_r or cc_r */
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -13,7 +17,6 @@ static ll_t maxstack = 0;
 
 #include <fcntl.h>
 #include <sys/procfs.h>
-#include <pthread.h> /* requires xlc_r or cc_r */
 
 static pthread_t master_tid;
 
@@ -29,7 +32,7 @@ getstk_()
     char procfile[80];
     int pid = getpid();
     master_tid = pthread_self();
-    sprintf(procfile,"/proc/%d/status",pid);
+    snprintf(procfile,sizeof(procfile),"/proc/%d/status",pid);
     fd = open(procfile, O_RDONLY);
     if (read(fd, &pstatus, sizeof(pstatus)) == sizeof(pstatus)) {
       stackbase = (ll_t)pstatus.pr_stkbase;

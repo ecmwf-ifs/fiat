@@ -129,6 +129,19 @@ const char *ec_GetArgs(int argno)
 
 int ec_NumArgs(void) { return numargs; }
 
+int ec_argc(void) { return 1 + ec_NumArgs(); }
+
+char **ec_argv(void)
+{
+  int j, argc = ec_argc();
+  char **argv = NULL;
+  argv = calloc((argc + 1), sizeof(*argv));
+  for (j=0; j<argc; j++) {
+    argv[j] = (char *)ec_GetArgs(j);
+  }
+  argv[argc] = NULL;
+  return argv;
+}
 
 
 /* Fortran interface */

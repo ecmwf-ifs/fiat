@@ -37,6 +37,28 @@ ec_numenv(int *n)
 
 
 void
+ec_overwrite_env_(int *do_overwrite)
+{
+  if (do_overwrite) {
+    char *env = getenv("EC_OVERWRITE_ENV");
+    if (env) {
+      *do_overwrite = atoi(env);
+    }
+    else {
+      *do_overwrite = 0;
+    }
+  }
+}
+
+
+void
+ec_overwrite_env(int *do_overwrite)
+{
+  ec_overwrite_env_(do_overwrite);
+}
+
+
+void
 ec_strenv_(const int *i,
 	   char *value,
 	   /* Hidden arguments */
@@ -110,9 +132,9 @@ ec_putenv_(const char *s,
 {
   const char *x = &s[slen-1];
   /* strip trailing blanks first */
-  while (slen > 0 && *x-- == ' ') { slen--; }
+  while (slen > 0 && *x == ' ') { --slen; --x; }
   /* now go ahead */
-  {
+  if (slen > 0) {
     char *p = malloc(slen+1);
     if (!p) {
       fprintf(stderr,"ec_putenv_(): Unable to allocate %d bytes of memory\n", slen+1);
@@ -133,3 +155,66 @@ ec_putenv(const char *s,
 {
   ec_putenv_(s,slen);
 }
+
+
+void
+ec_putenv_nooverwrite_(const char *s,
+		       /* Hidden argument */
+		       int slen)
+{
+  const char *x = &s[slen-1];
+  /* strip trailing blanks first */
+  while (slen > 0 && *x == ' ') { --slen; --x; }
+  /* now go ahead */
+  if (slen > 0) {
+    char *eq = NULL;
+    char *p = malloc(slen+1);
+    if (!p) {
+      fprintf(stderr,"ec_putenv_nooverwrite_(): Unable to allocate %d bytes of memory\n", slen+1);
+      ABOR1("ec_putenv_nooverwrite_(): Unable to allocate memory");
+    }
+    memcpy(p,s,slen);
+    p[slen]='\0';
+    eq = strchr(p,'=');
+    if (eq) {
+      char *env = NULL;
+      *eq = '\0';
+      env = getenv(p);
+      if (env) {
+	/* Already found ==> do not overwrite */
+	free(p);
+	return;
+      }
+      else {
+	/* Reset '=' back and continue with putenv() */
+	*eq = '=';
+      }
+    }
+    putenv(p);
+    /* Cannot free(p); , since putenv() uses this memory area for good ;-( */
+  }
+}
+
+
+void
+ec_putenv_nooverwrite(const char *s,
+		      /* Hidden argument */
+		      int slen)
+{
+  ec_putenv_nooverwrite_(s,slen);
+}
+
+
+unsigned int
+ec_sleep_(int *nsec)
+{
+  return sleep(nsec ? *nsec : 0);
+}
+
+
+unsigned int
+ec_sleep(int *nsec)
+{
+  return ec_sleep_(nsec);
+}
+
