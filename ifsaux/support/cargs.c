@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include "cargs.h"
 
@@ -30,13 +31,27 @@ static const char *get_a_out()
   /* Using an alternative method of getting a.out :
      
   ps -p<pid> | tail -1 | awk '{print $NF}' 
-  
+
+  This can give false positives, as we search the path for the binary: we may have
+  executed ./MASTER rather than the first MASTER in the path.
+
   Naturally this cannot be the nicest method around ;-(
   So, a competition is launched: make this better and 
   you may win a week in Bahamas!!
 
   */
 
+#if defined(LINUX)
+   /* On Linux, the following is more reliable, if /proc is available. 
+    */
+  char symlink[NAME_MAX], real_exe[NAME_MAX];
+  if (!a_out) {
+     snprintf(symlink, NAME_MAX, "/proc/%d/exe", getpid());
+     if (readlink(symlink, real_exe, NAME_MAX) > 0)  {
+        a_out  = strdup(real_exe);
+     }
+  }
+#endif
   if (!a_out && (access(PSCMD,X_OK) == 0)) {
     char cmd[sizeof(PSCMD) + 100];
     FILE *fp = NULL;
@@ -57,8 +72,9 @@ static const char *get_a_out()
 	    char *token = strtok(saved,":");
 	    do {
 	      /* char fullpath[strlen(start) + 1 + lenc + 1]; */
-	      char *fullpath = malloc(strlen(start) + 1 + lenc + 1);
-	      snprintf(fullpath,sizeof(fullpath),"%s/%s",start,c);
+              int len = strlen(start) + 1 + lenc + 1;
+	      char *fullpath = malloc(len);
+	      snprintf(fullpath,len,"%s/%s",start,c);
 	      if (access(fullpath,X_OK) == 0) { /* It's this one!! */
 		a_out = strdup(fullpath);
 		free(fullpath);
@@ -226,7 +242,6 @@ void putarg_info_(const int *argc, const char *cterm
   numargs = Argc;
   args = calloc(1 + numargs, sizeof(arg_t));
 }
-
 
 void putarg_info (const int *argc, const char *cterm
 		  /* Hidden argument */

@@ -32,6 +32,8 @@ IF (LL_FIRST_TIME) THEN
     & CLENV == 'false' .OR. CLENV == 'FALSE') THEN
     LLMPI=.TRUE.
     CALL MPL_INIT(LDINFO=.FALSE.) ! Do not produce any output
+  ELSE
+    LLMPI=.FALSE.
   ENDIF
   CALL EC_GETENV('DR_HOOK',CLENV)
   IF (CLENV == ' ' .OR. CLENV == '0' .OR. &
