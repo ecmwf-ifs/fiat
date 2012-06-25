@@ -1,18 +1,5 @@
 /*
 
-$Header$
-
-
-$Revision$
-$Date$
-$Source$
-$Author$
-$Locker$
-
-
-$Log$
-
-
 Author: Dr. Umberto Modigliani, User Support.
 
 */

@@ -32,7 +32,6 @@ IMYTID = OML_MY_THREAD()
 INUMTIDS = OML_MAX_THREADS()
 
 IF (LL_FIRST_TIME) THEN
-  write(0,*) " IMYTID,INUMTIDS=",IMYTID,INUMTIDS
   LL_FIRST_TIME = .FALSE.
 #ifdef CRAYXT
   IRET = SETVBUF3F(0, 1, 0) ! Set unit#0 into line-buffering mode to avoid messy output

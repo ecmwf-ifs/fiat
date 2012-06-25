@@ -77,7 +77,7 @@ LinuxTraceBack(void *sigcontextptr)
   static int recur = 0;
   pid_t pid = getpid();
   const char *a_out = ec_GetArgs(0);
-  fprintf(stderr,"[LinuxTraceBack]: Backtrace(s) for program '%s' :\n", a_out ? a_out : ec_GetArgs(0));
+  fprintf(stderr,"[LinuxTraceBack]: Backtrace(s) for program '%s' (pid=%d) :\n", a_out ? a_out : ec_GetArgs(0), pid);
   if (++recur > 1) {
     fprintf(stderr,
 	    "[LinuxTraceBack]: I don't handle recursive calls very well (recursion level = %d)\n",
@@ -139,14 +139,14 @@ LinuxTraceBack(void *sigcontextptr)
 		if (nl) *nl = '\0';
 		newlen = strlen(line);
 		if (newlen > len) len = newlen;
-		fprintf(stderr, "%*.*s  :  %s\n", len, len, line, last_slash);
+		fprintf(stderr, "(pid=%d): %*.*s  :  %s\n", pid, len, len, line, last_slash);
 	      }
 	      else {
-		fprintf(stderr, "%*.*s  :  %s\n", len, len, "<Unknown>", last_slash);
+		fprintf(stderr, "(pid=%d): %*.*s  :  %s\n", pid, len, len, "<Unknown>", last_slash);
 	      }
 	    }
 	    else {
-	      fprintf(stderr, "%s\n", strings[i]);
+	      fprintf(stderr, "(pid=%d): %s\n", pid, strings[i]);
 	    }
 	  } /* for (i = 0; i < trace_size; i++) */
 	} /* if (strings) */

@@ -48,11 +48,14 @@ static const char *get_a_out()
 #if defined(LINUX)
    /* On Linux, the following is more reliable, if /proc is available. 
     */
-  char symlink[NAME_MAX], real_exe[NAME_MAX];
   if (!a_out) {
+     int len;
+     char symlink[NAME_MAX], real_exe[NAME_MAX];
      snprintf(symlink, NAME_MAX, "/proc/%d/exe", getpid());
-     if (readlink(symlink, real_exe, NAME_MAX) > 0)  {
-        a_out  = strdup(real_exe);
+     if ((len = readlink(symlink, real_exe, NAME_MAX)) > 0)  {
+	a_out = malloc((len+1)*sizeof(*a_out));
+        strncpy(a_out, real_exe, len);
+	a_out[len] = '\0';
      }
   }
 #endif
