@@ -1,4 +1,4 @@
-MODULE YOMOML
+MODULE OML_MOD
 
 !-- the following system specific omp_lib-module is not always available (e.g. pgf90)
 !! use omp_lib
@@ -209,4 +209,4 @@ OML_MAX_THREADS = 1
 !$ OML_MAX_THREADS = OMP_GET_MAX_THREADS()
 END FUNCTION OML_MAX_THREADS
 
-END MODULE YOMOML
+END MODULE OML_MOD

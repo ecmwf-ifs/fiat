@@ -1,6 +1,6 @@
 FUNCTION get_max_threads() RESULT(imaxt)
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE yomoml
+USE oml_mod
 implicit none
 INTEGER(KIND=JPIM) :: imaxt
 imaxt = OML_MAX_THREADS()
