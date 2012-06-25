@@ -141,6 +141,7 @@ static int opt_callpath = 0;
 static int callpath_indent = callpath_indent_default;
 #define callpath_depth_default 50
 static int callpath_depth = callpath_depth_default;
+static int callpath_packed = 0;
 
 static int opt_calltrace = 0;
 
@@ -442,7 +443,7 @@ malloc_drhook(size_t size)
   size_t size1 = MAX(1,size);
   void *p = malloc(size1);
   if (!p) {
-    fprintf(stderr,"***Error in malloc_drhook(): Unable to allocate space for %d bytes\n", size1);
+    fprintf(stderr,"***Error in malloc_drhook(): Unable to allocate space for %lld bytes\n", (long long int)size1);
     RAISE(SIGABRT);
   }
   return p;
@@ -784,7 +785,7 @@ static void signal_drhook(int sig SIG_EXTRA_ARGS);
     flptrap(x);\
     if (!silent && myproc == 1) {\
       fprintf(stderr,\
-	      ">>%s(): DR_HOOK also catches signal#%d; new handler installed at 0x%x; old preserved at 0x%x\n",\
+	      ">>%s(): DR_HOOK also catches signal#%d; new handler installed at %p; old preserved at %p\n",\
               "catch_signals", x, sl->new.sa_handler, sl->old.sa_handler);\
     }\
   }\
@@ -901,10 +902,7 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
     sl->ignore_atexit = ignore_flag;\
     flptrap(x);\
     if (!silent && myproc == 1) {\
-      const char *fmt = "%s(%s=%d): New handler installed at 0x%llx; old %spreserved at 0x%llx\n"; \
-      if (sizeof(void *) == 4) { \
-                  fmt = "%s(%s=%d): New handler installed at 0x%x; old %spreserved at 0x%x\n"; \
-      } \
+      const char *fmt = "%s(%s=%d): New handler installed at %p; old %spreserved at %p\n"; \
       fprintf(stderr,fmt,\
             #handler_name, sl->name, x, \
             sl->new.sa_handler, \
@@ -930,10 +928,7 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
   sl->ignore_atexit = ignore_flag;\
   flptrap(x);\
   { \
-    const char *fmt = "%s(%s=%d): New handler installed at 0x%llx; old preserved at 0x%llx\n"; \
-    if (sizeof(void *) == 4) { \
-                fmt = "%s(%s=%d): New handler installed at 0x%x; old preserved at 0x%x\n"; \
-    } \
+    const char *fmt = "%s(%s=%d): New handler installed at %p; old preserved at %p\n"; \
     fprintf(stderr,fmt,\
             "signal_harakiri", sl->name, x, \
             sl->new.sa_handler, \
@@ -1092,7 +1087,6 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       const int ftnunitno = 0; /* stderr */
       const int print_option = 2; /* calling tree */
       int level = 0;
-      int is;
       fprintf(stderr,"tid#%d starting drhook traceback, time =%8.2f\n",tid,WALLTIME());
       fflush(NULL);
       c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
@@ -1133,13 +1127,13 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	sl->old.sa_handler != u.func1args) {
       /*
       fprintf(stderr,
-	      ">>%s(at 0x%x): Calling previous signal handler in chain at 0x%x (if possible)\n",
+	      ">>%s(at %p): Calling previous signal handler in chain at %p (if possible)\n",
 	      "signal_drhook",signal_drhook,sl->old.sa_handler); 
       u.func1args = sl->old.sa_handler;
       u.func3args(sig SIG_PASS_EXTRA_ARGS);
       */
       fprintf(stderr,
-              ">>%s(at 0x%x): Do not call previous signal handler in chain at 0x%x\n",
+              ">>%s(at %p): Do not call previous signal handler in chain at %p\n",
               "signal_drhook",signal_drhook,sl->old.sa_handler);
     }
     /* Make sure that the process really exits now */
@@ -1154,7 +1148,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
   }
   else {
     fprintf(stderr,
-	    "%s(at 0x%x): Invalid signal#%d or signals/this signal not set (%d)\n",
+	    "%s(at %p): Invalid signal#%d or signals/this signal not set (%d)\n",
 	    "signal_drhook",signal_drhook,sig,signals_set);
 #ifdef RS6K
     xl__sigdump(sig SIG_PASS_EXTRA_ARGS);
@@ -1375,6 +1369,12 @@ process_options()
     if (fp) fprintf(fp,">>>process_options(): DR_HOOK_CALLPATH_DEPTH=%d\n",callpath_depth);
   }
 
+  env = getenv("DR_HOOK_CALLPATH_PACKED");
+  if (env) {
+    callpath_packed = atoi(env);
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_CALLPATH_PACKED=%d\n",callpath_packed);
+  }
+
   env = getenv("DR_HOOK_CALLTRACE");
   if (env) {
     opt_calltrace = atoi(env);
@@ -1415,7 +1415,7 @@ process_options()
   if (env) {
     opt_timeline_MB = atof(env);
     if (opt_timeline_MB < 0) opt_timeline_MB = 1.0;
-    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_TIMELINE_MB=%d\n",opt_timeline_MB);
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_TIMELINE_MB=%g\n",opt_timeline_MB);
   }
 
   env = getenv("DR_HOOK_HASHBITS");
@@ -1787,9 +1787,9 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
       u.keyptr = treeptr->keyptr;
       hash = (u.keyptr && u.keyptr->name) ? hashfunc(u.keyptr->name,u.keyptr->name_len) : 0;
       fprintf(stderr,
-	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Expecting the key-pointer=0x%llx"
+	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Expecting the key-pointer=%p"
 	      " and treeptr->active-flag = 1\n",
-	      myproc,tid,pid,sig,sl_name,u.ull);
+	      myproc,tid,pid,sig,sl_name,u.keyptr);
       fprintf(stderr,
 	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: A probable routine missing the closing"
 	      " DR_HOOK-call is '%s' [hash=%u]\n",
@@ -1799,9 +1799,9 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
       u.keyptr = keyptr;
       hash = (u.keyptr && u.keyptr->name) ? hashfunc(u.keyptr->name,u.keyptr->name_len) : 0;
       fprintf(stderr,
-	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Got a key-pointer=0x%llx"
+	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Got a key-pointer=%p"
 	      " and treeptr->active-flag = %d\n",
-	      myproc,tid,pid,sig,sl_name,u.ull,treeptr->active);
+	      myproc,tid,pid,sig,sl_name,u.keyptr,treeptr->active);
       fprintf(stderr,
 	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: This key-pointer maybe associated with"
 	      " the routine '%s' [hash=%u]\n",
@@ -1811,10 +1811,10 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
       u.keyptr = curkeyptr[tid-1];
       hash = (u.keyptr && u.keyptr->name) ? hashfunc(u.keyptr->name,u.keyptr->name_len) : 0;
       fprintf(stderr,
-	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: The current key-pointer (=0x%llx) thinks"
+	      "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: The current key-pointer (=%p) thinks"
 	      " it maybe associated with the routine '%s' [hash=%u]\n",
 	      myproc,tid,pid,sig,sl_name,
-	      u.ull,
+	      u.keyptr,
 	      (u.keyptr && u.keyptr->name) ? u.keyptr->name : NIL, hash);
     }
     free_drhook(s);
@@ -2097,7 +2097,7 @@ unroll_callpath(FILE *fp, int len,
 #ifdef DEBUG
       else {
 	fprintf(fp,
-		"\n????callpath=0x%x, callpath->keyptr=0x%x,  callpath->keyptr->name='%s'",
+		"\n????callpath=%p, callpath->keyptr=%p,  callpath->keyptr->name='%s'",
 		callpath, callpath ? callpath->keyptr : 0,
 		(callpath && callpath->keyptr && callpath->keyptr->name) ?
 		callpath->keyptr->name : NIL);
@@ -2200,7 +2200,7 @@ check_watch(const char *label,
 	  int tid = get_thread_id_();
 	  if (!calc_crc) crc32_(p->ptr, &p->nbytes, &crc32);
 	  fprintf(stderr,
-		  "***%s: Watch point '%s' at address 0x%x on myproc#%d has changed"
+		  "***%s: Watch point '%s' at address %p on myproc#%d has changed"
 		  " (detected in tid#%d when %s routine %.*s) : new crc32=%u\n",
 		  p->abort_if_changed ? "Error" : "Warning",
 		  p->name, p->ptr, myproc, tid,
@@ -2350,7 +2350,7 @@ c_drhook_watch_(const int *onoff,
   p->crc32 = 0;
   crc32_(p->ptr, &p->nbytes, &p->crc32);
   fprintf(stderr,
-  "***Warning: Watch point '%s' was created for address 0x%x (%d bytes, on myproc#%d, tid#%d) : crc32=%u\n",
+  "***Warning: Watch point '%s' was created for address %p (%d bytes, on myproc#%d, tid#%d) : crc32=%u\n",
           p->name, p->ptr, p->nbytes, myproc, p->tid, p->crc32);
 
   coml_unset_lockid_(&DRHOOK_lock);
@@ -2681,22 +2681,47 @@ trim_and_adjust_left(const char *p, int *name_len)
   return p;
 }
 
+static void print_routine_name0(FILE * fp, const char * p_name, int p_tid, const char * p_filename, int p_cluster, 
+                                const equivalence_t * p_callpath, int p_callpath_len, int len, int cluster_size) 
+{
+  int name_len = 0; 
+  const char *name = trim_and_adjust_left(p_name,&name_len); 
+
+  if (callpath_packed) {
+
+    if (p_callpath && p_callpath_len > 0) {
+      const equivalence_t * callpath = &p_callpath[p_callpath_len-1];
+      int j;
+      for (j=0; j<p_callpath_len; callpath--, j++) 
+        if (callpath && callpath->keyptr && callpath->keyptr->name) {
+          const char *name = callpath->keyptr->name;
+          int name_len = callpath->keyptr->name_len;
+          fprintf(fp,"%.*s/",name_len,name);
+        }
+    } 
+  } 
+
+  fprintf(fp,"%.*s@%d%s%s", 
+          name_len, name, 
+          p_tid, 
+          p_filename ? ":" : "", 
+          p_filename ? p_filename : ""); 
+  
+  if (opt_clusterinfo) { 
+    fprintf(fp," [%d,%d]", 
+            p_cluster, ABS(cluster_size)); 
+  } 
+    
+  if (!callpath_packed) 
+    unroll_callpath(fp, len, p_callpath, p_callpath_len); 
+  
+
+}
+
 #define print_routine_name(fp, p, len, cluster_size) \
   if (fp && p) { \
-    int name_len = 0; \
-    const char *name = trim_and_adjust_left(p->name,&name_len); \
-    fprintf(fp,"%.*s@%d%s%s", \
-	    name_len, name, \
-	    p->tid, \
-	    p->filename ? ":" : "", \
-	    p->filename ? p->filename : ""); \
-    \
-    if (opt_clusterinfo) { \
-      fprintf(fp," [%d,%d]", \
-	      p->cluster, ABS(cluster_size)); \
-    } \
-    \
-    unroll_callpath(fp, len, p->callpath, p->callpath_len); \
+    print_routine_name0(fp, p->name, p->tid, p->filename, p->cluster, \
+                        p->callpath, p->callpath_len, len, cluster_size);\
   } /* if (fp && p) */
 
 

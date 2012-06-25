@@ -121,7 +121,7 @@ LinuxTraceBack(void *sigcontextptr)
       snprintf(addr2linecmd, len_addr2linecmd, "%s -e '%s'", TOSTR(ADDR2LINE), a_out);
       for (i = 0; i < trace_size; i++) {
 	char s[30];
-	snprintf(s,sizeof(s),(sizeof(void *) == 8) ? " %llx" : " %x",trace[i]);
+	snprintf(s,sizeof(s)," %p",trace[i]);
 	strcat(addr2linecmd,s);
       }
       fp = popen(addr2linecmd,"r");
