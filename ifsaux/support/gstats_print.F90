@@ -53,6 +53,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM) :: KULOUT,KLEN
 REAL(KIND=JPRB) :: PAVEAVE(0:KLEN)
 CHARACTER*7  CLACTION(0:3)
+CHARACTER(LEN=JPMAXDELAYS*10) CLTEMP
 INTEGER(KIND=JPIM),PARAMETER :: JPARRAYS=8
 REAL(KIND=JPRB) :: ZREABUF(JPARRAYS*(JPMAXSTAT+1))
 REAL(KIND=JPRB) :: ZAVEAVE(0:JPMAXSTAT),ZAVEMAX(0:JPMAXSTAT),ZTIMELCALL(0:JPMAXSTAT),&
@@ -189,7 +190,7 @@ ELSEIF(LSTATS) THEN
          &TIME_START(JROC),' SECONDS'
       ENDIF
       WRITE(KULOUT,'(A)')&
-       &' NUM     ROUTINE                                  '//&
+       &' NUM     ROUTINE                                     '//&
        &'CALLS  SUM(s)   AVE(ms)   CPUAVE(ms) VAVE(ms) '//&
        &'STDDEV(ms)  MAX(ms) '//&
        &'SUMB(s) FRAC(%)'
@@ -375,8 +376,8 @@ ELSEIF(LSTATS) THEN
   ENDIF
   WRITE(KULOUT,*) ''
   WRITE(KULOUT,'(A)') 'STATS FOR ALL PROCESSORS'
-  WRITE(KULOUT,'(A)') ' NUM ROUTINE                                '//&
-   &'  CALLS  MEAN(ms)   MAX(ms)   FRAC(%)  UNBAL(%)'
+  WRITE(KULOUT,'(A)') &
+  &' NUM ROUTINE                                     CALLS  MEAN(ms)   MAX(ms)   FRAC(%)  UNBAL(%)'
   ZTOTUNBAL = 0.0_JPRB
   DO JNUM=0,500
     IF(NCALLS(JNUM) > 1) THEN
@@ -386,16 +387,16 @@ ELSEIF(LSTATS) THEN
       ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
       ZMAXT  = ZSUMMAX(JNUM)
       IF(ZMEANT .NE. 0.0)THEN
-        ZUNBAL= (ZMAXT-ZMEANT)/ZMEANT*100._JPRB
+        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRB
       ELSE
         ZUNBAL=0.0
       ENDIF
       ZFRAC=ZFRACMAX(JNUM)
-      WRITE(KULOUT,'(I4,1X,A40,1X,I5,2(1X,F9.1),2(1X,F9.2))')&
+      WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
 
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,//,A,A40,A,//,A,I5,A,2(A,F9.1,A,//),2(A,F9.2,A,//),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,//,A,A40,A,//,A,I8,A,2(A,F9.1,A,//),2(A,F9.2,A,//),A)')&
          &'<item id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -415,9 +416,9 @@ IF(LSTATS_COMMS)THEN
     WRITE(IXMLLUN,'(A)')'<timing_communications>'
   ENDIF
   WRITE(KULOUT,*) ''
-  WRITE(KULOUT,*) 'STATS FOR COMMUNICATIONS'
-  WRITE(KULOUT,*)  &
- &'NUM ROUTINE                CALLS    MEAN(ms)  MAX(ms)   FRAC(%)  UNBAL(%)'
+  WRITE(KULOUT,'(A)') 'STATS FOR COMMUNICATIONS'
+  WRITE(KULOUT,'(A)')  &
+  &' NUM ROUTINE                                     CALLS    MEAN(ms)  MAX(ms)   FRAC(%)  UNBAL(%)'
   ZT_SUM=0.0
   DO JNUM=500,JPMAXSTAT
     IF((CCTYPE(JNUM).eq."MPL".OR.CCTYPE(JNUM).eq."BAR".OR.CCTYPE(JNUM).eq."GBR".OR.CCTYPE(JNUM).eq."GB2") &
@@ -428,16 +429,16 @@ IF(LSTATS_COMMS)THEN
       ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
       ZMAXT  = ZSUMMAX(JNUM)
       IF(ZMEANT .NE. 0.0)THEN
-        ZUNBAL= (ZMAXT-ZMEANT)/ZMEANT*100._JPRB
+        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRB
       ELSE
         ZUNBAL=0.0
       ENDIF
       ZFRAC=ZFRACMAX(JNUM)
       ZTOTUNBAL = ZTOTUNBAL+(ZMAXT-ZMEANT)
-      WRITE(KULOUT,'(I4,1X,A22,1X,I5,2(1X,F9.1),2(1X,F9.2))')&
+      WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,//,A,A22,A,//,A,I5,A,//,2(A,F9.1,A,//),2(A,F9.2,A,//),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,//,A,A40,A,//,A,I8,A,//,2(A,F9.1,A,//),2(A,F9.2,A,//),A)')&
          &'<comitem id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -467,9 +468,9 @@ IF(LSTATS_OMP)THEN
     WRITE(IXMLLUN,'(A)')'<timing_parallel>'
   ENDIF
   WRITE(KULOUT,*) ''
-  WRITE(KULOUT,*) 'STATS FOR PARALLEL REGIONS'
-  WRITE(KULOUT,*)  &
- &'NUM ROUTINE                CALLS    MEAN(ms)  MAX(ms)   FRAC(%)  UNBAL(%)'
+  WRITE(KULOUT,'(A)') 'STATS FOR PARALLEL REGIONS'
+  WRITE(KULOUT,'(A)')  &
+  &' NUM ROUTINE                                     CALLS    MEAN(ms)  MAX(ms)   FRAC(%)  UNBAL(%)'
   ZT_SUM=0.0
   DO JNUM=500,JPMAXSTAT
     IF(CCTYPE(JNUM).eq."OMP".AND.NCALLS(JNUM) > 1) THEN
@@ -479,16 +480,16 @@ IF(LSTATS_OMP)THEN
       ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
       ZMAXT  = ZSUMMAX(JNUM)
       IF(ZMEANT .NE. 0.0)THEN
-        ZUNBAL= (ZMAXT-ZMEANT)/ZMEANT*100._JPRB
+        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRB
       ELSE
         ZUNBAL=0.0
       ENDIF
       ZFRAC=ZFRACMAX(JNUM)
       ZTOTUNBAL = ZTOTUNBAL+(ZMAXT-ZMEANT)
-      WRITE(KULOUT,'(I4,1X,A22,1X,I5,2(1X,F9.1),2(1X,F9.2))')&
+      WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,//,A,A22,A,//,A,I5,A,//,2(A,F9.1,A,//),2(A,F9.2,A,//),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,//,A,A40,A,//,A,I8,A,//,2(A,F9.1,A,//),2(A,F9.2,A,//),A)')&
          &'<parallelitem id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -512,9 +513,9 @@ IF(LSTATS_OMP)THEN
   ENDIF
 
   WRITE(KULOUT,*) ''
-  WRITE(KULOUT,*) 'STATS FOR I/O REGIONS'
-  WRITE(KULOUT,*)  &
-   &'NUM ROUTINE                CALLS    MEAN(ms)  MAX(ms)   FRAC(%)  UNBAL(%)'
+  WRITE(KULOUT,'(A)') 'STATS FOR I/O REGIONS'
+  WRITE(KULOUT,'(A)')  &
+  &' NUM ROUTINE                                     CALLS    MEAN(ms)  MAX(ms)   FRAC(%)  UNBAL(%)'
   ZT_SUM=0.0
   DO JNUM=500,JPMAXSTAT
     IF(CCTYPE(JNUM).eq."IO-".AND.NCALLS(JNUM) > 1) THEN
@@ -524,16 +525,16 @@ IF(LSTATS_OMP)THEN
       ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
       ZMAXT  = ZSUMMAX(JNUM)
       IF(ZMEANT .NE. 0.0)THEN
-        ZUNBAL= (ZMAXT-ZMEANT)/ZMEANT*100._JPRB
+        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRB
       ELSE
         ZUNBAL=0.0
       ENDIF
       ZFRAC=ZFRACMAX(JNUM)
       ZTOTUNBAL = ZTOTUNBAL+(ZMAXT-ZMEANT)
-      WRITE(KULOUT,'(I4,1X,A22,1X,I5,2(1X,F9.1),2(1X,F9.2))')&
+      WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,//,A,A22,A,//,A,I5,A,//,2(A,F9.1,A,//),2(A,F9.2,A,//),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,//,A,A40,A,//,A,I8,A,//,2(A,F9.1,A,//),2(A,F9.2,A,//),A)')&
          &'<para_io_item id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -558,9 +559,9 @@ IF(LSTATS_OMP)THEN
   ENDIF
 
   WRITE(KULOUT,*) ''
-  WRITE(KULOUT,*) 'STATS FOR SERIAL(no OMP) REGIONS'
-  WRITE(KULOUT,*)  &
-   &'NUM ROUTINE                CALLS    MEAN(ms)  MAX(ms)   FRAC(%)  UNBAL(%)'
+  WRITE(KULOUT,'(A)') 'STATS FOR SERIAL(no OMP) REGIONS'
+  WRITE(KULOUT,'(A)')  &
+  &' NUM ROUTINE                                     CALLS    MEAN(ms)  MAX(ms)   FRAC(%)  UNBAL(%)'
   ZT_SUM=0.0
   DO JNUM=500,JPMAXSTAT
     IF(CCTYPE(JNUM).eq."SER".AND.NCALLS(JNUM) > 1) THEN
@@ -570,16 +571,16 @@ IF(LSTATS_OMP)THEN
       ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
       ZMAXT  = ZSUMMAX(JNUM)
       IF(ZMEANT .NE. 0.0)THEN
-        ZUNBAL= (ZMAXT-ZMEANT)/ZMEANT*100._JPRB
+        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRB
       ELSE
         ZUNBAL=0.0
       ENDIF
       ZFRAC=ZFRACMAX(JNUM)
       ZTOTUNBAL = ZTOTUNBAL+(ZMAXT-ZMEANT)
-      WRITE(KULOUT,'(I4,1X,A22,1X,I5,2(1X,F9.1),2(1X,F9.2))')&
+      WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,A,A22,A,A,I5,A,2(A,F9.1,A),2(A,F9.2,A,//),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,A,A40,A,A,I8,A,2(A,F9.1,A),2(A,F9.2,A,//),A)')&
          &'<serialitem id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -602,9 +603,9 @@ IF(LSTATS_OMP)THEN
   ENDIF
 
   WRITE(KULOUT,*) ''
-  WRITE(KULOUT,*) 'STATS FOR MIXED SECTIONS'
-  WRITE(KULOUT,*)  &
-   &'NUM ROUTINE                CALLS    MEAN(ms)  MAX(ms)   FRAC(%)  UNBAL(%)'
+  WRITE(KULOUT,'(A)') 'STATS FOR MIXED SECTIONS'
+  WRITE(KULOUT,'(A)')  &
+  &' NUM ROUTINE                                     CALLS    MEAN(ms)  MAX(ms)   FRAC(%)  UNBAL(%)'
   ZT_SUM=0.0
   DO JNUM=500,JPMAXSTAT
     IF(CCTYPE(JNUM).eq."MXD".AND.NCALLS(JNUM) > 1) THEN
@@ -614,16 +615,16 @@ IF(LSTATS_OMP)THEN
       ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
       ZMAXT  = ZSUMMAX(JNUM)
       IF(ZMEANT .NE. 0.0)THEN
-        ZUNBAL= (ZMAXT-ZMEANT)/ZMEANT*100._JPRB
+        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRB
       ELSE
         ZUNBAL=0.0
       ENDIF
       ZFRAC=ZFRACMAX(JNUM)
       ZTOTUNBAL = ZTOTUNBAL+(ZMAXT-ZMEANT)
-      WRITE(KULOUT,'(I4,1X,A22,1X,I5,2(1X,F9.1),2(1X,F9.2))')&
+      WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,A,A22,A,A,I5,A,2(A,F9.1,A),2(A,F9.2,A,//),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,A,A40,A,A,I8,A,2(A,F9.1,A),2(A,F9.2,A,//),A)')&
          &'<mixeditem id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -693,9 +694,10 @@ IF( LDETAILED_STATS )THEN
           CALL MPL_SEND(TDELAY_VALUE(1:NDELAY_INDEX),KDEST=NPRCIDS_STATS(ISEND), &
            & KTAG=ITAG+2,CDSTRING='GSTATS_PRINT:')
           DO JDELAY=1,NDELAY_INDEX
-            CALL MPL_SEND(CDELAY_TIME(JDELAY),KDEST=NPRCIDS_STATS(ISEND), &
-             & KTAG=ITAG+3,CDSTRING='GSTATS_PRINT:')
+            CLTEMP((JDELAY-1)*10+1:JDELAY*10)=CDELAY_TIME(JDELAY)
           ENDDO
+          CALL MPL_SEND(CLTEMP(1:NDELAY_INDEX*10),KDEST=NPRCIDS_STATS(ISEND), &
+           & KTAG=ITAG+3,CDSTRING='GSTATS_PRINT:')
         ENDIF
       ENDIF
       IF( MYPROC_STATS == 1 )THEN
@@ -706,9 +708,10 @@ IF( LDETAILED_STATS )THEN
            & KTAG=ITAG+1,CDSTRING='GSTATS_PRINT:')
           CALL MPL_RECV(TDELAY_VALUE(1:NDELAY_INDEX),KSOURCE=NPRCIDS_STATS(JROC), &
            & KTAG=ITAG+2,CDSTRING='GSTATS_PRINT:')
+          CALL MPL_RECV(CLTEMP(1:NDELAY_INDEX*10),KSOURCE=NPRCIDS_STATS(JROC), &
+            & KTAG=ITAG+3,CDSTRING='GSTATS_PRINT:')
           DO JDELAY=1,NDELAY_INDEX
-            CALL MPL_RECV(CDELAY_TIME(JDELAY),KSOURCE=NPRCIDS_STATS(JROC), &
-             & KTAG=ITAG+3,CDSTRING='GSTATS_PRINT:')
+            CDELAY_TIME(JDELAY)=CLTEMP((JDELAY-1)*10+1:JDELAY*10)
           ENDDO
         ENDIF
       ENDIF
@@ -755,6 +758,7 @@ IF( LDETAILED_STATS )THEN
       WRITE(KULOUT,'(" ")')
       WRITE(KULOUT,'(" ")')
     ENDIF
+    CALL MPL_BARRIER(CDSTRING='GSTATS_PRINT')
   ENDDO
   IF( MYPROC_STATS == 1 )THEN
     WRITE(KULOUT,'("MAXIMUM TOTAL UNEXPECTED DELAY TIME (SECS) =",F9.1)') ZDELAY_MAX
@@ -831,11 +835,11 @@ IF(LSTATS_MEM)THEN
       IMEM=NTMEM(JNUM,1)
       INUM=NTMEM(JNUM,3)/2
       JMEM=NTMEM(JNUM,4)
-      WRITE(KULOUT,'(I4,1X,A20,1X,I5,1X,I6,3(1X,I9))')&
+      WRITE(KULOUT,'(I4,1X,A20,1X,I8,1X,I6,3(1X,I9))')&
        &JNUM,CCDESC(JNUM),ICALLS,INUM,IMEM,JMEM,NTMEM(JNUM,5)
 
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,//,A,A20,A,//,A,I5,A,//,A,I6,A,//,3(A,I9,A,//))')&
+        WRITE(IXMLLUN,'(A,I4,A,//,A,A20,A,//,A,I8,A,//,A,I6,A,//,3(A,I9,A,//))')&
          &'<memitem id="',JNUM,'"/>',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
