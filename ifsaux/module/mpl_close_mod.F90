@@ -51,7 +51,7 @@ MODULE MPL_CLOSE_MOD
 !     Modifications.
 !     --------------
 !        Original : 2000-12-08 (Based on MPE_CLOSE)
-!
+!        R. EL Khatib 24-May-2011 Change ifdef MPI2 into ifndef MPI1
 !     -----------------------------------------------------------------
 !
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
@@ -77,7 +77,7 @@ SUBROUTINE MPL_CLOSE(KFPTR,KERROR)
 INTEGER(KIND=JPIM),INTENT(IN) :: KFPTR
 INTEGER(KIND=JPIM),INTENT(OUT) :: KERROR
 !
-#ifdef MPI2
+#ifndef MPI1
 
 !     -----------------------------------------------------------------
 !

@@ -55,6 +55,8 @@
 
 #define GNUC_BTRACE 1024
 #define __USE_GNU
+#define _XOPEN_SOURCE
+
 #if !defined(CYGWIN)
 #include <ucontext.h>
 #endif

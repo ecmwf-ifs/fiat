@@ -114,7 +114,8 @@ static
 int report_init(int periodicreport){
     double rtime,ptime;
     int events[NUM_EV];
-    
+    int rc, num;
+    static int first_time = 1;
     
     /* open file if we use files and write headers*/
     if(periodicreport){
@@ -129,6 +130,8 @@ int report_init(int periodicreport){
         fprintf(fp,"#rtime ptime gflops l1-hit memusage(MB) freeMem(MB)\n");
     }
 
+    if (!first_time) return 0;
+    first_time = 0;
     
     //get papi info, first time it intializes PAPI counters/library
     events[0]=PAPI_L1_DCM;
@@ -136,10 +139,17 @@ int report_init(int periodicreport){
     events[2]=PAPI_FP_OPS;
     events[3]=PAPI_TOT_INS;
 
+    rc = (num = PAPI_num_counters());
+    if (rc != PAPI_OK) {
+      PAPI_perror(rc, "PAPI_num_counters", strlen("PAPI_num_counters"));
+    }
+
+    //fprintf(stderr,"PAPI_num_counters = %d\n",num);
     
-    
-    if (PAPI_start_counters(events, NUM_EV) != PAPI_OK)
-        return 3;
+    rc = PAPI_start_counters(events, NUM_EV);
+    if (rc != PAPI_OK) {
+      return rc;
+    }
     start_usec_r=PAPI_get_real_usec();
     start_usec_p=PAPI_get_virt_usec();
     return 0;
@@ -326,7 +336,12 @@ void common_inits()
     }
     else {
        //initialize PAPI counters without periodic reporting
-        init_error=report_init(0);
+      fprintf(stderr,"Calling report_init(0)\n");
+      init_error=report_init(0);
+      if (init_error) fprintf(stderr,
+			      "Unable to init PAPI counters (init_error=%d) : %s\n",
+			      init_error,
+			      PAPI_strerror(init_error));
     }
 }
 
