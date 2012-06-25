@@ -1,6 +1,4 @@
       INTEGER FUNCTION getopt(y_optstr, y_optarg)
-      USE PARKIND1, ONLY : JPRB
-      USE YOMHOOK , ONLY : LHOOK, DR_HOOK
       CHARACTER*(*)           y_optstr, y_optarg
 
       CHARACTER*512           y_arg
@@ -13,8 +11,6 @@
 C  Initialise on 1st. call
 C  -----------------------
 
-      REAL(KIND=JPRB) :: ZHOOK_HANDLE
-      IF (LHOOK) CALL DR_HOOK('GETOPT',0,ZHOOK_HANDLE)
       IF (initial .NE. 123456) THEN
          initial    = 123456
          n_args     = iargc()
@@ -43,7 +39,6 @@ C  ------------------------------------
       IF ((n_arg .GT. n_args) .OR. ll_endopts) THEN
          ll_endopts = .TRUE.
          getopt = -1
-         IF (LHOOK) CALL DR_HOOK('GETOPT',1,ZHOOK_HANDLE)
          RETURN
       ENDIF
 
@@ -56,7 +51,6 @@ C  --------------------------------------------------------------------
          IF (n_arg .GT. n_args) THEN
             ll_endopts = .TRUE.
             getopt     = -1
-            IF (LHOOK) CALL DR_HOOK('GETOPT',1,ZHOOK_HANDLE)
             RETURN
          ENDIF
 
@@ -67,7 +61,6 @@ C  --------------------------------------------------------------------
          IF (y_arg(1 : 1) .NE. '-') THEN
             ll_endopts = .TRUE.
             getopt     = -1
-            IF (LHOOK) CALL DR_HOOK('GETOPT',1,ZHOOK_HANDLE)
             RETURN
          ELSE IF (y_arg .EQ. '--') THEN
             ll_endopts = .TRUE.
@@ -77,7 +70,6 @@ C  --------------------------------------------------------------------
                CALL getarg(n_arg, y_arg)
             ENDIF
             getopt     = -1
-            IF (LHOOK) CALL DR_HOOK('GETOPT',1,ZHOOK_HANDLE)
             RETURN
          ENDIF
          ndx_arg = 2
@@ -95,7 +87,6 @@ C  -----------------------------------------
             ndx_arg = 0
          ENDIF
          getopt = ichar(y_opt)
-         IF (LHOOK) CALL DR_HOOK('GETOPT',1,ZHOOK_HANDLE)
          RETURN
       ENDIF
 
@@ -109,11 +100,9 @@ C  ---------------------------------------------------------
 
       IF (ndx_opt .EQ. l_optstr) THEN
          getopt = ichar(y_opt)
-         IF (LHOOK) CALL DR_HOOK('GETOPT',1,ZHOOK_HANDLE)
          RETURN
       ELSE IF (y_optstr(ndx_opt + 1 : ndx_opt + 1) .NE. ':') THEN
          getopt = ichar(y_opt)
-         IF (LHOOK) CALL DR_HOOK('GETOPT',1,ZHOOK_HANDLE)
          RETURN
       ENDIF
 
@@ -125,7 +114,6 @@ C  -------------------------------
          IF (n_arg .EQ. n_args) THEN
             ll_endopts = .TRUE.
             getopt     = 0
-            IF (LHOOK) CALL DR_HOOK('GETOPT',1,ZHOOK_HANDLE)
             RETURN
          ENDIF
 
@@ -140,5 +128,4 @@ C  -------------------------------
       ndx_arg  = 0
       getopt   = ichar(y_opt)
 
-      IF (LHOOK) CALL DR_HOOK('GETOPT',1,ZHOOK_HANDLE)
       END

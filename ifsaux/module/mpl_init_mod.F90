@@ -140,7 +140,7 @@ IF (.NOT.LLINIT) THEN
 
 #ifdef RS6K
   if(CL_ARCH(1:10)=='ibm_power6')then
-    write(0,*)'POWER6: CALLING EC_BIND BEFORE MPI_INIT'
+!   write(0,*)'POWER6: CALLING EC_BIND BEFORE MPI_INIT'
     CALL EC_BIND()
   endif
 #endif
@@ -157,13 +157,13 @@ IF (.NOT.LLINIT) THEN
 
 #ifdef RS6K
   if(CL_ARCH(1:10)=='ibm_power4')then
-    write(0,*)'POWER5: CALLING EC_BIND AFTER MPI_INIT'
+!   write(0,*)'POWER5: CALLING EC_BIND AFTER MPI_INIT'
     CALL EC_BIND()
   endif
 #endif
 
   LINITMPI_VIA_MPL = .TRUE.
-  CALL ec_mpi_atexit() ! ifsaux/support/endian.c: to make sure MPI_FINALIZE gets called
+   CALL ec_mpi_atexit() ! ifsaux/support/endian.c: to make sure MPI_FINALIZE gets called
 
 ELSE
   IERROR = 0
@@ -310,7 +310,7 @@ IF (CL_METHOD == 'JP_BLOCKING_STANDARD' ) THEN
 ELSE
   IF (LLINFO) WRITE(MPL_UNIT,'(A)')'MPL_INIT : MPL_METHOD=JP_BLOCKING_BUFFERED'
 ENDIF
-IF (LLINFO) WRITE(MPL_UNIT,'(A,I12)')'MPL_INIT : MAILBOX SIZE=',MPL_MBX_SIZE
+!IF (LLINFO) WRITE(MPL_UNIT,'(A,I12)')'MPL_INIT : MAILBOX SIZE=',MPL_MBX_SIZE
 
 CALL MPL_BUFFER_METHOD(kmp_type=MPL_METHOD,kmbx_size=MPL_MBX_SIZE,LDINFO=LLINFO)
 LUSEHLMPI = .TRUE.
