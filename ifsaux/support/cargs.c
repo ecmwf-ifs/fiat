@@ -21,6 +21,10 @@ static char *a_out = NULL;
 #define PSCMD "/bin/ps"
 #endif /* !defined(PSCMD) */
 
+#if !defined(TAILCMD)
+#define TAILCMD "/usr/bin/tail"
+#endif /* !defined(TAILCMD) */
+
 static const char *get_a_out()
 {
   /* progname is a blank string;
@@ -53,10 +57,10 @@ static const char *get_a_out()
   }
 #endif
   if (!a_out && (access(PSCMD,X_OK) == 0)) {
-    char cmd[sizeof(PSCMD) + 100];
+    char cmd[sizeof(PSCMD) + sizeof(TAILCMD) + 100];
     FILE *fp = NULL;
     pid_t pid = getpid();
-    sprintf(cmd,"%s -p%d | tail -1 | awk '{print $NF}'", PSCMD, (int)pid);
+    sprintf(cmd,"%s -p%d | %s -1 | awk '{print $NF}'", PSCMD, (int)pid, TAILCMD);
     fp = popen(cmd, "r");
     if (fp) {
       char c[65536];
@@ -71,14 +75,12 @@ static const char *get_a_out()
 	    char *start = saved;
 	    char *token = strtok(saved,":");
 	    do {
-	      /* char fullpath[strlen(start) + 1 + lenc + 1]; */
-              int len = strlen(start) + 1 + lenc + 1;
-	      char *fullpath = malloc(len);
-	      snprintf(fullpath,len,"%s/%s",start,c);
+	      int lenf = strlen(start) + 1 + lenc + 1;
+	      char *fullpath = malloc(lenf * sizeof(*fullpath));
+	      snprintf(fullpath,lenf,"%s/%s",start,c);
 	      if (access(fullpath,X_OK) == 0) { /* It's this one!! */
-		a_out = strdup(fullpath);
-		free(fullpath);
-		break;
+		a_out = fullpath;
+		break; /* do { ... } while (token) */
 	      }
 	      free(fullpath);
 	      start = token;
@@ -86,7 +88,7 @@ static const char *get_a_out()
 	    } while (token);
 	    free(saved);
 	  }
-	}
+	} /* if (!strchr(c,'/')) */
 	if (!a_out) a_out = strdup(c);
       }
       pclose(fp);

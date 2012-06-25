@@ -39,7 +39,7 @@ end subroutine coml_init_lockid
 subroutine coml_init_lock()
 USE OML_MOD, ONLY : OML_INIT_LOCK
 implicit none
-!$ CALL OML_INIT_LOCK()
+CALL OML_INIT_LOCK()
 end subroutine coml_init_lock
 
 subroutine coml_test_lockid(kisset,kmylock)

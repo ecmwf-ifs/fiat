@@ -15,6 +15,11 @@
 #include <signal.h>
 #include "cargs.h"
 
+#ifdef CRAYXT
+/* Cray XT3/XT4 with catamount microkernel */
+#define system(cmd) (-1)
+#endif
+
 #define PRETOSTR(x) #x
 #define TOSTR(x) PRETOSTR(x)
 
@@ -34,8 +39,18 @@
 
 #if defined(__GNUC__)
 
-#if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN)
+#if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(CRAYXT)
 #include <execinfo.h>
+#elif defined(DARWIN)
+#include <errno.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sys/times.h>
+#include <limits.h>
+#include <sys/resource.h>
+#include <unistd.h>
+#undef HANDLE
+#define HANDLE pthread_t*
 #endif
 
 #define GNUC_BTRACE 1024

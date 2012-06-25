@@ -432,7 +432,7 @@ xmain(int argc, char *argv[])
 
 
 	opterr = 0;
-#if ! defined(__alpha) && !defined(LINUX) && !defined(_AIX43)
+#if ! defined(__alpha) && !defined(LINUX) && !defined(_AIX43) && !defined(linux)
 	if ( setlabel(exec_name) !=0 )
 		err_quit("setlabel error");
 #endif
@@ -444,7 +444,7 @@ xmain(int argc, char *argv[])
 	if ( putenv("NOMSGSEVERITY=1") != 0 )
 		err_quit("putenv error");
 		
-#if defined(LINUX)
+#if defined(LINUX) || defined(linux)
         /*
        *
        * defines POSIXLY_CORRECT to get the correct getopt behaviour

@@ -29,14 +29,14 @@ Author: Dr. Umberto Modigliani, User Support.
 #include <ctype.h>
 #include <time.h>
 #include <unistd.h>
-#if !defined(__alpha) && !defined(LINUX) && !defined(_AIX43)
+#if !defined(__alpha) && !defined(LINUX) && !defined(_AIX43) && !defined(linux) && !defined(CYGWIN)
 #include <pfmt.h>
 #endif
 #include <limits.h>
 
 #include "myhdr.h"
 
-#if defined(LINUX)
+#if defined(LINUX) || defined(linux)
 #include <stdint.h>
 #endif
 
@@ -63,14 +63,14 @@ Author: Dr. Umberto Modigliani, User Support.
  *******************************/
 
 
-#if defined(POINTER_64) || defined(_ABI64) || defined(__uxpch__) || defined(__alpha)
+#if defined(POINTER_64) || defined(_ABI64) || defined(__uxpch__) || defined(__alpha) || defined(__64BIT__)
 	typedef long int _int64_t;
 #else
 	typedef long long int _int64_t;
 #endif
 
 
-#if defined(POINTER_64) || defined(_ABI64) || defined(__uxpch__) || defined(__alpha) || defined(NECSX)
+#if defined(POINTER_64) || defined(_ABI64) || defined(__uxpch__) || defined(__alpha) || defined(NECSX) || defined(__64BIT__)
 	typedef int _int32_t;
 #else
 	typedef long int _int32_t;

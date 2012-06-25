@@ -1,9 +1,13 @@
 SUBROUTINE DR_HOOK_UTIL(CDNAME,KCASE,PKEY,CDFILENAME,KSIZEINFO)
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMHOOK,ONLY : LHOOK
+USE OML_MOD,ONLY : OML_MAX_THREADS,OML_MY_THREAD,OML_INIT
 USE OML_MOD,ONLY : OML_MAX_THREADS,OML_MY_THREAD
 USE MPL_INIT_MOD
 USE MPL_ARG_MOD
+
+USE YOMHOOKSTACK   ! For monitoring thread stack usage
+
 IMPLICIT NONE
 CHARACTER(LEN=*),INTENT(IN) :: CDNAME,CDFILENAME
 INTEGER(KIND=JPIM),INTENT(IN) :: KCASE,KSIZEINFO
@@ -19,14 +23,21 @@ CHARACTER(LEN=512) :: CLENV
 INTEGER(KIND=JPIM) INUMTIDS, IMYTID
 LOGICAL :: LLMPI
 
+INTEGER*8 ILOC ! For monitoring thread stack usage
 ! -----------------------------------------------------------------
 
 IF (.NOT.LHOOK) RETURN
+
+IMYTID = OML_MY_THREAD()
+INUMTIDS = OML_MAX_THREADS()
+
 IF (LL_FIRST_TIME) THEN
+  write(0,*) " IMYTID,INUMTIDS=",IMYTID,INUMTIDS
   LL_FIRST_TIME = .FALSE.
 #ifdef CRAYXT
   IRET = SETVBUF3F(0, 1, 0) ! Set unit#0 into line-buffering mode to avoid messy output
 #endif
+  CALL OML_INIT()
   CALL EC_GETENV('DR_HOOK_NOT_MPI',CLENV)
   IF (CLENV == ' ' .OR. CLENV == '0' .OR. &
     & CLENV == 'false' .OR. CLENV == 'FALSE') THEN
@@ -42,16 +53,46 @@ IF (LL_FIRST_TIME) THEN
     CALL C_DRHOOK_SET_LHOOK(0)
   ENDIF
   IF (LLMPI) THEN
-    CALL MPL_GETARG(0, CLENV)
+    CALL MPL_GETARG(0, CLENV)  ! Get executable name & also propagate args
   ELSE
     CALL GETARG(0, CLENV)
   ENDIF
   IF (.not.LHOOK) RETURN
   
-  INUMTIDS = OML_MAX_THREADS()
   CALL C_DRHOOK_INIT(CLENV, INUMTIDS)
+
+!JFH---Initialisation to monitor stack usage by threads-------------
+  CALL EC_GETENV('DR_HOOK_STACKCHECK',CSTACK)
+  if (CSTACK == 'yes' .or. CSTACK == 'YES' ) THEN
+    IF(IMYTID == 1) THEN
+      ALLOCATE(LL_THREAD_FIRST(INUMTIDS))
+      ALLOCATE(ISAVE(INUMTIDS))
+      ALLOCATE(IMAXSTACK(INUMTIDS))
+      LL_THREAD_FIRST=.TRUE.
+      ISAVE=0
+      IMAXSTACK=0
+    ENDIf
+  ENDIF
+!JFH------------ End ---------------------------------------------
+
 ENDIF
-IMYTID = OML_MY_THREAD()
+
+!JFH---Code to monitor stack usage by threads---------------------
+IF (CSTACK == 'yes' .or. CSTACK == 'YES' ) THEN
+  IF(IMYTID > 1) THEN
+    IF(LL_THREAD_FIRST(IMYTID))THEN 
+      LL_THREAD_FIRST(IMYTID)=.FALSE.
+      ISAVE(IMYTID)=LOC(LLMPI)
+    ENDIF
+    ILOC=LOC(LLMPI)
+    IF(ISAVE(IMYTID)-ILOC > IMAXSTACK(IMYTID)) THEN
+      IMAXSTACK(IMYTID)=ISAVE(IMYTID)-ILOC
+      WRITE(0,'(A,I3,A,I12,2X,A)')"Max stack usage by thread",imytid," =",IMAXSTACK(IMYTID),CDNAME
+    ENDIF
+  ENDIF
+ENDIF
+!JFH------------ End ---------------------------------------------
+
 IF (KCASE == 0) THEN
   CALL C_DRHOOK_START(CDNAME, IMYTID, PKEY, CDFILENAME, KSIZEINFO)
 ELSE IF (KCASE == 1) THEN
