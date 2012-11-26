@@ -149,6 +149,11 @@ IF(LSTATS) THEN
     ZVCPU = 0.0_JPRB
   ENDIF
 
+  IF (LLFIRST) THEN
+    TIMESUM(:) = 0.0_JPRB
+    NCALLS(:) = 0
+  ENDIF
+
   IF (LHOOK .AND. (KSWITCH == 0 .OR. KSWITCH == 1)) THEN
 !   write(0,*) "KNUM,SWITCH=",KNUM,KSWITCH
 !   write(0,*) "CCTYPE=",CCTYPE(KNUM)
@@ -175,9 +180,7 @@ IF(LSTATS) THEN
 
 !   write(0,*) "JPMAXSTAT:2=",JPMAXSTAT
 
-    NCALLS(:) = 0
     NSWITCHVAL(:) = -1
-    TIMESUM(:) = 0.0_JPRB
     TIMESQSUM(:) = 0.0_JPRB
     TIMEMAX(:) = 0.0_JPRB
     TIMESUMB(:) = 0.0_JPRB
