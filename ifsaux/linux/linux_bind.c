@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
-#include <mpi.h>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -33,10 +32,10 @@ static char * getcpumask (char *buffer, size_t size)
   return buffer;
 }
 
-void linux_bind_dump_ ()
+void linux_bind_dump_ (int * prank, int * psize)
 {
-  int rank;
-  int size;
+  int rank = *prank;
+  int size = *psize;
   int icpu;
   unsigned int ncpu;
   FILE * fp = NULL;
@@ -51,9 +50,6 @@ void linux_bind_dump_ ()
   ;
 
   ncpu = sysconf (_SC_NPROCESSORS_CONF);
-
-  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-  MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   sprintf (f, "linux_bind.%6.6d.txt", rank);
   fp = fopen (f, "w");
@@ -111,10 +107,11 @@ void linux_bind_dump_ ()
 
 #define LINUX_BIND_TXT "linux_bind.txt"
 
-void linux_bind_ ()
+void linux_bind_ (int * prank, int * psize)
 {
+  int rank = *prank;
+  int size = *psize;
   FILE * fp = fopen (LINUX_BIND_TXT, "r");
-  int size, rank;
   int i;
   size_t len  = 256;
   char * buf = (char*)malloc (len);
@@ -124,9 +121,6 @@ void linux_bind_ ()
       fprintf (stderr, "`" LINUX_BIND_TXT "' was not found\n");
       goto end;
     }
-
-  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-  MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   for (i = 0; i < rank+1; i++)
     {
