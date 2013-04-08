@@ -1,7 +1,3 @@
-/*
- * Philippe Marguinaud: Feb-2013: Bind threads to cores
- */
-
 #ifdef LINUX
 
 #define _GNU_SOURCE
@@ -12,6 +8,10 @@
 #include <string.h>
 #include <ctype.h>
 #include <mpi.h>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #include <sched.h>
 
@@ -42,7 +42,13 @@ void linux_bind_dump_ ()
   FILE * fp = NULL;
   char f[256];
   char host[255];
-  int nomp = omp_get_max_threads ();
+  int nomp =
+#ifdef _OPENMP
+    omp_get_max_threads ()
+#else
+    1
+#endif
+  ;
 
   ncpu = sysconf (_SC_NPROCESSORS_CONF);
 
@@ -65,22 +71,36 @@ void linux_bind_dump_ ()
     fprintf (fp, " mask = %s", getcpumask (buffer, sizeof (buffer)));
   }
 
+#ifdef _OPENMP
 #pragma omp parallel 
+#endif
   {
     char buffer[1024];
-    int iomp = omp_get_thread_num ();
+    int iomp = 
+#ifdef _OPENMP
+      omp_get_thread_num ()
+#else
+      1
+#endif
+    ;
     int i;
     for (i = 0; i < nomp; i++)
       {
         if (i == iomp)
           {
+#ifdef _OPENMP
 #pragma omp critical
+#endif
             fprintf (fp, "\n                                                    mask = %s iomp = %2d", 
                      getcpumask (buffer, sizeof (buffer)), iomp);
           }
+#ifdef _OPENMP
 #pragma omp barrier
+#endif
       }
+#ifdef _OPENMP
 #pragma omp barrier
+#endif
   }
 
   fprintf (fp, "\n");
@@ -101,6 +121,7 @@ void linux_bind_ ()
 
   if (fp == NULL)
     {
+      fprintf (stderr, "`" LINUX_BIND_TXT "' was not found\n");
       goto end;
     }
 
@@ -116,11 +137,19 @@ void linux_bind_ ()
         }
     }
 
+#ifdef _OPENMP
 #pragma omp parallel 
+#endif
   {
     char * c;
     cpu_set_t mask;
-    int iomp = omp_get_thread_num ();
+    int iomp = 
+#ifdef _OPENMP
+      omp_get_thread_num ()
+#else
+      1
+#endif
+    ;
     int jomp, icpu;
 
     for (jomp = 0, c = buf; jomp < iomp; jomp++)
