@@ -316,6 +316,10 @@ CALL MPL_BUFFER_METHOD(kmp_type=MPL_METHOD,kmbx_size=MPL_MBX_SIZE,LDINFO=LLINFO)
 LUSEHLMPI = .TRUE.
 #endif
 
+#ifdef LINUX
+CALL LINUX_BIND ()
+#endif
+
 !!!! If you are not at ECMWF this may need changing!!!!
 CALL EC_GETENV('HOST',CL_HOST)
 IF(CL_HOST(1:2) == 'c1') THEN
