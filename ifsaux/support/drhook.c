@@ -161,6 +161,8 @@ static double opt_timeline_MB = 1.0; /* ... rss or curheap jumps up/down by more
 static int opt_gencore = 0;
 static int opt_gencore_signal = 0;
 
+static int hpm_grp = 0;
+
 typedef struct drhook_timeline_t {
   unsigned long long int calls[2]; /* 0=drhook_begin , 1=drhook_end */
   double last_curheap_MB;
@@ -3665,13 +3667,31 @@ init_hpm(int tid)
 
   if (!hpm_tid_init[tid-1]) {
 #if defined(PMAPI_P7)
-    const int group = 150;
+    char *env = getenv("HPM_GROUP");
+    hpm_grp = atoi(env);
+    int group;
+    fprintf(stderr,"hpm_group = %d\n",hpm_grp);
+    if (hpm_grp == 150) group = 150; 
+    if (hpm_grp == 141) group = 141; 
     /*-- counters --
+     case 150:
        strcpy(group_label, "pm_vsu23, VSU Execution");
        strcpy(label[0], "four flops operation (fdiv,fsqrt) Scalar Instructions only (PM_VSU_FSQRT_FDIV)");
        strcpy(label[1], "VSU0 Finished an instruction (PM_VSU_FIN)");
        strcpy(label[2], "two flops operation (fmadd, fnmadd, fmsub, fnmsub) Scalar instructions only (PM_VSU_FMA)");
        strcpy(label[3], "one flop (fadd, fmul, fsub, fcmp, fsel, fabs, fnabs, fres, fsqrte, fneg) operation finished (PM_VSU_1FLOP)");
+       strcpy(label[4], "Run instructions completed(PM_RUN_INST_CMPL)");
+       strcpy(label[5], "Run cycles (PM_RUN_CYC)");
+       strcpy(label[6], "Nothing");
+       strcpy(label[7], "Nothing");
+    */
+    /*-- counters --
+     case 141:
+       strcpy(group_label, "pm_vsu14, VSU Execution");
+       strcpy(label[0], "one flop (fadd, fmul, fsub, fcmp, fsel, fabs, fnabs, fres, fsqrte, fneg) operation finished (PM_VSU_1FLOP)");
+       strcpy(label[1], "four flops operation (scalar fdiv, fsqrt; DP vector version of fmadd, fnmadd, fmsub, SP vector versions of single flop instructions) (PM_VSU_4FLOP)");
+       strcpy(label[2], "eight flops operation (DP vector versions of fdiv,fsqrt and SP vector versions of fmadd,fnmadd,fmsub,fnmsub) (PM_VSU_8FLOP)");
+       strcpy(label[3], "two flops operation (scalar fmadd, fnmadd, fmsub, fnmsub and DP vector versions of single flop instructions) (PM_VSU_2FLOP)");
        strcpy(label[4], "Run instructions completed(PM_RUN_INST_CMPL)");
        strcpy(label[5], "Run cycles (PM_RUN_CYC)");
        strcpy(label[6], "Nothing");
@@ -3946,7 +3966,12 @@ mflops_hpm(const drhook_key_t *keyptr)
     sum = keyptr->counter_sum[0];
 #elif defined(PMAPI_P7)
     /* IBM Power 7 specific */
-    sum = 2 * keyptr->counter_sum[2] + keyptr->counter_sum[3];
+    if(hpm_grp == 150) { 
+      sum = 2 * keyptr->counter_sum[2] + keyptr->counter_sum[3];
+    }
+    if(hpm_grp == 141) { 
+      sum = 2 * keyptr->counter_sum[0] + 4 * keyptr->counter_sum[1] + 2 * keyptr->counter_sum[3];
+    }
 #elif defined(PMAPI_P6)
     /* IBM Power 6 specific */
     sum = keyptr->counter_sum[0] + 2 * keyptr->counter_sum[1];
@@ -3987,8 +4012,14 @@ divpc_hpm(const drhook_key_t *keyptr)
     long long int sum = 0;
 #if defined(PMAPI_P7)
     /* IBM Power 7 specific */
-    sum = 2 * keyptr->counter_sum[2] + keyptr->counter_sum[3];
-    if (sum > 0) divpc = (keyptr->counter_sum[0]*100.0)/sum;
+    if(hpm_grp == 150) { 
+      sum = 2 * keyptr->counter_sum[2] + keyptr->counter_sum[3];
+      if (sum > 0) divpc = (keyptr->counter_sum[0]*100.0)/sum;
+    }
+    if(hpm_grp == 141) { 
+      sum = 2 * keyptr->counter_sum[0] + 4 * keyptr->counter_sum[1] + 2 * keyptr->counter_sum[3];
+      if (sum > 0) divpc = (keyptr->counter_sum[1]*100.0)/sum;
+    }
 #elif defined(PMAPI_P6)
     /* IBM Power 6 specific */
     sum = keyptr->counter_sum[0] + 2 * keyptr->counter_sum[1];
@@ -4015,7 +4046,12 @@ mflop_count(const drhook_key_t *keyptr)
     sum = (keyptr->counter_sum[0]) * 1e-6;
 #elif defined(PMAPI_P7)
     /* IBM Power 7 specific */
-    sum = (2 * keyptr->counter_sum[2] + keyptr->counter_sum[3]) * 1e-6;
+    if(hpm_grp == 150) { 
+      sum = (2 * keyptr->counter_sum[2] + keyptr->counter_sum[3]) * 1e-6;
+    }
+    if(hpm_grp == 141) { 
+      sum = (2 * keyptr->counter_sum[0] + 4 * keyptr->counter_sum[1] + 2 * keyptr->counter_sum[3]) * 1e-6;
+    }
 #elif defined(PMAPI_P6)
     /* IBM Power 6 specific */
     sum = (keyptr->counter_sum[0] + 2 * keyptr->counter_sum[1]) * 1e-6;
