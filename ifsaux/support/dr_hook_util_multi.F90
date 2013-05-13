@@ -11,9 +11,7 @@ LOGICAL,SAVE :: LL_FIRST_TIME = .TRUE.
 REAL(KIND=JPRB) :: ZDUMMY
 INTEGER(KIND=JPIM) :: IMYTID
 
-INTERFACE
 #include "dr_hook_util.h"
-END INTERFACE
 
 ! -----------------------------------------------------------------
 

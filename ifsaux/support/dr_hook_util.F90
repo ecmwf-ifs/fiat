@@ -34,9 +34,7 @@ CHARACTER(LEN=3) CHEAP ! For monitoring heap usage
 INTEGER          JHEAP ! For monitoring heap usage
 DATA JHEAP/0/
 
-INTERFACE
 #include "user_clock.h"
-END INTERFACE
 
 
 ! -----------------------------------------------------------------

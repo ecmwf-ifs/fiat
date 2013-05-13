@@ -14,10 +14,8 @@ PUBLIC
 
 LOGICAL :: LHOOK=.TRUE.
 
-INTERFACE
 #include "dr_hook_util.h"
 #include "dr_hook_util_multi.h"
-END INTERFACE
 
 INTERFACE DR_HOOK  
 ! We want compile time mapping of DR_HOOK-arguments and not
