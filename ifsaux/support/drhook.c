@@ -933,8 +933,8 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
   sl->ignore_atexit = ignore_flag;\
   flptrap(x);\
   { \
-    const char *fmt = "%s(%s=%d): New handler installed at %p; old preserved at %p\n"; \
-    fprintf(stderr,fmt,\
+    const char *fmt = "[%s-l%d] %s(%s=%d): New handler installed at %p; old preserved at %p\n"; \
+    fprintf(stderr,fmt, __FILE__, __LINE__, \
             "signal_harakiri", sl->name, x, \
             sl->new.sa_handler, \
             sl->old.sa_handler);\
@@ -965,8 +965,8 @@ signal_gencore(int sig SIG_EXTRA_ARGS)
 	  r.rlim_cur = r.rlim_max;
 	  if (DRH_SETRLIMIT(RLIMIT_CORE, &r) == 0) {
 	    int tid = get_thread_id_();
-	    fprintf(stderr,"signal_gencore(sig=%d): pid#%d, tid#%d : Calling abort() ...\n",
-		    sig, pid, tid);
+	    fprintf(stderr,"[%s-l%d] signal_gencore(sig=%d): pid#%d, tid#%d : Calling abort() ...\n",
+		    __FILE__,__LINE__,sig, pid, tid);
 	    abort(); /* Dump core, too */
 	  }
 	}
@@ -1116,39 +1116,45 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
       fflush(NULL);
-      fprintf(stderr,"Done tracebacks, calling exit with sig=%d, time =%8.2f\n",sig,WALLTIME());
+      fprintf(stderr, "[%s-l%d] done with tracebacks for sig=%d, time =%8.2f\n", __FILE__, __LINE__, sig,WALLTIME());
       fflush(NULL);
-      if (sig != SIGABRT && sig != SIGTERM) ABOR1("Dr.Hook calls ABOR1 ...");
-      _exit(1);
     }
+
     /* sigprocmask(SIG_SETMASK, &oldmask, 0); */
     /* End critical region : the original signal state restored */
 
 #if 1
-    /*-------------- Following code currently redundant---------------*/
     if (opt_propagate_signals &&
 	sl->old.sa_handler != SIG_DFL && 
 	sl->old.sa_handler != SIG_IGN && 
 	sl->old.sa_handler != u.func1args) {
-      /*
+
       fprintf(stderr,
 	      ">>%s(at %p): Calling previous signal handler in chain at %p (if possible)\n",
 	      "signal_drhook",signal_drhook,sl->old.sa_handler); 
       u.func1args = sl->old.sa_handler;
       u.func3args(sig SIG_PASS_EXTRA_ARGS);
-      */
-      fprintf(stderr,
-              ">>%s(at %p): Do not call previous signal handler in chain at %p\n",
-              "signal_drhook",signal_drhook,sl->old.sa_handler);
     }
+		else
+		{
+      fprintf(stderr,
+              ">>%s(at %p): configured to not call previous signal handler in chain at %p\n",
+              "signal_drhook",signal_drhook,sl->old.sa_handler);
+		}
+
+
+#endif
+
     /* Make sure that the process really exits now */
-    fprintf(stderr,
-	    "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Error exit due to this signal\n",
+    fprintf(stderr, "[%s-l%d] [myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Error exit due to this signal\n",
+            __FILE__, __LINE__,
 	    myproc,tid,pid,sig,sl->name);
+
+    if (sig != SIGABRT && sig != SIGTERM) ABOR1("Dr.Hook calls ABOR1 ...");
+
     fflush(NULL);
     _exit(1);
-    /*---------------- End of redundant code---------------------*/
-#endif
+
 
   }
   else {
