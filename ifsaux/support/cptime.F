@@ -3,7 +3,7 @@
 !     Fujitsu function
       call clockv(PVCP,PTCP,0,2)
       return
-      END
+      ENDSUBROUTINE CPTIME
 #elif defined (RS6K)
       SUBROUTINE CPTIME(PVCP,PTCP)
       data ifirst/0/
@@ -19,13 +19,14 @@
          PTCP=PVCP
       endif
       return
-      END
+      ENDSUBROUTINE CPTIME
 #else
       SUBROUTINE CPTIME(PVCP,PTCP)
+      USE PARKIND1, ONLY : JPIM, JPRB
       IMPLICIT NONE
-      INTEGER :: IFIRST
-      REAL(KIND=8) :: PVCP, PTCP
-      REAL(KIND=8) :: ZFIRST, ZSEC
+      INTEGER(KIND=JPIM) :: IFIRST
+      REAL(KIND=JPRB) :: PVCP, PTCP
+      REAL(KIND=JPRB) :: ZFIRST, ZSEC
       data ifirst/0/
       save ifirst,zfirst
 !     Usage of Fortran90 intrinsic function for CPU timing.
@@ -40,5 +41,5 @@
          PTCP=PVCP
       endif
       return
-      END
+      ENDSUBROUTINE CPTIME
 #endif

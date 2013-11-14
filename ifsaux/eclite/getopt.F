@@ -1,14 +1,16 @@
       FUNCTION getopt(y_optstr, y_optarg)
 
+      USE PARKIND1, ONLY : JPIM
       IMPLICIT NONE
 
-      INTEGER :: GETOPT
-      CHARACTER*(*)           y_optstr, y_optarg
+      INTEGER(KIND=JPIM) :: GETOPT
+      CHARACTER(LEN=*)   :: y_optstr, y_optarg
 
-      INTEGER :: I,INITIAL,L_OPTSTR,N_ARG,N_ARGS,NDX_ARG,NDX_OPT
-      CHARACTER*512           y_arg
-      CHARACTER*1             y_opt
-      LOGICAL                 ll_endopts
+      INTEGER(KIND=JPIM) :: I,INITIAL,L_OPTSTR
+      INTEGER(KIND=JPIM) :: N_ARG,N_ARGS,NDX_ARG,NDX_OPT
+      CHARACTER(LEN=512) :: y_arg
+      CHARACTER(LEN=1)   :: y_opt
+      LOGICAL            :: ll_endopts
 
       COMMON/gopt_com1/ initial  ,n_args  ,n_arg   ,ndx_arg ,ll_endopts
       COMMON/gopt_com2/ y_arg
@@ -133,4 +135,4 @@
       ndx_arg  = 0
       getopt   = ichar(y_opt)
 
-      END
+      ENDFUNCTION getopt

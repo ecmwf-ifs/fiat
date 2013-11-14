@@ -17,7 +17,7 @@
       endif
 !
       return
-      end
+      endfunction timef
 #elif defined ( RS6K )
       function timef()
       integer*8 irtc
@@ -36,22 +36,23 @@
       endif
 !
       return
-      end
+      endfunction timef
 #else
       function timef()
+      USE PARKIND1, ONLY : JPIM, JPRB
       IMPLICIT NONE
-      REAL(KIND=8)      :: TIMEF
-      INTEGER,SAVE      :: IFIRST
-      INTEGER           :: I_RATE, I_TIME1
-      REAL(KIND=8),SAVE :: ZFIRST
-      REAL(KIND=8)      :: ZTIMEF
+      REAL(KIND=JPRB)         :: TIMEF
+      INTEGER(KIND=JPIM),SAVE :: IFIRST
+      INTEGER(KIND=JPIM)      :: I_RATE, I_TIME1
+      REAL(KIND=JPRB),SAVE    :: ZFIRST
+      REAL(KIND=JPRB)         :: ZTIMEF
       data ifirst/0/
 !RJ       save ifirst,zfirst
 !
 !     This is a real time clock in milliseconds.
 !     Usage of Fortran90 intrinsic function.
       CALL SYSTEM_CLOCK (COUNT=i_time1,COUNT_RATE=i_rate)
-      ztimef=REAL(i_time1,kind=8)/REAL(i_rate,kind=8)
+      ztimef=REAL(i_time1,kind=JPRB)/REAL(i_rate,kind=JPRB)
 
       if(ifirst.eq.0) then
          ifirst=1
@@ -62,6 +63,5 @@
       endif
 
       return
-      end
-
+      endfunction timef
 #endif
