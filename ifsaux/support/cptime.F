@@ -1,6 +1,6 @@
 #if defined (VPP)
       SUBROUTINE CPTIME(PVCP,PTCP)
-C     Fujitsu function
+!     Fujitsu function
       call clockv(PVCP,PTCP,0,2)
       return
       END
@@ -22,9 +22,13 @@ C     Fujitsu function
       END
 #else
       SUBROUTINE CPTIME(PVCP,PTCP)
+      IMPLICIT NONE
+      INTEGER :: IFIRST
+      REAL(KIND=8) :: PVCP, PTCP
+      REAL(KIND=8) :: ZFIRST, ZSEC
       data ifirst/0/
       save ifirst,zfirst
-c     Usage of Fortran90 intrinsic function for CPU timing.
+!     Usage of Fortran90 intrinsic function for CPU timing.
       if(ifirst.eq.0) then
          ifirst=1
          call cpu_time(zfirst)

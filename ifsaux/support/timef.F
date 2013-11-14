@@ -2,12 +2,12 @@
       function timef()
       data ifirst/0/
       save ifirst,zfirst
-c
-c   fujitsu special
-c
+!
+!   fujitsu special
+!
       call gettod(ztimef)
       ztimef=ztimef/1000.0
-c
+!
       if(ifirst.eq.0) then
          ifirst=1
          zfirst=ztimef
@@ -15,7 +15,7 @@ c
       else
          timef=(ztimef-zfirst)
       endif
-c
+!
       return
       end
 #elif defined ( RS6K )
@@ -24,9 +24,9 @@ c
       external irtc
       data ifirst/0/
       save ifirst,zfirst
-c
+!
       ztimef=irtc()*1.0e-6
-c
+!
       if(ifirst.eq.0) then
          ifirst=1
          zfirst=ztimef
@@ -34,18 +34,24 @@ c
       else
          timef=(ztimef-zfirst)
       endif
-c
+!
       return
       end
 #else
       function timef()
+      IMPLICIT NONE
+      REAL(KIND=8)      :: TIMEF
+      INTEGER,SAVE      :: IFIRST
+      INTEGER           :: I_RATE, I_TIME1
+      REAL(KIND=8),SAVE :: ZFIRST
+      REAL(KIND=8)      :: ZTIMEF
       data ifirst/0/
-      save ifirst,zfirst
-
-c     This is a real time clock in milliseconds.
-c     Usage of Fortran90 intrinsic function.
+!RJ       save ifirst,zfirst
+!
+!     This is a real time clock in milliseconds.
+!     Usage of Fortran90 intrinsic function.
       CALL SYSTEM_CLOCK (COUNT=i_time1,COUNT_RATE=i_rate)
-      ztimef=float(i_time1)/float(i_rate)
+      ztimef=REAL(i_time1,kind=8)/REAL(i_rate,kind=8)
 
       if(ifirst.eq.0) then
          ifirst=1
