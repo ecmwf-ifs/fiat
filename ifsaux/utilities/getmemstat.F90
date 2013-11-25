@@ -14,8 +14,11 @@ INTEGER(KIND=JPIM) imemkeys(JP_MEMKEYS)
 INTEGER(KIND=JPIB) imemvals(JP_MEMKEYS)
 REAL(KIND=JPRB), allocatable :: zsend(:), zrecv(:)
 INTEGER(KIND=JPIM), allocatable :: icounts(:)
+character(len=1) CLenv
 
-if (kout >= 0) then
+call getenv("EC_PROFILE_MEM", CLenv) ! turn OFF by export EC_PROFILE_MEM=0
+
+if (kout >= 0 .and. CLenv /= '0') then
   imyproc = mpl_myrank()
   inproc  = mpl_nproc()
 
