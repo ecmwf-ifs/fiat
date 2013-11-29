@@ -20,7 +20,7 @@ C     Fujitsu function
       endif
       return
       END
-#else
+#elif defined (OLDTIMER)
       SUBROUTINE CPTIME(PVCP,PTCP)
       data ifirst/0/
       save ifirst,zfirst
@@ -33,6 +33,24 @@ c     Usage of Fortran90 intrinsic function for CPU timing.
       else
          call cpu_time(ZSEC)
          PVCP=ZSEC-ZFIRST
+         PTCP=PVCP
+      endif
+      return
+      END
+#else
+COV this routine should work better with OpenMP
+      SUBROUTINE CPTIME(PVCP,PTCP)
+      integer ifirst,kfirst,ktps,ktick
+      data ifirst/1/
+      save ifirst,kfirst,ktps
+      if(ifirst.eq.1) then
+         ifirst=0
+         call system_clock(kfirst,ktps)
+         pvcp=0.0
+         ptcp=pvcp
+      else
+         call system_clock(ktick)
+         PVCP=real(ktick-kfirst)/real(ktps)
          PTCP=PVCP
       endif
       return
