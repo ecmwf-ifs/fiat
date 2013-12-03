@@ -104,7 +104,7 @@ c_drhook_start_(const char *name,
 extern void
 c_drhook_end_(const char *name,
               const int *thread_id,
-              const double *key,
+              double *key,
               const char *filename,
               const int *sizeinfo
               /* Hidden length */
