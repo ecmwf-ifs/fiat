@@ -3,7 +3,7 @@
 !     Fujitsu function
       call clockv(PVCP,PTCP,0,2)
       return
-      ENDSUBROUTINE CPTIME
+      END SUBROUTINE CPTIME
 #elif defined (RS6K)
       SUBROUTINE CPTIME(PVCP,PTCP)
       data ifirst/0/
@@ -19,14 +19,9 @@
          PTCP=PVCP
       endif
       return
-      ENDSUBROUTINE CPTIME
-#else
+      END SUBROUTINE CPTIME
+#elif defined (OLDTIMER)
       SUBROUTINE CPTIME(PVCP,PTCP)
-      USE PARKIND1, ONLY : JPIM, JPRB
-      IMPLICIT NONE
-      INTEGER(KIND=JPIM) :: IFIRST
-      REAL(KIND=JPRB) :: PVCP, PTCP
-      REAL(KIND=JPRB) :: ZFIRST, ZSEC
       data ifirst/0/
       save ifirst,zfirst
 !     Usage of Fortran90 intrinsic function for CPU timing.
@@ -41,5 +36,23 @@
          PTCP=PVCP
       endif
       return
-      ENDSUBROUTINE CPTIME
+      END SUBROUTINE CPTIME
+#else
+! this routine should work better with OpenMP
+      SUBROUTINE CPTIME(PVCP,PTCP)
+      integer ifirst,kfirst,ktps,ktick
+      data ifirst/1/
+      save ifirst,kfirst,ktps
+      if(ifirst.eq.1) then
+         ifirst=0
+         call system_clock(kfirst,ktps)
+         pvcp=0.0
+         ptcp=pvcp
+      else
+         call system_clock(ktick)
+         PVCP=real(ktick-kfirst)/real(ktps)
+         PTCP=PVCP
+      endif
+      return
+      END SUBROUTINE CPTIME
 #endif
