@@ -1,15 +1,22 @@
-      INTEGER FUNCTION getopt(y_optstr, y_optarg)
-      CHARACTER*(*)           y_optstr, y_optarg
+      FUNCTION getopt(y_optstr, y_optarg)
 
-      CHARACTER*512           y_arg
-      CHARACTER*1             y_opt
-      LOGICAL                 ll_endopts
+      USE PARKIND1, ONLY : JPIM
+!Disable because iargc() issue       IMPLICIT NONE
+
+      INTEGER(KIND=JPIM) :: GETOPT
+      CHARACTER(LEN=*)   :: y_optstr, y_optarg
+
+      INTEGER(KIND=JPIM) :: I,INITIAL,L_OPTSTR
+      INTEGER(KIND=JPIM) :: N_ARG,N_ARGS,NDX_ARG,NDX_OPT
+      CHARACTER(LEN=512) :: y_arg
+      CHARACTER(LEN=1)   :: y_opt
+      LOGICAL            :: ll_endopts
 
       COMMON/gopt_com1/ initial  ,n_args  ,n_arg   ,ndx_arg ,ll_endopts
       COMMON/gopt_com2/ y_arg
 
-C  Initialise on 1st. call
-C  -----------------------
+!  Initialise on 1st. call
+!  -----------------------
 
       IF (initial .NE. 123456) THEN
          initial    = 123456
@@ -21,8 +28,8 @@ C  -----------------------
 
       y_optarg = ' '
 
-C  Get length of "y_optstr"
-C  ------------------------
+!  Get length of "y_optstr"
+!  ------------------------
 
       l_optstr = 0
       DO 10 i = len(y_optstr), 1, -1
@@ -33,8 +40,8 @@ C  ------------------------
    10 CONTINUE
    20 CONTINUE
 
-C  If already at end of options, return
-C  ------------------------------------
+!  If already at end of options, return
+!  ------------------------------------
 
       IF ((n_arg .GT. n_args) .OR. ll_endopts) THEN
          ll_endopts = .TRUE.
@@ -42,8 +49,8 @@ C  ------------------------------------
          RETURN
       ENDIF
 
-C  If we need to get the next argument, do so. Check for end of options
-C  --------------------------------------------------------------------
+!  If we need to get the next argument, do so. Check for end of options
+!  --------------------------------------------------------------------
 
       IF (ndx_arg .EQ. 0) THEN
          n_arg = n_arg + 1
@@ -75,8 +82,8 @@ C  --------------------------------------------------------------------
          ndx_arg = 2
       ENDIF
 
-C  We have an option, now see if it is valid
-C  -----------------------------------------
+!  We have an option, now see if it is valid
+!  -----------------------------------------
 
       y_opt   = y_arg(ndx_arg : ndx_arg)
       ndx_opt = index(y_optstr, y_opt)
@@ -90,8 +97,8 @@ C  -----------------------------------------
          RETURN
       ENDIF
 
-C  We have a valid option, see if it should have an argument
-C  ---------------------------------------------------------
+!  We have a valid option, see if it should have an argument
+!  ---------------------------------------------------------
 
       ndx_arg = ndx_arg + 1
       IF (y_arg(ndx_arg :) .EQ. ' ') THEN
@@ -107,8 +114,8 @@ C  ---------------------------------------------------------
       ENDIF
 
 
-C  A valid option with an argument
-C  -------------------------------
+!  A valid option with an argument
+!  -------------------------------
 
       IF (ndx_arg .EQ. 0) THEN
          IF (n_arg .EQ. n_args) THEN
@@ -128,4 +135,4 @@ C  -------------------------------
       ndx_arg  = 0
       getopt   = ichar(y_opt)
 
-      END
+      ENDFUNCTION getopt
