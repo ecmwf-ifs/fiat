@@ -71,7 +71,6 @@ int drhook_memtrace = 0; /* set to 1, if opt_memprof or opt_timeline ; used in g
 #endif
 
 #include "crc.h"
-#include "bbt.h"
 #include <time.h>
 
 static char *start_stamp = NULL;
@@ -146,7 +145,6 @@ static int callpath_indent = callpath_indent_default;
 #define callpath_depth_default 50
 static int callpath_depth = callpath_depth_default;
 static int callpath_packed = 0;
-static int callpath_fixsum = 1;
 
 static int opt_calltrace = 0;
 
@@ -1382,12 +1380,6 @@ process_options()
     if (fp) fprintf(fp,">>>process_options(): DR_HOOK_CALLPATH_PACKED=%d\n",callpath_packed);
   }
 
-  env = getenv("DR_HOOK_CALLPATH_FIXSUM");
-  if (env) {
-    callpath_fixsum = atoi(env);
-    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_CALLPATH_FIXSUM=%d\n",callpath_fixsum);
-  }
-
   env = getenv("DR_HOOK_CALLTRACE");
   if (env) {
     opt_calltrace = atoi(env);
@@ -2369,53 +2361,20 @@ c_drhook_watch_(const int *onoff,
   coml_unset_lockid_(&DRHOOK_lock);
 }
 
-/*=== ===*/
-
-#define C_DRHOOK_ARGS_DECL \
-     const char *name,                    \
-     const int *thread_id,                \
-     double *key,                         \
-     const char *filename,                \
-     const int *sizeinfo                  \
-     ,int name_len, int filename_len      
-
-#define C_DRHOOK_ARGS \
-     name,                     \
-     thread_id,                \
-     key,                      \
-     filename,                 \
-     sizeinfo                  \
-     ,name_len, filename_len   
-
-static FILE * fp_barr = NULL;
-static void
-barr_report (double walltime, equivalence_t * callpath, int callpath_len, const char * name, const int name_len)
-{
-  int i;
-
-  fprintf (fp_barr, "%14.6f ", walltime);
-
-  for (i = callpath_len-1; i >= 0; i--)
-    fprintf (fp_barr, "%s/", callpath[i].keyptr->name);
-  for (i = 0; i < name_len; i++)
-    fprintf (fp_barr, "%c", name[i]);
-  fprintf (fp_barr, "\n");
-
-  fflush (fp_barr);
-}
-
-void 
-c_drhook_barr (C_DRHOOK_ARGS_DECL, const char * suffix, int end);
-
 /*=== c_drhook_start_ ===*/
 
-void
-c_drhook_start (C_DRHOOK_ARGS_DECL)
+void 
+c_drhook_start_(const char *name, 
+		const int *thread_id, 
+		double *key,
+		const char *filename,
+		const int *sizeinfo
+		/* Hidden length */
+		,int name_len, int filename_len)
 {
   TIMERS;
   equivalence_t u;
   ITSELF_0;
-
   if (!signals_set) signal_drhook_init(1);
   if (watch && watch_count > 0) check_watch("entering", name, name_len);
   if (!opt_callpath) {
@@ -2480,22 +2439,20 @@ c_drhook_start (C_DRHOOK_ARGS_DECL)
   }
 }
 
-void 
-c_drhook_start_(C_DRHOOK_ARGS_DECL)
-{
-  c_drhook_barr (C_DRHOOK_ARGS, "#START-BARRIER", 0);
-  c_drhook_start (C_DRHOOK_ARGS);
-}
-
 /*=== c_drhook_end_ ===*/
 
 void 
-c_drhook_end (C_DRHOOK_ARGS_DECL)
+c_drhook_end_(const char *name,
+	      const int *thread_id,
+	      const double *key,
+	      const char *filename,
+	      const int *sizeinfo
+	      /* Hidden length */
+	      ,int name_len, int filename_len)
 {
   TIMERS;
   equivalence_t u;
   ITSELF_0;
-
   u.d = *key;
   /*
   if (opt_calltrace) {
@@ -2540,157 +2497,6 @@ c_drhook_end (C_DRHOOK_ARGS_DECL)
 	 *sizeinfo,
 	 &walltime, &cputime);
   ITSELF_1;
-}
-
-void 
-c_drhook_end_(C_DRHOOK_ARGS_DECL)
-{
-  c_drhook_barr (C_DRHOOK_ARGS, "#END-BARRIER", 1);
-  c_drhook_end (C_DRHOOK_ARGS);
-}
-
-typedef struct drhook_barr
-{
-  BBT_HEADER(drhook_barr);
-  int length;
-  char * name;
-} drhook_barr;
-
-#define drhook_barr_new() (drhook_barr*)calloc_drhook (sizeof (drhook_barr), 1);
-
-static drhook_barr * drhook_barr_root = NULL;
-static int drhook_barr_init_done = 0;
-
-static int compare_drhook_barr0 (const char * name1, const int length1, const char * name2, const int length2)
-{
-
-  if (length1 < length2)
-    return -1;
-  if (length1 > length2)
-    return +1;
-
-  return strncmp (name1, name2, length1);
-}
-
-static int compare_drhook_barr (void * p1, void * p2)
-{
-  drhook_barr * dhb1 = p1;
-  drhook_barr * dhb2 = p2;
-
-  return compare_drhook_barr0 (dhb1->name, dhb1->length, dhb2->name, dhb2->length);
-}
-
-static int
-barr_defined0 (const char * name, const int length, drhook_barr * dhb)
-{
-  int cmp;
-  if (dhb == NULL)
-    return 0;
-  cmp = compare_drhook_barr0 (name, length, dhb->name, dhb->length);
-  return cmp == 0 ? 1 : barr_defined0 (name, length, cmp < 0 ? dhb->left : dhb->right);
-}
-
-static int
-barr_defined (const char * name, const int length)
-{
-  return barr_defined0 (name, length, drhook_barr_root);
-}
-
-static void
-barr_dump (drhook_barr * dhb, int level)
-{
-  if (dhb == NULL)
-    return;
-
-  barr_dump (dhb->left, level+1);
-
-  {
-    int i;
-    for (i = 0; i < level * 2; i++)
-      printf (" ");
-    printf (" %d,", dhb->length);
-    for (i = 0; i < dhb->length; i++)
-      printf ("%c", dhb->name[i]);
-    printf ("\n");
-  }
-
-  barr_dump (dhb->right, level+1);
-}
-
-void c_drhook_barr_init ()
-{
-  if (drhook_barr_init_done++ == 0)
-    {
-      char * f = getenv ("DR_HOOK_BARR_LIST");
-      if (f != NULL)
-        {
-          FILE * fp = fopen (f, "r");
-          char tmp[32];
-          sprintf (tmp, "drhook.barr.%d.txt", myproc);
-          fp_barr = fopen (tmp, "w");
-          if (fp != NULL)
-            {
-              char tmp[256];
-              while (fgets (tmp, sizeof (tmp), fp) != NULL)
-                {
-                  drhook_barr * dhb = drhook_barr_new ();
-                  int len = strlen (tmp);
-                  dhb->length = len-1;
-                  dhb->name   = (char*) malloc (len+1);
-                  memcpy (dhb->name, tmp, len-1);
-                  dhb->name[len] = '\0';
-                  bbt_insert_bbt (&drhook_barr_root, dhb, compare_drhook_barr);
-                }
-            }
-        }
-    }
-}
-
-void 
-c_drhook_barr (C_DRHOOK_ARGS_DECL, const char * suffix, int end)
-{
-  double walltime;
-
-  if (drhook_barr_init_done == 0)
-    c_drhook_barr_init ();
-
-  if (barr_defined (name, name_len))
-    {
-      int name_barr_len = name_len+strlen(suffix);
-      char name_barr[name_barr_len+1];
-      double key_barr;
-      equivalence_t * callpath;
-      int callpath_len;
-
-      callpath = get_callpath (*thread_id, &callpath_len);
-
-      memset (name_barr, 0, name_barr_len+1);
-      strncpy (name_barr, name, name_len);
-      strcat (name_barr, suffix);
-
-      walltime = WALLTIME ();
-
-      c_drhook_start (name_barr, thread_id, &key_barr, filename, sizeinfo, name_barr_len, filename_len);
-
-      if (end)
-        barr_report (walltime, &callpath[1], callpath_len-1, name_barr, name_barr_len);
-      else
-        barr_report (walltime, &callpath[0], callpath_len+0, name_barr, name_barr_len-8);
-
-      c_mpl_barr_ ();
-
-      walltime = WALLTIME ();
-
-      c_drhook_end (name_barr, thread_id, &key_barr, filename, sizeinfo, name_barr_len, filename_len);
-
-      if (end)
-        barr_report (walltime, &callpath[1], callpath_len-1, name_barr, name_barr_len-8);
-      else
-        barr_report (walltime, &callpath[0], callpath_len+0, name_barr, name_barr_len);
-
-      free_drhook (callpath);
-
-    }
 }
 
 /*=== c_drhook_memcounter_ ===*/
@@ -3304,7 +3110,7 @@ c_drhook_print_(const int *ftnunitno,
 	  else if (clusize[cluster] == 1) {
 	    use_this = opt_wallprof;
 	  }
-	  if ((use_this && opt_wallprof) || callpath_fixsum) tottime += p->self;
+	  if (use_this && opt_wallprof) tottime += p->self;
 	  p++;
 	}
 
@@ -4477,4 +4283,3 @@ int util_ihpstat_(int *option)
 
   return ret_value;
 }
-
