@@ -1,7 +1,7 @@
       FUNCTION getopt(y_optstr, y_optarg)
 
       USE PARKIND1, ONLY : JPIM
-      IMPLICIT NONE
+!Disable because iargc() issue       IMPLICIT NONE
 
       INTEGER(KIND=JPIM) :: GETOPT
       CHARACTER(LEN=*)   :: y_optstr, y_optarg
