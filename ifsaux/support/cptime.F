@@ -6,32 +6,11 @@
       REAL(KIND=JPRB) :: PVCP
       REAL(KIND=JPRB) :: PTCP
 !
-#if defined (VPP)
-!     Fujitsu function
-      call clockv(PVCP,PTCP,0,2)
-#elif defined (RS6K)
+#if defined (OLDTIMER)
       INTEGER(KIND=JPIM),SAVE :: IFIRST=0
       REAL(KIND=JPRB),SAVE :: ZFIRST
       REAL(KIND=JPRB) :: ZSEC
-!RJ       data ifirst/0/
-!RJ       save ifirst,zfirst
-      if(ifirst.eq.0) then
-         ifirst=1
-         zfirst=second()
-         pvcp=0.0
-         ptcp=pvcp
-      else
-         ZSEC=SECOND()
-         PVCP=ZSEC-ZFIRST
-         PTCP=PVCP
-      endif
-#elif defined (OLDTIMER)
-      INTEGER(KIND=JPIM),SAVE :: IFIRST=0
-      REAL(KIND=JPRB),SAVE :: ZFIRST
-      REAL(KIND=JPRB) :: ZSEC
-!RJ       data ifirst/0/
-!RJ       save ifirst,zfirst
-!     Usage of Fortran90 intrinsic function for CPU timing.
+!     Usage of Fortran95 intrinsic function for CPU timing.
       if(ifirst.eq.0) then
          ifirst=1
          call cpu_time(zfirst)
@@ -47,8 +26,8 @@
       INTEGER(KIND=JPIM),SAVE :: ifirst=1
       INTEGER(KIND=JPIM),SAVE :: kfirst,ktps
       INTEGER(KIND=JPIM) :: ktick
-!RJ       DATA ifirst/1/
-!RJ       save ifirst,kfirst,ktps
+!     Usage of Fortran95 intrinsic function system_clock for ELAPSED time,
+!     thus taking into account the parallelism if inside an open-mp region. REK
       if(ifirst.eq.1) then
          ifirst=0
          call system_clock(kfirst,ktps)
