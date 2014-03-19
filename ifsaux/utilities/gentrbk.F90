@@ -6,12 +6,32 @@ END SUBROUTINE gentrbk_dummy
 #ifdef __INTEL_COMPILER
 SUBROUTINE intel_trbk()
 USE IFCORE
+USE MPL_MODULE, ONLY : MPL_MYRANK
+CHARACTER*80 MESSAGE
+LOGICAL :: DONE_TRACEBACK = .false.
+INTEGER :: MYPROC,MYTHREAD
+INTEGER,EXTERNAL :: OMP_GET_THREAD_NUM
+
+if(DONE_TRACEBACK) then
+  write(0,*) "INTEL_TRBK already called"
+  return
+endif
+
+MYPROC=MPL_MYRANK()
+MYTHREAD=OMP_GET_THREAD_NUM() + 1
+
 #ifndef BOM
-CALL TRACEBACKQQ('Calling traceback from intel_trbk()', USER_EXIT_CODE=-1)
+  write(MESSAGE,'(A,I4,A,I2,A)') &
+  &           "Process ",MYPROC," thread ",MYTHREAD, &
+  &           " calling tracebackqq from intel_trbk()"
+  CALL TRACEBACKQQ(MESSAGE, USER_EXIT_CODE=-1)
 #endif
 #ifdef LINUX
-CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
+  write(0,*) "Process ",MYPROC," thread ",MYTHREAD, &
+ &           " calling linux_trbk from intel_trbk()"
+  CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
 #endif
+DONE_TRACEBACK=.true.
 END SUBROUTINE intel_trbk
 #endif
 
