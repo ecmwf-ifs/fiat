@@ -933,8 +933,8 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
   sl->ignore_atexit = ignore_flag;\
   flptrap(x);\
   { \
-    const char *fmt = "%s(%s=%d): New handler installed at %p; old preserved at %p\n"; \
-    fprintf(stderr,fmt,\
+    const char *fmt = "[%s-l%d] %s(%s=%d): New handler installed at %p; old preserved at %p\n"; \
+    fprintf(stderr,fmt, __FILE__, __LINE__, \
             "signal_harakiri", sl->name, x, \
             sl->new.sa_handler, \
             sl->old.sa_handler);\
@@ -965,8 +965,8 @@ signal_gencore(int sig SIG_EXTRA_ARGS)
 	  r.rlim_cur = r.rlim_max;
 	  if (DRH_SETRLIMIT(RLIMIT_CORE, &r) == 0) {
 	    int tid = get_thread_id_();
-	    fprintf(stderr,"signal_gencore(sig=%d): pid#%d, tid#%d : Calling abort() ...\n",
-		    sig, pid, tid);
+	    fprintf(stderr,"[%s-l%d] signal_gencore(sig=%d): pid#%d, tid#%d : Calling abort() ...\n",
+		    __FILE__,__LINE__,sig, pid, tid);
 	    abort(); /* Dump core, too */
 	  }
 	}
@@ -988,10 +988,16 @@ signal_harakiri(int sig SIG_EXTRA_ARGS)
 static void 
 signal_drhook(int sig SIG_EXTRA_ARGS)
 {
+  int nsigs;
   /* signal(sig, SIG_IGN); */
   if (signals_set && sig >= 1 && sig <= NSIG) { 
     /* Signal catching */
-    int nsigs = (++signal_handler_called); /* A tiny chance for a race condition between threads */
+#ifdef _OPENMP
+#pragma omp critical
+    nsigs = (++signal_handler_called);
+#else
+    nsigs = (++signal_handler_called); /* A tiny chance for a race condition between threads */
+#endif
     drhook_sig_t *sl = &siglist[sig];
     drhook_sigfunc_t u;
     sigset_t newmask, oldmask;
@@ -1010,6 +1016,10 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       
     /* if (sig != SIGTERM) signal(SIGTERM, SIG_DFL); */  /* Let the default SIGTERM to occur */
 
+#ifdef _OPENMP
+    max_threads = (int) omp_get_num_threads();
+#endif
+    tid = get_thread_id_();
     if (nsigs == 1) {
       /*---- First call to signal handler: call alarm(10), tracebacks,  exit ------*/
       
@@ -1042,7 +1052,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 
     /*----- 2nd (and subsequent) calls to signal handler: spin 20 sec,  _exit ---------*/
     if (nsigs > 1) {
-      if (nsigs < max_threads) {
+      if (nsigs <= max_threads) {
 	double tt, ttt=0;
 	int is;
 	tt=WALLTIME();
@@ -1096,13 +1106,22 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       fflush(NULL);
       c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
       fflush(NULL);
-      fprintf(stderr,"tid#%d starting sigdump traceback, time =%8.2f\n",tid,WALLTIME());
-      fflush(NULL);
 #ifdef RS6K
       xl__sigdump(sig SIG_PASS_EXTRA_ARGS); /* Can't use xl__trce(...), since it also stops */
 #endif
-#ifdef INTEL
+/* To make it less likely that another thread generates a signal while we are
+   doing a traceback lets wait a while (seems to fix problems of the traceback
+   terminating abnormally. Probably a better way of doing this involving holding
+   off signals but sigprocmask is not safe in multithreaded code -  P Towers Dec 10 2012 
+   This was originally an issue with the Intel compiler but may be of benefit for other
+   compilers. Cannot see it doing harm - P Towers Aug 29 2013 */ 
+      sleep(tid);
+#ifdef __INTEL_COMPILER
       intel_trbk_(); /* from ../utilities/gentrbk.F90 */
+#else
+  #if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1) && !defined(_CRAYC)
+        gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
+  #endif
 #endif
 #if defined(NECSX)
       necsx_trbk_("signal_drhook",13); /* from ../utilities/gentrbk.F90 */
@@ -1112,43 +1131,46 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
 #endif
-#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1)
-      gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
-#endif
       fflush(NULL);
-      fprintf(stderr,"Done tracebacks, calling exit with sig=%d, time =%8.2f\n",sig,WALLTIME());
+      fprintf(stderr, "[%s-l%d] done with tracebacks for sig=%d, time =%8.2f\n", __FILE__, __LINE__, sig,WALLTIME());
       fflush(NULL);
-      if (sig != SIGABRT && sig != SIGTERM) ABOR1("Dr.Hook calls ABOR1 ...");
-      _exit(1);
     }
+
     /* sigprocmask(SIG_SETMASK, &oldmask, 0); */
     /* End critical region : the original signal state restored */
 
 #if 1
-    /*-------------- Following code currently redundant---------------*/
     if (opt_propagate_signals &&
 	sl->old.sa_handler != SIG_DFL && 
 	sl->old.sa_handler != SIG_IGN && 
 	sl->old.sa_handler != u.func1args) {
-      /*
+
       fprintf(stderr,
 	      ">>%s(at %p): Calling previous signal handler in chain at %p (if possible)\n",
 	      "signal_drhook",signal_drhook,sl->old.sa_handler); 
       u.func1args = sl->old.sa_handler;
       u.func3args(sig SIG_PASS_EXTRA_ARGS);
-      */
-      fprintf(stderr,
-              ">>%s(at %p): Do not call previous signal handler in chain at %p\n",
-              "signal_drhook",signal_drhook,sl->old.sa_handler);
     }
+		else
+		{
+      fprintf(stderr,
+              ">>%s(at %p): configured to not call previous signal handler in chain at %p\n",
+              "signal_drhook",signal_drhook,sl->old.sa_handler);
+		}
+
+
+#endif
+
     /* Make sure that the process really exits now */
-    fprintf(stderr,
-	    "[myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Error exit due to this signal\n",
+    fprintf(stderr, "[%s-l%d] [myproc#%d,tid#%d,pid#%d,signal#%d(%s)]: Error exit due to this signal\n",
+            __FILE__, __LINE__,
 	    myproc,tid,pid,sig,sl->name);
+
+    if (sig != SIGABRT && sig != SIGTERM) ABOR1("Dr.Hook calls ABOR1 ...");
+
     fflush(NULL);
     _exit(1);
-    /*---------------- End of redundant code---------------------*/
-#endif
+
 
   }
   else {
@@ -1158,16 +1180,18 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 #ifdef RS6K
     xl__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
-#ifdef INTEL
+#ifdef __INTEL
     intel_trbk_(); /* from ../utilities/gentrbk.F90 */
+#else
+  #if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1) && !defined(_CRAYC)
+    gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
+  #endif
+
 #endif
 #ifdef VPP
 #if defined(SA_SIGINFO) && SA_SIGINFO > 0
     _TraceCalls(sigcontextptr); /* Need VPP's libmp.a by Pierre Lagier */
 #endif
-#endif
-#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1)
-    gdb__sigdump(sig SIG_PASS_EXTRA_ARGS);
 #endif
     fflush(NULL);
     _exit(1);
@@ -2766,12 +2790,26 @@ c_drhook_print_(const int *ftnunitno,
 		int *level
 		)
 {
+  static int first_time = 0;
   int tid = (thread_id && (*thread_id >= 1) && (*thread_id <= numthreads))
     ? *thread_id : get_thread_id_();
+  int mytid = get_thread_id_();
   if (ftnunitno && keydata && calltree) {
     char line[4096];
     int abs_print_option = ABS(*print_option);
     int j;
+
+  /* Mod to call traceback and continue if called with level=99 */
+      if(*level == 99) {
+        *level=0;
+      }
+      else {
+        if(*print_option == 2) {
+          if(first_time == 1) return;
+          first_time = 1;
+        }
+      }
+  /* end of Mod  */
 
     if (*print_option == 1) { /* raw call counts */
       for (j=0; j<hashsize; j++) {
@@ -2812,10 +2850,11 @@ c_drhook_print_(const int *ftnunitno,
       drhook_calltree_t *treeptr = calltree[tid-1];
 
       if (tid > 1) {
-	if (*print_option == 2) { 
+	if (*print_option == 2) {
 	  /* I'm not a master thread, but my master has the beginning of the calltree */
 	  int initlev = 0;
 	  const int master = 1;
+          first_time = 0;
 	  c_drhook_print_(ftnunitno, &master, print_option, &initlev);
 	  *level += initlev;
 	}
@@ -2867,6 +2906,12 @@ c_drhook_print_(const int *ftnunitno,
 	  (*level)++;
 	  for (j=0; j<(*level); j++) *s++ = ' ';
 	  if (*print_option == 2) {
+            if(mytid != tid) { /* We are printing the master call tree as far as >OMP*/
+              if(strncmp(">OMP",keyptr->name,4) == 0) {
+                (*level)--;
+                return;
+              }
+            }
 	    sprintf(s,"%s ",keyptr->name);
 	    s += strlen(s);
 	  }
@@ -4094,6 +4139,10 @@ mip_count(const drhook_key_t *keyptr)
 /* #include <malloc.h> */
 #include <stdlib.h>
 #include <signal.h>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #define FORTRAN_CALL
 
