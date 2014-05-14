@@ -1,7 +1,7 @@
       FUNCTION getopt(y_optstr, y_optarg)
 
       USE PARKIND1, ONLY : JPIM
-!Disable because iargc() issue       IMPLICIT NONE
+      IMPLICIT NONE
 
       INTEGER(KIND=JPIM) :: GETOPT
       CHARACTER(LEN=*)   :: y_optstr, y_optarg
@@ -20,7 +20,7 @@
 
       IF (initial .NE. 123456) THEN
          initial    = 123456
-         n_args     = iargc()
+         n_args     = COMMAND_ARGUMENT_COUNT()
          n_arg      = 0
          ndx_arg    = 0
          ll_endopts = .FALSE.
