@@ -40,6 +40,7 @@
 #elif defined ( _CRAYFTN )
       function timef()
       integer*8 i_time1,i_rate
+      real*8 ztimef,zfirst
       data ifirst/0/
       save ifirst,zfirst
 
