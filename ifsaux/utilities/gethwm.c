@@ -57,7 +57,14 @@ gethwm()
 
 #else  /* non-RS6K */
 
-#if defined(LINUX)
+#if defined(_CRAYC)
+ll_t
+gethwm()
+{
+  extern ll_t get_tcmalloc_heap_size_();
+  return get_tcmalloc_heap_size_();
+}
+#elif defined(LINUX)
 static ll_t basesize = -1;
 static size_t pagesize = 4096;
 ll_t gethwm()

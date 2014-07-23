@@ -45,6 +45,7 @@ MODULE MPL_INIT_MOD
 !        S. Saarinen 04-Oct-2009 Reduced output & redefined MPL_COMM_OML(1)
 !        P. Marguinaud 01-Jan-2011 Add LDENV argument
 !        R. El Khatib  24-May-2011 Make MPI2 the default expectation.
+!        P. Towers     3-Jul-2014 Add call to ec_cray_meminfo
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
@@ -367,6 +368,10 @@ MPL_MYNODE=(MPL_RANK-1)/MPL_MAX_TASK_PER_NODE+1
 
 ALLOCATE(MPL_OPPONENT(MPL_NUMPROC+1))
 CALL MPL_TOUR_TABLE(MPL_OPPONENT)
+
+#ifdef _CRAYFTN
+  CALL ec_cray_meminfo(-1,"mpl_init",MPL_COMM)
+#endif
 
 RETURN
 END SUBROUTINE MPL_INIT
