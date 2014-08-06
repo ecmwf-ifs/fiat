@@ -7,7 +7,7 @@ IMPLICIT NONE
 integer(kind=4), intent(in) :: kcomm
 integer(kind=4), intent(in) :: iu
 character*(*), intent(in) :: idstring
-integer(kind = 4) :: id,iu,kulout
+integer(kind = 4) :: id,kulout
 integer(kind=4) :: i,j,myproc,nproc,len,error,itag,nodenum
 integer(kind=8) :: tasksmall,nodehuge,memfree,cached
 integer(kind=8) :: smallpage0,smallpage1,hugepage0,hugepage1
