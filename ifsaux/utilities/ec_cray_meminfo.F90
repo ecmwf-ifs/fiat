@@ -192,10 +192,11 @@ read(502,'(a)') line
 read(502,'(a)') line
 read(502,'(a)') line
 read(line(22:160),*) node0
-read(502,'(a)') line
+node1(:)=0
+read(502,'(a)',end=99) line
 read(line(22:160),*) node1
 
-close(502)
+99 close(502)
 
 bucket0(1)=node0(1)*4096
 bucket1(1)=node1(1)*4096
