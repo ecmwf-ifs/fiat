@@ -2,12 +2,12 @@
       function timef()
       data ifirst/0/
       save ifirst,zfirst
-c
-c   fujitsu special
-c
+!
+!   fujitsu special
+!
       call gettod(ztimef)
       ztimef=ztimef/1000.0
-c
+!
       if(ifirst.eq.0) then
          ifirst=1
          zfirst=ztimef
@@ -15,18 +15,18 @@ c
       else
          timef=(ztimef-zfirst)
       endif
-c
+!
       return
-      end
+      endfunction timef
 #elif defined ( RS6K )
-      function timef()
+      real*8 timef()
       integer*8 irtc
       external irtc
       data ifirst/0/
       save ifirst,zfirst
-c
+!
       ztimef=irtc()*1.0e-6
-c
+!
       if(ifirst.eq.0) then
          ifirst=1
          zfirst=ztimef
@@ -34,19 +34,20 @@ c
       else
          timef=(ztimef-zfirst)
       endif
-c
+!
       return
-      end
+      endfunction timef
 #elif defined ( _CRAYFTN )
-      function timef()
+      real*8 function timef()
       integer*8 i_time1,i_rate
+      real*8 ztimef,zfirst
       data ifirst/0/
       save ifirst,zfirst
 
 c     This is a real time clock in milliseconds.
 c     Usage of Fortran90 intrinsic function.
       CALL SYSTEM_CLOCK (COUNT=i_time1,COUNT_RATE=i_rate)
-      ztimef=float(i_time1)/float(i_rate)
+      ztimef=dfloat(i_time1)/dfloat(i_rate)
 
       if(ifirst.eq.0) then
          ifirst=1
@@ -57,17 +58,24 @@ c     Usage of Fortran90 intrinsic function.
       endif
 
       return
-      end
+      endfunction timef
 
 #else
       function timef()
+      USE PARKIND1, ONLY : JPIM, JPRB
+      IMPLICIT NONE
+      REAL(KIND=JPRB)         :: TIMEF
+      INTEGER(KIND=JPIM),SAVE :: IFIRST
+      INTEGER(KIND=JPIM)      :: I_RATE, I_TIME1
+      REAL(KIND=JPRB),SAVE    :: ZFIRST
+      REAL(KIND=JPRB)         :: ZTIMEF
       data ifirst/0/
-      save ifirst,zfirst
-
-c     This is a real time clock in milliseconds.
-c     Usage of Fortran90 intrinsic function.
+!RJ       save ifirst,zfirst
+!
+!     This is a real time clock in milliseconds.
+!     Usage of Fortran90 intrinsic function.
       CALL SYSTEM_CLOCK (COUNT=i_time1,COUNT_RATE=i_rate)
-      ztimef=float(i_time1)/float(i_rate)
+      ztimef=REAL(i_time1,kind=JPRB)/REAL(i_rate,kind=JPRB)
 
       if(ifirst.eq.0) then
          ifirst=1
@@ -78,6 +86,5 @@ c     Usage of Fortran90 intrinsic function.
       endif
 
       return
-      end
-
+      endfunction timef
 #endif
