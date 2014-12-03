@@ -112,12 +112,21 @@ c_drhook_end_(const char *name,
 
 extern void
 c_drhook_watch_(const int *onoff,
-                const char *array_name,
-                const void *array_ptr,
-                const int *nbytes,
-                const int *abort_if_changed
-                /* Hidden length */
-                , int array_name_len);
+		const char *array_name,
+		const void *array_ptr,
+		const int *nbytes,
+		const int *abort_if_changed,
+		const int *printkey,
+		const int *nvals,
+		const int *print_traceback_when_set
+		/* Hidden length */
+		,int array_name_len);
+
+extern void
+c_drhook_check_watch_(const char *where,
+		      const int *allow_abort
+		      /* Hidden length */
+		      , int where_len);
 
 /**** C-interface to Dr.Hook ****/
 
