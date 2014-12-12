@@ -16,7 +16,7 @@ REAL(KIND=JPRB), allocatable :: zsend(:), zrecv(:)
 INTEGER(KIND=JPIM), allocatable :: icounts(:)
 character(len=1) CLenv
 
-call getenv("EC_PROFILE_MEM", CLenv) ! turn OFF by export EC_PROFILE_MEM=0
+call get_environment_variable("EC_PROFILE_MEM", CLenv) ! turn OFF by export EC_PROFILE_MEM=0
 
 if (kout >= 0 .and. CLenv /= '0') then
   imyproc = mpl_myrank()

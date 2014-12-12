@@ -22,7 +22,7 @@ INTEGER(KIND=JPIM), allocatable :: icounts(:)
 character(len=1) CLenv
 character(len=80) CLtext(0:4)
 
-call getenv("EC_PROFILE_HEAP", CLenv) ! turn OFF by export EC_PROFILE_HEAP=0
+call get_environment_variable("EC_PROFILE_HEAP", CLenv) ! turn OFF by export EC_PROFILE_HEAP=0
 
 if (kout >= 0 .and. CLenv /= '0') then
   imyproc = mpl_myrank()

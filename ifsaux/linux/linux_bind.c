@@ -1,4 +1,4 @@
-#ifdef LINUX
+#if defined(LINUX) && !defined(DARWIN)
 
 #define _GNU_SOURCE
 
