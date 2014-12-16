@@ -49,7 +49,7 @@ IF (LL_FIRST_TIME) THEN
   IRET = SETVBUF3F(0, 1, 0) ! Set unit#0 into line-buffering mode to avoid messy output
 #endif
   CALL OML_INIT()
-  CALL EC_GETENV('DR_HOOK_NOT_MPI',CLENV)
+  CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK_NOT_MPI',CLENV)
   IF (CLENV == ' ' .OR. CLENV == '0' .OR. &
     & CLENV == 'false' .OR. CLENV == 'FALSE') THEN
     LLMPI=.TRUE.
@@ -57,7 +57,7 @@ IF (LL_FIRST_TIME) THEN
   ELSE
     LLMPI=.FALSE.
   ENDIF
-  CALL EC_GETENV('DR_HOOK',CLENV)
+  CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK',CLENV)
   IF (CLENV == ' ' .OR. CLENV == '0' .OR. &
     & CLENV == 'false' .OR. CLENV == 'FALSE') THEN
     LDHOOK = .FALSE.
@@ -73,7 +73,7 @@ IF (LL_FIRST_TIME) THEN
   CALL C_DRHOOK_INIT(CLENV, INUMTIDS)
 
 !JFH---Initialisation to monitor stack usage by threads-------------
-  CALL EC_GETENV('DR_HOOK_STACKCHECK',CSTACK)
+  CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK_STACKCHECK',CSTACK)
   if (CSTACK == 'yes' .or. CSTACK == 'YES' ) THEN
     IF(IMYTID == 1 ) THEN
       ALLOCATE(LL_THREAD_FIRST(INUMTIDS))
@@ -87,7 +87,7 @@ IF (LL_FIRST_TIME) THEN
 !JFH------------ End ---------------------------------------------
 !JFH---Initialisation to monitor heap usage-----------------------
   JHEAP=0
-  CALL EC_GETENV('DR_HOOK_HEAPCHECK',CHEAP)
+  CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK_HEAPCHECK',CHEAP)
   if (CHEAP == 'yes' .or. CHEAP == 'YES' ) JHEAP=1
   if (CHEAP == 'trb' .or. CHEAP == 'TRB' ) JHEAP=2
   IF(IMYTID == 1) THEN

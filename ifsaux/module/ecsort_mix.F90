@@ -132,7 +132,7 @@ else if (.not.LLomp) then ! Override the default method (only if outside the Ope
   itmp = -1 ! no change
   if (LLfirst) then ! Do once per execution only
     inpes = MPL_NPROC()
-    CALL ec_getenv('EC_SORTING_INFO',clenv) ! ../support/env.c
+    CALL get_environment_variable('EC_SORTING_INFO',clenv) ! ../support/env.c
     if (clenv /= ' ') then
       itmp = nsinfo
       read(clenv,'(i20)',end=89,err=89) itmp
@@ -147,7 +147,7 @@ else if (.not.LLomp) then ! Override the default method (only if outside the Ope
       endif
     endif
     imyproc = MPL_MYRANK()
-    CALL ec_getenv('EC_SORTING_METHOD',clenv) ! ../support/env.c
+    CALL get_environment_variable('EC_SORTING_METHOD',clenv) ! ../support/env.c
     if (clenv /= ' ') then
        if (imyproc == nsinfo) write(0,'(a)')'<EC_SORTING_METHOD='//trim(clenv)
        CALL toupper(clenv)
@@ -180,7 +180,7 @@ else if (.not.LLomp) then ! Override the default method (only if outside the Ope
          & write(0,'(a,i1,a)')'>EC_SORTING_METHOD=',default_method,&
          & ' # '//method_name(default_method)
 
-    CALL ec_getenv('EC_SORTING_NOMP',clenv)
+    CALL get_environment_variable('EC_SORTING_NOMP',clenv)
     if (clenv /= ' ') then
        if (imyproc == nsinfo) write(0,'(a)')'<EC_SORTING_NOMP='//trim(clenv)
        read(clenv,'(i20)',end=199,err=199) itmp

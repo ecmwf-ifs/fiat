@@ -291,7 +291,7 @@ character(len=*),intent(in) :: CD_ENV
 OML_NUM_THREADS_STR = 1
 !$ OML_NUM_THREADS_STR = OML_NUM_THREADS_INT()
 !$ IF (LEN(CD_ENV) > 0) THEN
-!$   CALL EC_GETENV(CD_ENV,CLvalue)
+!$   CALL GET_ENVIRONMENT_VARIABLE(CD_ENV,CLvalue)
 !$   IF (CLvalue /= ' ') THEN
 !$     READ(CLvalue,'(i20)',end=99,err=99) itmp
 !$     OML_NUM_THREADS_STR = OML_NUM_THREADS_INT(itmp)

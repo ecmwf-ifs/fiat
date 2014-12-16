@@ -312,7 +312,7 @@ LLadjusted = .FALSE.
 LLomp_prefix = .FALSE.
 !$ LLomp_prefix = (istride == 1 .and. nomp >= inumt .and. n >= nomp)
 if (LLomp_prefix) then
-  call ec_getenv('EC_SORTING_DEBUG',clenv)
+  call get_environment_variable('EC_SORTING_DEBUG',clenv)
   LLdebug = (clenv == '1' .and. n < 10000)
   if (LLdebug) write(0,*)'>> EC_SORTING_DEBUG=1'
 else
