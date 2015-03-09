@@ -45,6 +45,7 @@ MODULE MPL_INIT_MOD
 !        S. Saarinen 04-Oct-2009 Reduced output & redefined MPL_COMM_OML(1)
 !        P. Marguinaud 01-Jan-2011 Add LDENV argument
 !        R. El Khatib  24-May-2011 Make MPI2 the default expectation.
+!        P. Towers     3-Jul-2014 Add call to ec_cray_meminfo
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
@@ -83,7 +84,8 @@ INTEGER(KIND=JPIM) :: IERROR,IP,ICOMM,IRANK,JNODE,JROC,ISTA
 INTEGER(KIND=JPIM) :: IMAX_THREADS, IRET, IROOT, INUM(2), ICOUNT
 INTEGER(KIND=JPIM) :: IREQUIRED,IPROVIDED
 INTEGER(KIND=JPIM) :: IWORLD_RANK, IWORLD_SIZE
-LOGICAL            :: LLABORT=.TRUE., LLINIT, LLINFO
+LOGICAL            :: LLABORT=.TRUE., LLINFO
+INTEGER            :: LLINIT
 LOGICAL            :: LLENV
 CHARACTER(LEN=12)  :: CL_MBX_SIZE
 CHARACTER(LEN=12)  :: CL_ARCH
@@ -136,15 +138,17 @@ ENDIF
 
 CALL MPI_INITIALIZED(LLINIT, IRET)
 
-IF (.NOT.LLINIT) THEN
+IF (LLINIT == 0) THEN
 
   CALL EC_GETENV('ARCH',CL_ARCH)
 
+#ifndef OPS_COMPILE
 #ifdef RS6K
   if(CL_ARCH(1:10)=='ibm_power6')then
 !   write(0,*)'POWER6: CALLING EC_BIND BEFORE MPI_INIT'
     CALL EC_BIND()
   endif
+#endif
 #endif
 
 #ifndef MPI1
@@ -157,11 +161,13 @@ IF (.NOT.LLINIT) THEN
   LTHSAFEMPI = .FALSE.
 #endif
 
+#ifndef OPS_COMPILE
 #ifdef RS6K
   if(CL_ARCH(1:10)=='ibm_power4')then
 !   write(0,*)'POWER5: CALLING EC_BIND AFTER MPI_INIT'
     CALL EC_BIND()
   endif
+#endif
 #endif
 
   LINITMPI_VIA_MPL = .TRUE.
@@ -367,6 +373,10 @@ MPL_MYNODE=(MPL_RANK-1)/MPL_MAX_TASK_PER_NODE+1
 
 ALLOCATE(MPL_OPPONENT(MPL_NUMPROC+1))
 CALL MPL_TOUR_TABLE(MPL_OPPONENT)
+
+#ifdef _CRAYFTN
+  CALL ec_cray_meminfo(-1,"mpl_init",MPL_COMM)
+#endif
 
 RETURN
 END SUBROUTINE MPL_INIT

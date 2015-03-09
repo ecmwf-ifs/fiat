@@ -510,12 +510,12 @@ End Subroutine MPI_INIT8
 ! ---------------------------------------------------------
 Subroutine MPI_INITIALIZED8(FLAG, IERROR)
 
-  Logical(Kind=JPIM), Intent(OUT) :: &
+  Integer(Kind=JPIM), Intent(OUT) :: &
     FLAG
   Integer(Kind=JPIM), Intent(OUT) :: &
     IERROR
 
-  Logical(Kind=8) :: &
+  Integer(Kind=8) :: &
     FLAG8
   Integer(Kind=8) :: &
     IERROR8
@@ -533,14 +533,14 @@ Subroutine MPI_IPROBE8(SOURCE, TAG, COMM, FLAG, STATUS, IERROR)
 
   Integer(Kind=JPIM), Intent(IN) :: &
     SOURCE, TAG, COMM
-  Logical(Kind=JPIM), Intent(OUT) :: &
+  Integer(Kind=JPIM), Intent(OUT) :: &
     FLAG
   Integer(Kind=JPIM), Intent(OUT) :: &
     STATUS(:), IERROR
 
   Integer(Kind=8) :: &
     SOURCE8, TAG8, COMM8, IERROR8
-  Logical(Kind=8) :: &
+  Integer(Kind=8) :: &
     FLAG8
 
   SOURCE8 = SOURCE

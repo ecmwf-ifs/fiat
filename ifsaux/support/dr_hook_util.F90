@@ -6,6 +6,9 @@ USE MPL_ARG_MOD, ONLY : MPL_GETARG
 USE YOMGSTATS, ONLY : LAST_KNUM,LAST_KSWITCH,LDETAILED_STATS,MYPROC_STATS, &
                       NHOOK_MESSAGES,TIME_LAST_CALL
 USE YOMHOOKSTACK, ONLY : LL_THREAD_FIRST,ISAVE,IMAXSTACK,CSTACK   ! For monitoring thread stack usage
+#ifdef NAG
+USE F90_UNIX_ENV, ONLY: GETARG
+#endif
 
 IMPLICIT NONE
 LOGICAL,INTENT(INOUT)       :: LDHOOK
@@ -101,6 +104,7 @@ IF (LL_FIRST_TIME) THEN
 ENDIF
 
 !JFH---Code to monitor stack usage by threads---------------------
+#ifndef NAG
 IF (CSTACK == 'yes' .or. CSTACK == 'YES' ) THEN
   IF(IMYTID > 1) THEN
     IF(LL_THREAD_FIRST(IMYTID))THEN 
@@ -114,6 +118,7 @@ IF (CSTACK == 'yes' .or. CSTACK == 'YES' ) THEN
     ENDIF
   ENDIF
 ENDIF
+#endif
 !JFH------------ End ---------------------------------------------
 
 IF (KCASE == 0) THEN

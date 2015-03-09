@@ -34,6 +34,7 @@ MODULE MPL_END_MOD
 !     Modifications.
 !     --------------
 !        Original: 2000-09-01
+!        P. Towers     3-Jul-2014 Add call to ec_cray_meminfo
 
 !     ------------------------------------------------------------------
 
@@ -80,6 +81,10 @@ IF(MPL_NUMPROC < 1) THEN
   ENDIF
   RETURN
 ENDIF
+
+#ifdef _CRAYFTN
+  call ec_cray_meminfo(-1,"mpl_end",MPL_COMM)
+#endif
 
 IF (ALLOCATED(MPL_ATTACHED_BUFFER)) THEN
   CALL MPI_BUFFER_DETACH(MPL_ATTACHED_BUFFER,MPL_MBX_SIZE,IERROR)

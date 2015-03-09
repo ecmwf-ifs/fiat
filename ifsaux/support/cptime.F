@@ -6,23 +6,10 @@
       REAL(KIND=JPRB) :: PVCP
       REAL(KIND=JPRB) :: PTCP
 !
-#if defined (OLDTIMER)
-      INTEGER(KIND=JPIM),SAVE :: IFIRST=0
-      REAL(KIND=JPRB),SAVE :: ZFIRST
-      REAL(KIND=JPRB) :: ZSEC
-!     Usage of Fortran95 intrinsic function for CPU timing.
-      if(ifirst.eq.0) then
-         ifirst=1
-         call cpu_time(zfirst)
-         pvcp=0.0_JPRB
-         ptcp=pvcp
-      else
-         call cpu_time(ZSEC)
-         PVCP=ZSEC-ZFIRST
-         PTCP=PVCP
-      endif
-#else
+#if defined (NEWTIMER)
 ! this routine should work better with OpenMP
+! But doesn't work on Cray - and in any case does not return 
+! CPU time for all threads combined 
       INTEGER(KIND=JPIM),SAVE :: ifirst=1
       INTEGER(KIND=JPIM),SAVE :: kfirst,ktps
       INTEGER(KIND=JPIM) :: ktick
@@ -36,6 +23,21 @@
       else
          call system_clock(ktick)
          PVCP=REAL(ktick-kfirst,KIND=JPRB)/REAL(ktps,KIND=JPRB)
+         PTCP=PVCP
+      endif
+#else
+      INTEGER(KIND=JPIM),SAVE :: IFIRST=0
+      REAL(KIND=JPRB),SAVE :: ZFIRST
+      REAL(KIND=JPRB) :: ZSEC
+!     Usage of Fortran95 intrinsic function for CPU timing.
+      if(ifirst.eq.0) then
+         ifirst=1
+         call cpu_time(zfirst)
+         pvcp=0.0_JPRB
+         ptcp=pvcp
+      else
+         call cpu_time(ZSEC)
+         PVCP=ZSEC-ZFIRST
          PTCP=PVCP
       endif
 #endif
