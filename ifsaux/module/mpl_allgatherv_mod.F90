@@ -55,10 +55,11 @@ MODULE MPL_ALLGATHERV_MOD
 !        Original:   2000-11-23
 !        Threadsafe: 2004-12-15  J.Hague
 !        M.Hamrud     : 2014-10-22 : Add nonblocking option
+!      F. Vana  05-Mar-2015  Support for single precision
 
 !     ------------------------------------------------------------------
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPRM
+USE PARKIND1  ,ONLY : JPRD, JPIM ,JPRM
 
 USE MPL_MPIF
 USE MPL_DATA_MODULE
@@ -184,8 +185,8 @@ SUBROUTINE MPL_ALLGATHERV_REAL8(PSENDBUF,PRECVBUF,KRECVCOUNTS,KRECVDISPL, &
 
 
 
-REAL(KIND=JPRB)            :: PSENDBUF(:)
-REAL(KIND=JPRB)            :: PRECVBUF(:)
+REAL(KIND=JPRD)            :: PSENDBUF(:)
+REAL(KIND=JPRD)            :: PRECVBUF(:)
 INTEGER(KIND=JPIM),INTENT(IN) :: KRECVCOUNTS(:)
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KRECVDISPL(:),KCOMM,KMP_TYPE
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KERROR,KREQUEST

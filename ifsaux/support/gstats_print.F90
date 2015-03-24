@@ -42,8 +42,9 @@ SUBROUTINE GSTATS_PRINT(KULOUT,PAVEAVE,KLEN)
 !        C.Larsson    8-May-2006 : Added xml file output
 !        G.Mozdzynski 16-Oct-2007 : xml file output under switch LXML_STATS
 !        P.Towers     11-May-2011 : mpl comms statistics output
+!      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
-USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE PARKIND1  ,ONLY : JPRD, JPIM
 
 USE YOMGSTATS
 USE YOMMPI   , ONLY : MREALT
@@ -53,25 +54,25 @@ USE MPL_STATS_MOD
 IMPLICIT NONE
 
 INTEGER(KIND=JPIM) :: KULOUT,KLEN
-REAL(KIND=JPRB) :: PAVEAVE(0:KLEN)
+REAL(KIND=JPRD) :: PAVEAVE(0:KLEN)
 CHARACTER*7  CLACTION(0:3)
 CHARACTER(LEN=JPMAXDELAYS*10) CLTEMP
 INTEGER(KIND=JPIM),PARAMETER :: JPARRAYS=8
-REAL(KIND=JPRB) :: ZREABUF(JPARRAYS*(JPMAXSTAT+1))
-REAL(KIND=JPRB) :: ZAVEAVE(0:JPMAXSTAT),ZAVEMAX(0:JPMAXSTAT),ZTIMELCALL(0:JPMAXSTAT),&
+REAL(KIND=JPRD) :: ZREABUF(JPARRAYS*(JPMAXSTAT+1))
+REAL(KIND=JPRD) :: ZAVEAVE(0:JPMAXSTAT),ZAVEMAX(0:JPMAXSTAT),ZTIMELCALL(0:JPMAXSTAT),&
          &ZTHISTIME(0:JPMAXSTAT),ZFRACMAX(0:JPMAXSTAT),&
          &ZSUMMAX(0:JPMAXSTAT),ZSUMTOT(0:JPMAXSTAT)
-REAL(KIND=JPRB) :: ZT_SUM,ZT_SUM2,ZT_SUM3,ZT_SUMIO,ZT_SUM4,ZT_SUM5,ZT_SUMB
-REAL(KIND=JPRB) :: ZDELAY,ZDELAY_MAX
+REAL(KIND=JPRD) :: ZT_SUM,ZT_SUM2,ZT_SUM3,ZT_SUMIO,ZT_SUM4,ZT_SUM5,ZT_SUMB
+REAL(KIND=JPRD) :: ZDELAY,ZDELAY_MAX
 
-REAL(KIND=JPRB) :: ZMPL(NPROC_STATS)
-REAL(KIND=JPRB) :: ZBAR(NPROC_STATS)
-REAL(KIND=JPRB) :: ZGBR(NPROC_STATS)
-REAL(KIND=JPRB) :: ZGB2(NPROC_STATS)
-REAL(KIND=JPRB) :: ZOMP(NPROC_STATS)
-REAL(KIND=JPRB) :: ZIO (NPROC_STATS)
-REAL(KIND=JPRB) :: ZSER(NPROC_STATS)
-REAL(KIND=JPRB) :: ZMXD(NPROC_STATS)
+REAL(KIND=JPRD) :: ZMPL(NPROC_STATS)
+REAL(KIND=JPRD) :: ZBAR(NPROC_STATS)
+REAL(KIND=JPRD) :: ZGBR(NPROC_STATS)
+REAL(KIND=JPRD) :: ZGB2(NPROC_STATS)
+REAL(KIND=JPRD) :: ZOMP(NPROC_STATS)
+REAL(KIND=JPRD) :: ZIO (NPROC_STATS)
+REAL(KIND=JPRD) :: ZSER(NPROC_STATS)
+REAL(KIND=JPRD) :: ZMXD(NPROC_STATS)
 
 INTEGER(KIND=JPIM) :: ICALLSX(0:JPMAXSTAT)
 
@@ -83,16 +84,16 @@ INTEGER(KIND=JPIM) :: JDELAY, IDELAY
 INTEGER(KIND=JPIM) :: NSEND,NRECV
 
 !     LOCAL REAL SCALARS
-REAL(KIND=JPRB) :: ZAVE, ZAVETCPU, ZAVEVCPU, ZCOMTIM, ZDETAIL,&
+REAL(KIND=JPRD) :: ZAVE, ZAVETCPU, ZAVEVCPU, ZCOMTIM, ZDETAIL,&
           &ZFRAC, ZMAX, ZMEAN, ZSTDDEV, ZSUM, ZSUMB, &
           &ZTOTAL, ZTOTCPU, ZTOTUNBAL, ZTOTVCPU, &
           &ZUNBAL, ZMEANT, ZMAXT
 
-REAL(KIND=JPRB)    :: SBYTES,RBYTES,SENDRATE,RECVRATE
-REAL(KIND=JPRB)    :: AVGSENDLEN,AVGRECVLEN
-REAL(KIND=JPRB)    :: MAXCOMMTIME(501:1000)
-REAL(KIND=JPRB)    :: TOTSENDBYTES(501:1000)
-REAL(KIND=JPRB)    :: TOTRECVBYTES(501:1000)
+REAL(KIND=JPRD)    :: SBYTES,RBYTES,SENDRATE,RECVRATE
+REAL(KIND=JPRD)    :: AVGSENDLEN,AVGRECVLEN
+REAL(KIND=JPRD)    :: MAXCOMMTIME(501:1000)
+REAL(KIND=JPRD)    :: TOTSENDBYTES(501:1000)
+REAL(KIND=JPRD)    :: TOTRECVBYTES(501:1000)
 
 INTEGER(KIND=JPIM) :: IXMLLUN  
 
@@ -102,11 +103,11 @@ INTEGER(KIND=JPIM) :: IXMLLUN
 
 ILBUF = JPARRAYS*(JPMAXSTAT+1)
 ILRECV = 500*4
-ZAVEAVE(:) = 0.0_JPRB
-ZAVEMAX(:) = 0.0_JPRB
-ZFRACMAX(:)= 0.0_JPRB
-ZSUMMAX(:)= 0.0_JPRB
-ZSUMTOT(:)= 0.0_JPRB
+ZAVEAVE(:) = 0.0_JPRD
+ZAVEMAX(:) = 0.0_JPRD
+ZFRACMAX(:)= 0.0_JPRD
+ZSUMMAX(:)= 0.0_JPRD
+ZSUMTOT(:)= 0.0_JPRD
 
 ! OPEN GSTATS.XML for xml statistics
 IF(LXML_STATS)THEN
@@ -174,9 +175,9 @@ IF (LSTATS .AND. MYPROC_STATS /= 1) THEN
 ELSEIF(LSTATS) THEN
   IF(LSTATS_MPL) THEN
     DO JNUM=501,1000
-      MAXCOMMTIME(JNUM)=0.0_JPRB
-      TOTSENDBYTES(JNUM)=0.0_JPRB
-      TOTRECVBYTES(JNUM)=0.0_JPRB
+      MAXCOMMTIME(JNUM)=0.0_JPRD
+      TOTSENDBYTES(JNUM)=0.0_JPRD
+      TOTRECVBYTES(JNUM)=0.0_JPRD
     ENDDO
   ENDIF
   DO JROC=1,NPROC_STATS
@@ -221,16 +222,16 @@ ELSEIF(LSTATS) THEN
       ZTOTVCPU = TVCPUSUM(0)
     ENDIF
     IF(.NOT. LSTATSCPU) THEN
-      TTCPUSUM(1:JPMAXSTAT) = -0.0_JPRB
-      TVCPUSUM(1:JPMAXSTAT) = -0.0_JPRB
+      TTCPUSUM(1:JPMAXSTAT) = -0.0_JPRD
+      TVCPUSUM(1:JPMAXSTAT) = -0.0_JPRD
     ENDIF
-    ZT_SUM=0.0_JPRB
-    ZT_SUM2=0.0_JPRB
-    ZT_SUM3=0.0_JPRB
-    ZT_SUM4=0.0_JPRB
-    ZT_SUM5=0.0_JPRB
-    ZT_SUMIO=0.0_JPRB
-    ZT_SUMB=0.0_JPRB
+    ZT_SUM=0.0_JPRD
+    ZT_SUM2=0.0_JPRD
+    ZT_SUM3=0.0_JPRD
+    ZT_SUM4=0.0_JPRD
+    ZT_SUM5=0.0_JPRD
+    ZT_SUMIO=0.0_JPRD
+    ZT_SUMB=0.0_JPRD
     IF( LDETAILED_STATS .AND. JROC <= NPRNT_STATS ) THEN
       WRITE(KULOUT,'(A,I4)') 'TIMING STATISTICS:PROCESSOR=',JROC
       IF(LXML_STATS)THEN
@@ -250,23 +251,23 @@ ELSEIF(LSTATS) THEN
       IF(ICALLSX(JNUM) > 1) THEN
         ICALLS = ICALLSX(JNUM)/2
         ZSUM = TIMESUM(JNUM)
-        ZAVE = TIMESUM(JNUM)/ICALLS*1000._JPRB
-        ZMAX = TIMEMAX(JNUM)*1000._JPRB
+        ZAVE = TIMESUM(JNUM)/ICALLS*1000._JPRD
+        ZMAX = TIMEMAX(JNUM)*1000._JPRD
         ZSUMB = TIMESUMB(JNUM)
-        ZFRAC = TIMESUM(JNUM)/ZTOTAL*100.0_JPRB
+        ZFRAC = TIMESUM(JNUM)/ZTOTAL*100.0_JPRD
         ZFRACMAX(JNUM)=MAX(ZFRACMAX(JNUM),ZFRAC)
         ZSUMMAX(JNUM)=MAX(ZSUMMAX(JNUM),TIMESUM(JNUM))
         ZSUMTOT(JNUM)=ZSUMTOT(JNUM)+ZSUM
         ZAVEAVE(JNUM)=ZAVEAVE(JNUM)+ZAVE
         ZAVEMAX(JNUM)=MAX(ZAVEMAX(JNUM),ZAVE)
-        ZAVETCPU = TTCPUSUM(JNUM)/ICALLS*1000._JPRB
-        ZAVEVCPU = TVCPUSUM(JNUM)/ICALLS*1000._JPRB
+        ZAVETCPU = TTCPUSUM(JNUM)/ICALLS*1000._JPRD
+        ZAVEVCPU = TVCPUSUM(JNUM)/ICALLS*1000._JPRD
         IF(ICALLS > 1 ) THEN
-          ZSTDDEV = 1000._JPRB*&
+          ZSTDDEV = 1000._JPRD*&
            &SQRT(MAX((TIMESQSUM(JNUM)-TIMESUM(JNUM)**2/ICALLS)&
-           &/(ICALLS-1),0.0_JPRB))
+           &/(ICALLS-1),0.0_JPRD))
         ELSE
-          ZSTDDEV = 0.0_JPRB
+          ZSTDDEV = 0.0_JPRD
         ENDIF
         IF(CCTYPE(JNUM).EQ.'MPL') THEN
           ZT_SUM=ZT_SUM+ZSUM
@@ -323,95 +324,95 @@ ELSEIF(LSTATS) THEN
       WRITE(KULOUT,*) ''
       WRITE(KULOUT,'((A,2F8.1))')&
        &'CPU-TIME AND VECTOR CPU-TIME AS PERCENT OF TOTAL ',&
-       &TTCPUSUM(0)/TIMESUM(0)*100.0_JPRB,TVCPUSUM(0)/TIMESUM(0)*100.0_JPRB
+       &TTCPUSUM(0)/TIMESUM(0)*100.0_JPRD,TVCPUSUM(0)/TIMESUM(0)*100.0_JPRD
       IF(LXML_STATS)THEN
         WRITE(IXMLLUN,'((A,F8.1,A,//,A,F8.1,A))')&
          &'<cpufraction>',&
-         &TTCPUSUM(0)/TIMESUM(0)*100.0_JPRB,&
+         &TTCPUSUM(0)/TIMESUM(0)*100.0_JPRD,&
          &'</cpufraction>',&
          &'<cpuvectorfraction>',&
-         &TVCPUSUM(0)/TIMESUM(0)*100.0_JPRB,&
+         &TVCPUSUM(0)/TIMESUM(0)*100.0_JPRD,&
          &'</cpuvectorfraction>'
       ENDIF
 
 
-      IF(ZT_SUM > 0.0_JPRB) THEN
+      IF(ZT_SUM > 0.0_JPRD) THEN
         WRITE(KULOUT,'(A,F10.1,A,F6.2,A)')'SUMMED TIME IN COMMUNICATIONS   = '&
-         & ,ZT_SUM, ' SECONDS ',ZT_SUM/TIMESUM(0)*100.0_JPRB,&
+         & ,ZT_SUM, ' SECONDS ',ZT_SUM/TIMESUM(0)*100.0_JPRD,&
          &' PERCENT OF TOTAL'
         IF(LXML_STATS)THEN
           WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)')'<zcom unit="seconds">',&
            &ZT_SUM,'</zcom>',&
-           &'<fraczcom unit="percent">',ZT_SUM/TIMESUM(0)*100.0_JPRB,&
+           &'<fraczcom unit="percent">',ZT_SUM/TIMESUM(0)*100.0_JPRD,&
            &'</fraczcom>'
         ENDIF
       ENDIF
-      IF(ZT_SUM2 > 0.0_JPRB) THEN
+      IF(ZT_SUM2 > 0.0_JPRD) THEN
         WRITE(KULOUT,'(A,F10.1,A,F6.2,A)')'SUMMED TIME IN PARALLEL REGIONS = '&
-         & ,ZT_SUM2, ' SECONDS ',ZT_SUM2/TIMESUM(0)*100.0_JPRB,&
+         & ,ZT_SUM2, ' SECONDS ',ZT_SUM2/TIMESUM(0)*100.0_JPRD,&
          &' PERCENT OF TOTAL'
         IF(LXML_STATS)THEN
           WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)') &
            &'<parallelztime unit="seconds">',&
            &ZT_SUM2, '</parallelztime>',&
-           &'<fracparallelztime unit="percent">',ZT_SUM2/TIMESUM(0)*100.0_JPRB,&
+           &'<fracparallelztime unit="percent">',ZT_SUM2/TIMESUM(0)*100.0_JPRD,&
            &'</fracparallelztime>'
         ENDIF
       ENDIF
-      IF(ZT_SUMIO > 0.0_JPRB) THEN
+      IF(ZT_SUMIO > 0.0_JPRD) THEN
         WRITE(KULOUT,'(A,F10.1,A,F6.2,A)')'SUMMED TIME IN I/O SECTIONS     = '&
-         & ,ZT_SUMIO, ' SECONDS ',ZT_SUMIO/TIMESUM(0)*100.0_JPRB,&
+         & ,ZT_SUMIO, ' SECONDS ',ZT_SUMIO/TIMESUM(0)*100.0_JPRD,&
          &' PERCENT OF TOTAL'
         IF(LXML_STATS)THEN
           WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)')'<ioztime unit="seconds">',&
            &ZT_SUMIO, '</ioztime>',&
-           &'<fracioztime unit="percent">',ZT_SUMIO/TIMESUM(0)*100.0_JPRB,&
+           &'<fracioztime unit="percent">',ZT_SUMIO/TIMESUM(0)*100.0_JPRD,&
            &'</fracioztime>'
         ENDIF
       ENDIF
-      IF(ZT_SUM3 > 0.0_JPRB) THEN
+      IF(ZT_SUM3 > 0.0_JPRD) THEN
         WRITE(KULOUT,'(A,F10.1,A,F6.2,A)')'SUMMED TIME IN SERIAL SECTIONS  = '&
-        & ,ZT_SUM3, ' SECONDS ',ZT_SUM3/TIMESUM(0)*100.0_JPRB,&
+        & ,ZT_SUM3, ' SECONDS ',ZT_SUM3/TIMESUM(0)*100.0_JPRD,&
          &' PERCENT OF TOTAL'
         IF(LXML_STATS)THEN
           WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)')'<serialztime unit="seconds">',&
            & ZT_SUM3,'</serialztime>',&
            &'<fracserialztime unit="percent">',&
-           &ZT_SUM3/TIMESUM(0)*100.0_JPRB,&
+           &ZT_SUM3/TIMESUM(0)*100.0_JPRD,&
            &'</fracserialztime>'
         ENDIF
       ENDIF
-      IF(ZT_SUM4 > 0.0_JPRB) THEN
+      IF(ZT_SUM4 > 0.0_JPRD) THEN
         WRITE(KULOUT,'(A,F10.1,A,F6.2,A)')'SUMMED TIME IN BARRIERS         = '&
-         & ,ZT_SUM4, ' SECONDS ',ZT_SUM4/TIMESUM(0)*100.0_JPRB,&
+         & ,ZT_SUM4, ' SECONDS ',ZT_SUM4/TIMESUM(0)*100.0_JPRD,&
          &' PERCENT OF TOTAL'
         IF(LXML_STATS)THEN
           WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)')&
            &'<barrierztime unit="seconds">',&
            &ZT_SUM4,'</barrierztime>',&
            & '<fracbarrierztime unit="percent">',&
-           & ZT_SUM4/TIMESUM(0)*100.0_JPRB,'</fracbarrierztime>'
+           & ZT_SUM4/TIMESUM(0)*100.0_JPRD,'</fracbarrierztime>'
         ENDIF
       ENDIF
-      IF(ZT_SUM5 > 0.0_JPRB) THEN
+      IF(ZT_SUM5 > 0.0_JPRD) THEN
         WRITE(KULOUT,'(A,F10.1,A,F6.2,A)')'SUMMED TIME IN MIXED SECTIONS   = '&
-         & ,ZT_SUM5, ' SECONDS ',ZT_SUM5/TIMESUM(0)*100.0_JPRB,&
+         & ,ZT_SUM5, ' SECONDS ',ZT_SUM5/TIMESUM(0)*100.0_JPRD,&
          &' PERCENT OF TOTAL'
         WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)')&
          &'<mixedztime unit="seconds">',&
          &ZT_SUM5,'</mixedztime>',&
          & '<fracmixedztime unit="percent">',&
-         & ZT_SUM5/TIMESUM(0)*100.0_JPRB,'</fracmixedztime>'
+         & ZT_SUM5/TIMESUM(0)*100.0_JPRD,'</fracmixedztime>'
       ENDIF
       IF(LSTATS_COMMS.AND.LSTATS_OMP)THEN
         WRITE(KULOUT,'(A,F8.2)')'FRACTION OF TOTAL TIME ACCOUNTED FOR ',&
-         & (ZT_SUM+ZT_SUM2+ZT_SUMIO+ZT_SUM3+ZT_SUM4+ZT_SUM5)/TIMESUM(0)*100.0_JPRB
+         & (ZT_SUM+ZT_SUM2+ZT_SUMIO+ZT_SUM3+ZT_SUM4+ZT_SUM5)/TIMESUM(0)*100.0_JPRD
         WRITE(KULOUT,'(A,F8.2)')'FRACTION OF TOTAL TIME ACCOUNTED FOR INCLUDING SUMB ',&
-         & (ZT_SUM+ZT_SUM2+ZT_SUMIO+ZT_SUM3+ZT_SUM4+ZT_SUM5+ZT_SUMB)/TIMESUM(0)*100.0_JPRB
+         & (ZT_SUM+ZT_SUM2+ZT_SUMIO+ZT_SUM3+ZT_SUM4+ZT_SUM5+ZT_SUMB)/TIMESUM(0)*100.0_JPRD
         WRITE(KULOUT,'(" ")')
         IF(LXML_STATS)THEN
           WRITE(IXMLLUN,'(A,F8.2,A)')'<fractotal unit="percent">',&
-           &(ZT_SUM+ZT_SUM2+ZT_SUMIO+ZT_SUM3+ZT_SUM4+ZT_SUM5)/TIMESUM(0)*100.0_JPRB,&
+           &(ZT_SUM+ZT_SUM2+ZT_SUMIO+ZT_SUM3+ZT_SUM4+ZT_SUM5)/TIMESUM(0)*100.0_JPRD,&
            &'</fractotal>'
         ENDIF
       ENDIF
@@ -435,17 +436,17 @@ ELSEIF(LSTATS) THEN
            if(numsend(jnum) /= 0) then
              avgsendlen=sendbytes(jnum)*1.e-3/numsend(jnum)
            else
-             avgsendlen=0.0_JPRB
+             avgsendlen=0.0_JPRD
            endif
            if(numrecv(jnum) /= 0) then
              avgrecvlen=recvbytes(jnum)*1.e-3/numrecv(jnum)
            else
-             avgsendlen=0.0_JPRB
+             avgsendlen=0.0_JPRD
            endif
            if(numrecv(jnum) /= 0) then
              avgrecvlen=recvbytes(jnum)*1.e-3/numrecv(jnum)
            else
-             avgrecvlen=0.0_JPRB
+             avgrecvlen=0.0_JPRD
            endif
            write(kulout,'(I6,1X,A40,f6.1,2(I8,3F8.1))') &
             &  jnum,ccdesc(jnum),timesum(jnum),&
@@ -476,8 +477,8 @@ ELSEIF(LSTATS) THEN
       do jnum=501,1000
          totsendbytes(jnum) = totsendbytes(jnum) + sendbytes(jnum)
          totrecvbytes(jnum) = totrecvbytes(jnum) + recvbytes(jnum)
-         if(sendbytes(jnum).gt.0.0_JPRB.or. &
-         &  recvbytes(jnum).gt.0.0_JPRB) then
+         if(sendbytes(jnum).gt.0.0_JPRD.or. &
+         &  recvbytes(jnum).gt.0.0_JPRD) then
            maxcommtime(jnum)  = MAX(maxcommtime(jnum),timesum(jnum))
          endif
       enddo
@@ -491,7 +492,7 @@ ELSEIF(LSTATS) THEN
   WRITE(KULOUT,'(A)') 'STATS FOR ALL PROCESSORS'
   WRITE(KULOUT,'(A)') &
   &' NUM ROUTINE                                     CALLS  MEAN(ms)   MAX(ms)   FRAC(%)  UNBAL(%)'
-  ZTOTUNBAL = 0.0_JPRB
+  ZTOTUNBAL = 0.0_JPRD
   DO JNUM=0,500
     IF(NCALLS(JNUM) > 1) THEN
       ICALLS = NCALLS(JNUM)/2
@@ -500,7 +501,7 @@ ELSEIF(LSTATS) THEN
       ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
       ZMAXT  = ZSUMMAX(JNUM)
       IF(ZMEANT .NE. 0.0)THEN
-        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRB
+        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRD
       ELSE
         ZUNBAL=0.0
       ENDIF
@@ -542,7 +543,7 @@ IF(LSTATS_COMMS)THEN
       ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
       ZMAXT  = ZSUMMAX(JNUM)
       IF(ZMEANT .NE. 0.0)THEN
-        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRB
+        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRD
       ELSE
         ZUNBAL=0.0
       ENDIF
@@ -573,7 +574,7 @@ IF(LSTATS_COMMS)THEN
      &'   NUM   ROUTINE                              '//&
      &'  SUM(s)  SEND(GB)  RECV(GB)    GB/s'
     do jnum=501,1000
-       if(totsendbytes(jnum).gt.0.0_JPRB.or.totrecvbytes(jnum).gt.0.0_JPRB) then
+       if(totsendbytes(jnum).gt.0.0_JPRD.or.totrecvbytes(jnum).gt.0.0_JPRD) then
           write(kulout,'(I6,1X,A40,f6.1,2F10.1,F8.1)') &
            &  jnum,ccdesc(jnum),maxcommtime(jnum),&
            &  totsendbytes(jnum)*1.e-9, &
@@ -615,7 +616,7 @@ IF(LSTATS_OMP)THEN
       ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
       ZMAXT  = ZSUMMAX(JNUM)
       IF(ZMEANT .NE. 0.0)THEN
-        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRB
+        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRD
       ELSE
         ZUNBAL=0.0
       ENDIF
@@ -660,7 +661,7 @@ IF(LSTATS_OMP)THEN
       ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
       ZMAXT  = ZSUMMAX(JNUM)
       IF(ZMEANT .NE. 0.0)THEN
-        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRB
+        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRD
       ELSE
         ZUNBAL=0.0
       ENDIF
@@ -706,7 +707,7 @@ IF(LSTATS_OMP)THEN
       ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
       ZMAXT  = ZSUMMAX(JNUM)
       IF(ZMEANT .NE. 0.0)THEN
-        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRB
+        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRD
       ELSE
         ZUNBAL=0.0
       ENDIF
@@ -750,7 +751,7 @@ IF(LSTATS_OMP)THEN
       ZMEANT = ZSUMTOT(JNUM)/NPROC_STATS
       ZMAXT  = ZSUMMAX(JNUM)
       IF(ZMEANT .NE. 0.0)THEN
-        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRB
+        ZUNBAL= (ZMAXT-ZMEANT)/ZTOTAL*100._JPRD
       ELSE
         ZUNBAL=0.0
       ENDIF
@@ -789,7 +790,7 @@ ENDIF
 
   WRITE(KULOUT,'(A,F10.1,A,F4.1,A)')&
    &'TOTAL MEASURED IMBALANCE =',ZTOTUNBAL,&
-   &' SECONDS, ',ZTOTUNBAL/ZTOTAL*100._JPRB,' PERCENT'
+   &' SECONDS, ',ZTOTUNBAL/ZTOTAL*100._JPRD,' PERCENT'
 ELSE
   ZTOTAL=TIMESUM(0)
   ZTOTCPU = TTCPUSUM(0)
@@ -808,15 +809,15 @@ IF ( MYPROC_STATS == 1) THEN
 ENDIF
 IF( LDETAILED_STATS )THEN
   ITAG = JPTAGSTAT
-  ZDELAY_MAX=0.0_JPRB
-  ZMPL(:)=0.0_JPRB
-  ZBAR(:)=0.0_JPRB
-  ZGBR(:)=0.0_JPRB
-  ZGB2(:)=0.0_JPRB
-  ZOMP(:)=0.0_JPRB
-  ZIO (:)=0.0_JPRB
-  ZSER(:)=0.0_JPRB
-  ZMXD(:)=0.0_JPRB
+  ZDELAY_MAX=0.0_JPRD
+  ZMPL(:)=0.0_JPRD
+  ZBAR(:)=0.0_JPRD
+  ZGBR(:)=0.0_JPRD
+  ZGB2(:)=0.0_JPRD
+  ZOMP(:)=0.0_JPRD
+  ZIO (:)=0.0_JPRD
+  ZSER(:)=0.0_JPRD
+  ZMXD(:)=0.0_JPRD
   DO JROC=1,NPROC_STATS
     IF( JROC > 1 )THEN
       IF( MYPROC_STATS == JROC )THEN
@@ -878,7 +879,7 @@ IF( LDETAILED_STATS )THEN
       WRITE(KULOUT,'("PROC=",I6," UNEXPECTED DELAYS SORTED BY COUNTER")') JROC
       DO JNUM=500,JPMAXSTAT
         IDELAY=0
-        ZDELAY=0.0_JPRB
+        ZDELAY=0.0_JPRD
         DO JDELAY=1,NDELAY_INDEX
           IF( NDELAY_COUNTER(JDELAY) == JNUM )THEN
             IDELAY=IDELAY+1
@@ -928,7 +929,7 @@ IF (LTRACE_STATS) THEN
     IACTION   = NCALL_TRACE(JCALL)/(JPMAXSTAT+1)
     IF (IACTION == 0) THEN
       ZTIMELCALL(ICALLER) = TIME_TRACE(JCALL)
-      ZTHISTIME(ICALLER) = 0.0_JPRB
+      ZTHISTIME(ICALLER) = 0.0_JPRD
     ELSEIF (IACTION == 2) THEN
       ZTHISTIME(ICALLER) = TIME_TRACE(JCALL)-ZTIMELCALL(ICALLER)
     ELSEIF (IACTION == 3) THEN
@@ -948,7 +949,7 @@ ENDIF
 IF(LSTATS .AND. MYPROC_STATS == 1) THEN
   PAVEAVE(0:KLEN) = ZAVEAVE(0:KLEN)
 ELSE
-  PAVEAVE(0:KLEN) = 0.0_JPRB
+  PAVEAVE(0:KLEN) = 0.0_JPRD
 ENDIF
 
 WRITE(KULOUT,'(/A)')'===-=== END   OF TIMING STATISTICS ===-==='
