@@ -63,11 +63,11 @@ end subroutine coml_test_lock
 
 subroutine coml_set_lockid(kmylock)
 USE OML_MOD, ONLY : OML_SET_LOCK, OML_LOCK_KIND, OML_MY_THREAD, OML_DEBUG
-USE PARKIND1, ONLY : JPIB, JPRB
+USE PARKIND1, ONLY : JPRD, JPIB
 implicit none
 INTEGER(KIND=OML_LOCK_KIND), intent(inout) :: kmylock
 INTEGER(KIND=JPIB), external :: loc_addr
-REAL(KIND=JPRB), external :: util_walltime
+REAL(KIND=JPRD), external :: util_walltime
 IF (OML_DEBUG) write(0,'(1x,f20.6,1x,i3,a,2i20)') &
      & util_walltime(),OML_MY_THREAD(),': coml_SET_lockid >>',kmylock,loc_addr(kmylock)
 CALL OML_SET_LOCK(kmylock)
@@ -83,11 +83,11 @@ end subroutine coml_set_lock
 
 subroutine coml_unset_lockid(kmylock)
 USE OML_MOD, ONLY : OML_UNSET_LOCK, OML_LOCK_KIND, OML_MY_THREAD, OML_DEBUG
-USE PARKIND1, ONLY : JPIB, JPRB
+USE PARKIND1, ONLY : JPRD, JPIB
 implicit none
 INTEGER(KIND=OML_LOCK_KIND), intent(inout) :: kmylock
 INTEGER(KIND=JPIB), external :: loc_addr
-REAL(KIND=JPRB), external :: util_walltime
+REAL(KIND=JPRD), external :: util_walltime
 IF (OML_DEBUG) write(0,'(1x,f20.6,1x,i3,a,2i20)') &
      & util_walltime(),OML_MY_THREAD(),': coml_UNSET_lockid >>',kmylock,loc_addr(kmylock)
 CALL OML_UNSET_LOCK(kmylock)

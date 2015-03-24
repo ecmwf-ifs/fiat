@@ -49,9 +49,10 @@ SUBROUTINE GSTATS(KNUM,KSWITCH)
 !                             see LLFINDSUMB - when set is used detect gstat counter problems.
 !        G.Mozdzynski: 20 Jan 2010 Further corrections to gstats to get timed sections and
 !                             SUMB to 100 percent of the total time.
+!      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPIB
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB     ,JPIB
 USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK
 
 USE YOMGSTATS  
@@ -69,7 +70,7 @@ INTEGER(KIND=JPIM) :: IIMEM, IIPAG, IIMEMC
 INTEGER(KIND=JPIB) :: IMEM, IMEMH, IMEMS, IMEMC, IPAG, INUM
 INTEGER(KIND=JPIB) :: GETRSS, GETHWM, GETSTK, GETCURHEAP, GETPAG
 EXTERNAL GETRSS, GETHWM, GETSTK, GETCURHEAP, GETPAG
-REAL(KIND=JPRB) :: ZTIMED,ZCLOCK,ZCLOCK1,ZTIME,ZTCPU,ZVCPU
+REAL(KIND=JPRD) :: ZTIMED,ZCLOCK,ZCLOCK1,ZTIME,ZTCPU,ZVCPU
 LOGICAL :: LLFIRST=.TRUE.
 LOGICAL :: LLMFIRST=.TRUE.
   CHARACTER(LEN=32), SAVE :: CCDESC_DRHOOK(JPMAXSTAT)
@@ -94,7 +95,7 @@ LOGICAL :: LLFINDSUMB=.FALSE.
 INTEGER(KIND=JPIM),SAVE :: ISUMBSTACK(10)
 INTEGER(KIND=JPIM) :: J
 REAL(KIND=JPRB) :: ZSUM,ZSUMB,ZTOT
-REAL(KIND=JPRB)    :: SBYTES,RBYTES
+REAL(KIND=JPRD)    :: SBYTES,RBYTES
 INTEGER(KIND=JPIM) :: NSEND,NRECV
 
 #include "user_clock.h"
@@ -143,12 +144,12 @@ IF(LSTATS) THEN
   IF (LSTATSCPU.OR.KNUM==0) THEN
     CALL USER_CLOCK(PTOTAL_CP=ZTCPU,PVECTOR_CP=ZVCPU)
   ELSE
-    ZTCPU = 0.0_JPRB
-    ZVCPU = 0.0_JPRB
+    ZTCPU = 0.0_JPRD
+    ZVCPU = 0.0_JPRD
   ENDIF
 
   IF (LLFIRST) THEN
-    TIMESUM(:) = 0.0_JPRB
+    TIMESUM(:) = 0.0_JPRD
     NCALLS(:) = 0
   ENDIF
 
@@ -179,14 +180,14 @@ IF(LSTATS) THEN
 !   write(0,*) "JPMAXSTAT:2=",JPMAXSTAT
 
     NSWITCHVAL(:) = -1
-    TIMESQSUM(:) = 0.0_JPRB
-    TIMEMAX(:) = 0.0_JPRB
-    TIMESUMB(:) = 0.0_JPRB
+    TIMESQSUM(:) = 0.0_JPRD
+    TIMEMAX(:) = 0.0_JPRD
+    TIMESUMB(:) = 0.0_JPRD
     IF( LLFINDSUMB )THEN
       ISUMBSTACK(:)=0
     ENDIF
-    TTCPUSUM(:) = 0.0_JPRB
-    TVCPUSUM(:) = 0.0_JPRB
+    TTCPUSUM(:) = 0.0_JPRD
+    TVCPUSUM(:) = 0.0_JPRD
     TIMELCALL(:) = ZCLOCK
     CCDESC=""
     CCTYPE=""
@@ -223,7 +224,7 @@ IF(LSTATS) THEN
       ZTIMED = ZCLOCK-TIME_LAST_CALL
       TIMESUMB(KNUM) = TIMESUMB(KNUM)+ZTIMED
     ELSE
-      ZTIMED = 0.0_JPRB
+      ZTIMED = 0.0_JPRD
     ENDIF
 
     IF( LLFINDSUMB .AND. MYPROC_STATS <= 2 )THEN
@@ -232,7 +233,7 @@ IF(LSTATS) THEN
         ISUMBSTACK(J+1)=ISUMBSTACK(J)
       ENDDO
       ISUMBSTACK(1)=KNUM
-      IF( ZTIMED > 0.1 .AND. (TIMESUMB(KNUM) > 1.0) )THEN
+      IF( ZTIMED > 0.1_JPRD .AND. (TIMESUMB(KNUM) > 1.0_JPRD) )THEN
         WRITE(0,'("GSTATS(SUMB): KNUM=",I4," ZTIMED=",F10.6," TIMESUMB=",F10.6)')&
         & KNUM,ZTIMED,TIMESUMB(KNUM)
         DO J=1,10
@@ -255,12 +256,12 @@ IF(LSTATS) THEN
       ENDDO
     ENDIF
 
-    THISTIME(KNUM) = 0.0_JPRB
+    THISTIME(KNUM) = 0.0_JPRD
     TIMELCALL(KNUM) = ZCLOCK
     TTCPULCALL(KNUM) = ZTCPU
     TVCPULCALL(KNUM) = ZVCPU
-    THISTCPU(KNUM) = 0.0_JPRB
-    THISVCPU(KNUM) = 0.0_JPRB
+    THISTCPU(KNUM) = 0.0_JPRD
+    THISVCPU(KNUM) = 0.0_JPRD
     IF(MYPROC_STATS.LE.NSTATS_MEM.AND.MYPROC_STATS.NE.0) THEN
 !     CALL getrss(IMEM)
       IMEM = getrss()/1024
@@ -352,7 +353,7 @@ IF(LSTATS) THEN
     ENDIF
 ! Save counters that result in large delays
     IF( KNUM >= 500 .AND. NCALLS(KNUM)/2 > 10 )THEN
-      IF( ZTIME > TIMESUM(KNUM)/FLOAT(NCALLS(KNUM)/2) + 0.2_JPRB )THEN
+      IF( ZTIME > TIMESUM(KNUM)/FLOAT(NCALLS(KNUM)/2) + 0.2_JPRD )THEN
         ! ignore counters 1007 and 1013 due to NFRLW frequency LW radiation calls 
         ! in ec_phys_tl and ec_phys_ad call trees
         ! also ignore 635 and 636 due to increasing sujbwavallo matrix sizes

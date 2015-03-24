@@ -17,6 +17,7 @@ integer(kind=8) :: heap_size
 integer(kind=4), save :: pagesize = 0
 integer(kind=4) :: node0(18),node1(18)
 integer(kind=8) :: bucket0(18),bucket1(18)
+real(kind=4) :: percent_used
 logical, save :: first = .true.
 character(len=512) :: tmpdir
 character(len=512) :: program
@@ -87,7 +88,7 @@ if(myproc.eq.0) then
   write(kulout,'(a)')  "## EC_MEMINFO "
   write(kulout,'(3a)') "## EC_MEMINFO ", &
                        "              | TC    | MEMORY USED(MB) |", &
-                       "          MEMORY FREE(MB)        INCLUDING CACHED |"
+                       "          MEMORY FREE(MB)        INCLUDING CACHED | %USED"
   write(kulout,'(4a)') "## EC_MEMINFO ", &
                        "              | Malloc| Inc Heap        |", &
                        " Numa node 0    | Numa node 1    |                |"
@@ -111,7 +112,7 @@ if(myproc.eq.0) then
     write(0,'(a)')  "## EC_MEMINFO "
     write(0,'(3a)') "## EC_MEMINFO ", &
                     "              | TC    | MEMORY USED(MB) |", &
-                    "          MEMORY FREE(MB)        INCLUDING CACHED |"
+                    "          MEMORY FREE(MB)        INCLUDING CACHED | %USED"
     write(0,'(4a)') "## EC_MEMINFO ", &
                     "              | Malloc| Inc Heap        |", &
                     " Numa node 0    | Numa node 1    |                |"
@@ -248,15 +249,22 @@ if(myproc.eq.0) then
           heap_size=heap_size+recvbuf(8)
           tasksmall=tasksmall+recvbuf(9)
         else
-          write(kulout,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,a)') "## EC_MEMINFO ", &
+          if(heap_size.gt.nodehuge) then
+! running with small pages
+            percent_used=100.0*(tasksmall+nodehuge)/(tasksmall+nodehuge+memfree+cached)
+          else
+! running with huge pages
+            percent_used=100.0*heap_size/nodehuge
+          endif
+          write(kulout,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,f4.1,1x,a)') "## EC_MEMINFO ", &
  &                      nodenum,lastnode,heap_size,tasksmall,nodehuge,   &
  &                      smallpage0,hugepage0,smallpage1,hugepage1,memfree,cached, &
- &                      idstring
+ &                      percent_used,idstring
           if(iu.eq.-1) then
-            write(0,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,a)') "## EC_MEMINFO ", &
+            write(0,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,f4.1,1x,a)') "## EC_MEMINFO ", &
  &                   nodenum,lastnode,heap_size,tasksmall,nodehuge,   &
  &                   smallpage0,hugepage0,smallpage1,hugepage1,memfree,cached, &
- &                   idstring
+ &                   percent_used,idstring
           endif
 
           nodehuge=recvbuf(1)
@@ -272,16 +280,23 @@ if(myproc.eq.0) then
           lastnode=nodename
         endif
     enddo
-    write(kulout,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,a)') "## EC_MEMINFO ", &
+    if(heap_size.gt.nodehuge) then
+! running with small pages
+      percent_used=100.0*(tasksmall+nodehuge)/(tasksmall+nodehuge+memfree+cached)
+    else
+! running with huge pages
+      percent_used=100.0*heap_size/nodehuge
+    endif
+    write(kulout,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,f4.1,1x,a)') "## EC_MEMINFO ", &
  &                nodenum,lastnode,heap_size,tasksmall,nodehuge,   &
  &                smallpage0,hugepage0,smallpage1,hugepage1,memfree,cached, &
- &                idstring
+ &                percent_used,idstring
 
     if(iu.eq.-1) then
-      write(0,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,a)') "## EC_MEMINFO ", &
+      write(0,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,f4.1,1x,a)') "## EC_MEMINFO ", &
  &                  nodenum,lastnode,heap_size,tasksmall,nodehuge,   &
  &                  smallpage0,hugepage0,smallpage1,hugepage1,memfree,cached, &
- &                idstring
+ &                  percent_used,idstring
       close(kulout)
     endif
 else

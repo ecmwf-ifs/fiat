@@ -51,10 +51,11 @@ MODULE MPL_ALLGATHER_MOD
 !     --------------
 !        Original: 2000-11-23
 !        M.Hamrud     : 2014-10-22 : Add nonblocking option
+!      F. Vana  05-Mar-2015  Support for single precision
 
 !     ------------------------------------------------------------------
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE PARKIND1  ,ONLY : JPIM
 
 USE MPL_MPIF
 USE MPL_DATA_MODULE
