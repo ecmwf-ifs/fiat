@@ -420,6 +420,17 @@ static drhook_watch_t *watch = NULL;
 static drhook_watch_t *last_watch = NULL;
 static int watch_count = 0; /* No. of *active* watch points */
 
+#if !defined(NCALLSTACK)
+#ifdef SINGLE
+/* > 0 : USE call stack approach : needed for single precision version */
+#define NCALLSTACK 64
+#else
+/* == 0 : do NOT use call stack approach : usually for double precision version */
+#define NCALLSTACK  0
+#endif
+#endif
+static int cstklen = NCALLSTACK;
+
 #define HASHSIZE(n) ((unsigned int)1<<(n))
 #define HASHMASK(n) (HASHSIZE(n)-1)
 
@@ -483,6 +494,85 @@ calloc_drhook(size_t nmemb, size_t size)
 /*--- free_drhook ---*/
 
 #define free_drhook(x) { if (x) { free(x); x = NULL; } }
+
+/*--- callstack ---*/
+
+/* Note: For single precision calls -- small performance penalty */
+
+typedef struct callstack_t {
+  drhook_key_t **keyptr;
+  unsigned int next;
+  unsigned int maxdepth;
+} callstack_t;
+
+static callstack_t **cstk = NULL;
+
+static drhook_key_t *callstack(int tid, void *key, drhook_key_t *keyptr)
+{
+  /* Single routine -- two usages:
+
+     (1) Upon c_drhook_start_() we call:
+
+         (void) callstack(tid, key, u.keyptr);
+	 - store keyptr into thread specific call stack
+	 - fill *key up to 4-bytes index stating the position in the aforementioned call stack
+
+     (2) Upon c_drhook_end_() we call:
+
+         u.keyptr = callstack(tid, (void *)key, NULL);
+	 - pass 4-byte index in
+         - obtain keyptr from call stack
+	 - decrement call stack
+
+  */
+
+  static const unsigned int inc = 64;
+  unsigned int idx, *Index = key;
+  callstack_t *c = cstk[tid-1];
+  if (keyptr) {
+    if (!c) {
+      cstk[tid-1] = c = calloc_drhook(1, sizeof(*c));
+      c->keyptr = (drhook_key_t **) calloc_drhook(cstklen, sizeof(drhook_key_t *));
+      c->next = 0;
+      c->maxdepth = cstklen;
+    }
+    idx = (c->next)++;
+    if (idx >= c->maxdepth) {
+      drhook_key_t **kptr;
+      unsigned int maxdepth = idx + inc;
+      fprintf(stderr,
+	      "callstack[%s:%d pid=%d tid=%d]: "
+	      "Call stack index %u out of range [0,%u) : extending the range to [0,%u) for this thread\n",
+	      __FILE__,__LINE__,(int)pid,tid,idx,c->maxdepth,maxdepth);
+      kptr = (drhook_key_t **) calloc_drhook(maxdepth, sizeof(drhook_key_t *));
+      memcpy(kptr,c->keyptr,c->maxdepth * sizeof(drhook_key_t *));
+      free_drhook(c->keyptr);
+      c->keyptr = kptr;
+      c->maxdepth = maxdepth;
+    }
+    if (idx >= c->maxdepth) {
+      fprintf(stderr,
+	      "callstack[%s:%d pid=%d tid=%d]: "
+	      "Call stack index %u still out of range [0,%u). Aborting ...\n",
+	      __FILE__,__LINE__,(int)pid,tid,idx,c->maxdepth);
+      RAISE(SIGABRT);
+    }
+    c->keyptr[idx] = keyptr;
+    *Index = idx;
+  }
+  else {
+    idx = --(c->next);
+    if (idx != *Index) {
+      fprintf(stderr,
+	      "callstack[%s:%d pid=%d tid=%d]: "
+	      "Invalid index to call stack %u : out of range [0,%u). Expecting the exact value of %u\n",
+	      __FILE__,__LINE__,(int)pid,tid,idx,c->maxdepth,*Index);
+      RAISE(SIGABRT);
+    }
+    keyptr = c->keyptr[idx];
+  }
+  return keyptr;
+}
 
 /*--- strdup_drhook ---*/
 
@@ -1520,6 +1610,14 @@ process_options()
     if (fp) fprintf(fp,">>>process_options(): DR_HOOK_HASHBITS=%d\n",nhash);
   }
 
+  env = getenv("DR_HOOK_NCALLSTACK");
+  if (env) {
+    int value = atoi(env);
+    if (value < 1) value = NCALLSTACK;
+    cstklen = value;
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_NCALLSTACK=%d\n",cstklen);
+  }
+
   env = getenv("DR_HOOK_GENCORE");
   if (env) {
     opt_gencore = atoi(env);
@@ -1949,7 +2047,7 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
 static void
 init_drhook(int ntids)
 {
-  if (numthreads == 0 || !keydata || !calltree || !keyself || !overhead || !curkeyptr) {
+  if (numthreads == 0 || !keydata || !calltree || !keyself || !overhead || !curkeyptr || !cstk) {
     int j;
     if (pid == -1) { /* Ensure that just called once */
       {
@@ -2013,6 +2111,9 @@ init_drhook(int ntids)
       for (j=0; j<ntids; j++) {
 	keydata[j] = calloc_drhook(hashsize, sizeof(drhook_key_t));
       }
+    }
+    if (!cstk) {
+      cstk = calloc_drhook(ntids, sizeof(**cstk));
     }
     if (!calltree) {
       calltree = malloc_drhook(sizeof(**calltree) * ntids);
@@ -2558,7 +2659,14 @@ c_drhook_start_(const char *name,
 		      callpath, callpath_len, &free_callpath);
     if (free_callpath) free_drhook(callpath);
   }
-  *key = u.d;
+  if (cstklen == 0) {
+    /* Double precision */
+    *key = u.d;
+  }
+  else {
+    /* Single precision : The variable "*key" is treated like max 4-byte entity -- "an index" */
+    (void) callstack(*thread_id, key, u.keyptr);
+  }
   ITSELF_1;
   if (opt_calltrace) {      
     coml_set_lockid_(&DRHOOK_lock);
@@ -2618,7 +2726,14 @@ c_drhook_end_(const char *name,
   TIMERS;
   equivalence_t u;
   ITSELF_0;
-  u.d = *key;
+  if (cstklen == 0) {
+    /* Double precision */
+    u.d = *key;
+  }
+  else {
+    /* Single precision : The variable "*key" is treated like max 4-byte entity -- "an index" */
+    u.keyptr = callstack(*thread_id, (void *)key, NULL);
+  }
   /*
   if (opt_calltrace) {
     coml_set_lockid_(&DRHOOK_lock);

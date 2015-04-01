@@ -19,7 +19,7 @@
       return
       endfunction timef
 #elif defined ( RS6K )
-      function timef()
+      real*8 timef()
       integer*8 irtc
       external irtc
       data ifirst/0/
@@ -38,7 +38,7 @@
       return
       endfunction timef
 #elif defined ( _CRAYFTN )
-      function timef()
+      real*8 function timef()
       integer*8 i_time1,i_rate
       real*8 ztimef,zfirst
       data ifirst/0/
@@ -47,7 +47,7 @@
 c     This is a real time clock in milliseconds.
 c     Usage of Fortran90 intrinsic function.
       CALL SYSTEM_CLOCK (COUNT=i_time1,COUNT_RATE=i_rate)
-      ztimef=float(i_time1)/float(i_rate)
+      ztimef=dfloat(i_time1)/dfloat(i_rate)
 
       if(ifirst.eq.0) then
          ifirst=1

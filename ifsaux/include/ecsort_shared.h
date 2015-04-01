@@ -21,7 +21,7 @@
 
 #elif REAL_VERSION == 8
 
-#define DATA_TYPE            REAL(KIND=JPRB)
+#define DATA_TYPE            REAL(KIND=JPRD)
 #define SIZEOF_ME            sizeof_real8
 #define KEYSORT_1D           REAL8_KEYSORT_1D
 #define KEYSORT_1D_DRHOOKSTR 'ECSORT_MIX:REAL8_KEYSORT_1D'

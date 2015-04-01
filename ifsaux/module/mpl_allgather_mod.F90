@@ -26,6 +26,8 @@ MODULE MPL_ALLGATHER_MOD
 !           KCOMM    -  Communicator number if different from MPI_COMM_WORLD 
 !                       or from that established as the default 
 !                       by an MPL communicator routine
+!           KMP_TYPE -  buffering type (see MPL_BUFFER_METHOD)
+!                       overrides value provided to MPL_BUFFER_METHOD
 !           KRECVDISPL -displacements in PRECVBUF at which to place 
 !                       the incoming data
 !           CDSTRING -  Character string for ABORT messages
@@ -37,6 +39,8 @@ MODULE MPL_ALLGATHER_MOD
 
 !        Output optional arguments :
 !        -------------------------
+!           KREQUEST -  Communication request
+!                       required when buffering type is non-blocking
 !           KERROR   -  return error code.     If not supplied, 
 !                       MPL_ALLGATHER aborts when an error is detected.
 !     Author.
@@ -46,10 +50,12 @@ MODULE MPL_ALLGATHER_MOD
 !     Modifications.
 !     --------------
 !        Original: 2000-11-23
+!        M.Hamrud     : 2014-10-22 : Add nonblocking option
+!      F. Vana  05-Mar-2015  Support for single precision
 
 !     ------------------------------------------------------------------
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE PARKIND1  ,ONLY : JPIM
 
 USE MPL_MPIF
 USE MPL_DATA_MODULE
@@ -66,7 +72,7 @@ INTEGER(KIND=JPIM) :: IR,ISENDCOUNT,IRECVCOUNT,ICOMM,IERROR
 LOGICAL :: LLABORT=.TRUE.
 INTEGER(KIND=JPIM) :: ITAG
 LOGICAL :: LLBARRIER
-INTEGER(KIND=JPIM) :: IMAXMSG,JK,IMYPAIR,ICHUNKS,ISTS,ISTR,JMESS,ILENS,IENS,IOUNT
+INTEGER(KIND=JPIM) :: IMAXMSG,JK,IMYPAIR,ICHUNKS,ISTS,ISTR,JMESS,ILENS,IENS,IOUNT,IMP_TYPE
 INTEGER(KIND=JPIM) :: ILIMIT,IBARRFREQ,IDUM
 
 PUBLIC MPL_ALLGATHER
