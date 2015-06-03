@@ -1,4 +1,4 @@
-#if defined(LINUX) && !defined(DARWIN)
+#if defined(LINUX) && !defined(DARWIN) && !defined(_CRAYC)
 
 #define _GNU_SOURCE
 
