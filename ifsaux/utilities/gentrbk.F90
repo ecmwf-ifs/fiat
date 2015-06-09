@@ -1,38 +1,38 @@
 !-- Generic traceback calls here
 
-SUBROUTINE gentrbk_dummy
-END SUBROUTINE gentrbk_dummy
+SUBROUTINE GENTRBK_DUMMY
+END SUBROUTINE GENTRBK_DUMMY
 
 #ifdef __INTEL_COMPILER
-SUBROUTINE intel_trbk()
+SUBROUTINE INTEL_TRBK()
 USE IFCORE
 USE MPL_MODULE, ONLY : MPL_MYRANK
 CHARACTER*80 MESSAGE
-LOGICAL :: DONE_TRACEBACK = .false.
+LOGICAL :: DONE_TRACEBACK = .FALSE.
 INTEGER :: MYPROC,MYTHREAD
 INTEGER,EXTERNAL :: OMP_GET_THREAD_NUM
 
-if(DONE_TRACEBACK) then
-  write(0,*) "INTEL_TRBK already called"
-  return
-endif
+IF(DONE_TRACEBACK) THEN
+  WRITE(0,*) "INTEL_TRBK already called"
+  RETURN
+ENDIF
 
 MYPROC=MPL_MYRANK()
 MYTHREAD=OMP_GET_THREAD_NUM() + 1
 
 #ifndef BOM
-  write(MESSAGE,'(A,I4,A,I2,A)') &
+  WRITE(MESSAGE,'(A,I4,A,I2,A)') &
   &           "Process ",MYPROC," thread ",MYTHREAD, &
   &           " calling tracebackqq from intel_trbk()"
   CALL TRACEBACKQQ(MESSAGE, USER_EXIT_CODE=-1)
 #endif
 #ifdef LINUX
-  write(0,*) "Process ",MYPROC," thread ",MYTHREAD, &
+  WRITE(0,*) "Process ",MYPROC," thread ",MYTHREAD, &
  &           " calling linux_trbk from intel_trbk()"
   CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
 #endif
-DONE_TRACEBACK=.true.
-END SUBROUTINE intel_trbk
+DONE_TRACEBACK=.TRUE.
+END SUBROUTINE INTEL_TRBK
 #endif
 
 #ifndef VPP
@@ -41,21 +41,21 @@ END SUBROUTINE ERRTRA
 #endif
 
 #ifdef NECSX
-subroutine necsx_trbk(cdmess)
-implicit none
-character(len=*), intent(in) :: cdmess
-call mesput(cdmess, len(cdmess), 1)
-call dbx_trbk()
-end subroutine necsx_trbk
+SUBROUTINE NECSX_TRBK(CDMESS)
+IMPLICIT NONE
+CHARACTER(LEN=*), INTENT(IN) :: CDMESS
+CALL MESPUT(CDMESS, LEN(CDMESS), 1)
+CALL DBX_TRBK()
+END SUBROUTINE NECSX_TRBK
 
-subroutine necsx_trbk_fl(cdmess, cdfilename, klineno)
+SUBROUTINE NECSX_TRBK_FL(CDMESS, CDFILENAME, KLINENO)
 USE PARKIND1  ,ONLY : JPIM
-implicit none
-character(len=*), intent(in) :: cdmess
-character(len=*), intent(in) :: cdfilename
-INTEGER(KIND=JPIM), intent(in) :: klineno
-character(len=len(cdmess)+len(cdfilename)+30) clocal
-write(clocal,'(a," at ",a,":",i6.6)') trim(cdmess),trim(cdfilename),klineno
-call necsx_trbk(trim(clocal))
-end subroutine necsx_trbk_fl
+IMPLICIT NONE
+CHARACTER(LEN=*), INTENT(IN) :: CDMESS
+CHARACTER(LEN=*), INTENT(IN) :: CDFILENAME
+INTEGER(KIND=JPIM), INTENT(IN) :: KLINENO
+CHARACTER(LEN=LEN(CDMESS)+LEN(CDFILENAME)+30) CLOCAL
+WRITE(CLOCAL,'(a," at ",a,":",i6.6)') TRIM(CDMESS),TRIM(CDFILENAME),KLINENO
+CALL NECSX_TRBK(TRIM(CLOCAL))
+END SUBROUTINE NECSX_TRBK_FL
 #endif

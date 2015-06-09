@@ -75,6 +75,17 @@ getstk_()
 
 #else  /* non-RS6K */
 
+#if defined(LINUX)
+
+ll_t getstk_()
+{
+  extern ll_t getstackusage_();
+  ll_t stackused = getstackusage_();
+  if (stackused > maxstack) maxstack = stackused;
+  return stackused;
+}
+
+#else
 ll_t
 getstk_() 
 { 
@@ -92,11 +103,13 @@ getstk_()
 }
 
 #endif
+#endif
 
 /* Maximum stacksize encountered */
 
 ll_t
 getmaxstk_()
 {
+  (void) getstk_();
   return maxstack;
 }

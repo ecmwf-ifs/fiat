@@ -5,6 +5,8 @@
 
 typedef  long long int  ll_t;
 
+static ll_t maxhwm = 0;
+
 #if defined(CRAY) && !defined(SV2)
 #define gethwm GETHWM
 #else
@@ -78,6 +80,7 @@ ll_t gethwm()
       if (pagesize <= 0) pagesize = 4096;
     }
     rc = (sm.size - basesize) * pagesize;
+    if (rc > maxhwm) maxhwm = rc;
   }
   return rc;
 }
@@ -113,3 +116,9 @@ unsigned int sleep_(unsigned int seconds)
 }
 
 #endif
+
+ll_t getmaxhwm_()
+{
+  (void) gethwm_();
+  return maxhwm;
+}

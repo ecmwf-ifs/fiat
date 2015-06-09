@@ -27,7 +27,7 @@ CONTAINS
 FUNCTION MPL_NPROC(KCOMM)
 
 #ifdef USE_8_BYTE_WORDS
-  Use mpi4to8, Only : &
+  USE MPI4TO8, ONLY : &
     MPI_COMM_SIZE => MPI_COMM_SIZE8
 #endif
 

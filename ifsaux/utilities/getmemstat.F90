@@ -1,47 +1,47 @@
-SUBROUTINE getmemstat(kout, cdlabel)
+SUBROUTINE GETMEMSTAT(KOUT, CDLABEL)
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPIB
 
-use mpl_module
+USE MPL_MODULE
 
-implicit none
+IMPLICIT NONE
 
-INTEGER(KIND=JPIM), intent(in) :: kout
-character(len=*), intent(in) :: cdlabel
-INTEGER(KIND=JPIM) :: i, imyproc, inproc, ioffset
+INTEGER(KIND=JPIM), INTENT(IN) :: KOUT
+CHARACTER(LEN=*), INTENT(IN) :: CDLABEL
+INTEGER(KIND=JPIM) :: I, IMYPROC, INPROC, IOFFSET
 INTEGER(KIND=JPIM), PARAMETER :: JP_MEMKEYS = 5  ! pls. consult ifsaux/utilities/getmemvals.F90
-INTEGER(KIND=JPIM) imemkeys(JP_MEMKEYS)
-INTEGER(KIND=JPIB) imemvals(JP_MEMKEYS)
-REAL(KIND=JPRB), allocatable :: zsend(:), zrecv(:)
-INTEGER(KIND=JPIM), allocatable :: icounts(:)
-character(len=1) CLenv
+INTEGER(KIND=JPIM) IMEMKEYS(JP_MEMKEYS)
+INTEGER(KIND=JPIB) IMEMVALS(JP_MEMKEYS)
+REAL(KIND=JPRB), ALLOCATABLE :: ZSEND(:), ZRECV(:)
+INTEGER(KIND=JPIM), ALLOCATABLE :: ICOUNTS(:)
+CHARACTER(LEN=1) CLENV
 
-call getenv("EC_PROFILE_MEM", CLenv) ! turn OFF by export EC_PROFILE_MEM=0
+CALL GET_ENVIRONMENT_VARIABLE("EC_PROFILE_MEM", CLENV) ! turn OFF by export EC_PROFILE_MEM=0
 
-if (kout >= 0 .and. CLenv /= '0') then
-  imyproc = mpl_myrank()
-  inproc  = mpl_nproc()
+IF (KOUT >= 0 .AND. CLENV /= '0') THEN
+  IMYPROC = MPL_MYRANK()
+  INPROC  = MPL_NPROC()
 
-  allocate(zsend(JP_MEMKEYS))
-  allocate(zrecv(JP_MEMKEYS * inproc))
-  allocate(icounts(inproc))
+  ALLOCATE(ZSEND(JP_MEMKEYS))
+  ALLOCATE(ZRECV(JP_MEMKEYS * INPROC))
+  ALLOCATE(ICOUNTS(INPROC))
 
 !                 1=MAXHEAP, 2=MAXRSS, 3=CURRENTHEAP, 5=MAXSTACK, 6=PAGING
   IMEMKEYS(:) = (/1,         2,        3,             5,          6/) 
   CALL GETMEMVALS(JP_MEMKEYS, IMEMKEYS, IMEMVALS)
 
-  zsend(:) = 0
-  do i=1,JP_MEMKEYS
-    zsend(i) = imemvals(i)
-  enddo
-  zrecv(:) = -1
+  ZSEND(:) = 0
+  DO I=1,JP_MEMKEYS
+    ZSEND(I) = IMEMVALS(I)
+  ENDDO
+  ZRECV(:) = -1
 
-  icounts(:) = JP_MEMKEYS
-  call mpl_gatherv(zsend(:), kroot=1, krecvcounts=icounts(:), &
-                  &precvbuf=zrecv, cdstring='GETMEMSTAT:')
+  ICOUNTS(:) = JP_MEMKEYS
+  CALL MPL_GATHERV(ZSEND(:), KROOT=1, KRECVCOUNTS=ICOUNTS(:), &
+                  &PRECVBUF=ZRECV, CDSTRING='GETMEMSTAT:')
 
-  if (imyproc == 1) then
-     WRITE(KOUT,9000) trim(cdlabel)
+  IF (IMYPROC == 1) THEN
+     WRITE(KOUT,9000) TRIM(CDLABEL)
 9000 FORMAT(/,"Memory Utilization Information (in bytes) : ",a,/,79("="),//,&
          &  "Node   Max heapsize   Max resident   Current heap      Max stack   I/O-paging #",/,&
          &  "====   ============   ============   ============   ============   ============",//)
@@ -51,13 +51,13 @@ if (kout >= 0 .and. CLenv /= '0') then
        WRITE(KOUT,'(I4,5(3X,I12))') I,IMEMVALS(:)
        IOFFSET = IOFFSET + JP_MEMKEYS
      ENDDO
-     write(kout,'(/,a,/)') 'End of Memory Utilization Information'
+     WRITE(KOUT,'(/,a,/)') 'End of Memory Utilization Information'
   ENDIF
 
-  deallocate(zsend)
-  deallocate(zrecv)
-  deallocate(icounts)
+  DEALLOCATE(ZSEND)
+  DEALLOCATE(ZRECV)
+  DEALLOCATE(ICOUNTS)
 
-  CALL getheapstat(kout, cdlabel)
-endif
-END SUBROUTINE getmemstat
+  CALL GETHEAPSTAT(KOUT, CDLABEL)
+ENDIF
+END SUBROUTINE GETMEMSTAT

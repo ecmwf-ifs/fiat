@@ -35,6 +35,12 @@ If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
 #define PMAPI_P6
  */
 
+#ifndef INTEL
+#ifdef __INTEL_COMPILER
+#define INTEL
+#endif
+#endif
+
 #if defined(PMAPI_P7)
 #define ENTRY_4 5
 #define ENTRY_6 4
@@ -63,6 +69,8 @@ If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
 /* === This doesn't handle recursive calls correctly (yet) === */
 
 #include "drhook.h"
+
+static void process_options();
 
 int drhook_memtrace = 0; /* set to 1, if opt_memprof or opt_timeline ; used in getcurheap.c to lock stuff */
 
@@ -147,6 +155,8 @@ static int callpath_depth = callpath_depth_default;
 static int callpath_packed = 0;
 
 static int opt_calltrace = 0;
+static int opt_funcenter = 0;
+static int opt_funcexit = 0;
 
 static int opt_timeline = 0; /* myproc or -1 [or 0 for --> timeline feature off (default)] */
 static int opt_timeline_thread = 1; /* thread-id control : 
@@ -162,6 +172,7 @@ static int opt_gencore = 0;
 static int opt_gencore_signal = 0;
 
 static int hpm_grp = 0;
+static int opt_random_memstat = 0; /* > 0 if to obtain random memory stats (maxhwm, maxstk) for tid=1. Updated when rand() % opt_random_memstat == 0 */
 
 typedef struct drhook_timeline_t {
   unsigned long long int calls[2]; /* 0=drhook_begin , 1=drhook_end */
@@ -206,7 +217,9 @@ static        double opt_hpmstop_mflops    =  1000000.0; /* Yes, 1 PetaFlop/s !!
 extern long long int getstk_();
 extern long long int getmaxstk_();
 extern long long int gethwm_();
+extern long long int getmaxhwm_();
 extern long long int getrss_();
+extern long long int getmaxrss_();
 extern long long int getcurheap_();
 extern long long int getmaxcurheap_();
 extern long long int getcurheap_thread_(const int *tidnum);    /* *tidnum >= 1 && <= max_threads */
@@ -376,6 +389,8 @@ typedef struct drhook_watch_t {
   int watch_first_nbytes;
   char first_nbytes[MAX_WATCH_FIRST_NBYTES];
   unsigned int crc32;
+  int printkey;
+  int nvals;
   struct drhook_watch_t *next;
 } drhook_watch_t;
 
@@ -974,8 +989,9 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
   }
   if (!is_set) coml_set_lockid_(&DRHOOK_lock);
   who = it;
-  fprintf(stderr,"[gdb__sigdump] : Received signal#%d(%s), pid=%d\n",sig,sl->name,pid);
+  fprintf(stderr,"[gdb__sigdump] : Received signal#%d(%s), pid=%d , it=%d : sigcontextptr=%p\n",sig,sl->name,pid,it,sigcontextptr);
   LinuxTraceBack(sigcontextptr);
+  /* LinuxTraceBack(NULL); */
   who = 0;
   coml_unset_lockid_(&DRHOOK_lock);
 }
@@ -1057,6 +1073,7 @@ signal_gencore(int sig SIG_EXTRA_ARGS)
 	    int tid = get_thread_id_();
 	    fprintf(stderr,"[%s-l%d] signal_gencore(sig=%d): pid#%d, tid#%d : Calling abort() ...\n",
 		    __FILE__,__LINE__,sig, pid, tid);
+	    linux_trbk_();
 	    abort(); /* Dump core, too */
 	  }
 	}
@@ -1318,6 +1335,14 @@ signal_drhook_init(int enforce)
      Only enforce-parameter can enforce to set these => no output on myproc=1 */
   if (!enforce && (myproc < 1 || nproc < 0)) return; 
   if (signals_set) return; /* Extra safety */
+  /* To present sumpini.F90 (f.ex.) initializing DrHook-signals in case of 
+     DR_HOOK was turned off (=0), then set also export DR_HOOK_INIT_SIGNALS=0 */
+  env = getenv("DR_HOOK_INIT_SIGNALS");
+  if (env && *env == '0') {
+    signals_set = 2; /* Pretend they are set */
+    return; /* Never initialize signals for DrHook (dangerous, but sometimes necessary) */
+  }
+  process_options();
   for (j=1; j<=NSIG; j++) { /* Initialize */
     drhook_sig_t *sl = &siglist[j];
     sl->active = 0;
@@ -1422,11 +1447,23 @@ get_memmon_out(int me)
   return s;
 }
 
+/*--- random_memstat ---*/
+
+static void
+random_memstat(int tid, int enforce)
+{
+  if (tid == 1 && opt_random_memstat > 0 && opt_random_memstat <= RAND_MAX) {
+    int random_number = rand();
+    if (enforce || random_number % opt_random_memstat == 0) {
+      getmaxhwm_();
+      getmaxstk_();
+    }
+  }
+}
+
 /*--- process_options ---*/
 
 static void do_prof();
-
-static void process_options();
 
 void /* Fortran callable */
 c_drhook_process_options_(const int *lhook, const int *Myproc, const int *Nproc)
@@ -1441,16 +1478,16 @@ static void
 process_options()
 {
   char *env;
-  FILE *fp = stderr;
+  FILE *fp = NULL;
   static int processed = 0;
-
   if (processed) return;
 
   env = getenv("DR_HOOK_SHOW_PROCESS_OPTIONS");
   if (env) {
     int ienv = atoi(env);
-    if (ienv == 0) fp = NULL;
+    if (ienv == 1) fp = stderr;
   }
+  if (fp) fprintf(stderr,">>>process_options(): fp = %p\n",fp);
 
   env = getenv("DR_HOOK_PROFILE");
   if (env) {
@@ -1500,6 +1537,22 @@ process_options()
     if (fp) fprintf(fp,">>>process_options(): DR_HOOK_CALLTRACE=%d\n",opt_calltrace);
   }
 
+  env = getenv("DR_HOOK_FUNCENTER");
+  if (env) {
+    opt_funcenter = atoi(env);
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_FUNCENTER=%d\n",opt_funcenter);
+  }
+
+  env = getenv("DR_HOOK_FUNCEXIT");
+  if (env) {
+    opt_funcexit = atoi(env);
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_FUNCEXIT=%d\n",opt_funcexit);
+  }
+
+  if (opt_funcenter || opt_funcexit) {
+    opt_gethwm = opt_getstk = 1;
+  }
+
   env = getenv("DR_HOOK_TIMELINE");
   if (env) {
     opt_timeline = atoi(env);
@@ -1535,6 +1588,15 @@ process_options()
     opt_timeline_MB = atof(env);
     if (opt_timeline_MB < 0) opt_timeline_MB = 1.0;
     if (fp) fprintf(fp,">>>process_options(): DR_HOOK_TIMELINE_MB=%g\n",opt_timeline_MB);
+  }
+
+  env = getenv("DR_HOOK_RANDOM_MEMSTAT");
+  if (env) {
+    opt_random_memstat = atoi(env);
+    if (opt_random_memstat < 0) opt_random_memstat = 0;
+    if (opt_random_memstat > RAND_MAX) opt_random_memstat = RAND_MAX;
+    if (fp) fprintf(fp,">>>process_options(): DR_HOOK_RANDOM_MEMSTAT=%d  (RAND_MAX=%d)\n",opt_random_memstat,RAND_MAX);
+    random_memstat(1,1);
   }
 
   env = getenv("DR_HOOK_HASHBITS");
@@ -1586,7 +1648,7 @@ process_options()
     if (n >= 1) opt_hpmstop_threshold = a;
     if (n >= 2) opt_hpmstop_mflops = b;
     if (fp) fprintf(fp,">>>process_options(): DR_HOOK_HPMSTOP=%lld,%.15g\n",
-	    opt_hpmstop_threshold,opt_hpmstop_mflops);
+		    opt_hpmstop_threshold,opt_hpmstop_mflops);
     free_drhook(s);
   }
 
@@ -1831,7 +1893,9 @@ getkey(int tid, const char *name, int name_len,
 	  memcpy(keyptr->name, name, name_len);
 	  keyptr->name[name_len] = 0;
 	}
-	if (filename && *filename && filename_len > 0) {
+	if (filename_len > 0 &&
+	    filename && 
+	    *filename) {
 	  char *psave = NULL;
 	  char *p = psave = malloc_drhook((filename_len+1)*sizeof(*filename));
 	  memcpy(p, filename, filename_len);
@@ -1991,7 +2055,9 @@ init_drhook(int ntids)
 	(void) WALLTIME();
 	(void) CPUTIME();
 	(void) gethwm_();
+	(void) getmaxhwm_();
 	(void) getrss_();
+	(void) getmaxrss_();
 	(void) getstk_();
 	(void) getmaxstk_();
 	(void) getpag_();
@@ -2305,15 +2371,51 @@ do_prof()
 
 /*--- Check watch points ---*/
 
+typedef enum { /* See dr_hook_watch_mod.F90 */
+  KEYNONE =  0,
+  KEYLOG  =  1,
+  KEYCHAR =  2,
+  KEY_I4  =  4,
+  KEY_I8  =  8,
+  KEY_R4  = 16,
+  KEY_R8  = 32 
+} PrintWatchKeys_t;
+
+static void print_watch(int ftnunitno, int key, const void *ptr, int n)
+{
+  if (ptr && key > KEYNONE && n > 0) {
+    int nmax = n;
+    if (key == KEYLOG) {
+      dr_hook_prt_logical_(&ftnunitno, ptr, &nmax);
+    }
+    else if (key == KEYCHAR) {
+      dr_hook_prt_char_(&ftnunitno, ptr, &nmax);
+    }
+    else if (key == KEY_I4) {
+      dr_hook_prt_i4_(&ftnunitno, ptr, &nmax);
+    }
+    else if (key == KEY_I8) {
+      dr_hook_prt_i8_(&ftnunitno, ptr, &nmax);
+    }
+    else if (key == KEY_R4) {
+      dr_hook_prt_r4_(&ftnunitno, ptr, &nmax);
+    }
+    else if (key == KEY_R8) {
+      dr_hook_prt_r8_(&ftnunitno, ptr, &nmax);
+    }
+  }
+}
+
 static void 
 check_watch(const char *label,
 	    const char *name,
-	    int name_len)
+	    int name_len,
+	    int allow_abort)
 {
   if (watch) {
-    drhook_watch_t *p;
+    int print_traceback = 1;
+    drhook_watch_t *p = watch;
     coml_set_lockid_(&DRHOOK_lock);
-    p = watch;
     while (p) {
       if (p->active) {
 	unsigned int crc32 = 0;
@@ -2321,7 +2423,7 @@ check_watch(const char *label,
 	const char *first_nbytes = p->ptr;
 	int changed = memcmp(first_nbytes,p->ptr,p->watch_first_nbytes);
 	if (!changed) {
-	  /* The first nbytes the same; checking if crc has changed ... */
+	  /* The first nbytes were still the same; checking if crc has changed ... */
 	  crc32_(p->ptr, &p->nbytes, &crc32);
 	  changed = (crc32 != p->crc32);
 	  calc_crc = 1;
@@ -2330,17 +2432,26 @@ check_watch(const char *label,
 	  int tid = get_thread_id_();
 	  if (!calc_crc) crc32_(p->ptr, &p->nbytes, &crc32);
 	  fprintf(stderr,
-		  "***%s: Watch point '%s' at address %p on myproc#%d has changed"
-		  " (detected in tid#%d when %s routine %.*s) : new crc32=%u\n",
+		  "***%s: Changed watch point '%s' at %p (%d bytes [%d values], on myproc#%d, tid#%d)"
+		  " -- %s %.*s : new crc32=%u\n",
 		  p->abort_if_changed ? "Error" : "Warning",
-		  p->name, p->ptr, myproc, tid,
+		  p->name, p->ptr, p->nbytes, p->nvals, myproc, tid,
 		  label, name_len, name, crc32);
-	  if (p->abort_if_changed) {
+	  print_watch(0, p->printkey, p->ptr, p->nvals);
+	  if (print_traceback) {
+	    linux_trbk_();
+	    print_traceback = 0;
+	  }
+	  if (allow_abort && p->abort_if_changed) {
 	    coml_unset_lockid_(&DRHOOK_lock); /* An important unlocking on Linux; otherwise hangs (until time-out) */
 	    RAISE(SIGABRT);
 	  }
+#if 0
 	  p->active = 0; /* No more these messages for this array */
 	  watch_count--;
+#else
+	  p->crc32 = crc32;
+#endif
 	}
       }
       p = p->next;
@@ -2349,11 +2460,22 @@ check_watch(const char *label,
   }
 }
 
+void
+c_drhook_check_watch_(const char *where,
+		      const int *allow_abort
+		      /* Hidden length */
+		      , int where_len)
+{
+  if (watch && watch_count > 0) check_watch("whilst at", where, where_len, *allow_abort);
+}
+
 /*** PUBLIC ***/
 
 #define TIMERS \
-double walltime = opt_walltime ? WALLTIME() : 0; \
-double cputime  = opt_cputime ? CPUTIME()  : 0
+  double walltime = opt_walltime ? WALLTIME() : 0;	\
+  double cputime  = opt_cputime ? CPUTIME()  : 0;	\
+  long long int hwm = opt_gethwm ? gethwm_() : 0;	\
+  long long int stk = opt_getstk ? getstk_() : 0
 
 
 /*=== c_drhook_set_lhook_ ===*/
@@ -2435,7 +2557,10 @@ c_drhook_watch_(const int *onoff,
 		const char *array_name,
 		const void *array_ptr,
 		const int *nbytes,
-		const int *abort_if_changed
+		const int *abort_if_changed,
+		const int *printkey,
+		const int *nvals,
+		const int *print_traceback_when_set
 		/* Hidden length */
 		,int array_name_len)
 {
@@ -2479,9 +2604,20 @@ c_drhook_watch_(const int *onoff,
   memcpy(p->first_nbytes,p->ptr,p->watch_first_nbytes);
   p->crc32 = 0;
   crc32_(p->ptr, &p->nbytes, &p->crc32);
-  fprintf(stderr,
-  "***Warning: Watch point '%s' was created for address %p (%d bytes, on myproc#%d, tid#%d) : crc32=%u\n",
-          p->name, p->ptr, p->nbytes, myproc, p->tid, p->crc32);
+  p->printkey = *printkey;
+  p->nvals = *nvals;
+  {
+    int ftnunitno = 0;
+    int textlen = strlen(p->name) + 256;
+    char *text = malloc_drhook(textlen * sizeof(*text));
+    snprintf(text,textlen,
+	     "***Warning: Set watch point '%s' at %p (%d bytes [%d values], on myproc#%d, tid#%d) : crc32=%u",
+	     p->name, p->ptr, p->nbytes, p->nvals, myproc, p->tid, p->crc32);
+    dr_hook_prt_(&ftnunitno, text, strlen(text));
+    print_watch(ftnunitno, p->printkey, p->ptr, p->nvals);
+    free_drhook(text);
+    if (*print_traceback_when_set) linux_trbk_();
+  }
 
   coml_unset_lockid_(&DRHOOK_lock);
 }
@@ -2501,7 +2637,12 @@ c_drhook_start_(const char *name,
   equivalence_t u;
   ITSELF_0;
   if (!signals_set) signal_drhook_init(1);
-  if (watch && watch_count > 0) check_watch("entering", name, name_len);
+  if (name_len > 0 && opt_funcenter == *thread_id) {
+    fprintf(stdout,"<e> %d %d %.*s %lld %lld\n",myproc,*thread_id,name_len,name,hwm,stk);
+    fflush(stdout);
+  }
+  if (watch && watch_count > 0) check_watch("when entering routine", name, name_len, 1);
+  /* if (opt_random_memstat > 0) random_memstat(*thread_id,0); */
   if (!opt_callpath) {
     u.keyptr = getkey(*thread_id, name, name_len, 
 		      filename, filename_len,
@@ -2600,6 +2741,11 @@ c_drhook_end_(const char *name,
     coml_unset_lockid_(&DRHOOK_lock);
   }
   */
+  if (name_len > 0 && opt_funcexit == *thread_id) {
+    fprintf(stdout,"<x> %d %d %.*s %lld %lld\n",myproc,*thread_id,name_len,name,hwm,stk);
+    fflush(stdout);
+  }
+  if (opt_random_memstat > 0) random_memstat(*thread_id,0);
   if (timeline) {
     int tid = *thread_id;
     if (opt_timeline_thread <= 0 || tid <= opt_timeline_thread) {
@@ -2631,7 +2777,7 @@ c_drhook_end_(const char *name,
       }
     } /* if (opt_timeline_thread <= 0 || tid <= opt_timeline_thread) */
   }
-  if (watch && watch_count > 0) check_watch("leaving", name, name_len);
+  if (watch && watch_count > 0) check_watch("when leaving routine", name, name_len, 1);
   putkey(*thread_id, u.keyptr, name, name_len, 
 	 *sizeinfo,
 	 &walltime, &cputime);
@@ -2963,6 +3109,21 @@ c_drhook_print_(const int *ftnunitno,
 	     abs_print_option == 7
 	     ) { /* the current calling tree */
       drhook_calltree_t *treeptr = calltree[tid-1];
+
+      if (*print_option == 2) { 
+	long long int hwm = getmaxhwm_()/1048576;
+	long long int rss = getmaxrss_()/1048576;
+	long long int maxstack = getmaxstk_()/1048576;
+	snprintf(line,sizeof(line),
+		 "[myproc#%d,tid#%d,pid#%d]: %lld MB (maxheap), %lld MB (maxrss), %lld MB (maxstack), walltime = %.2fs",
+		 myproc,tid,pid,
+		 hwm,rss,maxstack,WALLTIME());
+#ifdef NECSX
+	DrHookPrint(*ftnunitno, line);
+#else
+	dr_hook_prt_(ftnunitno, line, strlen(line));
+#endif
+      }
 
       if (tid > 1) {
 	if (*print_option == 2) {
@@ -3321,8 +3482,8 @@ c_drhook_print_(const int *ftnunitno,
 	fprintf(fp,"\tInstrumentation   ended : %s\n",end_stamp ? end_stamp : "N/A");
 	fprintf(fp,"\tInstrumentation overhead: %.2f%%\n",max_overhead_pc);
 	{
-	  long long int hwm = gethwm_()/1048576;
-	  long long int rss = getrss_()/1048576;
+	  long long int hwm = getmaxhwm_()/1048576;
+	  long long int rss = getmaxrss_()/1048576;
 	  long long int maxstack = getmaxstk_()/1048576;
 	  long long int pag = getpag_();
 	  fprintf(fp,
@@ -3708,10 +3869,6 @@ c_drhook_print_(const int *ftnunitno,
 void
 c_drhook_init_signals_(const int *enforce)
 {
-  /* To present sumpini.F90 (f.ex.) initializing DrHook-signals in case of 
-     DR_HOOK was turned off (=0), then set also export DR_HOOK_INIT_SIGNALS=0 */
-  char *env = getenv("DR_HOOK_INIT_SIGNALS");
-  if (env && *env == '0') return; /* Never initialize signals for DrHook (dangerous, but sometimes necessary) */
   signal_drhook_init(*enforce);
 }
 
@@ -4282,22 +4439,14 @@ mip_count(const drhook_key_t *keyptr)
 FORTRAN_CALL
 double util_walltime_()
 {
-  static double time_init = -1;
   double time_in_secs;
 #if !defined(CRAYXT)
   struct timeval tbuf;
   if (gettimeofday(&tbuf,NULL) == -1) perror("UTIL_WALLTIME");
-
-  if (time_init == -1) time_init = 
-    (double) tbuf.tv_sec + (tbuf.tv_usec / 1000000.0);
-
-  time_in_secs = 
-  (double) tbuf.tv_sec + (tbuf.tv_usec / 1000000.0) - time_init;
+  time_in_secs = (double) tbuf.tv_sec + ((double)tbuf.tv_usec * 1.0e-6);
 #else
-  if (time_init == -1) time_init = dclock();
-  time_in_secs = dclock() - time_init;
+  time_in_secs = dclock();
 #endif
-
   return time_in_secs;
 }
 

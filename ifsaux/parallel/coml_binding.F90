@@ -1,111 +1,111 @@
-subroutine coml_set_debug(konoff, kret)
+SUBROUTINE COML_SET_DEBUG(KONOFF, KRET)
 USE OML_MOD, ONLY : OML_DEBUG
 USE PARKIND1, ONLY : JPIM
-implicit none
-INTEGER(KIND=JPIM), intent(in) :: konoff
-INTEGER(KIND=JPIM), intent(out) :: kret
-kret = 0
-if (OML_DEBUG) kret = 1
-if (konoff == 0) then 
+IMPLICIT NONE
+INTEGER(KIND=JPIM), INTENT(IN) :: KONOFF
+INTEGER(KIND=JPIM), INTENT(OUT) :: KRET
+KRET = 0
+IF (OML_DEBUG) KRET = 1
+IF (KONOFF == 0) THEN 
   OML_DEBUG = .FALSE.
-else
+ELSE
   OML_DEBUG = .TRUE.
-endif
-end subroutine coml_set_debug
+ENDIF
+END SUBROUTINE COML_SET_DEBUG
 
-subroutine coml_init_lockid_with_name(kmylock,cdlockname)
+SUBROUTINE COML_INIT_LOCKID_WITH_NAME(KMYLOCK,CDLOCKNAME)
 USE OML_MOD, ONLY : OML_INIT_LOCK, OML_LOCK_KIND, OML_DEBUG
 USE PARKIND1, ONLY : JPIB
-implicit none
-INTEGER(KIND=OML_LOCK_KIND), intent(inout) :: kmylock
-CHARACTER(LEN=*), intent(in) :: cdlockname
-INTEGER(KIND=JPIB), external :: loc_addr
-CALL OML_INIT_LOCK(kmylock)
-IF (OML_DEBUG) write(0,'(1x,a,2i20)') &
-     & 'coml_init_lockid_with_name "'//cdlockname//'" :',kmylock,loc_addr(kmylock)
-end subroutine coml_init_lockid_with_name
+IMPLICIT NONE
+INTEGER(KIND=OML_LOCK_KIND), INTENT(INOUT) :: KMYLOCK
+CHARACTER(LEN=*), INTENT(IN) :: CDLOCKNAME
+INTEGER(KIND=JPIB), EXTERNAL :: LOC_ADDR
+CALL OML_INIT_LOCK(KMYLOCK)
+IF (OML_DEBUG) WRITE(0,'(1x,a,2i20)') &
+     & 'coml_init_lockid_with_name "'//CDLOCKNAME//'" :',KMYLOCK,LOC_ADDR(KMYLOCK)
+END SUBROUTINE COML_INIT_LOCKID_WITH_NAME
 
-subroutine coml_init_lockid(kmylock)
+SUBROUTINE COML_INIT_LOCKID(KMYLOCK)
 USE OML_MOD, ONLY : OML_INIT_LOCK, OML_LOCK_KIND, OML_DEBUG
 USE PARKIND1, ONLY : JPIB
-implicit none
-INTEGER(KIND=OML_LOCK_KIND), intent(inout) :: kmylock
-INTEGER(KIND=JPIB), external :: loc_addr
-CALL OML_INIT_LOCK(kmylock)
-IF (OML_DEBUG) write(0,'(1x,2i20)') &
-     & 'coml_init_lockid :',kmylock,loc_addr(kmylock)
-end subroutine coml_init_lockid
+IMPLICIT NONE
+INTEGER(KIND=OML_LOCK_KIND), INTENT(INOUT) :: KMYLOCK
+INTEGER(KIND=JPIB), EXTERNAL :: LOC_ADDR
+CALL OML_INIT_LOCK(KMYLOCK)
+IF (OML_DEBUG) WRITE(0,'(1x,2i20)') &
+     & 'coml_init_lockid :',KMYLOCK,LOC_ADDR(KMYLOCK)
+END SUBROUTINE COML_INIT_LOCKID
 
-subroutine coml_init_lock()
+SUBROUTINE COML_INIT_LOCK()
 USE OML_MOD, ONLY : OML_INIT_LOCK
-implicit none
+IMPLICIT NONE
 CALL OML_INIT_LOCK()
-end subroutine coml_init_lock
+END SUBROUTINE COML_INIT_LOCK
 
-subroutine coml_test_lockid(kisset,kmylock)
+SUBROUTINE COML_TEST_LOCKID(KISSET,KMYLOCK)
 USE PARKIND1, ONLY : JPIM
 USE OML_MOD, ONLY : OML_TEST_LOCK, OML_LOCK_KIND
-implicit none
-INTEGER(KIND=JPIM), intent(out) :: kisset
-INTEGER(KIND=OML_LOCK_KIND), intent(inout) :: kmylock
-kisset = 1
-IF (.not.OML_TEST_LOCK(kmylock)) kisset = 0
-end subroutine coml_test_lockid
+IMPLICIT NONE
+INTEGER(KIND=JPIM), INTENT(OUT) :: KISSET
+INTEGER(KIND=OML_LOCK_KIND), INTENT(INOUT) :: KMYLOCK
+KISSET = 1
+IF (.NOT.OML_TEST_LOCK(KMYLOCK)) KISSET = 0
+END SUBROUTINE COML_TEST_LOCKID
 
-subroutine coml_test_lock(kisset)
+SUBROUTINE COML_TEST_LOCK(KISSET)
 USE PARKIND1, ONLY : JPIM
 USE OML_MOD, ONLY : OML_TEST_LOCK
-implicit none
-INTEGER(KIND=JPIM), intent(out) :: kisset
-kisset = 1
-IF (.not.OML_TEST_LOCK()) kisset = 0
-end subroutine coml_test_lock
+IMPLICIT NONE
+INTEGER(KIND=JPIM), INTENT(OUT) :: KISSET
+KISSET = 1
+IF (.NOT.OML_TEST_LOCK()) KISSET = 0
+END SUBROUTINE COML_TEST_LOCK
 
-subroutine coml_set_lockid(kmylock)
+SUBROUTINE COML_SET_LOCKID(KMYLOCK)
 USE OML_MOD, ONLY : OML_SET_LOCK, OML_LOCK_KIND, OML_MY_THREAD, OML_DEBUG
 USE PARKIND1, ONLY : JPRD, JPIB
-implicit none
-INTEGER(KIND=OML_LOCK_KIND), intent(inout) :: kmylock
-INTEGER(KIND=JPIB), external :: loc_addr
-REAL(KIND=JPRD), external :: util_walltime
-IF (OML_DEBUG) write(0,'(1x,f20.6,1x,i3,a,2i20)') &
-     & util_walltime(),OML_MY_THREAD(),': coml_SET_lockid >>',kmylock,loc_addr(kmylock)
-CALL OML_SET_LOCK(kmylock)
-IF (OML_DEBUG) write(0,'(1x,f20.6,1x,i3,a,2i20)') &
-     & util_walltime(),OML_MY_THREAD(),': coml_SET_lockid <<',kmylock,loc_addr(kmylock)
-end subroutine coml_set_lockid
+IMPLICIT NONE
+INTEGER(KIND=OML_LOCK_KIND), INTENT(INOUT) :: KMYLOCK
+INTEGER(KIND=JPIB), EXTERNAL :: LOC_ADDR
+REAL(KIND=JPRD), EXTERNAL :: UTIL_WALLTIME
+IF (OML_DEBUG) WRITE(0,'(1x,f20.6,1x,i3,a,2i20)') &
+     & UTIL_WALLTIME(),OML_MY_THREAD(),': coml_SET_lockid >>',KMYLOCK,LOC_ADDR(KMYLOCK)
+CALL OML_SET_LOCK(KMYLOCK)
+IF (OML_DEBUG) WRITE(0,'(1x,f20.6,1x,i3,a,2i20)') &
+     & UTIL_WALLTIME(),OML_MY_THREAD(),': coml_SET_lockid <<',KMYLOCK,LOC_ADDR(KMYLOCK)
+END SUBROUTINE COML_SET_LOCKID
 
-subroutine coml_set_lock()
+SUBROUTINE COML_SET_LOCK()
 USE OML_MOD, ONLY : OML_SET_LOCK
-implicit none
+IMPLICIT NONE
 CALL OML_SET_LOCK()
-end subroutine coml_set_lock
+END SUBROUTINE COML_SET_LOCK
 
-subroutine coml_unset_lockid(kmylock)
+SUBROUTINE COML_UNSET_LOCKID(KMYLOCK)
 USE OML_MOD, ONLY : OML_UNSET_LOCK, OML_LOCK_KIND, OML_MY_THREAD, OML_DEBUG
 USE PARKIND1, ONLY : JPRD, JPIB
-implicit none
-INTEGER(KIND=OML_LOCK_KIND), intent(inout) :: kmylock
-INTEGER(KIND=JPIB), external :: loc_addr
-REAL(KIND=JPRD), external :: util_walltime
-IF (OML_DEBUG) write(0,'(1x,f20.6,1x,i3,a,2i20)') &
-     & util_walltime(),OML_MY_THREAD(),': coml_UNSET_lockid >>',kmylock,loc_addr(kmylock)
-CALL OML_UNSET_LOCK(kmylock)
-IF (OML_DEBUG) write(0,'(1x,f20.6,1x,i3,a,2i20)') &
-     & util_walltime(),OML_MY_THREAD(),': coml_UNSET_lockid <<',kmylock,loc_addr(kmylock)
-end subroutine coml_unset_lockid
+IMPLICIT NONE
+INTEGER(KIND=OML_LOCK_KIND), INTENT(INOUT) :: KMYLOCK
+INTEGER(KIND=JPIB), EXTERNAL :: LOC_ADDR
+REAL(KIND=JPRD), EXTERNAL :: UTIL_WALLTIME
+IF (OML_DEBUG) WRITE(0,'(1x,f20.6,1x,i3,a,2i20)') &
+     & UTIL_WALLTIME(),OML_MY_THREAD(),': coml_UNSET_lockid >>',KMYLOCK,LOC_ADDR(KMYLOCK)
+CALL OML_UNSET_LOCK(KMYLOCK)
+IF (OML_DEBUG) WRITE(0,'(1x,f20.6,1x,i3,a,2i20)') &
+     & UTIL_WALLTIME(),OML_MY_THREAD(),': coml_UNSET_lockid <<',KMYLOCK,LOC_ADDR(KMYLOCK)
+END SUBROUTINE COML_UNSET_LOCKID
 
-subroutine coml_unset_lock()
+SUBROUTINE COML_UNSET_LOCK()
 USE OML_MOD, ONLY : OML_UNSET_LOCK
-implicit none
+IMPLICIT NONE
 CALL OML_UNSET_LOCK()
-end subroutine coml_unset_lock
+END SUBROUTINE COML_UNSET_LOCK
 
-subroutine coml_in_parallel(kispar_region)
+SUBROUTINE COML_IN_PARALLEL(KISPAR_REGION)
 USE PARKIND1, ONLY : JPIM
 USE OML_MOD, ONLY : OML_IN_PARALLEL
-implicit none
-INTEGER(KIND=JPIM), intent(out) :: kispar_region
-kispar_region = 0
-if (OML_IN_PARALLEL()) kispar_region = 1
-end subroutine coml_in_parallel
+IMPLICIT NONE
+INTEGER(KIND=JPIM), INTENT(OUT) :: KISPAR_REGION
+KISPAR_REGION = 0
+IF (OML_IN_PARALLEL()) KISPAR_REGION = 1
+END SUBROUTINE COML_IN_PARALLEL
