@@ -1,35 +1,35 @@
-SUBROUTINE getmemvals(n, key, kval)
+SUBROUTINE GETMEMVALS(N, KEY, KVAL)
 USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPIB
-implicit none
-INTEGER(KIND=JPIM), intent(in) :: n, key(n)
-INTEGER(KIND=JPIB), intent(out):: kval(n)
+IMPLICIT NONE
+INTEGER(KIND=JPIM), INTENT(IN) :: N, KEY(N)
+INTEGER(KIND=JPIB), INTENT(OUT):: KVAL(N)
 !--------------------------------- key ----------------------------------------------
-INTEGER(KIND=JPIB), external :: gethwm    !  1  High Water Mark for HEAP-alloc
-INTEGER(KIND=JPIB), external :: getrss    !  2  Maximum resident memory so far
-INTEGER(KIND=JPIB), external :: getcurheap!  3  Instantaneous allocation from ALLOCATE/malloc
-INTEGER(KIND=JPIB), external :: getstk    !  4  Instantaneous stack usage
-INTEGER(KIND=JPIB), external :: getmaxstk !  5  Maximum stack usage so far
-INTEGER(KIND=JPIB), external :: getpag    !  6  I/O caused by paging
+INTEGER(KIND=JPIB), EXTERNAL :: GETHWM    !  1  High Water Mark for HEAP-alloc
+INTEGER(KIND=JPIB), EXTERNAL :: GETRSS    !  2  Maximum resident memory so far
+INTEGER(KIND=JPIB), EXTERNAL :: GETCURHEAP!  3  Instantaneous allocation from ALLOCATE/malloc
+INTEGER(KIND=JPIB), EXTERNAL :: GETSTK    !  4  Instantaneous stack usage
+INTEGER(KIND=JPIB), EXTERNAL :: GETMAXSTK !  5  Maximum stack usage so far
+INTEGER(KIND=JPIB), EXTERNAL :: GETPAG    !  6  I/O caused by paging
 ! -- add more as required (all 64-bit integers upon return, though) --
 
-INTEGER(KIND=JPIM) j
+INTEGER(KIND=JPIM) J
 
-do j=1,n
-  if (key(j) == 1) then
-    kval(j) = gethwm()
-  else if (key(j) == 2) then
-    kval(j) = getrss()
-  else if (key(j) == 3) then
-    kval(j) = getcurheap()
-  else if (key(j) == 4) then
-    kval(j) = getstk()
-  else if (key(j) == 5) then
-    kval(j) = getmaxstk()
-  else if (key(j) == 6) then
-    kval(j) = getpag()
+DO J=1,N
+  IF (KEY(J) == 1) THEN
+    KVAL(J) = GETHWM()
+  ELSE IF (KEY(J) == 2) THEN
+    KVAL(J) = GETRSS()
+  ELSE IF (KEY(J) == 3) THEN
+    KVAL(J) = GETCURHEAP()
+  ELSE IF (KEY(J) == 4) THEN
+    KVAL(J) = GETSTK()
+  ELSE IF (KEY(J) == 5) THEN
+    KVAL(J) = GETMAXSTK()
+  ELSE IF (KEY(J) == 6) THEN
+    KVAL(J) = GETPAG()
 !  else if (key(j) == ) then
 !    kval(j) = get()
-  endif
-enddo
+  ENDIF
+ENDDO
 
-END SUBROUTINE getmemvals
+END SUBROUTINE GETMEMVALS

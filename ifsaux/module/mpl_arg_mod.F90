@@ -1,4 +1,4 @@
-MODULE mpl_arg_mod
+MODULE MPL_ARG_MOD
 
 !**** MPL_GETARG : A substitute for GETARG for MPL applications
 !     MPL_IARGC  : A substitute for function IARGC for MPL applications
@@ -43,7 +43,7 @@ USE MPL_DATA_MODULE, ONLY : MPL_NUMPROC,LINITMPI_VIA_MPL,LMPLUSERCOMM,MPLUSERCOM
 
 
 #ifdef NAG
-use f90_unix_env, only: getarg, iargc
+USE F90_UNIX_ENV, ONLY: GETARG, IARGC
 #endif
 
 IMPLICIT NONE
@@ -76,7 +76,7 @@ END SUBROUTINE MPL_ARG_GET_CL_TERMINATE
 SUBROUTINE INIT_ARGS()
 
 #ifdef USE_8_BYTE_WORDS
-  Use mpi4to8, Only : &
+  USE MPI4TO8, ONLY : &
     MPI_INITIALIZED => MPI_INITIALIZED8, MPI_COMM_SIZE => MPI_COMM_SIZE8, &
     MPI_COMM_RANK => MPI_COMM_RANK8, MPI_BCAST => MPI_BCAST8, &
     MPI_INIT => MPI_INIT8
@@ -106,7 +106,7 @@ IF (N_ARGS == -1) THEN
     IF (LLINIT == 0) THEN
       CALL MPI_INIT(IERROR)
       LINITMPI_VIA_MPL = .TRUE.
-      CALL ec_mpi_atexit() ! ifsaux/support/endian.c: to make sure MPI_FINALIZE gets called
+      CALL EC_MPI_ATEXIT() ! ifsaux/support/endian.c: to make sure MPI_FINALIZE gets called
     ENDIF
   ENDIF
 
@@ -190,4 +190,4 @@ IF (N_ARGS == -1) CALL INIT_ARGS()
 IRET = N_ARGS
 END FUNCTION MPL_IARGC
 
-END MODULE mpl_arg_mod
+END MODULE MPL_ARG_MOD

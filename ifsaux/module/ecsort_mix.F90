@@ -1,7 +1,7 @@
 #ifdef RS6K
 @PROCESS NOCHECK
 #endif
-MODULE ecsort_mix
+MODULE ECSORT_MIX
 USE PARKIND1   , ONLY : JPIM     ,JPIB     ,JPRB     ,JPRM    ,JPRD
 USE YOMHOOK    , ONLY : LHOOK, DR_HOOK
 USE OML_MOD     , ONLY : OML_MAX_THREADS, OML_MY_THREAD, OML_IN_PARALLEL
@@ -40,23 +40,23 @@ IMPLICIT NONE
 SAVE
 PRIVATE
 
-INTEGER(KIND=JPIM), parameter :: NTHRDS = 64 ! ***Note: A hardcoded max number of threads !!!
+INTEGER(KIND=JPIM), PARAMETER :: NTHRDS = 64 ! ***Note: A hardcoded max number of threads !!!
 
-INTEGER(KIND=JPIM), parameter :: sizeof_int4  = 4
-INTEGER(KIND=JPIM), parameter :: sizeof_int8  = 8
-INTEGER(KIND=JPIM), parameter :: sizeof_real4 = 4
-INTEGER(KIND=JPIM), parameter :: sizeof_real8 = 8
+INTEGER(KIND=JPIM), PARAMETER :: SIZEOF_INT4  = 4
+INTEGER(KIND=JPIM), PARAMETER :: SIZEOF_INT8  = 8
+INTEGER(KIND=JPIM), PARAMETER :: SIZEOF_REAL4 = 4
+INTEGER(KIND=JPIM), PARAMETER :: SIZEOF_REAL8 = 8
 
-INTEGER(KIND=JPIM), parameter :: min_method = 1
-INTEGER(KIND=JPIM), parameter :: max_method = 5
+INTEGER(KIND=JPIM), PARAMETER :: MIN_METHOD = 1
+INTEGER(KIND=JPIM), PARAMETER :: MAX_METHOD = 5
 
-INTEGER(KIND=JPIM), parameter :: radixsort_method = 1
-INTEGER(KIND=JPIM), parameter :: heapsort_method  = 2
-INTEGER(KIND=JPIM), parameter :: quicksort_method = 3
-INTEGER(KIND=JPIM), parameter :: countingsort_method = 4
-INTEGER(KIND=JPIM), parameter :: gnomesort_method = 5
+INTEGER(KIND=JPIM), PARAMETER :: RADIXSORT_METHOD = 1
+INTEGER(KIND=JPIM), PARAMETER :: HEAPSORT_METHOD  = 2
+INTEGER(KIND=JPIM), PARAMETER :: QUICKSORT_METHOD = 3
+INTEGER(KIND=JPIM), PARAMETER :: COUNTINGSORT_METHOD = 4
+INTEGER(KIND=JPIM), PARAMETER :: GNOMESORT_METHOD = 5
 
-CHARACTER(LEN=12), parameter :: method_name(min_method:max_method) = &
+CHARACTER(LEN=12), PARAMETER :: METHOD_NAME(MIN_METHOD:MAX_METHOD) = &
      & (/&
      &   'RADIXSORT   ' &
      &  ,'HEAPSORT    ' &
@@ -70,39 +70,39 @@ CHARACTER(LEN=12), parameter :: method_name(min_method:max_method) = &
 !
 !   Note: Occasionally radixsort_method may be faster on non-vector machines, too
 #if defined(VPP) || defined(NECSX)
-INTEGER(KIND=JPIM) :: default_method = radixsort_method
-INTEGER(KIND=JPIM) :: current_method(NTHRDS) = radixsort_method
+INTEGER(KIND=JPIM) :: DEFAULT_METHOD = RADIXSORT_METHOD
+INTEGER(KIND=JPIM) :: CURRENT_METHOD(NTHRDS) = RADIXSORT_METHOD
 #else
-INTEGER(KIND=JPIM) :: default_method = countingsort_method
-INTEGER(KIND=JPIM) :: current_method(NTHRDS) = countingsort_method
+INTEGER(KIND=JPIM) :: DEFAULT_METHOD = COUNTINGSORT_METHOD
+INTEGER(KIND=JPIM) :: CURRENT_METHOD(NTHRDS) = COUNTINGSORT_METHOD
 #endif
 
 !-- A threshold length after which OpenMP in sorting, merging, copying may kick in.
 !   Override with EC_SORTING_NOMP. Detected while initializing/calling SORTING_METHOD
 !   Non-positive values (<= 0) indicate that OpenMP will NOT be attempted at all
-INTEGER(KIND=JPIM) :: nomp = -1
+INTEGER(KIND=JPIM) :: NOMP = -1
 
 !-- EC_SORTING_INFO = MPL-proc id [1..$NPES] to print the info message when CALL sorting_method()
 !                   : 0 (no print; the default)
 !                   : 1 (print on MPL-task one)
 !                   : > 1 and <= $NPES (some other MPL-task than 1 prints)
-INTEGER(KIND=JPIM) :: nsinfo = 0
+INTEGER(KIND=JPIM) :: NSINFO = 0
 
-INTERFACE keysort
+INTERFACE KEYSORT
 MODULE PROCEDURE &
-     &int4_keysort_1D, int4_keysort_2D, &
-     &int8_keysort_1D, int8_keysort_2D, &
-     &real8_keysort_1D, real8_keysort_2D, &
-     &real4_keysort_1D, real4_keysort_2D
+     &INT4_KEYSORT_1D, INT4_KEYSORT_2D, &
+     &INT8_KEYSORT_1D, INT8_KEYSORT_2D, &
+     &REAL8_KEYSORT_1D, REAL8_KEYSORT_2D, &
+     &REAL4_KEYSORT_1D, REAL4_KEYSORT_2D
 END INTERFACE
 
-INTERFACE sorting_method
-MODULE PROCEDURE int_sorting_method, str_sorting_method
+INTERFACE SORTING_METHOD
+MODULE PROCEDURE INT_SORTING_METHOD, STR_SORTING_METHOD
 END INTERFACE
 
-PUBLIC :: keysort
-PUBLIC :: init_index, get_rank, adjust_index
-PUBLIC :: sorting_method
+PUBLIC :: KEYSORT
+PUBLIC :: INIT_INDEX, GET_RANK, ADJUST_INDEX
+PUBLIC :: SORTING_METHOD
 
 CONTAINS
 
@@ -110,190 +110,190 @@ CONTAINS
 !--   Public subroutines   --
 !----------------------------
 
-SUBROUTINE int_sorting_method(inew, iold)
-INTEGER(KIND=JPIM), OPTIONAL, intent(in)  :: inew
-INTEGER(KIND=JPIM), OPTIONAL, intent(out) :: iold
-INTEGER(KIND=JPIM) :: itmp, imyproc, inpes
+SUBROUTINE INT_SORTING_METHOD(INEW, IOLD)
+INTEGER(KIND=JPIM), OPTIONAL, INTENT(IN)  :: INEW
+INTEGER(KIND=JPIM), OPTIONAL, INTENT(OUT) :: IOLD
+INTEGER(KIND=JPIM) :: ITMP, IMYPROC, INPES
 INTEGER(KIND=JPIM) :: ITID
-character(len=20) clenv
-logical, save :: LLfirst = .TRUE.
-logical LLomp, LLhook_ok
+CHARACTER(LEN=20) CLENV
+LOGICAL, SAVE :: LLFIRST = .TRUE.
+LOGICAL LLOMP, LLHOOK_OK
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
 !-- This maybe called from the very first call of DR_HOOK_UTIL ...
-LLhook_ok = LHOOK .and. (present(inew) .or. present(iold))
-IF (LLhook_ok) CALL DR_HOOK('ECSORT_MIX:INT_SORTING_METHOD',0,ZHOOK_HANDLE)
+LLHOOK_OK = LHOOK .AND. (PRESENT(INEW) .OR. PRESENT(IOLD))
+IF (LLHOOK_OK) CALL DR_HOOK('ECSORT_MIX:INT_SORTING_METHOD',0,ZHOOK_HANDLE)
 ITID = OML_MY_THREAD()
-LLomp = OML_IN_PARALLEL()
-if (present(iold)) iold = current_method(ITID)
-itmp = -1
-if (present(inew)) then
-  itmp = inew
-else if (.not.LLomp) then ! Override the default method (only if outside the OpenMP)
-  itmp = -1 ! no change
-  if (LLfirst) then ! Do once per execution only
-    inpes = MPL_NPROC()
-    CALL get_environment_variable('EC_SORTING_INFO',clenv) ! ../support/env.c
-    if (clenv /= ' ') then
-      itmp = nsinfo
-      read(clenv,'(i20)',end=89,err=89) itmp
-      goto 88
-89    continue
-      itmp = nsinfo ! no change
-88    continue
-      if (itmp <= 0) then
-        nsinfo = 0
-      else if (itmp >= 1 .and. itmp <= inpes) then
-        nsinfo = itmp
-      endif
-    endif
-    imyproc = MPL_MYRANK()
-    CALL get_environment_variable('EC_SORTING_METHOD',clenv) ! ../support/env.c
-    if (clenv /= ' ') then
-       if (imyproc == nsinfo) write(0,'(a)')'<EC_SORTING_METHOD='//trim(clenv)
-       CALL toupper(clenv)
-       select case (clenv)
-       case ('RADIX', 'RADIXSORT')
-          itmp = radixsort_method
-       case ('HEAP', 'HEAPSORT')
-          itmp = heapsort_method
-       case ('QUICK', 'QUICKSORT', 'QSORT')
-          itmp = quicksort_method
-       case ('COUNT', 'COUNTINGSORT', 'COUNTSORT')
-          itmp = countingsort_method
-       case ('GNOME', 'GNOMESORT')
-          itmp = gnomesort_method
-       case ('DEFAULT', 'DEF')
-          itmp = -1 ! no change
-       case default
-          read(clenv,'(i20)',end=99,err=99) itmp
-          goto 98
-99        continue
-          itmp = -1 ! no change
-98        continue
-       end select
-    endif
+LLOMP = OML_IN_PARALLEL()
+IF (PRESENT(IOLD)) IOLD = CURRENT_METHOD(ITID)
+ITMP = -1
+IF (PRESENT(INEW)) THEN
+  ITMP = INEW
+ELSE IF (.NOT.LLOMP) THEN ! Override the default method (only if outside the OpenMP)
+  ITMP = -1 ! no change
+  IF (LLFIRST) THEN ! Do once per execution only
+    INPES = MPL_NPROC()
+    CALL GET_ENVIRONMENT_VARIABLE('EC_SORTING_INFO',CLENV) ! ../support/env.c
+    IF (CLENV /= ' ') THEN
+      ITMP = NSINFO
+      READ(CLENV,'(i20)',END=89,ERR=89) ITMP
+      GOTO 88
+89    CONTINUE
+      ITMP = NSINFO ! no change
+88    CONTINUE
+      IF (ITMP <= 0) THEN
+        NSINFO = 0
+      ELSE IF (ITMP >= 1 .AND. ITMP <= INPES) THEN
+        NSINFO = ITMP
+      ENDIF
+    ENDIF
+    IMYPROC = MPL_MYRANK()
+    CALL GET_ENVIRONMENT_VARIABLE('EC_SORTING_METHOD',CLENV) ! ../support/env.c
+    IF (CLENV /= ' ') THEN
+       IF (IMYPROC == NSINFO) WRITE(0,'(a)')'<EC_SORTING_METHOD='//TRIM(CLENV)
+       CALL TOUPPER(CLENV)
+       SELECT CASE (CLENV)
+       CASE ('RADIX', 'RADIXSORT')
+          ITMP = RADIXSORT_METHOD
+       CASE ('HEAP', 'HEAPSORT')
+          ITMP = HEAPSORT_METHOD
+       CASE ('QUICK', 'QUICKSORT', 'QSORT')
+          ITMP = QUICKSORT_METHOD
+       CASE ('COUNT', 'COUNTINGSORT', 'COUNTSORT')
+          ITMP = COUNTINGSORT_METHOD
+       CASE ('GNOME', 'GNOMESORT')
+          ITMP = GNOMESORT_METHOD
+       CASE ('DEFAULT', 'DEF')
+          ITMP = -1 ! no change
+       CASE DEFAULT
+          READ(CLENV,'(i20)',END=99,ERR=99) ITMP
+          GOTO 98
+99        CONTINUE
+          ITMP = -1 ! no change
+98        CONTINUE
+       END SELECT
+    ENDIF
 
-    if (itmp < min_method .or. itmp > max_method) itmp = default_method
-    default_method = itmp
-    current_method(:) = itmp
-    if (imyproc == nsinfo) &
-         & write(0,'(a,i1,a)')'>EC_SORTING_METHOD=',default_method,&
-         & ' # '//method_name(default_method)
+    IF (ITMP < MIN_METHOD .OR. ITMP > MAX_METHOD) ITMP = DEFAULT_METHOD
+    DEFAULT_METHOD = ITMP
+    CURRENT_METHOD(:) = ITMP
+    IF (IMYPROC == NSINFO) &
+         & WRITE(0,'(a,i1,a)')'>EC_SORTING_METHOD=',DEFAULT_METHOD,&
+         & ' # '//METHOD_NAME(DEFAULT_METHOD)
 
-    CALL get_environment_variable('EC_SORTING_NOMP',clenv)
-    if (clenv /= ' ') then
-       if (imyproc == nsinfo) write(0,'(a)')'<EC_SORTING_NOMP='//trim(clenv)
-       read(clenv,'(i20)',end=199,err=199) itmp
-       goto 198
-199    continue
-       itmp = nomp ! no change
-198    continue
-       nomp = itmp
-    endif
+    CALL GET_ENVIRONMENT_VARIABLE('EC_SORTING_NOMP',CLENV)
+    IF (CLENV /= ' ') THEN
+       IF (IMYPROC == NSINFO) WRITE(0,'(a)')'<EC_SORTING_NOMP='//TRIM(CLENV)
+       READ(CLENV,'(i20)',END=199,ERR=199) ITMP
+       GOTO 198
+199    CONTINUE
+       ITMP = NOMP ! no change
+198    CONTINUE
+       NOMP = ITMP
+    ENDIF
 
-    if (imyproc == nsinfo) then
-      write(clenv,'(i20)') nomp
-      write(0,'(a)')'>EC_SORTING_NOMP='//trim(adjustl(clenv))
-    endif
+    IF (IMYPROC == NSINFO) THEN
+      WRITE(CLENV,'(i20)') NOMP
+      WRITE(0,'(a)')'>EC_SORTING_NOMP='//TRIM(ADJUSTL(CLENV))
+    ENDIF
 
-    itmp = default_method
-    LLfirst = .FALSE.
-  endif
-endif
+    ITMP = DEFAULT_METHOD
+    LLFIRST = .FALSE.
+  ENDIF
+ENDIF
 
-if (itmp < min_method .or. itmp > max_method) itmp = default_method
-if (LLomp) then ! Only this thread sees the change
-  current_method(ITID) = itmp
-else ! All threads see the change
-  current_method(:) = itmp
-endif
-IF (LLhook_ok) CALL DR_HOOK('ECSORT_MIX:INT_SORTING_METHOD',1,ZHOOK_HANDLE)
-END SUBROUTINE int_sorting_method
+IF (ITMP < MIN_METHOD .OR. ITMP > MAX_METHOD) ITMP = DEFAULT_METHOD
+IF (LLOMP) THEN ! Only this thread sees the change
+  CURRENT_METHOD(ITID) = ITMP
+ELSE ! All threads see the change
+  CURRENT_METHOD(:) = ITMP
+ENDIF
+IF (LLHOOK_OK) CALL DR_HOOK('ECSORT_MIX:INT_SORTING_METHOD',1,ZHOOK_HANDLE)
+END SUBROUTINE INT_SORTING_METHOD
 
 
-SUBROUTINE str_sorting_method(cdnew, iold)
-character(len=*), intent(in) :: cdnew
-INTEGER(KIND=JPIM), OPTIONAL, intent(out) :: iold
-character(len=len(cdnew)) clnew
+SUBROUTINE STR_SORTING_METHOD(CDNEW, IOLD)
+CHARACTER(LEN=*), INTENT(IN) :: CDNEW
+INTEGER(KIND=JPIM), OPTIONAL, INTENT(OUT) :: IOLD
+CHARACTER(LEN=LEN(CDNEW)) CLNEW
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('ECSORT_MIX:STR_SORTING_METHOD',0,ZHOOK_HANDLE)
-clnew = cdnew
-CALL toupper(clnew)
-select case (clnew)
-case ('RADIX', 'RADIXSORT')
-  CALL sorting_method(radixsort_method, iold)
-case ('HEAP', 'HEAPSORT')
-  CALL sorting_method(heapsort_method, iold)
-case ('QUICK', 'QUICKSORT', 'QSORT')
-  CALL sorting_method(quicksort_method, iold)
-case ('COUNT', 'COUNTINGSORT', 'COUNTSORT')
-  CALL sorting_method(countingsort_method, iold)
-case ('GNOME', 'GNOMESORT')
-  CALL sorting_method(gnomesort_method, iold)
-case ('DEFAULT', 'DEF')
-  CALL sorting_method(default_method, iold)
-case default
-  CALL sorting_method(default_method, iold)
-end select
+CLNEW = CDNEW
+CALL TOUPPER(CLNEW)
+SELECT CASE (CLNEW)
+CASE ('RADIX', 'RADIXSORT')
+  CALL SORTING_METHOD(RADIXSORT_METHOD, IOLD)
+CASE ('HEAP', 'HEAPSORT')
+  CALL SORTING_METHOD(HEAPSORT_METHOD, IOLD)
+CASE ('QUICK', 'QUICKSORT', 'QSORT')
+  CALL SORTING_METHOD(QUICKSORT_METHOD, IOLD)
+CASE ('COUNT', 'COUNTINGSORT', 'COUNTSORT')
+  CALL SORTING_METHOD(COUNTINGSORT_METHOD, IOLD)
+CASE ('GNOME', 'GNOMESORT')
+  CALL SORTING_METHOD(GNOMESORT_METHOD, IOLD)
+CASE ('DEFAULT', 'DEF')
+  CALL SORTING_METHOD(DEFAULT_METHOD, IOLD)
+CASE DEFAULT
+  CALL SORTING_METHOD(DEFAULT_METHOD, IOLD)
+END SELECT
 IF (LHOOK) CALL DR_HOOK('ECSORT_MIX:STR_SORTING_METHOD',1,ZHOOK_HANDLE)
-END SUBROUTINE str_sorting_method
+END SUBROUTINE STR_SORTING_METHOD
 
 
-SUBROUTINE init_index(index, index_adj)
-INTEGER(KIND=JPIM), intent(out):: index(:)
-INTEGER(KIND=JPIM), intent(in), OPTIONAL :: index_adj
-INTEGER(KIND=JPIM) :: i, n
+SUBROUTINE INIT_INDEX(INDEX, INDEX_ADJ)
+INTEGER(KIND=JPIM), INTENT(OUT):: INDEX(:)
+INTEGER(KIND=JPIM), INTENT(IN), OPTIONAL :: INDEX_ADJ
+INTEGER(KIND=JPIM) :: I, N
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('ECSORT_MIX:INIT_INDEX',0,ZHOOK_HANDLE)
-n = size(index)
-if (present(index_adj)) then
-  do i=1,n
-    index(i) = i + index_adj
-  enddo
-else
-  do i=1,n
-    index(i) = i
-  enddo
-endif
+N = SIZE(INDEX)
+IF (PRESENT(INDEX_ADJ)) THEN
+  DO I=1,N
+    INDEX(I) = I + INDEX_ADJ
+  ENDDO
+ELSE
+  DO I=1,N
+    INDEX(I) = I
+  ENDDO
+ENDIF
 IF (LHOOK) CALL DR_HOOK('ECSORT_MIX:INIT_INDEX',1,ZHOOK_HANDLE)
-END SUBROUTINE init_index
+END SUBROUTINE INIT_INDEX
 
 
-SUBROUTINE adjust_index(index, index_adj)
-INTEGER(KIND=JPIM), intent(inout):: index(:)
-INTEGER(KIND=JPIM), intent(in) :: index_adj
-INTEGER(KIND=JPIM) :: i, n
+SUBROUTINE ADJUST_INDEX(INDEX, INDEX_ADJ)
+INTEGER(KIND=JPIM), INTENT(INOUT):: INDEX(:)
+INTEGER(KIND=JPIM), INTENT(IN) :: INDEX_ADJ
+INTEGER(KIND=JPIM) :: I, N
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('ECSORT_MIX:ADJUST_INDEX',0,ZHOOK_HANDLE)
-if (index_adj /= 0) then
-  n = size(index)
-  do i=1,n
-    index(i) = index(i) + index_adj
-  enddo
-endif
+IF (INDEX_ADJ /= 0) THEN
+  N = SIZE(INDEX)
+  DO I=1,N
+    INDEX(I) = INDEX(I) + INDEX_ADJ
+  ENDDO
+ENDIF
 IF (LHOOK) CALL DR_HOOK('ECSORT_MIX:ADJUST_INDEX',1,ZHOOK_HANDLE)
-END SUBROUTINE adjust_index
+END SUBROUTINE ADJUST_INDEX
 
 
-SUBROUTINE get_rank(index, rank, index_adj)
-INTEGER(KIND=JPIM), intent(in) :: index(:)
-INTEGER(KIND=JPIM), intent(out):: rank(:)
-INTEGER(KIND=JPIM), intent(in), OPTIONAL :: index_adj
-INTEGER(KIND=JPIM) :: i, n
+SUBROUTINE GET_RANK(INDEX, RANK, INDEX_ADJ)
+INTEGER(KIND=JPIM), INTENT(IN) :: INDEX(:)
+INTEGER(KIND=JPIM), INTENT(OUT):: RANK(:)
+INTEGER(KIND=JPIM), INTENT(IN), OPTIONAL :: INDEX_ADJ
+INTEGER(KIND=JPIM) :: I, N
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('ECSORT_MIX:GET_RANK',0,ZHOOK_HANDLE)
-n = min(size(index),size(rank))
-if (present(index_adj)) then
-  do i=1,n
-    rank(index(i)+index_adj) = i
-  enddo
-else
-  do i=1,n
-    rank(index(i)) = i
-  enddo
-endif
+N = MIN(SIZE(INDEX),SIZE(RANK))
+IF (PRESENT(INDEX_ADJ)) THEN
+  DO I=1,N
+    RANK(INDEX(I)+INDEX_ADJ) = I
+  ENDDO
+ELSE
+  DO I=1,N
+    RANK(INDEX(I)) = I
+  ENDDO
+ENDIF
 IF (LHOOK) CALL DR_HOOK('ECSORT_MIX:GET_RANK',1,ZHOOK_HANDLE)
-END SUBROUTINE get_rank
+END SUBROUTINE GET_RANK
 
 
 #undef INT_VERSION
@@ -327,4 +327,4 @@ END SUBROUTINE get_rank
 #undef INT_VERSION
 #undef REAL_VERSION
 
-END MODULE ecsort_mix
+END MODULE ECSORT_MIX

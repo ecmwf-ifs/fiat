@@ -1,67 +1,67 @@
 #if defined ( VPP )
-      function timef()
-      data ifirst/0/
-      save ifirst,zfirst
+      FUNCTION TIMEF()
+      DATA IFIRST/0/
+      SAVE IFIRST,ZFIRST
 !
 !   fujitsu special
 !
-      call gettod(ztimef)
-      ztimef=ztimef/1000.0
+      CALL GETTOD(ZTIMEF)
+      ZTIMEF=ZTIMEF/1000.0
 !
-      if(ifirst.eq.0) then
-         ifirst=1
-         zfirst=ztimef
-         timef=0.0
-      else
-         timef=(ztimef-zfirst)
-      endif
+      IF(IFIRST.EQ.0) THEN
+         IFIRST=1
+         ZFIRST=ZTIMEF
+         TIMEF=0.0
+      ELSE
+         TIMEF=(ZTIMEF-ZFIRST)
+      ENDIF
 !
-      return
-      endfunction timef
+      RETURN
+      ENDFUNCTION TIMEF
 #elif defined ( RS6K )
-      real*8 timef()
-      integer*8 irtc
-      external irtc
-      data ifirst/0/
-      save ifirst,zfirst
+      REAL*8 TIMEF()
+      INTEGER*8 IRTC
+      EXTERNAL IRTC
+      DATA IFIRST/0/
+      SAVE IFIRST,ZFIRST
 !
-      ztimef=irtc()*1.0e-6
+      ZTIMEF=IRTC()*1.0E-6
 !
-      if(ifirst.eq.0) then
-         ifirst=1
-         zfirst=ztimef
-         timef=0.0
-      else
-         timef=(ztimef-zfirst)
-      endif
+      IF(IFIRST.EQ.0) THEN
+         IFIRST=1
+         ZFIRST=ZTIMEF
+         TIMEF=0.0
+      ELSE
+         TIMEF=(ZTIMEF-ZFIRST)
+      ENDIF
 !
-      return
-      endfunction timef
+      RETURN
+      ENDFUNCTION TIMEF
 #elif defined ( _CRAYFTN )
-      real*8 function timef()
-      integer*8 i_time1,i_rate
-      real*8 ztimef,zfirst
-      data ifirst/0/
-      save ifirst,zfirst
+      REAL*8 FUNCTION TIMEF()
+      INTEGER*8 I_TIME1,I_RATE
+      REAL*8 ZTIMEF,ZFIRST
+      DATA IFIRST/0/
+      SAVE IFIRST,ZFIRST
 
-c     This is a real time clock in milliseconds.
-c     Usage of Fortran90 intrinsic function.
-      CALL SYSTEM_CLOCK (COUNT=i_time1,COUNT_RATE=i_rate)
-      ztimef=dfloat(i_time1)/dfloat(i_rate)
+C     THIS IS A REAL TIME CLOCK IN MILLISECONDS.
+C     USAGE OF FORTRAN90 INTRINSIC FUNCTION.
+      CALL SYSTEM_CLOCK (COUNT=I_TIME1,COUNT_RATE=I_RATE)
+      ZTIMEF=DFLOAT(I_TIME1)/DFLOAT(I_RATE)
 
-      if(ifirst.eq.0) then
-         ifirst=1
-         zfirst=ztimef
-         timef=0.0
-      else
-         timef=1000.0*(ztimef-zfirst)
-      endif
+      IF(IFIRST.EQ.0) THEN
+         IFIRST=1
+         ZFIRST=ZTIMEF
+         TIMEF=0.0
+      ELSE
+         TIMEF=1000.0*(ZTIMEF-ZFIRST)
+      ENDIF
 
-      return
-      endfunction timef
+      RETURN
+      ENDFUNCTION TIMEF
 
 #else
-      function timef()
+      FUNCTION TIMEF()
       USE PARKIND1, ONLY : JPIM, JPRB
       IMPLICIT NONE
       REAL(KIND=JPRB)         :: TIMEF
@@ -69,22 +69,22 @@ c     Usage of Fortran90 intrinsic function.
       INTEGER(KIND=JPIM)      :: I_RATE, I_TIME1
       REAL(KIND=JPRB),SAVE    :: ZFIRST
       REAL(KIND=JPRB)         :: ZTIMEF
-      data ifirst/0/
+      DATA IFIRST/0/
 !RJ       save ifirst,zfirst
 !
 !     This is a real time clock in milliseconds.
 !     Usage of Fortran90 intrinsic function.
-      CALL SYSTEM_CLOCK (COUNT=i_time1,COUNT_RATE=i_rate)
-      ztimef=REAL(i_time1,kind=JPRB)/REAL(i_rate,kind=JPRB)
+      CALL SYSTEM_CLOCK (COUNT=I_TIME1,COUNT_RATE=I_RATE)
+      ZTIMEF=REAL(I_TIME1,KIND=JPRB)/REAL(I_RATE,KIND=JPRB)
 
-      if(ifirst.eq.0) then
-         ifirst=1
-         zfirst=ztimef
-         timef=0.0
-      else
-         timef=1000.0*(ztimef-zfirst)
-      endif
+      IF(IFIRST.EQ.0) THEN
+         IFIRST=1
+         ZFIRST=ZTIMEF
+         TIMEF=0.0
+      ELSE
+         TIMEF=1000.0*(ZTIMEF-ZFIRST)
+      ENDIF
 
-      return
-      endfunction timef
+      RETURN
+      ENDFUNCTION TIMEF
 #endif

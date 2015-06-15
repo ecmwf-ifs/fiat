@@ -1,129 +1,129 @@
-subroutine cmpl_recv(kbuf,kcount,ktype,ksource,ktag,kcomm,&
- &ksync,kblock,krcount,krfrom,krtag,kerror)
+SUBROUTINE CMPL_RECV(KBUF,KCOUNT,KTYPE,KSOURCE,KTAG,KCOMM,&
+ &KSYNC,KBLOCK,KRCOUNT,KRFROM,KRTAG,KERROR)
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE MPL_MODULE
-implicit none
-integer kcount,ktype,ksource,ktag,kcomm
-integer krcount,krfrom,krtag,kerror,ksync,kblock
-INTEGER(KIND=JPIM) :: kbuf(*)
-INTEGER,EXTERNAL :: convin,convout
-integer ilenb,ilen
-ilenb=convin(kcount,ktype)
-if(ksource > 0) then
-  if(ktag /= -1) then
-    call mpl_recv(kbuf(1:ilenb),KSOURCE=ksource,KTAG=ktag,&
-     KFROM=krfrom,KRECVTAG=krtag,KOUNT=ilen,KERROR=kerror)
-  else
-    call mpl_recv(kbuf(1:ilenb),KSOURCE=ksource,&
-     KFROM=krfrom,KRECVTAG=krtag,KOUNT=ilen,KERROR=kerror)
-  endif
-else
-  if(ktag /= -1) then
-    call mpl_recv(kbuf(1:ilenb),KTAG=ktag,&
-     KFROM=krfrom,KRECVTAG=krtag,KOUNT=ilen,KERROR=kerror)
-  else
-    call mpl_recv(kbuf(1:ilenb),&
-     KFROM=krfrom,KRECVTAG=krtag,KOUNT=ilen,KERROR=kerror)
-  endif
-endif
-krcount=convout(ilen,ktype)
-end subroutine cmpl_recv
+IMPLICIT NONE
+INTEGER KCOUNT,KTYPE,KSOURCE,KTAG,KCOMM
+INTEGER KRCOUNT,KRFROM,KRTAG,KERROR,KSYNC,KBLOCK
+INTEGER(KIND=JPIM) :: KBUF(*)
+INTEGER,EXTERNAL :: CONVIN,CONVOUT
+INTEGER ILENB,ILEN
+ILENB=CONVIN(KCOUNT,KTYPE)
+IF(KSOURCE > 0) THEN
+  IF(KTAG /= -1) THEN
+    CALL MPL_RECV(KBUF(1:ILENB),KSOURCE=KSOURCE,KTAG=KTAG,&
+     KFROM=KRFROM,KRECVTAG=KRTAG,KOUNT=ILEN,KERROR=KERROR)
+  ELSE
+    CALL MPL_RECV(KBUF(1:ILENB),KSOURCE=KSOURCE,&
+     KFROM=KRFROM,KRECVTAG=KRTAG,KOUNT=ILEN,KERROR=KERROR)
+  ENDIF
+ELSE
+  IF(KTAG /= -1) THEN
+    CALL MPL_RECV(KBUF(1:ILENB),KTAG=KTAG,&
+     KFROM=KRFROM,KRECVTAG=KRTAG,KOUNT=ILEN,KERROR=KERROR)
+  ELSE
+    CALL MPL_RECV(KBUF(1:ILENB),&
+     KFROM=KRFROM,KRECVTAG=KRTAG,KOUNT=ILEN,KERROR=KERROR)
+  ENDIF
+ENDIF
+KRCOUNT=CONVOUT(ILEN,KTYPE)
+END SUBROUTINE CMPL_RECV
 
-subroutine cmpl_send(kbuf,kcount,ktype,kdest,ktag,kcomm,&
- &ksync,kblock,kerror)
+SUBROUTINE CMPL_SEND(KBUF,KCOUNT,KTYPE,KDEST,KTAG,KCOMM,&
+ &KSYNC,KBLOCK,KERROR)
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE MPL_MODULE
-implicit none
-integer kcount,ktype,ktag,kcomm,ksync,kblock,kdest
-integer kerror
-integer kbuf(*)
-INTEGER,EXTERNAL :: convin,convout
-integer ilen
-ilen=convin(kcount,ktype)
-call mpl_send(kbuf(1:ilen),KDEST=kdest,KTAG=ktag,KERROR=kerror)
-end subroutine cmpl_send
+IMPLICIT NONE
+INTEGER KCOUNT,KTYPE,KTAG,KCOMM,KSYNC,KBLOCK,KDEST
+INTEGER KERROR
+INTEGER KBUF(*)
+INTEGER,EXTERNAL :: CONVIN,CONVOUT
+INTEGER ILEN
+ILEN=CONVIN(KCOUNT,KTYPE)
+CALL MPL_SEND(KBUF(1:ILEN),KDEST=KDEST,KTAG=KTAG,KERROR=KERROR)
+END SUBROUTINE CMPL_SEND
 
-subroutine cmpl_broadcast(kbuf,kcount,ktype,kroot,ktag,kcomm,&
- &ksync,kblock,kerror)
+SUBROUTINE CMPL_BROADCAST(KBUF,KCOUNT,KTYPE,KROOT,KTAG,KCOMM,&
+ &KSYNC,KBLOCK,KERROR)
 USE MPL_MODULE
-implicit none
-integer kcount,ktype,ktag,kcomm,ksync,kblock,kroot
-integer kerror
-integer kbuf(*)
-INTEGER,EXTERNAL :: convin,convout
-integer ilen
-ilen=convin(kcount,ktype)
-call mpl_broadcast(kbuf(1:ilen),KROOT=kroot,KTAG=ktag,KERROR=kerror)
-end subroutine cmpl_broadcast
+IMPLICIT NONE
+INTEGER KCOUNT,KTYPE,KTAG,KCOMM,KSYNC,KBLOCK,KROOT
+INTEGER KERROR
+INTEGER KBUF(*)
+INTEGER,EXTERNAL :: CONVIN,CONVOUT
+INTEGER ILEN
+ILEN=CONVIN(KCOUNT,KTYPE)
+CALL MPL_BROADCAST(KBUF(1:ILEN),KROOT=KROOT,KTAG=KTAG,KERROR=KERROR)
+END SUBROUTINE CMPL_BROADCAST
 
-subroutine cmpl_abort(cdmess)
+SUBROUTINE CMPL_ABORT(CDMESS)
 USE MPL_MODULE
-implicit none
-character(len=*) cdmess
-call mpl_abort(cdmess)
-end subroutine cmpl_abort
+IMPLICIT NONE
+CHARACTER(LEN=*) CDMESS
+CALL MPL_ABORT(CDMESS)
+END SUBROUTINE CMPL_ABORT
 
-subroutine cmpl_init(ldtrmsg,kerror)
+SUBROUTINE CMPL_INIT(LDTRMSG,KERROR)
 USE MPL_MODULE
-implicit none
-logical ldtrmsg
-integer kerror
-call mpl_init(KERROR=kerror,LDINFO=.FALSE.)
-end subroutine cmpl_init
+IMPLICIT NONE
+LOGICAL LDTRMSG
+INTEGER KERROR
+CALL MPL_INIT(KERROR=KERROR,LDINFO=.FALSE.)
+END SUBROUTINE CMPL_INIT
 
-function cmpl_nproc()
+FUNCTION CMPL_NPROC()
 USE MPL_MODULE
-implicit none
-integer cmpl_nproc
-cmpl_nproc=mpl_nproc()
-end function cmpl_nproc
+IMPLICIT NONE
+INTEGER CMPL_NPROC
+CMPL_NPROC=MPL_NPROC()
+END FUNCTION CMPL_NPROC
 
-function cmpl_myrank()
+FUNCTION CMPL_MYRANK()
 USE MPL_MODULE
-implicit none
-integer cmpl_myrank
-cmpl_myrank=mpl_myrank()
-end function cmpl_myrank
+IMPLICIT NONE
+INTEGER CMPL_MYRANK
+CMPL_MYRANK=MPL_MYRANK()
+END FUNCTION CMPL_MYRANK
 
-subroutine cmpl_barrier(kerror)
+SUBROUTINE CMPL_BARRIER(KERROR)
 USE MPL_MODULE
-implicit none
-integer kerror
-call mpl_barrier(KERROR=kerror)
-end subroutine cmpl_barrier
+IMPLICIT NONE
+INTEGER KERROR
+CALL MPL_BARRIER(KERROR=KERROR)
+END SUBROUTINE CMPL_BARRIER
 
-subroutine cmpl_end(kerror)
+SUBROUTINE CMPL_END(KERROR)
 USE MPL_MODULE
-implicit none
-integer kerror
-call mpl_end(KERROR=kerror)
-end subroutine cmpl_end
+IMPLICIT NONE
+INTEGER KERROR
+CALL MPL_END(KERROR=KERROR)
+END SUBROUTINE CMPL_END
 
-subroutine cmpl_getarg(kargno, cdarg)
+SUBROUTINE CMPL_GETARG(KARGNO, CDARG)
 USE MPL_MODULE
-implicit none
-integer kargno
-character(len=*) cdarg
-CALL mpl_getarg(kargno, cdarg)
-end subroutine cmpl_getarg
+IMPLICIT NONE
+INTEGER KARGNO
+CHARACTER(LEN=*) CDARG
+CALL MPL_GETARG(KARGNO, CDARG)
+END SUBROUTINE CMPL_GETARG
 
-function cmpl_iargc()
+FUNCTION CMPL_IARGC()
 USE MPL_MODULE
-implicit none
-integer cmpl_iargc
-cmpl_iargc = mpl_iargc()
-end function cmpl_iargc
+IMPLICIT NONE
+INTEGER CMPL_IARGC
+CMPL_IARGC = MPL_IARGC()
+END FUNCTION CMPL_IARGC
 
-function mpe_myrank()
+FUNCTION MPE_MYRANK()
 USE MPL_MODULE
-implicit none
-integer mpe_myrank
-mpe_myrank=mpl_myrank()
-end function mpe_myrank
+IMPLICIT NONE
+INTEGER MPE_MYRANK
+MPE_MYRANK=MPL_MYRANK()
+END FUNCTION MPE_MYRANK
 
-subroutine mpei_abort(cdmess)
+SUBROUTINE MPEI_ABORT(CDMESS)
 USE MPL_MODULE
-implicit none
-character(len=*) cdmess
-call mpl_abort()
-end subroutine mpei_abort
+IMPLICIT NONE
+CHARACTER(LEN=*) CDMESS
+CALL MPL_ABORT()
+END SUBROUTINE MPEI_ABORT

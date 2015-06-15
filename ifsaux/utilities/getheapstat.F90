@@ -1,85 +1,85 @@
-SUBROUTINE getheapstat(kout, cdlabel)
+SUBROUTINE GETHEAPSTAT(KOUT, CDLABEL)
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPIB
 
-use mpl_module
+USE MPL_MODULE
 
 #ifdef NAG
-use f90_unix_env, only: getenv
+USE F90_UNIX_ENV, ONLY: GETENV
 #endif
 
-implicit none
+IMPLICIT NONE
 
-INTEGER(KIND=JPIM), intent(in) :: kout
-character(len=*), intent(in) :: cdlabel
-INTEGER(KIND=JPIM) :: i, imyproc, inproc, iret, ioffset, ii
-INTEGER(KIND=JPIM), parameter :: JP_NPROFILE = 9 ! pls. consult ifsaux/utilities/getcurheap.c
-INTEGER(KIND=JPIM), parameter :: isize = JP_NPROFILE+1
-INTEGER(KIND=JPIB) ilimit(isize)
-INTEGER(KIND=JPIB) icnt(isize)
-REAL(KIND=JPRB), allocatable :: zsend(:), zrecv(:)
-INTEGER(KIND=JPIM), allocatable :: icounts(:)
-character(len=1) CLenv
-character(len=80) CLtext(0:4)
+INTEGER(KIND=JPIM), INTENT(IN) :: KOUT
+CHARACTER(LEN=*), INTENT(IN) :: CDLABEL
+INTEGER(KIND=JPIM) :: I, IMYPROC, INPROC, IRET, IOFFSET, II
+INTEGER(KIND=JPIM), PARAMETER :: JP_NPROFILE = 9 ! pls. consult ifsaux/utilities/getcurheap.c
+INTEGER(KIND=JPIM), PARAMETER :: ISIZE = JP_NPROFILE+1
+INTEGER(KIND=JPIB) ILIMIT(ISIZE)
+INTEGER(KIND=JPIB) ICNT(ISIZE)
+REAL(KIND=JPRB), ALLOCATABLE :: ZSEND(:), ZRECV(:)
+INTEGER(KIND=JPIM), ALLOCATABLE :: ICOUNTS(:)
+CHARACTER(LEN=1) CLENV
+CHARACTER(LEN=80) CLTEXT(0:4)
 
-call get_environment_variable("EC_PROFILE_HEAP", CLenv) ! turn OFF by export EC_PROFILE_HEAP=0
+CALL GET_ENVIRONMENT_VARIABLE("EC_PROFILE_HEAP", CLENV) ! turn OFF by export EC_PROFILE_HEAP=0
 
-if (kout >= 0 .and. CLenv /= '0') then
-  imyproc = mpl_myrank()
-  inproc  = mpl_nproc()
+IF (KOUT >= 0 .AND. CLENV /= '0') THEN
+  IMYPROC = MPL_MYRANK()
+  INPROC  = MPL_NPROC()
 
-  do i=1,isize
-    ilimit(i) = i ! power of 10's ; pls. consult ifsaux/utilities/getcurheap.c
-  enddo
+  DO I=1,ISIZE
+    ILIMIT(I) = I ! power of 10's ; pls. consult ifsaux/utilities/getcurheap.c
+  ENDDO
 
-  allocate(zsend(isize))
-  allocate(zrecv(isize * inproc))
-  allocate(icounts(inproc))
+  ALLOCATE(ZSEND(ISIZE))
+  ALLOCATE(ZRECV(ISIZE * INPROC))
+  ALLOCATE(ICOUNTS(INPROC))
 
-  CLtext(0) = "free()/DEALLOCATE -hits per byte range"
-  CLtext(1) = "malloc()/ALLOCATE -hits per byte range"
-  CLtext(2) = "Outstanding malloc()/ALLOCATE -hits per byte range"
-  CLtext(3) = "Outstanding amount of malloc()/ALLOCATE -bytes per byte range"
-  CLtext(4) = "Average amount of outstanding malloc()/ALLOCATE -bytes per byte range"
+  CLTEXT(0) = "free()/DEALLOCATE -hits per byte range"
+  CLTEXT(1) = "malloc()/ALLOCATE -hits per byte range"
+  CLTEXT(2) = "Outstanding malloc()/ALLOCATE -hits per byte range"
+  CLTEXT(3) = "Outstanding amount of malloc()/ALLOCATE -bytes per byte range"
+  CLTEXT(4) = "Average amount of outstanding malloc()/ALLOCATE -bytes per byte range"
 
-  do ii=0,4
-    icnt(:) = 0
-    CALL profile_heap_get(icnt, isize, ii, iret)
+  DO II=0,4
+    ICNT(:) = 0
+    CALL PROFILE_HEAP_GET(ICNT, ISIZE, II, IRET)
 
-    zsend(:) = 0
-    do i=1,iret
-      zsend(i) = icnt(i)
-    enddo
-    zrecv(:) = -1
+    ZSEND(:) = 0
+    DO I=1,IRET
+      ZSEND(I) = ICNT(I)
+    ENDDO
+    ZRECV(:) = -1
 
-    icounts(:) = isize
-    call mpl_gatherv(zsend(:), kroot=1, krecvcounts=icounts(:), &
-                    &precvbuf=zrecv, cdstring='GETHEAPSTAT:')
+    ICOUNTS(:) = ISIZE
+    CALL MPL_GATHERV(ZSEND(:), KROOT=1, KRECVCOUNTS=ICOUNTS(:), &
+                    &PRECVBUF=ZRECV, CDSTRING='GETHEAPSTAT:')
 
-    if (imyproc == 1) then
+    IF (IMYPROC == 1) THEN
 !     Not more than 132 columns, please :-)
-      write(kout,9000) trim(CLtext(ii)),trim(cdlabel), "Node", &
-                     & (ilimit(i),i=1,min(JP_NPROFILE,9)), "Larger"
-9000  format(/,"Heap Utilization Profile (",a,"): ",a,&
+      WRITE(KOUT,9000) TRIM(CLTEXT(II)),TRIM(CDLABEL), "Node", &
+                     & (ILIMIT(I),I=1,MIN(JP_NPROFILE,9)), "Larger"
+9000  FORMAT(/,"Heap Utilization Profile (",A,"): ",A,&
             &/,126("="),&
-            &//,(a4,2x,9(:,2x,4x,"< 10^",i1),:,2x,a10))
-      write(kout,9001)
-9001  format(4("="),2x,10(2x,10("="))/)
-      ioffset = 0
-      do i=1,inproc
-        icnt(:) = zrecv(ioffset+1:ioffset+isize)
-        write(kout,'(i4,2x,(10(:,2x,i10)))') i,icnt(:)
-        ioffset = ioffset + isize
-      enddo
-    endif
-  enddo
+            &//,(A4,2X,9(:,2X,4X,"< 10^",I1),:,2X,A10))
+      WRITE(KOUT,9001)
+9001  FORMAT(4("="),2X,10(2X,10("="))/)
+      IOFFSET = 0
+      DO I=1,INPROC
+        ICNT(:) = ZRECV(IOFFSET+1:IOFFSET+ISIZE)
+        WRITE(KOUT,'(i4,2x,(10(:,2x,i10)))') I,ICNT(:)
+        IOFFSET = IOFFSET + ISIZE
+      ENDDO
+    ENDIF
+  ENDDO
 
-  if (imyproc == 1) then
-    write(kout,'(/,a,/)') 'End of Heap Utilization Profile'
-  endif
+  IF (IMYPROC == 1) THEN
+    WRITE(KOUT,'(/,a,/)') 'End of Heap Utilization Profile'
+  ENDIF
 
-  deallocate(zsend)
-  deallocate(zrecv)
-  deallocate(icounts)
-endif
-END SUBROUTINE getheapstat
+  DEALLOCATE(ZSEND)
+  DEALLOCATE(ZRECV)
+  DEALLOCATE(ICOUNTS)
+ENDIF
+END SUBROUTINE GETHEAPSTAT

@@ -1,326 +1,326 @@
-subroutine ec_cray_meminfo(iu,idstring,kcomm)
+SUBROUTINE EC_CRAY_MEMINFO(IU,IDSTRING,KCOMM)
 
 IMPLICIT NONE
 
 #include "mpif.h"
 
-integer(kind=4), intent(in) :: kcomm
-integer(kind=4), intent(in) :: iu
-character*(*), intent(in) :: idstring
-integer(kind = 4) :: id,kulout
-integer(kind=4) :: i,j,myproc,nproc,len,error,itag,nodenum
-integer(kind=8) :: tasksmall,nodehuge,memfree,cached
-integer(kind=8) :: smallpage0,smallpage1,hugepage0,hugepage1
-integer(kind=8) :: sendbuf(9),recvbuf(9)
-integer(kind=8) :: gethwm
-integer(kind=8) :: heap_size
-integer(kind=4), save :: pagesize = 0
-integer(kind=4) :: node0(18),node1(18)
-integer(kind=8) :: bucket0(18),bucket1(18)
-real(kind=4) :: percent_used
-logical, save :: first = .true.
-character(len=512) :: tmpdir
-character(len=512) :: program
-character(len=8)  :: nodename,lastnode
-character(len=4)  :: val
-character(len=1)  :: M
-character(len=160) ::line
-character(len=56) :: filename
-character(len=128) :: jobname
-character(len=128) :: jobid
-CHARACTER (LEN = 10) ::  cldateod,cltimeod,clzoneod
-INTEGER(KIND=4) :: ivalues(8)
-integer(kind=4) :: irecv_status(MPI_STATUS_SIZE)
-integer omp_get_max_threads
-external omp_get_max_threads
+INTEGER(KIND=4), INTENT(IN) :: KCOMM
+INTEGER(KIND=4), INTENT(IN) :: IU
+CHARACTER*(*), INTENT(IN) :: IDSTRING
+INTEGER(KIND = 4) :: ID,KULOUT
+INTEGER(KIND=4) :: I,J,MYPROC,NPROC,LEN,ERROR,ITAG,NODENUM
+INTEGER(KIND=8) :: TASKSMALL,NODEHUGE,MEMFREE,CACHED
+INTEGER(KIND=8) :: SMALLPAGE0,SMALLPAGE1,HUGEPAGE0,HUGEPAGE1
+INTEGER(KIND=8) :: SENDBUF(9),RECVBUF(9)
+INTEGER(KIND=8) :: GETHWM
+INTEGER(KIND=8) :: HEAP_SIZE
+INTEGER(KIND=4), SAVE :: PAGESIZE = 0
+INTEGER(KIND=4) :: NODE0(18),NODE1(18)
+INTEGER(KIND=8) :: BUCKET0(18),BUCKET1(18)
+REAL(KIND=4) :: PERCENT_USED
+LOGICAL, SAVE :: FIRST = .TRUE.
+CHARACTER(LEN=512) :: TMPDIR
+CHARACTER(LEN=512) :: PROGRAM
+CHARACTER(LEN=8)  :: NODENAME,LASTNODE
+CHARACTER(LEN=4)  :: VAL
+CHARACTER(LEN=1)  :: M
+CHARACTER(LEN=160) ::LINE
+CHARACTER(LEN=56) :: FILENAME
+CHARACTER(LEN=128) :: JOBNAME
+CHARACTER(LEN=128) :: JOBID
+CHARACTER (LEN = 10) ::  CLDATEOD,CLTIMEOD,CLZONEOD
+INTEGER(KIND=4) :: IVALUES(8)
+INTEGER(KIND=4) :: IRECV_STATUS(MPI_STATUS_SIZE)
+INTEGER OMP_GET_MAX_THREADS
+EXTERNAL OMP_GET_MAX_THREADS
 
 
-call flush(0)
+CALL FLUSH(0)
 
-CALL MPI_BARRIER(kcomm,error)
+CALL MPI_BARRIER(KCOMM,ERROR)
 
-CALL MPI_COMM_RANK(KCOMM, myproc, ERROR)
+CALL MPI_COMM_RANK(KCOMM, MYPROC, ERROR)
 
 
-if(error /= 0 ) then
-  write(0,*) "## EC_CRAY_MEMINFO error code ",error," from MPI_COMM_RANK"
-  call MPI_ABORT(kcomm,-1,error)
-endif
+IF(ERROR /= 0 ) THEN
+  WRITE(0,*) "## EC_CRAY_MEMINFO error code ",ERROR," from MPI_COMM_RANK"
+  CALL MPI_ABORT(KCOMM,-1,ERROR)
+ENDIF
 
 CALL MPI_COMM_SIZE(KCOMM,NPROC,ERROR)
 
-if(error /= 0 ) then
-  write(0,*) "## EC_CRAY_MEMINFO error code ",error," from MPI_COMM_SIZE"
-  call MPI_ABORT(kcomm,-1,error)
-endif
+IF(ERROR /= 0 ) THEN
+  WRITE(0,*) "## EC_CRAY_MEMINFO error code ",ERROR," from MPI_COMM_SIZE"
+  CALL MPI_ABORT(KCOMM,-1,ERROR)
+ENDIF
 
-if(myproc.eq.0) then 
-  call GETARG(0,program)
+IF(MYPROC.EQ.0) THEN 
+  CALL GETARG(0,PROGRAM)
 !
 ! Use already open file for output or $TMPDIR/meminfo
 !
-  if(iu.eq.-1) then
-    call GETENV('TMPDIR',tmpdir)
-    kulout=501
-    open(unit=kulout,file=TRIM(tmpdir)//"/"//"meminfo",status='unknown', &
-       action='write',position='append')
-  else
-    kulout=iu
-  endif
+  IF(IU.EQ.-1) THEN
+    CALL GETENV('TMPDIR',TMPDIR)
+    KULOUT=501
+    OPEN(UNIT=KULOUT,FILE=TRIM(TMPDIR)//"/"//"meminfo",STATUS='unknown', &
+       ACTION='write',POSITION='append')
+  ELSE
+    KULOUT=IU
+  ENDIF
 
-  call date_and_time(cldateod,cltimeod,clzoneod,ivalues)
-  call GETENV('EC_JOB_NAME',jobname)
-  if(jobname.eq.'') then
-    call GETENV('PBS_JOBNAME',jobname)
-  endif
-  call GETENV('PBS_JOBID',jobid)
+  CALL DATE_AND_TIME(CLDATEOD,CLTIMEOD,CLZONEOD,IVALUES)
+  CALL GETENV('EC_JOB_NAME',JOBNAME)
+  IF(JOBNAME.EQ.'') THEN
+    CALL GETENV('PBS_JOBNAME',JOBNAME)
+  ENDIF
+  CALL GETENV('PBS_JOBID',JOBID)
 
-  write(kulout,'(a,/,a)') "## EC_MEMINFO ","## EC_MEMINFO"
-  write(kulout,'(4a)') "## EC_MEMINFO Detailed memory information ", &
-                       "for program ",TRIM(program)
-  write(kulout,'(a,i5,a,i3,a,a,'':'',a,'':'',a,a,a,''-'',a,''-'',a)') &
-                       "## EC_MEMINFO Running with ",nproc, &
-                       " tasks and ", omp_get_max_threads(), " threads at time ", &
-                       cltimeod(1:2),cltimeod(3:4),cltimeod(5:10), &
-                       " on ",cldateod(7:8),cldateod(5:6),cldateod(3:4)
-  write(kulout,'(4a)') "## EC_MEMINFO The Job Name is ",TRIM(jobname), &
-                       " and the Job ID is ",TRIM(jobid)
-  write(kulout,'(a)')  "## EC_MEMINFO "
-  write(kulout,'(3a)') "## EC_MEMINFO ", &
+  WRITE(KULOUT,'(a,/,a)') "## EC_MEMINFO ","## EC_MEMINFO"
+  WRITE(KULOUT,'(4a)') "## EC_MEMINFO Detailed memory information ", &
+                       "for program ",TRIM(PROGRAM)
+  WRITE(KULOUT,'(a,i5,a,i3,a,a,'':'',a,'':'',a,a,a,''-'',a,''-'',a)') &
+                       "## EC_MEMINFO Running with ",NPROC, &
+                       " tasks and ", OMP_GET_MAX_THREADS(), " threads at time ", &
+                       CLTIMEOD(1:2),CLTIMEOD(3:4),CLTIMEOD(5:10), &
+                       " on ",CLDATEOD(7:8),CLDATEOD(5:6),CLDATEOD(3:4)
+  WRITE(KULOUT,'(4a)') "## EC_MEMINFO The Job Name is ",TRIM(JOBNAME), &
+                       " and the Job ID is ",TRIM(JOBID)
+  WRITE(KULOUT,'(a)')  "## EC_MEMINFO "
+  WRITE(KULOUT,'(3a)') "## EC_MEMINFO ", &
                        "              | TC    | MEMORY USED(MB) |", &
                        "          MEMORY FREE(MB)        INCLUDING CACHED | %USED"
-  write(kulout,'(4a)') "## EC_MEMINFO ", &
+  WRITE(KULOUT,'(4a)') "## EC_MEMINFO ", &
                        "              | Malloc| Inc Heap        |", &
                        " Numa node 0    | Numa node 1    |                |"
-  write(kulout,'(4a)') "## EC_MEMINFO ", &
+  WRITE(KULOUT,'(4a)') "## EC_MEMINFO ", &
                        "Node Name     | Heap  | RSS(sum)        |", &
                        " Small  Huge or | Small  Huge or | Total          |" 
-  write(kulout,'(4a)') "## EC_MEMINFO ", &
+  WRITE(KULOUT,'(4a)') "## EC_MEMINFO ", &
                        "              | (sum) | Small    Huge   |", &
                        "  Only   Small  |  Only   Small  | Memfree+Cached |" 
-  if(iu.eq.-1) then
-    write(0,'(a,/,a)') "## EC_MEMINFO ","## EC_MEMINFO"
-    write(0,'(4a)') "## EC_MEMINFO Detailed memory information ", &
-                    "for program ",TRIM(program)
-    write(0,'(a,i5,a,i3,a,a,'':'',a,'':'',a,a,a,''-'',a,''-'',a)') &
-                    "## EC_MEMINFO Running with ",nproc, &
-                    " tasks and ", omp_get_max_threads(), " threads at time ", &
-                    cltimeod(1:2),cltimeod(3:4),cltimeod(5:10), &
-                    " on ",cldateod(7:8),cldateod(5:6),cldateod(3:4)
-    write(0,'(4a)') "## EC_MEMINFO The Job Name is ",TRIM(jobname), &
-                    " and the Job ID is ",TRIM(jobid)
-    write(0,'(a)')  "## EC_MEMINFO "
-    write(0,'(3a)') "## EC_MEMINFO ", &
+  IF(IU.EQ.-1) THEN
+    WRITE(0,'(a,/,a)') "## EC_MEMINFO ","## EC_MEMINFO"
+    WRITE(0,'(4a)') "## EC_MEMINFO Detailed memory information ", &
+                    "for program ",TRIM(PROGRAM)
+    WRITE(0,'(a,i5,a,i3,a,a,'':'',a,'':'',a,a,a,''-'',a,''-'',a)') &
+                    "## EC_MEMINFO Running with ",NPROC, &
+                    " tasks and ", OMP_GET_MAX_THREADS(), " threads at time ", &
+                    CLTIMEOD(1:2),CLTIMEOD(3:4),CLTIMEOD(5:10), &
+                    " on ",CLDATEOD(7:8),CLDATEOD(5:6),CLDATEOD(3:4)
+    WRITE(0,'(4a)') "## EC_MEMINFO The Job Name is ",TRIM(JOBNAME), &
+                    " and the Job ID is ",TRIM(JOBID)
+    WRITE(0,'(a)')  "## EC_MEMINFO "
+    WRITE(0,'(3a)') "## EC_MEMINFO ", &
                     "              | TC    | MEMORY USED(MB) |", &
                     "          MEMORY FREE(MB)        INCLUDING CACHED | %USED"
-    write(0,'(4a)') "## EC_MEMINFO ", &
+    WRITE(0,'(4a)') "## EC_MEMINFO ", &
                     "              | Malloc| Inc Heap        |", &
                     " Numa node 0    | Numa node 1    |                |"
-    write(0,'(4a)') "## EC_MEMINFO ", &
+    WRITE(0,'(4a)') "## EC_MEMINFO ", &
                     "Node Name     | Heap  | RSS(sum)        |", &
                     " Small  Huge or | Small  Huge or | Total          |" 
-    write(0,'(4a)') "## EC_MEMINFO ", &
+    WRITE(0,'(4a)') "## EC_MEMINFO ", &
                     "              | (sum) | Small    Huge   |", &
                     "  Only   Small  |  Only   Small  | Memfree+Cached |" 
-  endif
-endif
+  ENDIF
+ENDIF
 
-if(error /= 0 ) then
-  write(0,*) "## EC_CRAY_MEMINFO error code ",error," from MPI_BARRIER"
-  call MPI_ABORT(kcomm,-1,error)
-endif
+IF(ERROR /= 0 ) THEN
+  WRITE(0,*) "## EC_CRAY_MEMINFO error code ",ERROR," from MPI_BARRIER"
+  CALL MPI_ABORT(KCOMM,-1,ERROR)
+ENDIF
 
-call crayhostname(nodename)
+CALL CRAYHOSTNAME(NODENAME)
 
-if(first) then
-  pagesize=2048
-  first=.false.
-  call getenv("HUGETLB_DEFAULT_PAGE_SIZE",val)
-  i=index(val,"M")
-  if(i.gt.0) then
-    read(val(1:i-1),*) pagesize
-    pagesize=pagesize*1024
-  endif
-endif
+IF(FIRST) THEN
+  PAGESIZE=2048
+  FIRST=.FALSE.
+  CALL GETENV("HUGETLB_DEFAULT_PAGE_SIZE",VAL)
+  I=INDEX(VAL,"M")
+  IF(I.GT.0) THEN
+    READ(VAL(1:I-1),*) PAGESIZE
+    PAGESIZE=PAGESIZE*1024
+  ENDIF
+ENDIF
 
-nodehuge=0
+NODEHUGE=0
 
-if(pagesize.gt.100000) then
-  write(filename,'(a,i6,a)') "/sys/kernel/mm/hugepages/hugepages-", &
-                             pagesize,"kB/nr_hugepages"
-elseif(pagesize.gt.10000) then
-  write(filename,'(a,i5,a)') "/sys/kernel/mm/hugepages/hugepages-", &
-                             pagesize,"kB/nr_hugepages"
-else
-  write(filename,'(a,i4,a)') "/sys/kernel/mm/hugepages/hugepages-", &
-                             pagesize,"kB/nr_hugepages"
-endif
+IF(PAGESIZE.GT.100000) THEN
+  WRITE(FILENAME,'(a,i6,a)') "/sys/kernel/mm/hugepages/hugepages-", &
+                             PAGESIZE,"kB/nr_hugepages"
+ELSEIF(PAGESIZE.GT.10000) THEN
+  WRITE(FILENAME,'(a,i5,a)') "/sys/kernel/mm/hugepages/hugepages-", &
+                             PAGESIZE,"kB/nr_hugepages"
+ELSE
+  WRITE(FILENAME,'(a,i4,a)') "/sys/kernel/mm/hugepages/hugepages-", &
+                             PAGESIZE,"kB/nr_hugepages"
+ENDIF
 
-if(pagesize.gt.0) then
-  open(502,file=filename,status="old")
-  read(502,*) nodehuge
-  close(502)
-endif
+IF(PAGESIZE.GT.0) THEN
+  OPEN(502,FILE=FILENAME,STATUS="old")
+  READ(502,*) NODEHUGE
+  CLOSE(502)
+ENDIF
 
-nodehuge=nodehuge*pagesize
+NODEHUGE=NODEHUGE*PAGESIZE
       
-open(file="/proc/meminfo",unit=502)
-do i=1,4
-  read(502,'(a)') line
-  if(line(1:7).eq."MemFree") then
-    read(line(9:80),*) memfree 
-  elseif(line(1:6).eq."Cached") then
-    read(line(8:80),*) cached
-  endif
-enddo
-close(502)
+OPEN(FILE="/proc/meminfo",UNIT=502)
+DO I=1,4
+  READ(502,'(a)') LINE
+  IF(LINE(1:7).EQ."MemFree") THEN
+    READ(LINE(9:80),*) MEMFREE 
+  ELSEIF(LINE(1:6).EQ."Cached") THEN
+    READ(LINE(8:80),*) CACHED
+  ENDIF
+ENDDO
+CLOSE(502)
 
-nodehuge=nodehuge/1024
-memfree=memfree/1024
-cached=cached/1024
+NODEHUGE=NODEHUGE/1024
+MEMFREE=MEMFREE/1024
+CACHED=CACHED/1024
 
-open(502,file='/proc/self/status')
-do i=1,20
-  read(502,'(a)') line
-  if (line(1:6).eq.'VmRSS:' ) read(line(8:80),*) tasksmall
-enddo
-close(502)
-tasksmall=tasksmall/1024
+OPEN(502,FILE='/proc/self/status')
+DO I=1,20
+  READ(502,'(a)') LINE
+  IF (LINE(1:6).EQ.'VmRSS:' ) READ(LINE(8:80),*) TASKSMALL
+ENDDO
+CLOSE(502)
+TASKSMALL=TASKSMALL/1024
 
-open(file="/proc/buddyinfo",unit=502)
+OPEN(FILE="/proc/buddyinfo",UNIT=502)
 
-read(502,'(a)') line
-read(502,'(a)') line
-read(502,'(a)') line
-read(line(22:160),*) node0
-node1(:)=0
-read(502,'(a)',end=99) line
-read(line(22:160),*) node1
+READ(502,'(a)') LINE
+READ(502,'(a)') LINE
+READ(502,'(a)') LINE
+READ(LINE(22:160),*) NODE0
+NODE1(:)=0
+READ(502,'(a)',END=99) LINE
+READ(LINE(22:160),*) NODE1
 
-99 close(502)
+99 CLOSE(502)
 
-bucket0(1)=node0(1)*4096
-bucket1(1)=node1(1)*4096
-do i=2,18
-  bucket0(i)=node0(i)*4096
-  bucket1(i)=node1(i)*4096
-  do j=2,i
-    bucket0(i)=bucket0(i)*2
-    bucket1(i)=bucket1(i)*2
-  enddo
-enddo
+BUCKET0(1)=NODE0(1)*4096
+BUCKET1(1)=NODE1(1)*4096
+DO I=2,18
+  BUCKET0(I)=NODE0(I)*4096
+  BUCKET1(I)=NODE1(I)*4096
+  DO J=2,I
+    BUCKET0(I)=BUCKET0(I)*2
+    BUCKET1(I)=BUCKET1(I)*2
+  ENDDO
+ENDDO
 
-smallpage0=0
-smallpage1=0
-do i=1,9
-   smallpage0=smallpage0+bucket0(i)
-   smallpage1=smallpage1+bucket1(i)
-enddo
-hugepage0=0
-hugepage1=0
-do i=10,18
-   hugepage0=hugepage0+bucket0(i)
-   hugepage1=hugepage1+bucket1(i)
-enddo
+SMALLPAGE0=0
+SMALLPAGE1=0
+DO I=1,9
+   SMALLPAGE0=SMALLPAGE0+BUCKET0(I)
+   SMALLPAGE1=SMALLPAGE1+BUCKET1(I)
+ENDDO
+HUGEPAGE0=0
+HUGEPAGE1=0
+DO I=10,18
+   HUGEPAGE0=HUGEPAGE0+BUCKET0(I)
+   HUGEPAGE1=HUGEPAGE1+BUCKET1(I)
+ENDDO
 
-smallpage0=smallpage0/(1024*1024)
-smallpage1=smallpage1/(1024*1024)
-hugepage0=hugepage0/(1024*1024)
-hugepage1=hugepage1/(1024*1024)
+SMALLPAGE0=SMALLPAGE0/(1024*1024)
+SMALLPAGE1=SMALLPAGE1/(1024*1024)
+HUGEPAGE0=HUGEPAGE0/(1024*1024)
+HUGEPAGE1=HUGEPAGE1/(1024*1024)
 
-heap_size=gethwm()/(1024*1024)
+HEAP_SIZE=GETHWM()/(1024*1024)
 
 ITAG = 98765
-if(myproc.eq.0) then
-    nodenum=1
-    lastnode=nodename
-    do i=1,nproc-1
-        call MPI_RECV(nodename(1:8),8,MPI_BYTE,i,itag,kcomm,irecv_status,error)
-        if(error /= 0 ) then
-          write(0,*) "## EC_CRAY_MEMINFO error code ",error," from MPI_RECV"
-          call MPI_ABORT(kcomm,-1,error)
-        endif
-        call MPI_RECV(recvbuf(1:9),9,MPI_INTEGER8,i,itag+1,kcomm,irecv_status,error)
-        if(error /= 0 ) then
-          write(0,*) "## EC_CRAY_MEMINFO error code ",error," from MPI_RECV"
-          call MPI_ABORT(kcomm,-1,error)
-        endif
-        if(lastnode==nodename)then
-          heap_size=heap_size+recvbuf(8)
-          tasksmall=tasksmall+recvbuf(9)
-        else
-          if(heap_size.gt.nodehuge) then
+IF(MYPROC.EQ.0) THEN
+    NODENUM=1
+    LASTNODE=NODENAME
+    DO I=1,NPROC-1
+        CALL MPI_RECV(NODENAME(1:8),8,MPI_BYTE,I,ITAG,KCOMM,IRECV_STATUS,ERROR)
+        IF(ERROR /= 0 ) THEN
+          WRITE(0,*) "## EC_CRAY_MEMINFO error code ",ERROR," from MPI_RECV"
+          CALL MPI_ABORT(KCOMM,-1,ERROR)
+        ENDIF
+        CALL MPI_RECV(RECVBUF(1:9),9,MPI_INTEGER8,I,ITAG+1,KCOMM,IRECV_STATUS,ERROR)
+        IF(ERROR /= 0 ) THEN
+          WRITE(0,*) "## EC_CRAY_MEMINFO error code ",ERROR," from MPI_RECV"
+          CALL MPI_ABORT(KCOMM,-1,ERROR)
+        ENDIF
+        IF(LASTNODE==NODENAME)THEN
+          HEAP_SIZE=HEAP_SIZE+RECVBUF(8)
+          TASKSMALL=TASKSMALL+RECVBUF(9)
+        ELSE
+          IF(HEAP_SIZE.GT.NODEHUGE) THEN
 ! running with small pages
-            percent_used=100.0*(tasksmall+nodehuge)/(tasksmall+nodehuge+memfree+cached)
-          else
+            PERCENT_USED=100.0*(TASKSMALL+NODEHUGE)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
+          ELSE
 ! running with huge pages
-            percent_used=100.0*heap_size/nodehuge
-          endif
-          write(kulout,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,f4.1,1x,a)') "## EC_MEMINFO ", &
- &                      nodenum,lastnode,heap_size,tasksmall,nodehuge,   &
- &                      smallpage0,hugepage0,smallpage1,hugepage1,memfree,cached, &
- &                      percent_used,idstring
-          if(iu.eq.-1) then
-            write(0,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,f4.1,1x,a)') "## EC_MEMINFO ", &
- &                   nodenum,lastnode,heap_size,tasksmall,nodehuge,   &
- &                   smallpage0,hugepage0,smallpage1,hugepage1,memfree,cached, &
- &                   percent_used,idstring
-          endif
+            PERCENT_USED=100.0*HEAP_SIZE/NODEHUGE
+          ENDIF
+          WRITE(KULOUT,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,f4.1,1x,a)') "## EC_MEMINFO ", &
+ &                      NODENUM,LASTNODE,HEAP_SIZE,TASKSMALL,NODEHUGE,   &
+ &                      SMALLPAGE0,HUGEPAGE0,SMALLPAGE1,HUGEPAGE1,MEMFREE,CACHED, &
+ &                      PERCENT_USED,IDSTRING
+          IF(IU.EQ.-1) THEN
+            WRITE(0,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,f4.1,1x,a)') "## EC_MEMINFO ", &
+ &                   NODENUM,LASTNODE,HEAP_SIZE,TASKSMALL,NODEHUGE,   &
+ &                   SMALLPAGE0,HUGEPAGE0,SMALLPAGE1,HUGEPAGE1,MEMFREE,CACHED, &
+ &                   PERCENT_USED,IDSTRING
+          ENDIF
 
-          nodehuge=recvbuf(1)
-          memfree=recvbuf(2)
-          cached=recvbuf(3)
-          smallpage0=recvbuf(4)
-          smallpage1=recvbuf(5)
-          hugepage0=recvbuf(6)
-          hugepage1=recvbuf(7)
-          heap_size=recvbuf(8)
-          tasksmall=recvbuf(9)
-          nodenum=nodenum+1
-          lastnode=nodename
-        endif
-    enddo
-    if(heap_size.gt.nodehuge) then
+          NODEHUGE=RECVBUF(1)
+          MEMFREE=RECVBUF(2)
+          CACHED=RECVBUF(3)
+          SMALLPAGE0=RECVBUF(4)
+          SMALLPAGE1=RECVBUF(5)
+          HUGEPAGE0=RECVBUF(6)
+          HUGEPAGE1=RECVBUF(7)
+          HEAP_SIZE=RECVBUF(8)
+          TASKSMALL=RECVBUF(9)
+          NODENUM=NODENUM+1
+          LASTNODE=NODENAME
+        ENDIF
+    ENDDO
+    IF(HEAP_SIZE.GT.NODEHUGE) THEN
 ! running with small pages
-      percent_used=100.0*(tasksmall+nodehuge)/(tasksmall+nodehuge+memfree+cached)
-    else
+      PERCENT_USED=100.0*(TASKSMALL+NODEHUGE)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
+    ELSE
 ! running with huge pages
-      percent_used=100.0*heap_size/nodehuge
-    endif
-    write(kulout,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,f4.1,1x,a)') "## EC_MEMINFO ", &
- &                nodenum,lastnode,heap_size,tasksmall,nodehuge,   &
- &                smallpage0,hugepage0,smallpage1,hugepage1,memfree,cached, &
- &                percent_used,idstring
+      PERCENT_USED=100.0*HEAP_SIZE/NODEHUGE
+    ENDIF
+    WRITE(KULOUT,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,f4.1,1x,a)') "## EC_MEMINFO ", &
+ &                NODENUM,LASTNODE,HEAP_SIZE,TASKSMALL,NODEHUGE,   &
+ &                SMALLPAGE0,HUGEPAGE0,SMALLPAGE1,HUGEPAGE1,MEMFREE,CACHED, &
+ &                PERCENT_USED,IDSTRING
 
-    if(iu.eq.-1) then
-      write(0,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,f4.1,1x,a)') "## EC_MEMINFO ", &
- &                  nodenum,lastnode,heap_size,tasksmall,nodehuge,   &
- &                  smallpage0,hugepage0,smallpage1,hugepage1,memfree,cached, &
- &                  percent_used,idstring
-      close(kulout)
-    endif
-else
-    call MPI_SEND(nodename(1:8),8,MPI_BYTE,0,itag,kcomm,error)
-    if(error /= 0 ) then
-       write(0,*) "## EC_CRAY_MEMINFO error code ",error," from MPI_SEND"
-       call MPI_ABORT(kcomm,-1,error)
-    endif
-    sendbuf(1)=nodehuge
-    sendbuf(2)=memfree
-    sendbuf(3)=cached
-    sendbuf(4)=smallpage0
-    sendbuf(5)=smallpage1
-    sendbuf(6)=hugepage0
-    sendbuf(7)=hugepage1
-    sendbuf(8)=heap_size
-    sendbuf(9)=tasksmall
-    call MPI_SEND(sendbuf(1:9),9,MPI_INTEGER8,0,itag+1,kcomm,error)
-    if(error /= 0 ) then
-       write(0,*) "## EC_CRAY_MEMINFO error code ",error," from MPI_SEND"
-       call MPI_ABORT(kcomm,-1,error)
-    endif
-endif
+    IF(IU.EQ.-1) THEN
+      WRITE(0,'(a,i4,1x,a,3i8,2x,2i8,1x,2i8,2x,2i8,3x,f4.1,1x,a)') "## EC_MEMINFO ", &
+ &                  NODENUM,LASTNODE,HEAP_SIZE,TASKSMALL,NODEHUGE,   &
+ &                  SMALLPAGE0,HUGEPAGE0,SMALLPAGE1,HUGEPAGE1,MEMFREE,CACHED, &
+ &                  PERCENT_USED,IDSTRING
+      CLOSE(KULOUT)
+    ENDIF
+ELSE
+    CALL MPI_SEND(NODENAME(1:8),8,MPI_BYTE,0,ITAG,KCOMM,ERROR)
+    IF(ERROR /= 0 ) THEN
+       WRITE(0,*) "## EC_CRAY_MEMINFO error code ",ERROR," from MPI_SEND"
+       CALL MPI_ABORT(KCOMM,-1,ERROR)
+    ENDIF
+    SENDBUF(1)=NODEHUGE
+    SENDBUF(2)=MEMFREE
+    SENDBUF(3)=CACHED
+    SENDBUF(4)=SMALLPAGE0
+    SENDBUF(5)=SMALLPAGE1
+    SENDBUF(6)=HUGEPAGE0
+    SENDBUF(7)=HUGEPAGE1
+    SENDBUF(8)=HEAP_SIZE
+    SENDBUF(9)=TASKSMALL
+    CALL MPI_SEND(SENDBUF(1:9),9,MPI_INTEGER8,0,ITAG+1,KCOMM,ERROR)
+    IF(ERROR /= 0 ) THEN
+       WRITE(0,*) "## EC_CRAY_MEMINFO error code ",ERROR," from MPI_SEND"
+       CALL MPI_ABORT(KCOMM,-1,ERROR)
+    ENDIF
+ENDIF
 
-CALL MPI_BARRIER(kcomm,error)
+CALL MPI_BARRIER(KCOMM,ERROR)
 
-end
+END

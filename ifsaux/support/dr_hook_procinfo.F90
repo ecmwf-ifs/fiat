@@ -1,8 +1,8 @@
-subroutine dr_hook_procinfo(kmyproc, knproc)
+SUBROUTINE DR_HOOK_PROCINFO(KMYPROC, KNPROC)
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-use mpl_module, only : MPL_RANK,MPL_NUMPROC
-implicit none
-INTEGER(KIND=JPIM),intent(out) :: kmyproc, knproc
-kmyproc = mpl_rank
-knproc = mpl_numproc
-end subroutine dr_hook_procinfo
+USE MPL_MODULE, ONLY : MPL_RANK,MPL_NUMPROC
+IMPLICIT NONE
+INTEGER(KIND=JPIM),INTENT(OUT) :: KMYPROC, KNPROC
+KMYPROC = MPL_RANK
+KNPROC = MPL_NUMPROC
+END SUBROUTINE DR_HOOK_PROCINFO

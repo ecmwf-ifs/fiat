@@ -27,7 +27,7 @@ INTEGER(KIND=JPIM) INUMTIDS, IMYTID
 LOGICAL :: LLMPI
 INTEGER*8 :: MAXMEM=0
 INTEGER*8 :: GETMAXMEM
-INTEGER*8 getmaxloc
+INTEGER*8 GETMAXLOC
 LOGICAL :: LLFINDSUMB=.FALSE.
 REAL(KIND=JPRD) :: ZCLOCK
 REAL(KIND=JPRB) :: ZDIFF
@@ -72,13 +72,13 @@ IF (LL_FIRST_TIME) THEN
   ELSE
     CALL GETARG(0, CLENV)
   ENDIF
-  IF (.not.LDHOOK) RETURN
+  IF (.NOT.LDHOOK) RETURN
   
   CALL C_DRHOOK_INIT(CLENV, INUMTIDS)
 
 !JFH---Initialisation to monitor stack usage by threads-------------
   CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK_STACKCHECK',CSTACK)
-  if (CSTACK == 'yes' .or. CSTACK == 'YES' ) THEN
+  IF (CSTACK == 'yes' .OR. CSTACK == 'YES' ) THEN
     IF(IMYTID == 1 ) THEN
       ALLOCATE(LL_THREAD_FIRST(INUMTIDS))
       ALLOCATE(ISAVE(INUMTIDS))
@@ -86,14 +86,14 @@ IF (LL_FIRST_TIME) THEN
       LL_THREAD_FIRST=.TRUE.
       ISAVE=0
       IMAXSTACK=0
-    ENDIf
+    ENDIF
   ENDIF
 !JFH------------ End ---------------------------------------------
 !JFH---Initialisation to monitor heap usage-----------------------
   JHEAP=0
   CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK_HEAPCHECK',CHEAP)
-  if (CHEAP == 'yes' .or. CHEAP == 'YES' ) JHEAP=1
-  if (CHEAP == 'trb' .or. CHEAP == 'TRB' ) JHEAP=2
+  IF (CHEAP == 'yes' .OR. CHEAP == 'YES' ) JHEAP=1
+  IF (CHEAP == 'trb' .OR. CHEAP == 'TRB' ) JHEAP=2
   IF(IMYTID == 1) THEN
     IF(JHEAP>0) THEN
 !     write(0,*) "HEAPCHECK=",CHEAP,JHEAP
@@ -125,29 +125,29 @@ ENDIF
 IF (KCASE == 0) THEN
   CALL C_DRHOOK_START(CDNAME, IMYTID, PKEY, CDFILENAME, KSIZEINFO)
 !JFH---Code to monitor heap usage -------------------------
-  if(IMYTID == 1 .and. MYPROC_STATS == 1 .and. JHEAP>0) THEN
-    GETMAXMEM=getmaxloc()
-    if(GETMAXMEM .gt. MAXMEM) then
+  IF(IMYTID == 1 .AND. MYPROC_STATS == 1 .AND. JHEAP>0) THEN
+    GETMAXMEM=GETMAXLOC()
+    IF(GETMAXMEM .GT. MAXMEM) THEN
       MAXMEM = GETMAXMEM
-      write(0,*) "HEAPCHECK Max heap at beg of routine =",MAXMEM," ",CDNAME
+      WRITE(0,*) "HEAPCHECK Max heap at beg of routine =",MAXMEM," ",CDNAME
 #ifdef RS6K
-      IF(JHEAP == 2) call xl__trbk()
+      IF(JHEAP == 2) CALL XL__TRBK()
 #endif
-    endif
-  endif
+    ENDIF
+  ENDIF
 !JFH------------ End ---------------------------------------------
 ELSE IF (KCASE == 1) THEN
 !JFH---Code to monitor heap usage -------------------------
-  if(IMYTID == 1 .and. MYPROC_STATS == 1 .and. JHEAP>0) THEN
-    GETMAXMEM=getmaxloc()
-    if(GETMAXMEM .gt. MAXMEM) then
+  IF(IMYTID == 1 .AND. MYPROC_STATS == 1 .AND. JHEAP>0) THEN
+    GETMAXMEM=GETMAXLOC()
+    IF(GETMAXMEM .GT. MAXMEM) THEN
       MAXMEM = GETMAXMEM
-      write(0,*) "HEAPCHECK Max heap at end of routine =",MAXMEM," ",CDNAME
+      WRITE(0,*) "HEAPCHECK Max heap at end of routine =",MAXMEM," ",CDNAME
 #ifdef RS6K
-      IF(JHEAP == 2) call xl__trbk()
+      IF(JHEAP == 2) CALL XL__TRBK()
 #endif
-    endif
-  endif
+    ENDIF
+  ENDIF
 !JFH------------ End ---------------------------------------------
   CALL C_DRHOOK_END  (CDNAME, IMYTID, PKEY, CDFILENAME, KSIZEINFO)
 ENDIF
