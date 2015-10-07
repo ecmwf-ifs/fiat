@@ -24,7 +24,9 @@ MYTHREAD=OMP_GET_THREAD_NUM() + 1
   WRITE(MESSAGE,'(A,I4,A,I2,A)') &
   &           "Process ",MYPROC," thread ",MYTHREAD, &
   &           " calling tracebackqq from intel_trbk()"
+#ifndef __INTEL_COMPILER
   CALL TRACEBACKQQ(MESSAGE, USER_EXIT_CODE=-1)
+#endif
 #endif
 #ifdef LINUX
   WRITE(0,*) "Process ",MYPROC," thread ",MYTHREAD, &
