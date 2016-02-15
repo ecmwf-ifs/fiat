@@ -19,7 +19,7 @@
       RETURN
       ENDFUNCTION TIMEF
 #elif defined ( RS6K )
-      REAL*8 TIMEF()
+      REAL*8 FUNCTION TIMEF()
       INTEGER*8 IRTC
       EXTERNAL IRTC
       DATA IFIRST/0/
