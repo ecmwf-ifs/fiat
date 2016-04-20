@@ -1,4 +1,4 @@
-#if defined(LINUX) && !defined(DARWIN) && !defined(_CRAYC)
+#if defined(LINUX) && !defined(DARWIN) && !defined(_CRAYC) && !defined(ECMWF)
 
 #define _GNU_SOURCE
 
@@ -118,7 +118,8 @@ void linux_bind_ (int * prank, int * psize)
 
   if (fp == NULL)
     {
-      fprintf (stderr, "`" LINUX_BIND_TXT "' was not found\n");
+      // Willem Deconinck: Comment out as this pollutes logs
+      // fprintf (stderr, "`" LINUX_BIND_TXT "' was not found\n");
       goto end;
     }
 

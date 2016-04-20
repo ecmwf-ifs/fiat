@@ -5,8 +5,6 @@
 
 typedef  long long int  ll_t;
 
-static ll_t maxrss = 0;
-
 #if defined(CRAY) && !defined(SV2)
 #define getrss GETRSS
 #else
@@ -51,7 +49,6 @@ getrss()
   rc = getrusage(RUSAGE_SELF, &r);
   rc = (rc == 0) ? (ll_t) r.ru_maxrss * scaler : 0;
 #endif
-  if (rc > maxrss) maxrss = rc;
   return rc;
 }
 
@@ -71,7 +68,6 @@ ll_t getrss()
       if (pagesize <= 0) pagesize = 4096;
     }
     rc = (sm.resident - basesize) * pagesize;
-    if (rc > maxrss) maxrss = rc;
   }
   return rc;
 }
@@ -79,15 +75,9 @@ ll_t getrss()
 ll_t getrss()
 {
   ll_t rc = (ll_t)((char *)sbrk(0) - (char *)0);
-  if (rc > maxrss) maxrss = rc;
   return rc;
 }
 #endif
 
 #endif
 
-ll_t getmaxrss_()
-{
-  (void) getrss_();
-  return maxrss;
-}
