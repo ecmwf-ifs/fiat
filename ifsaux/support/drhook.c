@@ -3207,16 +3207,11 @@ c_drhook_print_(const int *ftnunitno,
 	      tl->last_rss_MB = rss;
 	    }
 	    if (opt_timeline_format == 1) {
-	      if (wall < 10000) {
-		sprintf(s, "%.4g %.4g %.4g", wall, rss, curheap);
-	      }
-	      else {
-		sprintf(s, "%.7g %.4g %.4g", wall, rss, curheap);
-	      }
+	      sprintf(s, "%.6f %.4g %.4g", wall, rss, curheap);
 	    }
 	    else {
 	      sprintf(s,
-		      "wall=%.4g cpu=%.4g hwm=%.4g rss=%.4g curheap=%.4g stack=%.4g pag=%lld",
+		      "wall=%.6f cpu=%.4g hwm=%.4g rss=%.4g curheap=%.4g stack=%.4g pag=%lld",
 		      wall, CPUTIME(),
 		      (double)(gethwm_()/1048576.0), rss,
 		      curheap,
@@ -4439,13 +4434,20 @@ mip_count(const drhook_key_t *keyptr)
 FORTRAN_CALL
 double util_walltime_()
 {
+  static double time_init = -1;
   double time_in_secs;
 #if !defined(CRAYXT)
   struct timeval tbuf;
   if (gettimeofday(&tbuf,NULL) == -1) perror("UTIL_WALLTIME");
-  time_in_secs = (double) tbuf.tv_sec + ((double)tbuf.tv_usec * 1.0e-6);
+
+  if (time_init == -1) time_init = 
+    (double) tbuf.tv_sec + (tbuf.tv_usec / 1000000.0);
+
+  time_in_secs = 
+  (double) tbuf.tv_sec + (tbuf.tv_usec / 1000000.0) - time_init;
 #else
-  time_in_secs = dclock();
+  if (time_init == -1) time_init = dclock();
+  time_in_secs = dclock() - time_init;
 #endif
   return time_in_secs;
 }
