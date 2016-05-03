@@ -111,14 +111,22 @@ void linux_bind_ (int * prank, int * psize)
 {
   int rank = *prank;
   int size = *psize;
-  FILE * fp = fopen (LINUX_BIND_TXT, "r");
+  FILE * fp;
   int i;
   size_t len  = 256;
   char * buf = (char*)malloc (len);
+  const char * EC_LINUX_BIND;
+
+  EC_LINUX_BIND = getenv ("EC_LINUX_BIND");
+
+  if (EC_LINUX_BIND == NULL)
+    EC_LINUX_BIND = LINUX_BIND_TXT;
+
+  fp = fopen (EC_LINUX_BIND, "r");
 
   if (fp == NULL)
     {
-      fprintf (stderr, "`" LINUX_BIND_TXT "' was not found\n");
+      fprintf (stderr, "`%s' was not found\n", EC_LINUX_BIND);
       goto end;
     }
 
@@ -187,3 +195,4 @@ void linux_bind_ () { }
 void linux_bind_dump_ () { }
 
 #endif
+
