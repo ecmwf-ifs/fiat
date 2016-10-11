@@ -421,7 +421,7 @@ static drhook_watch_t *last_watch = NULL;
 static int watch_count = 0; /* No. of *active* watch points */
 
 #if !defined(NCALLSTACK)
-#ifdef SINGLE
+#ifdef PARKIND1_SINGLE
 /* > 0 : USE call stack approach : needed for single precision version */
 #define NCALLSTACK 64
 #else
