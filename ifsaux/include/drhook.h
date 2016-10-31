@@ -2,6 +2,11 @@
 #define _DRHOOK_H_
 
 #ifdef _DRHOOK_C_
+
+#if defined(__GNUC__)
+#define _GNU_SOURCE 1
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -13,6 +18,14 @@
 #include <errno.h>
 #include <time.h>
 #include <math.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <pthread.h>
+#include <limits.h>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #ifdef RS6K
 #include <fptrap.h>
@@ -182,3 +195,4 @@ extern void
 dr_hook_procinfo_(int *myproc, int *nproc);
 
 #endif  /* _DRHOOK_H_ */
+
