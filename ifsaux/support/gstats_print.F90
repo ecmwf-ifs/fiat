@@ -42,7 +42,8 @@ SUBROUTINE GSTATS_PRINT(KULOUT,PAVEAVE,KLEN)
 !        C.Larsson    8-May-2006 : Added xml file output
 !        G.Mozdzynski 16-Oct-2007 : xml file output under switch LXML_STATS
 !        P.Towers     11-May-2011 : mpl comms statistics output
-!      F. Vana  05-Mar-2015  Support for single precision
+!        F. Vana  05-Mar-2015  Support for single precision
+!        G. Mozdzynski 18-Aug-2015 Avoid confusion, procs are tasks
 !     ------------------------------------------------------------------
 USE PARKIND1  ,ONLY : JPRD, JPIM
 
@@ -233,9 +234,9 @@ ELSEIF(LSTATS) THEN
     ZT_SUMIO=0.0_JPRD
     ZT_SUMB=0.0_JPRD
     IF( LDETAILED_STATS .AND. JROC <= NPRNT_STATS ) THEN
-      WRITE(KULOUT,'(A,I4)') 'TIMING STATISTICS:PROCESSOR=',JROC
+      WRITE(KULOUT,'(A,I4)') 'TIMING STATISTICS:TASK=',JROC
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A)')'<timing processor="',JROC,'">'
+        WRITE(IXMLLUN,'(A,I4,A)')'<timing task="',JROC,'">'
       ENDIF
       IF(NPROC_STATS > 1) THEN
         WRITE(KULOUT,'(A,F6.1,A)')'STARTUP COST ',&
@@ -423,7 +424,7 @@ ELSEIF(LSTATS) THEN
       ENDIF
     ENDIF
     IF( LSTATS_MPL .AND. JROC <= NPRNT_STATS ) THEN
-      WRITE(KULOUT,'(/,A,I4,/)') 'COMMUNICATIONS STATISTICS:PROCESSOR=',JROC
+      WRITE(KULOUT,'(/,A,I4,/)') 'COMMUNICATIONS STATISTICS:TASK=',JROC
       WRITE(KULOUT,'(A)') &
        &' NUM     ROUTINE                              '//&
        &'  SUM(s)   SENDS  AVG(kb) TOTAL(MB) MB/s '//&
@@ -454,7 +455,7 @@ ELSEIF(LSTATS) THEN
             &  NUMRECV(JNUM),AVGRECVLEN,RECVBYTES(JNUM)*1.E-6, RECVRATE
         ENDIF
       ENDDO
-      WRITE(KULOUT,'(/,A,I4,/)') 'UNKNOWN COMMUNICATIONS STATISTICS:PROCESSOR=', JROC
+      WRITE(KULOUT,'(/,A,I4,/)') 'UNKNOWN COMMUNICATIONS STATISTICS:TASK=', JROC
       WRITE(KULOUT,'(A)') &
        &' NUM     BEFORE ROUTINE                        '//&
        &'    SENDS TOTAL(MB) '//&
@@ -486,10 +487,10 @@ ELSEIF(LSTATS) THEN
 
   ENDDO
   IF(LXML_STATS)THEN
-    WRITE(IXMLLUN,'(A)')'<timing_all_processors>'
+    WRITE(IXMLLUN,'(A)')'<timing_all_tasks>'
   ENDIF
   WRITE(KULOUT,*) ''
-  WRITE(KULOUT,'(A)') 'STATS FOR ALL PROCESSORS'
+  WRITE(KULOUT,'(A)') 'STATS FOR ALL TASKS'
   WRITE(KULOUT,'(A)') &
   &' NUM ROUTINE                                     CALLS  MEAN(ms)   MAX(ms)   FRAC(%)  UNBAL(%)'
   ZTOTUNBAL = 0.0_JPRD
@@ -522,7 +523,7 @@ ELSEIF(LSTATS) THEN
     ENDIF
   ENDDO
   IF(LXML_STATS)THEN
-    WRITE(IXMLLUN,'(A)')'</timing_all_processors>'
+    WRITE(IXMLLUN,'(A)')'</timing_all_tasks>'
   ENDIF
 
 IF(LSTATS_COMMS)THEN
@@ -854,7 +855,7 @@ IF( LDETAILED_STATS )THEN
     ENDIF
     IF( MYPROC_STATS == 1 .AND. NDELAY_INDEX > 0 )THEN
       WRITE(KULOUT,'("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")')
-      WRITE(KULOUT,'("PROC=",I6," NUMBER OF UNEXPECTED DELAYS=",I4)') JROC,NDELAY_INDEX
+      WRITE(KULOUT,'("TASK=",I6," NUMBER OF UNEXPECTED DELAYS=",I4)') JROC,NDELAY_INDEX
       IF( NDELAY_INDEX == JPMAXDELAYS )THEN
         WRITE(KULOUT,'(" NOTE THAT THE MAXIMUM NUMBER OF DELAYS HAS BEEN REACHED =",I6)')JPMAXDELAYS
       ENDIF
@@ -876,7 +877,7 @@ IF( LDETAILED_STATS )THEN
          IF( CCTYPE(NDELAY_COUNTER(JDELAY)) .EQ. 'MXD' ) ZMXD(JROC)=ZMXD(JROC)+TDELAY_VALUE(JDELAY)
       ENDDO
       WRITE(KULOUT,'(" ")')
-      WRITE(KULOUT,'("PROC=",I6," UNEXPECTED DELAYS SORTED BY COUNTER")') JROC
+      WRITE(KULOUT,'("TASK=",I6," UNEXPECTED DELAYS SORTED BY COUNTER")') JROC
       DO JNUM=500,JPMAXSTAT
         IDELAY=0
         ZDELAY=0.0_JPRD
@@ -900,7 +901,7 @@ IF( LDETAILED_STATS )THEN
     WRITE(KULOUT,'("MAXIMUM TOTAL UNEXPECTED DELAY TIME (SECS) =",F9.1)') ZDELAY_MAX
     WRITE(KULOUT,'(" ")')
     WRITE(KULOUT,'(" ")')
-    WRITE(KULOUT,'("  PROC   ","     MPL   ","     BAR   ","     GBR   ","     GB2   ","     OMP   ",&
+    WRITE(KULOUT,'("  TASK   ","     MPL   ","     BAR   ","     GBR   ","     GB2   ","     OMP   ",&
      &"     IO-   ","     SER   ","     MXD   ")')
     DO JROC=1,NPROC_STATS
       WRITE(KULOUT,'(I6,8(2X,F9.1))') JROC,ZMPL(JROC),ZBAR(JROC),ZGBR(JROC),ZGB2(JROC),&
