@@ -86,7 +86,6 @@ int drhook_memtrace = 0; /* set to 1, if opt_memprof or opt_timeline ; used in g
 #endif
 
 #include "crc.h"
-#include <signal.h>
 #include <time.h>
 
 static char *start_stamp = NULL;
