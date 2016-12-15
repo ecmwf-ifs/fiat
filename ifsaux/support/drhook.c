@@ -473,7 +473,7 @@ static pid_t gettid() {
 
 
 #if !defined(NCALLSTACK)
-#ifdef SINGLE
+#ifdef PARKIND1_SINGLE
 /* > 0 : USE call stack approach : needed for single precision version */
 #define NCALLSTACK 64
 #else
