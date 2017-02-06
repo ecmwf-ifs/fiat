@@ -1781,7 +1781,11 @@ signal_drhook_init(int enforce)
   }
   if (!ec_drhook) {
     int slen;
+#if defined MACOSX
+    char hostname[256];
+#else
     char hostname[HOST_NAME_MAX];
+#endif
     int ntids = 1;
 #ifdef _OPENMP
     ntids = omp_get_max_threads();
@@ -5207,6 +5211,7 @@ int util_ihpstat_(int *option)
  
 static void set_timed_kill()
 {
+#if !defined MACOSX
   if (drhook_timed_kill) {
     const char delim[] = ", \t/";
     char *p, *s = strdup_drhook(drhook_timed_kill);
@@ -5266,4 +5271,5 @@ static void set_timed_kill()
     }
     free_drhook(s);
   }
+#endif
 }
