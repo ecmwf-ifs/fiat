@@ -59,7 +59,8 @@ gethwm()
 
 #else  /* non-RS6K */
 
-#if defined(_CRAYC)
+/*#if defined(_CRAYC)*/
+#if 0
 ll_t
 gethwm()
 {
@@ -119,6 +120,7 @@ unsigned int sleep_(unsigned int seconds)
 
 ll_t getmaxhwm_()
 {
-  (void) gethwm_();
+  ll_t rc = gethwm_();
+  if (rc > maxhwm) maxhwm = rc;
   return maxhwm;
 }

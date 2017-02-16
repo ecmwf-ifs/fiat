@@ -35,14 +35,21 @@ CHARACTER(LEN=2) :: EC_MEMINFO
 CHARACTER(LEN=4) :: CSTAR
 CHARACTER(LEN=LEN(CSTAR)+1+LEN(IDSTRING)) :: ID_STRING
 CHARACTER (LEN = 10) ::  CLDATEOD,CLTIMEOD,CLZONEOD
-INTEGER(KIND=4) :: IVALUES(8)
+CHARACTER(LEN=3), PARAMETER :: CLMON(1:12) = (/ &
+     'Jan','Feb','Mar','Apr','May','Jun', &
+     'Jul','Aug','Sep','Oct','Nov','Dec' /)
+INTEGER(KIND=4) :: IVALUES(8), IMON
 INTEGER(KIND=4) :: IRECV_STATUS(MPI_STATUS_SIZE)
 LOGICAL :: LLNOCOMM, LLNOHDR
 CHARACTER(LEN=64) :: CLPFX
 CHARACTER(LEN=3) :: ZUM
 INTEGER(KIND=4) :: IPFXLEN
 INTEGER OMP_GET_MAX_THREADS
+#ifdef _OPENMP
 EXTERNAL OMP_GET_MAX_THREADS
+#else
+OMP_GET_MAX_THREADS() = 1
+#endif
 
 CALL GETENV('EC_MEMINFO',EC_MEMINFO)
 IF (EC_MEMINFO == '0') RETURN
@@ -97,21 +104,22 @@ IF(MYPROC == 0) THEN
   ENDIF
 
   CALL DATE_AND_TIME(CLDATEOD,CLTIMEOD,CLZONEOD,IVALUES)
+  READ(CLDATEOD(5:6),'(I2)') IMON
   CALL GETENV('EC_JOB_NAME',JOBNAME)
-  IF(JOBNAME == '') THEN
-    CALL GETENV('PBS_JOBNAME',JOBNAME)
-  ENDIF
+  IF (JOBNAME == '') CALL GETENV('PBS_JOBNAME',JOBNAME)
+  IF (JOBNAME == '') CALL GETENV('SLURM_JOB_NAME',JOBNAME)
   CALL GETENV('PBS_JOBID',JOBID)
+  IF (JOBID == '') CALL GETENV('SLURM_JOB_ID',JOBID)
 
   IF (.not.LLNOCOMM) THEN
      WRITE(KULOUT,'(a,/,a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",CLPFX(1:IPFXLEN)//"## EC_MEMINFO"
      WRITE(KULOUT,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
           "for program ",TRIM(PROGRAM)
-     WRITE(KULOUT,'(a,i5,a,i3,a,a,'':'',a,'':'',a,a,a,''-'',a,''-'',a)') &
+     WRITE(KULOUT,'(a,i0,a,i0,a,a,":",a,":",a,a,a,"-",a,"-",a)') &
           CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running with ",NPROC, &
-          " tasks and ", OMP_GET_MAX_THREADS(), " threads at time ", &
+          " tasks and ", OMP_GET_MAX_THREADS(), " threads at ", &
           CLTIMEOD(1:2),CLTIMEOD(3:4),CLTIMEOD(5:10), &
-          " on ",CLDATEOD(7:8),CLDATEOD(5:6),CLDATEOD(3:4)
+          " on ",CLDATEOD(7:8),CLMON(IMON),CLDATEOD(1:4)
      WRITE(KULOUT,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO The Job Name is ",TRIM(JOBNAME), &
           " and the Job ID is ",TRIM(JOBID)
      WRITE(KULOUT,'(a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO "
@@ -134,11 +142,11 @@ IF(MYPROC == 0) THEN
     WRITE(0,'(a,/,a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",CLPFX(1:IPFXLEN)//"## EC_MEMINFO"
     WRITE(0,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
                     "for program ",TRIM(PROGRAM)
-    WRITE(0,'(a,i5,a,i3,a,a,'':'',a,'':'',a,a,a,''-'',a,''-'',a)') &
+    WRITE(0,'(a,i0,a,i0,a,a,":",a,":",a,a,a,"-",a,"-",a)') &
                     CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running with ",NPROC, &
-                    " tasks and ", OMP_GET_MAX_THREADS(), " threads at time ", &
+                    " tasks and ", OMP_GET_MAX_THREADS(), " threads at ", &
                     CLTIMEOD(1:2),CLTIMEOD(3:4),CLTIMEOD(5:10), &
-                    " on ",CLDATEOD(7:8),CLDATEOD(5:6),CLDATEOD(3:4)
+                    " on ",CLDATEOD(7:8),CLMON(IMON),CLDATEOD(1:4)
     WRITE(0,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO The Job Name is ",TRIM(JOBNAME), &
                     " and the Job ID is ",TRIM(JOBID)
     WRITE(0,'(a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO "
@@ -274,7 +282,7 @@ IF(MYPROC == 0) THEN
           TASKSMALL=TASKSMALL+RECVBUF(9)
         ELSE
           PERCENT_USED(2) = 0
-          IF(HEAP_SIZE > NODEHUGE) THEN
+          IF(HEAP_SIZE >= NODEHUGE) THEN
 ! running with small pages
             PERCENT_USED(1)=100.0*(TASKSMALL+NODEHUGE)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
             CSTAR = " s/p"
@@ -317,7 +325,7 @@ IF(MYPROC == 0) THEN
         ENDIF
     ENDDO
     PERCENT_USED(2) = 0
-    IF(HEAP_SIZE > NODEHUGE) THEN
+    IF(HEAP_SIZE >= NODEHUGE) THEN
 ! running with small pages
       PERCENT_USED(1)=100.0*(TASKSMALL+NODEHUGE)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
       CSTAR = " s/p"

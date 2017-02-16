@@ -113,12 +113,23 @@ SUBROUTINE SDL_DISABORT(KCOMM)
 INTEGER(KIND=JPIM), INTENT(IN) :: KCOMM
 
 INTEGER(KIND=JPIM) :: IRETURN_CODE,IERROR
+CHARACTER(LEN=80) :: CLJOBID
 
 #ifdef VPP
 
 CALL VPP_ABORT()
 
 #else
+
+#if defined(__INTEL_COMPILER)
+! Intel compiler seems to hang in MPI_ABORT -- on all but the failing task(s) :-(
+IF (LHOOK) THEN
+   CALL GET_ENVIRONMENT_VARIABLE("SLURM_JOBID",CLJOBID)
+   IF (CLJOBID /= ' ') THEN
+      CALL SYSTEM("set -x; sleep 10; scancel --signal=TERM "//trim(CLJOBID)//" &")
+   ENDIF
+ENDIF
+#endif
 
 IRETURN_CODE=1
 CALL MPI_ABORT(KCOMM,IRETURN_CODE,IERROR)
