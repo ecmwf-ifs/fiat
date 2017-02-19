@@ -63,6 +63,10 @@ ENDIF
   WRITE(0,*)'SDL_TRACEBACK: Done XL_TRBK, THRD = ',ITID
 #elif defined(__INTEL_COMPILER)
   WRITE(0,*)'SDL_TRACEBACK: Calling INTEL_TRBK, THRD = ',ITID
+#if defined(LINUX)
+  ! This often gives more information than INTEL_TRBK ...
+  CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
+#endif
   CALL INTEL_TRBK() ! See ifsaux/utilities/gentrbk.F90
   WRITE(0,*)'SDL_TRACEBACK: Done INTEL_TRBK, THRD = ',ITID
 #elif defined(LINUX) || defined(SUN4)
