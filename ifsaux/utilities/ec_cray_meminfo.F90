@@ -24,7 +24,7 @@ INTEGER(KIND=8) :: BUCKET0(18),BUCKET1(18)
 REAL(KIND=4) :: PERCENT_USED(2)
 CHARACTER(LEN=512) :: TMPDIR
 CHARACTER(LEN=512) :: PROGRAM
-CHARACTER(LEN=8)  :: NODENAME,LASTNODE
+CHARACTER(LEN=12)  :: NODENAME,LASTNODE
 CHARACTER(LEN=12)  :: VAL
 CHARACTER(LEN=1)  :: M
 CHARACTER(LEN=160) ::LINE
@@ -126,16 +126,16 @@ IF(MYPROC == 0) THEN
   ENDIF
   IF (.not.LLNOHDR) THEN
      WRITE(KULOUT,'(3a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO ", &
-                       "              | TC    | MEMORY USED(MB) |", &
+                       "                  | TC    | MEMORY USED(MB) |", &
                        "          MEMORY FREE(MB)        INCLUDING CACHED |  %USED %HUGE"
      WRITE(KULOUT,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO ", &
-                       "              | Malloc| Inc Heap        |", &
+                       "                  | Malloc| Inc Heap        |", &
                        " Numa node 0    | Numa node 1    |                |"
      WRITE(KULOUT,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO ", &
-                       "Node Name     | Heap  | RSS("//zum//")        |", &
+                       "Node Name         | Heap  | RSS("//zum//")        |", &
                        " Small  Huge or | Small  Huge or | Total          |" 
      WRITE(KULOUT,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO ", &
-                       "              | ("//zum//") | Small    Huge   |", &
+                       "                  | ("//zum//") | Small    Huge   |", &
                        "  Only   Small  |  Only   Small  | Memfree+Cached |"
   ENDIF
   IF(IU == -1) THEN
@@ -151,16 +151,16 @@ IF(MYPROC == 0) THEN
                     " and the Job ID is ",TRIM(JOBID)
     WRITE(0,'(a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO "
     WRITE(0,'(3a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO ", &
-                    "              | TC    | MEMORY USED(MB) |", &
+                    "                  | TC    | MEMORY USED(MB) |", &
                     "          MEMORY FREE(MB)        INCLUDING CACHED |  %USED %HUGE"
     WRITE(0,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO ", &
-                    "              | Malloc| Inc Heap        |", &
+                    "                  | Malloc| Inc Heap        |", &
                     " Numa node 0    | Numa node 1    |                |"
     WRITE(0,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO ", &
-                    "Node Name     | Heap  | RSS("//zum//")        |", &
+                    "Node Name         | Heap  | RSS("//zum//")        |", &
                     " Small  Huge or | Small  Huge or | Total          |" 
     WRITE(0,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO ", &
-                    "              | ("//zum//") | Small    Huge   |", &
+                    "                  | ("//zum//") | Small    Huge   |", &
                     "  Only   Small  |  Only   Small  | Memfree+Cached |" 
   ENDIF
 ENDIF
@@ -267,7 +267,7 @@ IF(MYPROC == 0) THEN
     NODENUM=1
     LASTNODE=NODENAME
     DO I=1,NPROC-1
-        CALL MPI_RECV(NODENAME(1:8),8,MPI_BYTE,I,ITAG,KCOMM,IRECV_STATUS,ERROR)
+        CALL MPI_RECV(NODENAME,LEN(NODENAME),MPI_BYTE,I,ITAG,KCOMM,IRECV_STATUS,ERROR)
         IF(ERROR /= 0 ) THEN
           WRITE(0,*) CLPFX(1:IPFXLEN)//"## EC_CRAY_MEMINFO error code ",ERROR," from MPI_RECV"
           CALL MPI_ABORT(KCOMM,-1,ERROR)
@@ -356,7 +356,7 @@ IF(MYPROC == 0) THEN
       CLOSE(KULOUT)
     ENDIF
 ELSE
-    CALL MPI_SEND(NODENAME(1:8),8,MPI_BYTE,0,ITAG,KCOMM,ERROR)
+    CALL MPI_SEND(NODENAME,LEN(NODENAME),MPI_BYTE,0,ITAG,KCOMM,ERROR)
     IF(ERROR /= 0 ) THEN
        WRITE(0,*) CLPFX(1:IPFXLEN)//"## EC_CRAY_MEMINFO error code ",ERROR," from MPI_SEND"
        CALL MPI_ABORT(KCOMM,-1,ERROR)
@@ -386,7 +386,7 @@ IMPLICIT NONE
 INTEGER(KIND=4), INTENT(IN) :: KOUT, KSTEP
 CHARACTER(LEN=32) CLSTEP
 CHARACTER(LEN=160) :: LINE
-CHARACTER(LEN=8) :: NODENAME
+CHARACTER(LEN=12) :: NODENAME
 INTEGER(KIND=8) :: NODE(0:17), ISMALL, IHUGE, ITOTAL
 INTEGER(KIND=4) :: I,INUMA,ICOMM
 WRITE(CLSTEP,'(11X,"STEP",I5," :")') KSTEP
