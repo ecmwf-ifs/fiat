@@ -3391,7 +3391,7 @@ c_drhook_start_(const char *name,
     char *pfx = PREFIX(tid);
     dump_hugepages(0,pfx,tid,0,-1);
   }
-  /* if (opt_random_memstat > 0) random_memstat(*thread_id,0); */
+  if (drhook_stacksize_threshold > 0) random_memstat(*thread_id,0);
   if (!opt_callpath) {
     u.keyptr = getkey(*thread_id, name, name_len, 
 		      filename, filename_len,
