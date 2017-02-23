@@ -2914,6 +2914,7 @@ if (overhead && tid >= 1 && tid <= numthreads) { \
   } \
   overhead[tid-1] += delta; \
 }
+
 /*--- itself ---*/
 
 #define ITSELF_0 \
@@ -3391,7 +3392,6 @@ c_drhook_start_(const char *name,
     char *pfx = PREFIX(tid);
     dump_hugepages(0,pfx,tid,0,-1);
   }
-  if (drhook_stacksize_threshold > 0) random_memstat(*thread_id,0);
   if (!opt_callpath) {
     u.keyptr = getkey(*thread_id, name, name_len, 
 		      filename, filename_len,
@@ -3459,6 +3459,7 @@ c_drhook_start_(const char *name,
       }
     } /* if (opt_timeline_thread <= 0 || tid <= opt_timeline_thread) */
   }
+  if (opt_random_memstat > 0) random_memstat(*thread_id,0);
 }
 
 /*=== c_drhook_end_ ===*/
@@ -3494,7 +3495,6 @@ c_drhook_end_(const char *name,
     fprintf(stdout,"<x> %d %d %.*s %lld %lld\n",myproc,*thread_id,name_len,name,hwm,stk);
     fflush(stdout);
   }
-  if (opt_random_memstat > 0) random_memstat(*thread_id,0);
   if (timeline) {
     int tid = *thread_id;
     if (opt_timeline_thread <= 0 || tid <= opt_timeline_thread) {
