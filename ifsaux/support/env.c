@@ -297,6 +297,10 @@ static pid_t gettid() {
   return tid;
 }
 
+int getpid_() { /* GNU Fortran did not recognize this ? Here it comes then */
+  return (int)getpid();
+}
+
 static int GetMe()
 {
   int me = -1; /* MPI task id >= 0 && <= NPES - 1 */
