@@ -122,11 +122,11 @@ IF (MYPROC == 0) THEN
   IF (JOBID == '') CALL GET_ENVIRONMENT_VARIABLE('EC_MEMINFO_JOBID',JOBID)
 
   IF (.not.LLNOCOMM) THEN
-     WT = UTIL_WALLTIME() - WT0
      WRITE(KULOUT,'(a,/,a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",CLPFX(1:IPFXLEN)//"## EC_MEMINFO"
-     WRITE(KULOUT,'(4a)',advance='no') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
+     WRITE(KULOUT,'(3a)',advance='no') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
           "for program ",TRIM(PROGRAM)
      IF (NUMNODES > 0) THEN
+        WT = UTIL_WALLTIME() - WT0
         WRITE(KULOUT,'(a,i0,a,f10.3,a)') " on ",NUMNODES," nodes -- time: ",WT,"s" 
      ELSE
         WRITE(KULOUT,'(1x)')
@@ -156,8 +156,14 @@ IF (MYPROC == 0) THEN
   ENDIF
   IF(IU == -1) THEN
     WRITE(0,'(a,/,a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",CLPFX(1:IPFXLEN)//"## EC_MEMINFO"
-    WRITE(0,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
-                    "for program ",TRIM(PROGRAM)
+    WRITE(0,'(3a)',advance='no') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
+         "for program ",TRIM(PROGRAM)
+    IF (NUMNODES > 0) THEN
+       WT = UTIL_WALLTIME() - WT0
+       WRITE(0,'(a,i0,a,f10.3,a)') " on ",NUMNODES," nodes -- time: ",WT,"s" 
+    ELSE
+       WRITE(0,'(1x)')
+    ENDIF
     WRITE(0,'(a,i0,a,i0,a,a,":",a,":",a,a,a,"-",a,"-",a)') &
                     CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running with ",NPROC, &
                     " tasks and ", OMP_GET_MAX_THREADS(), " threads at ", &
@@ -285,12 +291,14 @@ IF (NPROC > 1 .and. LLFIRST_TIME) THEN
       ALLOCATE(RN(0:NPROC-1))
       LASTNODE=NODENAME
       DO I=0,NPROC-1
+         RN(I)%NODENUM = -1
          IF (I > 0) THEN ! Receive in any order
             CALL MPI_RECV(LASTNODE,LEN(LASTNODE),MPI_BYTE,MPI_ANY_SOURCE,ITAG,KCOMM,IRECV_STATUS,ERROR)
             CALL CHECK_ERROR("from MPI_RECV(LASTNODE)",__FILE__,__LINE__)
+            RN(I)%RANK = IRECV_STATUS(MPI_SOURCE)
+         ELSE
+            RN(I)%RANK = -1 ! Since N/A
          ENDIF
-         RN(I)%NODENUM = -1
-         RN(I)%RANK = IRECV_STATUS(MPI_SOURCE)
          RN(I)%NODE = LASTNODE
       ENDDO
       CALL RNSORT
@@ -455,7 +463,7 @@ DO I=0,NPROC-1
    ENDIF
 ENDDO
 NUMNODES = NODENUM
-1000 FORMAT(1X,3I10,1X,A,1X,I10)
+1000 FORMAT(1X,3I12,1X,A,1X,I12)
 DO I=0,NPROC-1
    WRITE(6,1000) I,RN(I)%NODENUM,RN(I)%RANK,RN(I)%NODE,IDX(I)
 ENDDO

@@ -343,18 +343,21 @@ int pthread_attr_init(pthread_attr_t *attr)
       else if (strchr(env_gs,'M')) guardsize *= 1048576; /* hence, in MiB */
       else if (strchr(env_gs,'K')) guardsize *= 1024; /* hence, in KiB */
       guardsize = RNDUP(guardsize,pgsize);
-      if (fp) fprintf(fp,
-		      "[%s@%s:%d] [pid=%ld:tid=%ld]: Requesting guard region size between thread stacks : %lld bytes (%s PAGESIZE = %d)\n",
-		      __FUNCTION__,__FILE__,__LINE__,
-		      (long int)pid,(long int)tid,
-		      (long long int)guardsize,
-		      (guardsize > pgsize) ? ">" : "<=",
-		      pgsize);
-      if (guardsize > pgsize) { /* Now we do bother */
+      if (guardsize > pgsize) { /* Now we *do* bother */
 	char *env_omp = getenv("OMP_STACKSIZE");
 	size_t omp_stacksize = env_omp ? atoll(env_omp) : 0;
 	size_t stacksize = 0;
 	int iret = pthread_attr_getstacksize(attr,&stacksize);
+#if 0
+	if (fp) fprintf(fp,
+			"[%s@%s:%d] [pid=%ld:tid=%ld]: Requesting guard region size "
+			"between thread stacks : %lld bytes (%s PAGESIZE = %d)\n",
+			__FUNCTION__,__FILE__,__LINE__,
+			(long int)pid,(long int)tid,
+			(long long int)guardsize,
+			(guardsize > pgsize) ? ">" : "<=",
+			pgsize);
+#endif
 	if (env_omp) {
 	  if (strchr(env_omp,'G')) omp_stacksize *= 1073741824; /* hence, in GiB */
 	  else if (strchr(env_omp,'M')) omp_stacksize *= 1048576; /* hence, in MiB */
