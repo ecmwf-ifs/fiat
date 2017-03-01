@@ -553,3 +553,25 @@ CLOSE(502)
 98 CONTINUE
 CALL FLUSH(KOUT)
 END SUBROUTINE MEMINFO
+
+SUBROUTINE EC_MPI_FINALIZE(KERROR,LDCALLFINITO)
+IMPLICIT NONE
+#include "mpif.h"
+INTEGER(KIND=4), INTENT(OUT) :: KERROR
+LOGICAL, INTENT(IN) :: LDCALLFINITO
+INTEGER(KIND=4) :: IBARR
+!integer :: me, ierr
+!call mpi_comm_rank(MPI_COMM_WORLD,me,ierr)
+!write(6,*) me,': EC_MPI_FINALIZE: LDCALLFINITO=',LDCALLFINITO
+!call flush(6)
+!if (me == 0) CALL LINUX_TRBK()
+IF (LDCALLFINITO) THEN !*** common MPI_Finalize()
+   IBARR = 1
+!   write(6,*) me,': Now calling EC_MEMINFO for the last time with ibarr=',ibarr
+!   call flush(6)
+   CALL EC_MEMINFO(-1,"ec_mpi_finalize",MPI_COMM_WORLD,IBARR)
+   CALL MPI_FINALIZE(KERROR)
+ELSE
+   KERROR = 0
+ENDIF
+END SUBROUTINE EC_MPI_FINALIZE
