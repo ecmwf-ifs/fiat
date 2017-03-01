@@ -99,11 +99,14 @@ IF (MYPROC == 0) THEN
   IF (PAGESIZE == 0) WT0 = UTIL_WALLTIME()
   CALL GETARG(0,PROGRAM)
 !
-! Use already open file for output or $TMPDIR/meminfo
+! Use already open file for output or $EC_MEMINFO_TMPDIR/meminfo
+! We do not use $TMPDIR as it may have been inherited from mother superiour (MOMS) node
 !
   IF(IU == -1) THEN
     CALL GET_ENVIRONMENT_VARIABLE('EC_MEMINFO_TMPDIR',TMPDIR)
     IF (TMPDIR == ' ') TMPDIR = '.'
+!    write(0,*) '## EC_MEMINFO: KCOMM=',KCOMM
+!    CALL LINUX_TRBK()
     KULOUT=501
     OPEN(UNIT=KULOUT,FILE=TRIM(TMPDIR)//"/"//"meminfo",STATUS='unknown', &
          ACTION='write',POSITION='append')
@@ -215,6 +218,13 @@ IF (PAGESIZE == 0) THEN ! First time
 ENDIF
 
 NODEHUGE=NODEHUGE_CACHED
+
+IF (NODEHUGE > 0) THEN
+   CSTAR = " H/p"
+ELSE
+   CSTAR = " s/p"
+ENDIF
+   
 MEMFREE = 0
 CACHED = 0
       
@@ -322,11 +332,9 @@ IF (MYPROC == 0) THEN
           TASKSMALL=TASKSMALL+RECVBUF(9)
         ELSE
           PERCENT_USED(2) = 0
-!          IF(HEAP_SIZE >= NODEHUGE) THEN
-          IF(NODEHUGE == 0) THEN
+          IF(HEAP_SIZE >= NODEHUGE) THEN
 ! running with small pages
             PERCENT_USED(1)=100.0*(TASKSMALL+NODEHUGE)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
-            CSTAR = " s/p"
           ELSE
 ! running with huge pages
             PERCENT_USED(1)=100.0*(HEAP_SIZE+TASKSMALL)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
@@ -336,7 +344,6 @@ IF (MYPROC == 0) THEN
                IF (PERCENT_USED(2) < 0) PERCENT_USED(2) = 0
                IF (PERCENT_USED(2) > 100) PERCENT_USED(2) = 100
             ENDIF
-            CSTAR = " H/p"
           ENDIF
           IF (.not.LLNOCOMM) THEN
              ID_STRING = CSTAR//":"//IDSTRING
@@ -368,11 +375,9 @@ IF (MYPROC == 0) THEN
         ENDIF
     ENDDO
     PERCENT_USED(2) = 0
-!    IF(HEAP_SIZE >= NODEHUGE) THEN
-    IF(NODEHUGE == 0) THEN
+    IF(HEAP_SIZE >= NODEHUGE) THEN
 ! running with small pages
       PERCENT_USED(1)=100.0*(TASKSMALL+NODEHUGE)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
-      CSTAR = " s/p"
     ELSE
 ! running with huge pages
       PERCENT_USED(1)=100.0*(HEAP_SIZE+TASKSMALL)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
@@ -382,7 +387,6 @@ IF (MYPROC == 0) THEN
          IF (PERCENT_USED(2) < 0) PERCENT_USED(2) = 0
          IF (PERCENT_USED(2) > 100) PERCENT_USED(2) = 100
       ENDIF
-      CSTAR = " H/p"
     ENDIF
     IF (.not.LLNOCOMM) THEN
        ID_STRING = CSTAR//":"//IDSTRING
