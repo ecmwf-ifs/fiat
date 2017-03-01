@@ -400,7 +400,7 @@ static void MemInfoBeforeMain()
     pid_t pid = getpid();
     pid_t tid = gettid();
     int master = (pid == tid) ? 1 : 0;
-    if (me == 0 && master) meminfo_(&kout, &kstep); /* utilities/ec_cray_meminfo.F90 */
+    if (me == 0 && master) meminfo_(&kout, &kstep); /* utilities/ec_meminfo.F90 */
     done = 1;
   }
 }

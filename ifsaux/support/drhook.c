@@ -580,7 +580,7 @@ static void dump_hugepages(int enforce, const char *pfx, int tid, int sig, int n
 	const int kcomm = -1;
 	const int ftnunitno = 0; /* stderr */
 	fflush(NULL);
-	ec_cray_meminfo_(&ftnunitno,pfx,&kcomm,strlen(pfx));
+	ec_meminfo_(&ftnunitno,pfx,&kcomm,strlen(pfx));
 	fflush(NULL);
 	if (drhook_dump_buddyinfo) {
 	  dump_file(pfx,tid,sig,nsigs,"/proc/buddyinfo");
