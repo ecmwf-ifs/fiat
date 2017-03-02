@@ -579,9 +579,10 @@ static void dump_hugepages(int enforce, const char *pfx, int tid, int sig, int n
       if (enforce || wt > next_scheduled) {
 	const int kcomm = -1;
 	const int kbarr = 0;
+	const int kiotask = 0;
 	const int ftnunitno = 0; /* stderr */
 	fflush(NULL);
-	ec_meminfo_(&ftnunitno,pfx,&kcomm,&kbarr,strlen(pfx));
+	ec_meminfo_(&ftnunitno,pfx,&kcomm,&kbarr,&kiotask,strlen(pfx));
 	fflush(NULL);
 	if (drhook_dump_buddyinfo) {
 	  dump_file(pfx,tid,sig,nsigs,"/proc/buddyinfo");
