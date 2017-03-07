@@ -59,8 +59,7 @@ gethwm()
 
 #else  /* non-RS6K */
 
-/*#if defined(_CRAYC)*/
-#if 0
+#if defined(_CRAYC)
 ll_t
 gethwm()
 {
