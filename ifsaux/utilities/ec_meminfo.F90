@@ -10,6 +10,8 @@ IMPLICIT NONE
 !   Modified : Sami Saarinen (ECMWF) : 21-SEP-2016 : Added getenv EC_MEMINFO -- export EC_MEMINFO=0 disables any EC_MEMINFO output
 !              Sami Saarinen (ECMWF) : 02-MAR-2017 : Enabled flexible number of sockets & lots of tidying
 
+#include "ec_pmon.intfb.h"
+
 INTEGER(KIND=JPIM), INTENT(IN) :: KU,KCOMM,KBARR,KIOTASK
 CHARACTER(LEN=*), INTENT(IN) :: CDSTRING
 INTEGER(KIND=JPIM) :: ID,KULOUT
