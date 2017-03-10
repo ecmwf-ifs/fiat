@@ -1,4 +1,4 @@
-SUBROUTINE EC_MEMINFO(KU,CDSTRING,KCOMM,KBARR,KIOTASK)
+SUBROUTINE EC_MEMINFO(KU,CDSTRING,KCOMM,KBARR,KIOTASK,KCALL)
 
 USE PARKIND1, ONLY : JPIM, JPIB, JPRD
 USE MPL_MPIF
@@ -9,10 +9,11 @@ IMPLICIT NONE
 !   Author   : Peter Towers (ECMWF)  : 2015-2016
 !   Modified : Sami Saarinen (ECMWF) : 21-SEP-2016 : Added getenv EC_MEMINFO -- export EC_MEMINFO=0 disables any EC_MEMINFO output
 !              Sami Saarinen (ECMWF) : 02-MAR-2017 : Enabled flexible number of sockets & lots of tidying
+!              Sami Saarinen (ECMWF) : 09-MAR-2017 : Power monitoring added (via EC_PMON) -- works at least on Crays (the rest: gives zero energies)
 
 #include "ec_pmon.intfb.h"
 
-INTEGER(KIND=JPIM), INTENT(IN) :: KU,KCOMM,KBARR,KIOTASK
+INTEGER(KIND=JPIM), INTENT(IN) :: KU,KCOMM,KBARR,KIOTASK,KCALL
 CHARACTER(LEN=*), INTENT(IN) :: CDSTRING
 INTEGER(KIND=JPIM) :: ID,KULOUT
 INTEGER(KIND=JPIM) :: II,I,J,K,MYPROC,NPROC,LEN,ERROR,ITAG,NODENUM
@@ -39,7 +40,7 @@ CHARACTER(LEN=12)  :: VAL
 CHARACTER(LEN=1)   :: M
 CHARACTER(LEN=160) ::LINE
 CHARACTER(LEN=56) :: FILENAME
-CHARACTER(LEN=2) :: CLEC_MEMINFO
+CHARACTER(LEN=1) :: CLEC_MEMINFO
 CHARACTER(LEN=4) :: CSTAR
 CHARACTER(LEN=LEN(CSTAR)+1+LEN(CDSTRING)) :: ID_STRING
 CHARACTER(LEN=10) ::  CLDATEOD,CLTIMEOD,CLZONEOD
@@ -549,7 +550,7 @@ INTEGER(KIND=JPIM) :: I,INUMA,ICOMM
 WRITE(CLSTEP,'(11X,"STEP",I5," :")') KSTEP
 ICOMM = -2 ! No headers from EC_MEMINFO by default
 IF (KSTEP == 0) ICOMM = -1 ! Do print headers, too
-CALL EC_MEMINFO(KOUT,TRIM(CLSTEP),ICOMM,0,0)
+CALL EC_MEMINFO(KOUT,TRIM(CLSTEP),ICOMM,0,0,-1)
 CALL FLUSH(KOUT)
 RETURN ! For now
 #if 0
@@ -594,16 +595,9 @@ INTEGER(KIND=JPIM), INTENT(OUT) :: KERROR
 LOGICAL, INTENT(IN) :: LDCALLFINITO
 INTEGER(KIND=JPIM) :: IBARR
 #include "ec_meminfo.intfb.h"
-!integer :: me, ierr
-!call mpi_comm_rank(MPI_COMM_WORLD,me,ierr)
-!write(6,*) me,': EC_MPI_FINALIZE: LDCALLFINITO=',LDCALLFINITO
-!call flush(6)
-!if (me == 0) CALL LINUX_TRBK()
 IF (LDCALLFINITO) THEN !*** common MPI_Finalize()
    IBARR = 1
-!   write(6,*) me,': Now calling EC_MEMINFO for the last time with ibarr=',ibarr
-!   call flush(6)
-   CALL EC_MEMINFO(-1,"ec_mpi_finalize",MPI_COMM_WORLD,IBARR,0)
+   CALL EC_MEMINFO(-1,"ec_mpi_finalize",MPI_COMM_WORLD,IBARR,0,1)
    CALL MPI_FINALIZE(KERROR)
 ELSE
    KERROR = 0
@@ -616,19 +610,26 @@ IMPLICIT NONE
 INTEGER(KIND=JPIB),INTENT(OUT) :: ENERGY,POWER
 INTEGER(KIND=JPIM),SAVE :: MONINIT = 0
 INTEGER(KIND=JPIM) :: ISTAT
+CHARACTER(LEN=1) :: CLEC_MEMINFO
 ENERGY = 0
 IF (MONINIT >= 0) THEN
-   OPEN(503,FILE='/sys/cray/pm_counters/energy',IOSTAT=ISTAT,STATUS='old')
-   IF (ISTAT == 0) THEN
-      READ(503,*,IOSTAT=ISTAT) ENERGY
-      CLOSE(503)
-      IF (ISTAT == 0) THEN
-         IF (MONINIT == 0) MONINIT = 1 ! Ok
-      ENDIF
+   IF (MONINIT == 0) THEN ! The very first time only
+      CALL GET_ENVIRONMENT_VARIABLE('EC_PMON',CLEC_PMON)
+      IF (CLEC_PMON == '0') MONINIT = -2 ! Never try again
    ENDIF
-   IF (ISTAT /= 0) THEN
-      MONINIT = -1 ! Never try again
-      ENERGY = 0
+   IF (MONINIT >= 0) THEN
+      OPEN(503,FILE='/sys/cray/pm_counters/energy',IOSTAT=ISTAT,STATUS='old')
+      IF (ISTAT == 0) THEN
+         READ(503,*,IOSTAT=ISTAT) ENERGY
+         CLOSE(503)
+         IF (ISTAT == 0) THEN
+            IF (MONINIT == 0) MONINIT = 1 ! Ok
+         ENDIF
+      ENDIF
+      IF (ISTAT /= 0) THEN
+         MONINIT = -1 ! Never try again
+         ENERGY = 0
+      ENDIF
    ENDIF
 ENDIF
 POWER = 0

@@ -580,9 +580,10 @@ static void dump_hugepages(int enforce, const char *pfx, int tid, int sig, int n
 	const int kcomm = -1;
 	const int kbarr = 0;
 	const int kiotask = 0;
+	const int kcall = -1;
 	const int ftnunitno = 0; /* stderr */
 	fflush(NULL);
-	ec_meminfo_(&ftnunitno,pfx,&kcomm,&kbarr,&kiotask,strlen(pfx));
+	ec_meminfo_(&ftnunitno,pfx,&kcomm,&kbarr,&kiotask,&kcall,strlen(pfx));
 	fflush(NULL);
 	if (drhook_dump_buddyinfo) {
 	  dump_file(pfx,tid,sig,nsigs,"/proc/buddyinfo");
@@ -1677,7 +1678,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       const int print_option = 2; /* calling tree */
       int level = 0;
 
-      dump_hugepages(1,pfx,tid,sig,nsigs);
+      dump_hugepages(0,pfx,tid,sig,nsigs); /* We don't wanna enforce anymore -- this the first arg == 0 now */
 
       if (drhook_dump_smaps) {
 	pid_t unixtid = gettid();
