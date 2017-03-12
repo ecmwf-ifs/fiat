@@ -272,6 +272,25 @@ void ec_gethostname(char a[],
   ec_gethostname_(a,alen);
 }
 
+/* For checking runtime affinities (not setting them, though) */
+
+#ifdef LINUX
+#include <sched.h>
+int sched_getcpu(void);
+#else
+#define sched_getcpu() -1
+#endif
+
+void ec_coreid_(int *coreid)
+{
+  if (coreid) *coreid = sched_getcpu();
+}
+
+void ec_coreid(int *coreid)
+{
+  ec_coreid_(coreid);
+}
+
 #if defined(__GNUC__)
 
 /* pthread_attr_init() interception to reset guard region size 
