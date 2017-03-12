@@ -192,7 +192,6 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
    IF (KIOTASK > 0) IORANK = 1
    IF (MYPROC == 0) THEN
       ALLOCATE(RN(0:NPROC-1))
-      LASTNODE=NODENAME
       DO I=0,NPROC-1
          RN(I)%NODENUM = -1
          IF (I > 0) THEN ! Receive in MPI-rank order
@@ -204,6 +203,7 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
             CALL CHECK_ERROR("from MPI_RECV(NUMTH)",__FILE__,__LINE__)
             RN(I)%RANK = I
          ELSE
+            LASTNODE=NODENAME
             NUMTH = MAXTH
             RN(I)%RANK = 0 ! Itself
          ENDIF
@@ -336,11 +336,6 @@ IF (MYPROC == 0) THEN
        IF (NRECV > 2) THEN
           ENERGY=RECVBUF(3)
           POWER=RECVBUF(4)
-          TOT_ENERGY = TOT_ENERGY + ENERGY
-          IF (POWER > MAXPOWER) THEN
-             MAXPOWER = POWER
-             CLMAXNODE = LASTNODE
-          ENDIF
           NODEHUGE=RECVBUF(5)
           MEMFREE=RECVBUF(6)
           CACHED=RECVBUF(7)
@@ -357,6 +352,12 @@ IF (MYPROC == 0) THEN
        ELSE
           HEAP_SIZE=RECVBUF(1)
           TASKSMALL=RECVBUF(2)
+
+          TOT_ENERGY = TOT_ENERGY + ENERGY
+          IF (POWER > MAXPOWER) THEN
+             MAXPOWER = POWER
+             CLMAXNODE = LASTNODE
+          ENDIF
 
           PERCENT_USED(2) = 0
           IF(HEAP_SIZE >= NODEHUGE) THEN
