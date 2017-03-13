@@ -68,6 +68,7 @@ TYPE (RANKNODE_T), ALLOCATABLE, SAVE :: RN(:)
 INTEGER(KIND=JPIM), ALLOCATABLE, SAVE :: IDX(:)
 INTEGER(KIND=JPIM), ALLOCATABLE :: COREIDS(:)
 INTEGER(KIND=JPIM), SAVE :: NUMNODES = 0
+INTEGER(KIND=JPIM) :: NN
 INTEGER(KIND=JPIM), SAVE :: IOTASKS = 0
 INTEGER(KIND=JPIM) :: IORANK, NSEND, NRECV
 REAL(KIND=JPRD), EXTERNAL :: UTIL_WALLTIME
@@ -150,12 +151,6 @@ ENDIF
 
 NODEHUGE=NODEHUGE_CACHED
 
-IF (NODEHUGE < 1000) THEN
-   CSTAR = " s/p"
-ELSE
-   CSTAR = " H/p"
-ENDIF
-   
 IF (MYPROC == 0) THEN 
 !
 ! Use already open file for output or $EC_MEMINFO_TMPDIR/meminfo
@@ -246,7 +241,7 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
    CALL CHECK_ERROR("from MPI_BARRIER near LLFIRST_TIME=.FALSE.",__FILE__,__LINE__)
 ENDIF
 
-IF (NPROC == 1 .or. IAM_NODEMASTER == 1) THEN
+IF (MYPROC == 0 .or. IAM_NODEMASTER == 1) THEN
    CALL EC_PMON(ENERGY,POWER)
 
    OPEN(FILE="/proc/buddyinfo",UNIT=502)
@@ -303,115 +298,101 @@ ENDIF
 HEAP_SIZE=GETMAXHWM()/ONEMEGA
 TASKSMALL=GETMAXRSS()/ONEMEGA
 
-
-IF (MYPROC == 0) THEN 
-  CALL DATE_AND_TIME(CLDATEOD,CLTIMEOD,CLZONEOD,IVALUES)
-  READ(CLDATEOD(5:6),'(I2)') IMON
-
-  IF (.not.LLNOCOMM) CALL PRT_DETAIL(KULOUT)
-  IF (.not.LLNOHDR)  CALL PRT_HDR(KULOUT)
-  IF(KU == -1) THEN
-     CALL PRT_DETAIL(0)
-     CALL PRT_HDR(0)
-  ENDIF
-ENDIF
-
 IF (MYPROC == 0) THEN
-    NODENUM=1
-    LASTNODE = NODENAME
-    TOT_ENERGY = ENERGY
-    MAXPOWER = POWER
-    CLMAXNODE = LASTNODE
-    DO II=1,NPROC-1
-       K = IDX(II)
-       I = RN(K)%RANK
-       IF (RN(K)%NODEMASTER == 1) THEN
-          NRECV = SIZE(RECVBUF)
-       ELSE
-          NRECV = 2
-       ENDIF
-       CALL MPI_RECV(RECVBUF,NRECV,MPI_INTEGER8,I,ITAG+5,KCOMM,IRECV_STATUS,ERROR)
-       CALL CHECK_ERROR("from MPI_RECV(RECVBUF)",__FILE__,__LINE__)
+   CALL DATE_AND_TIME(CLDATEOD,CLTIMEOD,CLZONEOD,IVALUES)
+   READ(CLDATEOD(5:6),'(I2)') IMON
+   
+   IF (.not.LLNOCOMM) CALL PRT_DETAIL(KULOUT)
+   IF (.not.LLNOHDR)  CALL PRT_HDR(KULOUT)
+   IF(KU == -1) THEN
+      CALL PRT_DETAIL(0)
+      CALL PRT_HDR(0)
+   ENDIF
 
-       IF (NRECV > 2) THEN
-          ENERGY=RECVBUF(3)
-          POWER=RECVBUF(4)
-          NODEHUGE=RECVBUF(5)
-          MEMFREE=RECVBUF(6)
-          CACHED=RECVBUF(7)
-          DO K=0,MAXNUMA-1
-             SMALLPAGE(K) = RECVBUF(7+2*K+1)
-             HUGEPAGE(K) = RECVBUF(7+2*K+2)
-          ENDDO
-       ENDIF
+   ! Note: MYPROC == 0 is always at the RN(0) i.e. at the first NODENUM
+   TOT_ENERGY = ENERGY
+   MAXPOWER = POWER
+   CLMAXNODE = NODENAME
+   LASTNODE = NODENAME
 
-       NODENAME = RN(K)%NODE
-       IF (LASTNODE==NODENAME) THEN
-          HEAP_SIZE=HEAP_SIZE+RECVBUF(1)
-          TASKSMALL=TASKSMALL+RECVBUF(2)
-       ELSE
-          HEAP_SIZE=RECVBUF(1)
-          TASKSMALL=RECVBUF(2)
+   NN = NUMNODES
+   IF (LLNOCOMM) NN=1
 
-          TOT_ENERGY = TOT_ENERGY + ENERGY
-          IF (POWER > MAXPOWER) THEN
-             MAXPOWER = POWER
-             CLMAXNODE = LASTNODE
-          ENDIF
+   DO NODENUM=1,NN
+      DO II=1,NPROC-1
+         J = IDX(II)
+         IF (RN(J)%NODENUM == NODENUM) THEN
+            I = RN(J)%RANK
+            IF (RN(J)%NODEMASTER == 1) THEN ! Always the first task on particular NODENUM
+               LASTNODE = RN(J)%NODE
+               NRECV = SIZE(RECVBUF)
+            ELSE
+               NRECV = 2
+            ENDIF
+            CALL MPI_RECV(RECVBUF,NRECV,MPI_INTEGER8,I,ITAG+5,KCOMM,IRECV_STATUS,ERROR)
+            CALL CHECK_ERROR("from MPI_RECV(RECVBUF)",__FILE__,__LINE__)
+            IF (NRECV > 2) THEN
+               HEAP_SIZE=RECVBUF(1)
+               TASKSMALL=RECVBUF(2)
+               ENERGY=RECVBUF(3)
+               POWER=RECVBUF(4)
+               NODEHUGE=RECVBUF(5)
+               MEMFREE=RECVBUF(6)
+               CACHED=RECVBUF(7)
+               DO K=0,MAXNUMA-1
+                  SMALLPAGE(K) = RECVBUF(7+2*K+1)
+                  HUGEPAGE(K) = RECVBUF(7+2*K+2)
+               ENDDO
+               TOT_ENERGY = TOT_ENERGY + ENERGY
+               IF (POWER > MAXPOWER) THEN
+                  MAXPOWER = POWER
+                  CLMAXNODE = LASTNODE
+               ENDIF
+            ELSE
+               HEAP_SIZE=HEAP_SIZE+RECVBUF(1)
+               TASKSMALL=TASKSMALL+RECVBUF(2)
+            ENDIF
+         ENDIF
+      ENDDO
 
-          PERCENT_USED(2) = 0
-          IF(HEAP_SIZE >= NODEHUGE) THEN
-             ! running with small pages
-             PERCENT_USED(1)=100.0*(TASKSMALL+NODEHUGE)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
-          ELSE
-             ! running with huge pages
-             PERCENT_USED(1)=100.0*(HEAP_SIZE+TASKSMALL)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
-             IF (NODEHUGE > 0) THEN
-                NFREE = SUM(HUGEPAGE(0:NNUMA-1))
-                PERCENT_USED(2) = (100.0*(NODEHUGE - NFREE))/NODEHUGE
-                IF (PERCENT_USED(2) < 0) PERCENT_USED(2) = 0
-                IF (PERCENT_USED(2) > 100) PERCENT_USED(2) = 100
-             ENDIF
-          ENDIF
-          IF (.not.LLNOCOMM) THEN
-             ID_STRING = CSTAR//":"//CDSTRING
-          ELSE
-             ID_STRING = CSTAR
-          ENDIF
-          CALL PRT_DATA(KULOUT)
-          IF(KU == -1) CALL PRT_DATA(0)
-          
-          NODENUM=NODENUM+1
-          LASTNODE=NODENAME
-       ENDIF
-    ENDDO
-    PERCENT_USED(2) = 0
-    IF(HEAP_SIZE >= NODEHUGE) THEN
-! running with small pages
-      PERCENT_USED(1)=100.0*(TASKSMALL+NODEHUGE)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
-    ELSE
-! running with huge pages
-      PERCENT_USED(1)=100.0*(HEAP_SIZE+TASKSMALL)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
-      IF (NODEHUGE > 0) THEN
-         NFREE = SUM(HUGEPAGE(0:NNUMA-1))
-         PERCENT_USED(2) = (100.0*(NODEHUGE - NFREE))/NODEHUGE
-         IF (PERCENT_USED(2) < 0) PERCENT_USED(2) = 0
-         IF (PERCENT_USED(2) > 100) PERCENT_USED(2) = 100
+      PERCENT_USED(2) = 0
+      IF (HEAP_SIZE >= NODEHUGE) THEN
+         ! running with small pages
+         PERCENT_USED(1)=100.0*(TASKSMALL+NODEHUGE)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
+      ELSE
+         ! running with huge pages
+         PERCENT_USED(1)=100.0*(HEAP_SIZE+TASKSMALL)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
+         IF (NODEHUGE > 0) THEN
+            NFREE = SUM(HUGEPAGE(0:NNUMA-1))
+            PERCENT_USED(2) = (100.0*(NODEHUGE - NFREE))/NODEHUGE
+            IF (PERCENT_USED(2) < 0) PERCENT_USED(2) = 0
+            IF (PERCENT_USED(2) > 100) PERCENT_USED(2) = 100
+         ENDIF
       ENDIF
-    ENDIF
-    IF (.not.LLNOCOMM) THEN
-       ID_STRING = CSTAR//":"//CDSTRING
-    ELSE
-       ID_STRING = CSTAR
-    ENDIF
-    CALL PRT_DATA(KULOUT)
-    IF(KU == -1) THEN
-       CALL PRT_TOTAL_ENERGIES(KULOUT)
-       CALL PRT_DATA(0)
-       CALL PRT_TOTAL_ENERGIES(0)
-       CALL PRT_EMPTY(KULOUT,1)
-       CLOSE(KULOUT)
-    ENDIF
+
+      IF (PERCENT_USED(2) > 0) THEN
+         CSTAR = " H/p"
+      ELSE
+         CSTAR = " s/p"
+      ENDIF
+   
+      IF (LLNOCOMM) THEN
+         ID_STRING = CSTAR
+      ELSE
+         ID_STRING = CSTAR//":"//CDSTRING
+      ENDIF
+
+      CALL PRT_DATA(KULOUT)
+      IF (KU == -1) THEN
+         CALL PRT_DATA(0)
+         IF (NODENUM == NN) THEN
+            CALL PRT_TOTAL_ENERGIES(0)
+            CALL PRT_TOTAL_ENERGIES(KULOUT)
+            CALL PRT_EMPTY(KULOUT,1)
+            CLOSE(KULOUT)
+         ENDIF
+      ENDIF
+   ENDDO
 ELSE
     SENDBUF(1)=HEAP_SIZE
     SENDBUF(2)=TASKSMALL
@@ -454,9 +435,11 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM), INTENT(IN) :: KUN
 IF (KCALL == 1) THEN ! last call
    CALL PRT_EMPTY(KUN,2)
-   WRITE(KUN,'(a,a,i20,a,i5,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
+   WRITE(KUN,'(a,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
         & " Total energy (over all nodes): ",TOT_ENERGY,&
-        & " [J] -- Max. power at end: ",MAXPOWER," [W] (on node "//trim(CLMAXNODE)//")"
+        & " [Joules]"
+   WRITE(KUN,'(a,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
+        & " Peak power at end: ",MAXPOWER," [Watts] : node "//trim(CLMAXNODE)
    CALL PRT_EMPTY(KUN,1)
 ENDIF
 END SUBROUTINE PRT_TOTAL_ENERGIES
@@ -512,7 +495,7 @@ WRITE(KUN,'(A)',advance='no') &
 DO K=0,INUMA-1
    WRITE(KUN,'(A,I1,A)',advance='no') " Numa region ",K,"  |"
 ENDDO
-WRITE(KUN,'(A)')  "                |               |   (J)    (W)"
+WRITE(KUN,'(A)')  "                |               |    (J)    (W)"
 
 WRITE(KUN,'(A)',advance='no') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO Node Name         | Heap  | RSS("//zum//")        |"
@@ -605,25 +588,35 @@ DO I=0,NPROC-1
    ENDIF
 ENDDO
 NUMNODES = NODENUM
-WRITE(KUN,1003) '*** Mapping of MPI & I/O-tasks to nodes and their thread-to-core affinities', &
-     & __FILE__,__LINE__
-1003 FORMAT(1X,A,' (',A,':',I0,')')
-WRITE(KUN,1000) "#","NODE#","NODENAME","MPI#","I/O#","MASTER","IDX#","NUMTH","Core affinities"
-1000 FORMAT(/2(1X,A5),1X,A12,5(1X,A6),1X,A)
+CALL PRT_EMPTY(KUN,1)
+WRITE(KUN,1003) &
+     & CLPFX(1:IPFXLEN)//&
+     &"## EC_MEMINFO ********************************************************************************",&
+     & CLPFX(1:IPFXLEN)//&
+     &"## EC_MEMINFO *** Mapping of MPI & I/O-tasks to nodes and tasks' thread-to-core affinities ***", &
+     & CLPFX(1:IPFXLEN)//&
+     &"## EC_MEMINFO ********************************************************************************"
+CALL PRT_EMPTY(KUN,1)
+1003 FORMAT((A))
+WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
+     & "#","NODE#","NODENAME","MPI#","I/O#","MASTER","IDX#","NUMTH","Core affinities"
+1000 FORMAT(A,2(1X,A5),1X,A12,5(1X,A6),1X,A)
 DO I=0,NPROC-1
    NUMTH = RN(I)%NUMTH
    CLMASTER = '[No]'
-   IF (RN(I)%NODEMASTER == 1) CLMASTER = 'Yes'
+   IF (RN(I)%NODEMASTER == 1) CLMASTER = ' Yes'
    IF (RN(I)%IORANK > 0) THEN
       WRITE(KUN,1001,advance='no') &
+           & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
            & I,RN(I)%NODENUM,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,RN(I)%IORANK,&
            & CLMASTER,IDX(I),NUMTH,"{"
-1001  FORMAT(2(1X,I5),1X,A12,2(1X,I6),1X,A6,2(1X,I6),1X,A)
+1001  FORMAT(A,2(1X,I5),1X,A12,2(1X,I6),1X,A6,2(1X,I6),1X,A)
    ELSE
       WRITE(KUN,1002,advance='no') &
+           & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
            & I,RN(I)%NODENUM,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,"[No]",&
            & CLMASTER,IDX(I),NUMTH,"{"
-1002  FORMAT(2(1X,I5),1X,A12,1X,I6,2(1X,A6),2(1X,I6),1X,A)
+1002  FORMAT(A,2(1X,I5),1X,A12,1X,I6,2(1X,A6),2(1X,I6),1X,A)
    ENDIF
    CLAST = ','
    DO J=0,NUMTH-1
@@ -632,7 +625,7 @@ DO I=0,NPROC-1
    ENDDO
    WRITE(KUN,'(1X)')
 ENDDO
-WRITE(KUN,'(//)')
+CALL PRT_EMPTY(KUN,2)
 CALL FLUSH(KUN)
 END SUBROUTINE RNSORT
 
