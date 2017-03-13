@@ -430,16 +430,24 @@ DO JJ=1,KOUNT
 ENDDO
 END SUBROUTINE PRT_EMPTY
 
+FUNCTION KWH(JOULES)
+IMPLICIT NONE
+INTEGER(KIND=JPIB), INTENT(IN) :: JOULES
+REAL(KIND=JPRD) KWH
+KWH = REAL(JOULES,JPRD) / 3600000.0_JPRD
+END FUNCTION KWH
+
 SUBROUTINE PRT_TOTAL_ENERGIES(KUN)
 IMPLICIT NONE
 INTEGER(KIND=JPIM), INTENT(IN) :: KUN
 IF (KCALL == 1) THEN ! last call
    CALL PRT_EMPTY(KUN,2)
+   WRITE(KUN,'(a,a,f12.3,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
+        & " Total energy consumed : ",&
+        & KWH(TOT_ENERGY), "kWh (",&
+        & TOT_ENERGY,"J)"
    WRITE(KUN,'(a,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-        & " Total energy (over all nodes): ",TOT_ENERGY,&
-        & " [Joules]"
-   WRITE(KUN,'(a,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-        & " Peak power at end: ",MAXPOWER," [Watts] : node "//trim(CLMAXNODE)
+        & " Peak power (on "//trim(CLMAXNODE)//") : ",MAXPOWER,"W"
    CALL PRT_EMPTY(KUN,1)
 ENDIF
 END SUBROUTINE PRT_TOTAL_ENERGIES
@@ -495,7 +503,7 @@ WRITE(KUN,'(A)',advance='no') &
 DO K=0,INUMA-1
    WRITE(KUN,'(A,I1,A)',advance='no') " Numa region ",K,"  |"
 ENDDO
-WRITE(KUN,'(A)')  "                |               |    (J)    (W)"
+WRITE(KUN,'(A)')  "                |               |  (kWh)    (W)"
 
 WRITE(KUN,'(A)',advance='no') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO Node Name         | Heap  | RSS("//zum//")        |"
@@ -528,7 +536,7 @@ ENDDO
 WRITE(KUN,'(2x,2i8,3x,2f6.1,1x,i9,1x,i6,1x,a)') &
      MEMFREE,CACHED, &
      PERCENT_USED,&
-     ENERGY,POWER,&
+     NINT(KWH(ENERGY)),POWER,&
      trim(ID_STRING)
 END SUBROUTINE PRT_DATA
 
