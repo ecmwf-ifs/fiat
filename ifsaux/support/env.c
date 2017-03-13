@@ -291,6 +291,15 @@ void ec_coreid(int *coreid)
   ec_coreid_(coreid);
 }
 
+#ifdef ECMWF
+/* Some issues with Darshan -- better to use our own version of MPI_Wtime (mpi_wtime_ in Fortran) */
+double mpi_wtime_()
+{
+  extern double util_walltime();
+  return util_walltime();
+}
+#endif
+
 #if defined(__GNUC__)
 
 /* pthread_attr_init() interception to reset guard region size 
