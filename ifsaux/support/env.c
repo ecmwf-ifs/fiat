@@ -295,8 +295,8 @@ void ec_coreid(int *coreid)
 /* Some issues with Darshan -- better to use our own version of MPI_Wtime (mpi_wtime_ in Fortran) */
 double mpi_wtime_()
 {
-  extern double util_walltime();
-  return util_walltime();
+  extern double util_walltime_(); /* from drhook.c */
+  return util_walltime_();
 }
 #endif
 
