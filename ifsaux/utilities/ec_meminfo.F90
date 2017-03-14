@@ -67,6 +67,7 @@ END TYPE
 TYPE (RANKNODE_T), ALLOCATABLE, SAVE :: RN(:)
 INTEGER(KIND=JPIM), ALLOCATABLE, SAVE :: IDX(:)
 INTEGER(KIND=JPIM), ALLOCATABLE :: COREIDS(:)
+LOGICAL, ALLOCATABLE :: DONE(:)
 INTEGER(KIND=JPIM), SAVE :: NUMNODES = 0
 INTEGER(KIND=JPIM) :: NN
 INTEGER(KIND=JPIM), SAVE :: IOTASKS = 0
@@ -318,43 +319,51 @@ IF (MYPROC == 0) THEN
    NN = NUMNODES
    IF (LLNOCOMM) NN=1
 
+   IF (NPROC > 1) THEN
+      ALLOCATE(DONE(1:NPROC-1))
+      DONE(:) = .FALSE.
+   ENDIF
+
    DO NODENUM=1,NN
       DO II=1,NPROC-1
-         J = IDX(II)
-         IF (RN(J)%NODENUM == NODENUM) THEN
-            I = RN(J)%RANK
-            IF (RN(J)%NODEMASTER == 1) THEN ! Always the first task on particular NODENUM
-               LASTNODE = RN(J)%NODE
-               NRECV = SIZE(RECVBUF)
-            ELSE
-               NRECV = 2
-            ENDIF
-            CALL MPI_RECV(RECVBUF,NRECV,MPI_INTEGER8,I,ITAG+5,KCOMM,IRECV_STATUS,ERROR)
-            CALL CHECK_ERROR("from MPI_RECV(RECVBUF)",__FILE__,__LINE__)
-            IF (NRECV > 2) THEN
-               HEAP_SIZE=RECVBUF(1)
-               TASKSMALL=RECVBUF(2)
-               ENERGY=RECVBUF(3)
-               POWER=RECVBUF(4)
-               NODEHUGE=RECVBUF(5)
-               MEMFREE=RECVBUF(6)
-               CACHED=RECVBUF(7)
-               DO K=0,MAXNUMA-1
-                  SMALLPAGE(K) = RECVBUF(7+2*K+1)
-                  HUGEPAGE(K) = RECVBUF(7+2*K+2)
-               ENDDO
-               TOT_ENERGY = TOT_ENERGY + ENERGY
-               IF (POWER > MAXPOWER) THEN
-                  MAXPOWER = POWER
-                  CLMAXNODE = LASTNODE
+         IF (.NOT.DONE(II)) THEN
+            J = IDX(II)
+            IF (RN(J)%NODENUM == NODENUM) THEN
+               I = RN(J)%RANK
+               IF (RN(J)%NODEMASTER == 1) THEN ! Always the first task on particular NODENUM
+                  LASTNODE = RN(J)%NODE
+                  NRECV = SIZE(RECVBUF)
+               ELSE
+                  NRECV = 2
                ENDIF
-            ELSE
-               HEAP_SIZE=HEAP_SIZE+RECVBUF(1)
-               TASKSMALL=TASKSMALL+RECVBUF(2)
+               CALL MPI_RECV(RECVBUF,NRECV,MPI_INTEGER8,I,ITAG+5,KCOMM,IRECV_STATUS,ERROR)
+               CALL CHECK_ERROR("from MPI_RECV(RECVBUF)",__FILE__,__LINE__)
+               IF (NRECV > 2) THEN
+                  HEAP_SIZE=RECVBUF(1)
+                  TASKSMALL=RECVBUF(2)
+                  ENERGY=RECVBUF(3)
+                  POWER=RECVBUF(4)
+                  NODEHUGE=RECVBUF(5)
+                  MEMFREE=RECVBUF(6)
+                  CACHED=RECVBUF(7)
+                  DO K=0,MAXNUMA-1
+                     SMALLPAGE(K) = RECVBUF(7+2*K+1)
+                     HUGEPAGE(K) = RECVBUF(7+2*K+2)
+                  ENDDO
+                  TOT_ENERGY = TOT_ENERGY + ENERGY
+                  IF (POWER > MAXPOWER) THEN
+                     MAXPOWER = POWER
+                     CLMAXNODE = LASTNODE
+                  ENDIF
+               ELSE
+                  HEAP_SIZE=HEAP_SIZE+RECVBUF(1)
+                  TASKSMALL=TASKSMALL+RECVBUF(2)
+               ENDIF
             ENDIF
+            DONE(II) = .TRUE.
          ENDIF
       ENDDO
-
+      
       PERCENT_USED(2) = 0
       IF (HEAP_SIZE >= NODEHUGE) THEN
          ! running with small pages
@@ -393,6 +402,7 @@ IF (MYPROC == 0) THEN
          ENDIF
       ENDIF
    ENDDO
+   IF (ALLOCATED(DONE)) DEALLOCATE(DONE)
 ELSE
     SENDBUF(1)=HEAP_SIZE
     SENDBUF(2)=TASKSMALL
