@@ -28,7 +28,7 @@ INTEGER(KIND=JPIB) :: GETMAXRSS,GETMAXHWM
 INTEGER(KIND=JPIB) :: HEAP_SIZE
 INTEGER(KIND=JPIB), PARAMETER :: ONEMEGA = 1024_JPIB * 1024_JPIB
 INTEGER(KIND=JPIB) :: ENERGY, POWER
-INTEGER(KIND=JPIB) :: TOT_ENERGY, MAXPOWER
+INTEGER(KIND=JPIB) :: TOT_ENERGY, MAXPOWER, AVGPOWER
 INTEGER(KIND=JPIM),SAVE :: PAGESIZE = 0
 INTEGER(KIND=JPIM),SAVE :: MAXTH = 0
 INTEGER(KIND=JPIM),PARAMETER :: MAXCOLS = 18 ! Max numerical columns in /proc/buddyinfo (often just 11, but Cray has 18 entries)
@@ -65,7 +65,7 @@ TYPE RANKNODE_T
    CHARACTER(LEN=LEN(NODENAME)) :: NODE
 END TYPE
 TYPE (RANKNODE_T), ALLOCATABLE, SAVE :: RN(:)
-INTEGER(KIND=JPIM), ALLOCATABLE, SAVE :: IDX(:)
+INTEGER(KIND=JPIM), ALLOCATABLE, SAVE :: REF(:)
 INTEGER(KIND=JPIM), ALLOCATABLE :: COREIDS(:)
 LOGICAL, ALLOCATABLE :: DONE(:)
 INTEGER(KIND=JPIM), SAVE :: NUMNODES = 0
@@ -187,6 +187,7 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
    IORANK = 0
    IF (KIOTASK > 0) IORANK = 1
    IF (MYPROC == 0) THEN
+      CALL SLASH_PROC
       ALLOCATE(RN(0:NPROC-1))
       DO I=0,NPROC-1
          RN(I)%NODENUM = -1
@@ -219,7 +220,7 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
       CALL RNSORT(KULOUT) ! Output now goes to meminfo.txt
       IAM_NODEMASTER = RN(0)%NODEMASTER ! Itself
       DO II=1,NPROC-1
-         K = IDX(II)
+         K = REF(II)
          I = RN(K)%RANK
          CALL MPI_SEND(RN(K)%NODEMASTER,1,MPI_INTEGER4,I,ITAG+4,KCOMM,ERROR)
          CALL CHECK_ERROR("from MPI_SEND(IAM_NODEMASTER)",__FILE__,__LINE__)
@@ -242,59 +243,7 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
    CALL CHECK_ERROR("from MPI_BARRIER near LLFIRST_TIME=.FALSE.",__FILE__,__LINE__)
 ENDIF
 
-IF (MYPROC == 0 .or. IAM_NODEMASTER == 1) THEN
-   CALL EC_PMON(ENERGY,POWER)
-
-   OPEN(FILE="/proc/buddyinfo",UNIT=502)
-   
-   N18 = 0 ! number of buddy columns (up to MAXCOLS)
-   NNUMA = 0 ! number of NUMA-nodes (up to MAXNUMA)
-   READ(502,'(a)') LINE
-   READ(502,'(a)') LINE
-   READ(502,'(a)') LINE
-   NODE(:,0)=-1
-   READ(LINE(22:),*,END=98) NODE(:,0)
-98 CONTINUE
-   N18 = COUNT(NODE(:,0) >= 0)
-   NNUMA = 1
-   DO K=1,MAXNUMA-1
-      NODE(:,K)=0
-      READ(502,'(a)',END=99) LINE
-      READ(LINE(22:),*) NODE(0:N18-1,K)
-      NNUMA = NNUMA + 1
-   ENDDO
-
-99 CONTINUE
-   CLOSE(502)
-
-   SMALLPAGE(:) = 0
-   HUGEPAGE(:) = 0
-   DO K=0,NNUMA-1
-      BUCKET(:,K) = 0
-      DO J=0,N18-1
-         BUCKET(J,K) = 4096_JPIB * NODE(J,K) * (2_JPIB ** J)
-      ENDDO
-      SMALLPAGE(K) = SUM(BUCKET(0:8,K))/ONEMEGA
-      HUGEPAGE(K) = SUM(BUCKET(9:N18-1,K))/ONEMEGA
-   ENDDO
-
-   MEMFREE = 0
-   CACHED = 0
-   
-   OPEN(FILE="/proc/meminfo",UNIT=502)
-   DO I=1,10
-      READ(502,'(a)') LINE
-      IF(LINE(1:7) == "MemFree") THEN
-         READ(LINE(9:80),*) MEMFREE 
-      ELSEIF(LINE(1:6) == "Cached") THEN
-         READ(LINE(8:80),*) CACHED
-      ENDIF
-   ENDDO
-   CLOSE(502)
-   
-   MEMFREE=MEMFREE/1024
-   CACHED=CACHED/1024
-ENDIF
+IF (MYPROC == 0 .or. IAM_NODEMASTER == 1) CALL SLASH_PROC
 
 HEAP_SIZE=GETMAXHWM()/ONEMEGA
 TASKSMALL=GETMAXRSS()/ONEMEGA
@@ -313,6 +262,7 @@ IF (MYPROC == 0) THEN
    ! Note: MYPROC == 0 is always at the RN(0) i.e. at the first NODENUM
    TOT_ENERGY = ENERGY
    MAXPOWER = POWER
+   AVGPOWER = POWER
    CLMAXNODE = NODENAME
    LASTNODE = NODENAME
 
@@ -327,7 +277,7 @@ IF (MYPROC == 0) THEN
    DO NODENUM=1,NN
       DO II=1,NPROC-1
          IF (.NOT.DONE(II)) THEN
-            J = IDX(II)
+            J = REF(II)
             IF (RN(J)%NODENUM == NODENUM) THEN
                I = RN(J)%RANK
                IF (RN(J)%NODEMASTER == 1) THEN ! Always the first task on particular NODENUM
@@ -355,12 +305,13 @@ IF (MYPROC == 0) THEN
                      MAXPOWER = POWER
                      CLMAXNODE = LASTNODE
                   ENDIF
+                  AVGPOWER = AVGPOWER + POWER
                ELSE
                   HEAP_SIZE=HEAP_SIZE+RECVBUF(1)
                   TASKSMALL=TASKSMALL+RECVBUF(2)
                ENDIF
+               DONE(II) = .TRUE.
             ENDIF
-            DONE(II) = .TRUE.
          ENDIF
       ENDDO
       
@@ -395,6 +346,7 @@ IF (MYPROC == 0) THEN
       IF (KU == -1) THEN
          CALL PRT_DATA(0)
          IF (NODENUM == NN) THEN
+            AVGPOWER = NINT(REAL(AVGPOWER)/REAL(NN))
             CALL PRT_TOTAL_ENERGIES(0)
             CALL PRT_TOTAL_ENERGIES(KULOUT)
             CALL PRT_EMPTY(KULOUT,1)
@@ -431,6 +383,61 @@ ENDIF
 
 CONTAINS
 
+SUBROUTINE SLASH_PROC
+  IMPLICIT NONE
+  CALL EC_PMON(ENERGY,POWER)
+  
+  OPEN(FILE="/proc/buddyinfo",UNIT=502)
+  
+  N18 = 0 ! number of buddy columns (up to MAXCOLS)
+  NNUMA = 0 ! number of NUMA-nodes (up to MAXNUMA)
+  READ(502,'(a)') LINE
+  READ(502,'(a)') LINE
+  READ(502,'(a)') LINE
+  NODE(:,0)=-1
+  READ(LINE(22:),*,END=98) NODE(:,0)
+98 CONTINUE
+  N18 = COUNT(NODE(:,0) >= 0)
+  NNUMA = 1
+  DO K=1,MAXNUMA-1
+     NODE(:,K)=0
+     READ(502,'(a)',END=99) LINE
+     READ(LINE(22:),*) NODE(0:N18-1,K)
+     NNUMA = NNUMA + 1
+  ENDDO
+  
+99 CONTINUE
+  CLOSE(502)
+  
+  SMALLPAGE(:) = 0
+  HUGEPAGE(:) = 0
+  DO K=0,NNUMA-1
+     BUCKET(:,K) = 0
+     DO J=0,N18-1
+        BUCKET(J,K) = 4096_JPIB * NODE(J,K) * (2_JPIB ** J)
+     ENDDO
+     SMALLPAGE(K) = SUM(BUCKET(0:8,K))/ONEMEGA
+     HUGEPAGE(K) = SUM(BUCKET(9:N18-1,K))/ONEMEGA
+  ENDDO
+  
+  MEMFREE = 0
+  CACHED = 0
+  
+  OPEN(FILE="/proc/meminfo",UNIT=502)
+  DO I=1,10
+     READ(502,'(a)') LINE
+     IF(LINE(1:7) == "MemFree") THEN
+        READ(LINE(9:80),*) MEMFREE 
+     ELSEIF(LINE(1:6) == "Cached") THEN
+        READ(LINE(8:80),*) CACHED
+     ENDIF
+  ENDDO
+  CLOSE(502)
+  
+  MEMFREE=MEMFREE/1024
+  CACHED=CACHED/1024
+END SUBROUTINE SLASH_PROC
+
 SUBROUTINE PRT_EMPTY(KUN,KOUNT)
 IMPLICIT NONE
 INTEGER(KIND=JPIM), INTENT(IN) :: KUN,KOUNT
@@ -453,11 +460,11 @@ INTEGER(KIND=JPIM), INTENT(IN) :: KUN
 IF (KCALL == 1) THEN ! last call
    CALL PRT_EMPTY(KUN,2)
    WRITE(KUN,'(a,a,f12.3,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-        & " Total energy consumed : ",&
-        & KWH(TOT_ENERGY), " kWh (",&
-        & TOT_ENERGY," J)"
+        & " Total energy consumed : ",KWH(TOT_ENERGY), " kWh (",TOT_ENERGY," J)"
    WRITE(KUN,'(a,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-        & " Peak power ("//trim(CLMAXNODE)//") : ",MAXPOWER," W"
+        & " Peak power            : ",MAXPOWER," W (node "//trim(CLMAXNODE)//")"
+   WRITE(KUN,'(a,a,i0,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
+        & " Avg. power            : ",AVGPOWER," W over ",NUMNODES," nodes"
    CALL PRT_EMPTY(KUN,1)
 ENDIF
 END SUBROUTINE PRT_TOTAL_ENERGIES
@@ -575,7 +582,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM), INTENT(IN) :: KUN
 CHARACTER(LEN=1) :: CLAST
 CHARACTER(LEN=4) :: CLMASTER
-ALLOCATE(IDX(0:NPROC-1))
+ALLOCATE(REF(0:NPROC-1))
 IOTASKS = 0
 K = 0
 NODENUM = 0
@@ -590,7 +597,7 @@ DO I=0,NPROC-1
       NODENUM = NODENUM + 1
       RN(I)%NODENUM = NODENUM
       RN(I)%NODEMASTER = 1
-      IDX(K) = I
+      REF(K) = I
       K = K + 1
       LASTNODE = RN(I)%NODE
       DO J=I+1,NPROC-1
@@ -598,7 +605,7 @@ DO I=0,NPROC-1
             IF (RN(J)%NODE == LASTNODE) THEN
                RN(J)%NODENUM = NODENUM
                RN(J)%NODEMASTER = 0
-               IDX(K) = J
+               REF(K) = J
                K = K + 1
             ENDIF
          ENDIF
@@ -614,11 +621,19 @@ WRITE(KUN,1003) &
      &"## EC_MEMINFO *** Mapping of MPI & I/O-tasks to nodes and tasks' thread-to-core affinities ***", &
      & CLPFX(1:IPFXLEN)//&
      &"## EC_MEMINFO ********************************************************************************"
-CALL PRT_EMPTY(KUN,1)
 1003 FORMAT((A))
+CALL PRT_EMPTY(KUN,1)
+WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a)') &
+     & CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running on ",NUMNODES," nodes (",NNUMA,&
+     & "-numa) with ",NPROC-IOTASKS, &
+     & " compute + ",IOTASKS," I/O-tasks and ", MAXTH, " threads"
+CALL PRT_EMPTY(KUN,1)
 WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-     & "#","NODE#","NODENAME","MPI#","I/O#","MASTER","IDX#","NUMTH","Core affinities"
-1000 FORMAT(A,2(1X,A5),1X,A12,5(1X,A6),1X,A)
+     & "#","NODE#","NODENAME","MPI#","I/O#","MASTER","REF#","OMP#","Core affinities"
+WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
+     & "=","=====","========","====","====","======","====","====","==============="
+1000 FORMAT(A,2(1X,A5),1X,A12,5(1X,A6),2X,A)
+CALL PRT_EMPTY(KUN,1)
 DO I=0,NPROC-1
    NUMTH = RN(I)%NUMTH
    CLMASTER = '[No]'
@@ -627,14 +642,14 @@ DO I=0,NPROC-1
       WRITE(KUN,1001,advance='no') &
            & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
            & I,RN(I)%NODENUM,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,RN(I)%IORANK,&
-           & CLMASTER,IDX(I),NUMTH,"{"
-1001  FORMAT(A,2(1X,I5),1X,A12,2(1X,I6),1X,A6,2(1X,I6),1X,A)
+           & CLMASTER,REF(I),NUMTH,"{"
+1001  FORMAT(A,2(1X,I5),1X,A12,2(1X,I6),1X,A6,2(1X,I6),2X,A)
    ELSE
       WRITE(KUN,1002,advance='no') &
            & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
            & I,RN(I)%NODENUM,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,"[No]",&
-           & CLMASTER,IDX(I),NUMTH,"{"
-1002  FORMAT(A,2(1X,I5),1X,A12,1X,I6,2(1X,A6),2(1X,I6),1X,A)
+           & CLMASTER,REF(I),NUMTH,"{"
+1002  FORMAT(A,2(1X,I5),1X,A12,1X,I6,2(1X,A6),2(1X,I6),2X,A)
    ENDIF
    CLAST = ','
    DO J=0,NUMTH-1
