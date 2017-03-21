@@ -403,7 +403,7 @@ SUBROUTINE SLASH_PROC
   IMPLICIT NONE
   CALL EC_PMON(ENERGY,POWER)
   
-  OPEN(FILE="/proc/buddyinfo",UNIT=502)
+  OPEN(FILE="/proc/buddyinfo",UNIT=502,STATUS="old")
   
   N18 = 0 ! number of buddy columns (up to MAXCOLS)
   NNUMA = 0 ! number of NUMA-nodes (up to MAXNUMA)
@@ -439,7 +439,7 @@ SUBROUTINE SLASH_PROC
   MEMFREE = 0
   CACHED = 0
   
-  OPEN(FILE="/proc/meminfo",UNIT=502)
+  OPEN(FILE="/proc/meminfo",UNIT=502,STATUS="old")
   DO I=1,10
      READ(502,'(a)') LINE
      IF(LINE(1:7) == "MemFree") THEN
@@ -698,7 +698,7 @@ CALL FLUSH(KOUT)
 RETURN ! For now
 #if 0
 CALL EC_GETHOSTNAME(NODENAME) ! from support/env.c
-OPEN(FILE="/proc/buddyinfo",UNIT=502,ERR=98)
+OPEN(FILE="/proc/buddyinfo",UNIT=502,ERR=98,STATUS="old")
 READ(502,'(a)') LINE
 READ(502,'(a)') LINE
 DO INUMA=0,1
