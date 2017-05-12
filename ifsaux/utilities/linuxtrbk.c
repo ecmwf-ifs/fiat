@@ -62,6 +62,7 @@ static void InitBFD();
 #if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(CRAYXT)
 #include <execinfo.h>
 #elif defined(DARWIN)
+#define _XOPEN_SOURCE
 #include <errno.h>
 #include <limits.h>
 #undef HANDLE
