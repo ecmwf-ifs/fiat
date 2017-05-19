@@ -752,6 +752,8 @@ IF (LDCALLFINITO) THEN !*** common MPI_Finalize()
       CALL MPI_FINALIZED(LLFIN,IERR)
       IF (.NOT.LLFIN .AND. IERR == 0) THEN
          CALL EC_MEMINFO(-1,"ec_mpi_finalize:"//caller,MPI_COMM_WORLD,KBARR=1,KIOTASK=-1,KCALL=1)
+         CALL c_drhook_prof() ! ifsaux/support/drhook.c : Make sure DrHook output is produced before MPI_Finalize (in case it fails)
+         CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
          CALL MPI_FINALIZE(KERROR)
       ENDIF
    ENDIF

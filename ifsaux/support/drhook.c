@@ -3087,7 +3087,6 @@ static int do_prof_off = 0;
 static void
 do_prof()
 {
-
   /* to avoid recursive signals while atexit() (e.g. SIGXCPU) */
   if (signal_handler_ignore_atexit) return; 
 
@@ -3117,6 +3116,11 @@ do_prof()
     int initlev = 0;
     c_drhook_print_(&ftnunitno, &master, &print_option, &initlev);
   }
+}
+
+void c_drhook_prof_()
+{
+  if (ec_drhook) do_prof();
 }
 
 /*--- Check watch points ---*/
