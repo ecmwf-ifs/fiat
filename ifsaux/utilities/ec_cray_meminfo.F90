@@ -41,15 +41,17 @@ LOGICAL :: LLNOCOMM, LLNOHDR
 CHARACTER(LEN=64) :: CLPFX
 CHARACTER(LEN=3) :: ZUM
 INTEGER(KIND=4) :: IPFXLEN
-INTEGER OMP_GET_MAX_THREADS
-EXTERNAL OMP_GET_MAX_THREADS
+INTEGER :: NTHREADS
+!$INTEGER OMP_GET_MAX_THREADS
+!$EXTERNAL OMP_GET_MAX_THREADS
 
 CALL GETENV('EC_MEMINFO',EC_MEMINFO)
 IF (EC_MEMINFO == '0') RETURN
 
 LLNOCOMM = (KCOMM == -1 .or. KCOMM == -2)
 LLNOHDR = (KCOMM == -2)
-
+NTHREADS=1
+!$NTHREADS=OMP_GET_MAX_THREADS()
 CALL FLUSH(0)
 
 IF (LLNOCOMM) THEN
@@ -109,7 +111,7 @@ IF(MYPROC == 0) THEN
           "for program ",TRIM(PROGRAM)
      WRITE(KULOUT,'(a,i5,a,i3,a,a,'':'',a,'':'',a,a,a,''-'',a,''-'',a)') &
           CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running with ",NPROC, &
-          " tasks and ", OMP_GET_MAX_THREADS(), " threads at time ", &
+          " tasks and ", NTHREADS, " threads at time ", &
           CLTIMEOD(1:2),CLTIMEOD(3:4),CLTIMEOD(5:10), &
           " on ",CLDATEOD(7:8),CLDATEOD(5:6),CLDATEOD(3:4)
      WRITE(KULOUT,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO The Job Name is ",TRIM(JOBNAME), &
@@ -136,7 +138,7 @@ IF(MYPROC == 0) THEN
                     "for program ",TRIM(PROGRAM)
     WRITE(0,'(a,i5,a,i3,a,a,'':'',a,'':'',a,a,a,''-'',a,''-'',a)') &
                     CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running with ",NPROC, &
-                    " tasks and ", OMP_GET_MAX_THREADS(), " threads at time ", &
+                    " tasks and ", NTHREADS, " threads at time ", &
                     CLTIMEOD(1:2),CLTIMEOD(3:4),CLTIMEOD(5:10), &
                     " on ",CLDATEOD(7:8),CLDATEOD(5:6),CLDATEOD(3:4)
     WRITE(0,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO The Job Name is ",TRIM(JOBNAME), &
