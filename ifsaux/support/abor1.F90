@@ -59,3 +59,19 @@ IF (LEN(CDFILE) > 0 .AND. KLINENUM > 0 .AND. NULERR >= 0) THEN
 ENDIF
 CALL ABOR1(CDTEXT)
 END SUBROUTINE ABOR1FL
+
+
+SUBROUTINE ABOR1_EXCEPTION_HANDLER() BIND(C)
+  !! This routine, when registered as the fckit exception handler, will be called
+  !! whenever any C++ exception is thrown. The exception is intercepted and can
+  !! be inquired through the variable FCKIT_EXCEPTION.
+  !! The exception can then also be thrown by:
+  !!    CALL FCKIT_EXCEPTION%ABORT("I have my reasons")
+
+USE FCKIT_MODULE, ONLY : FCKIT_EXCEPTION
+IF( FCKIT_EXCEPTION%LOCATION%IS_SET() ) then 
+  CALL ABOR1FL( FCKIT_EXCEPTION%LOCATION%FILE(), FCKIT_EXCEPTION%LOCATION%LINE(), FCKIT_EXCEPTION%WHAT() )
+ELSE
+  CALL ABOR1( FCKIT_EXCEPTION%WHAT() )
+ENDIF
+END SUBROUTINE
