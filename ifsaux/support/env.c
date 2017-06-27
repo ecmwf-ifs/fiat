@@ -256,7 +256,11 @@ void ec_gethostname_(char a[],
 		     /* Hidden argument */
 		     int alen)
 {
+#if defined MACOSX
+  char s[256];
+#else
   char s[HOST_NAME_MAX];
+#endif
   memset(a,' ',alen);
   if (gethostname(s,sizeof(s)) == 0) {
     int len = strlen(s);
