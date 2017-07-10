@@ -13,7 +13,7 @@ Author: Dr. Umberto Modigliani, User Support.
 #include <ctype.h>
 #include <time.h>
 #include <unistd.h>
-#if !defined(__alpha) && !defined(LINUX) && !defined(_AIX43) && !defined(linux) && !defined(CYGWIN) && !defined(MACOSX)
+#if !defined(__alpha) && !defined(LINUX) && !defined(_AIX43) && !defined(linux) && !defined(CYGWIN) && !defined(MACOSX) && !defined(DARWIN)
 #include <pfmt.h>
 #endif
 #include <limits.h>
