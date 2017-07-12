@@ -46,6 +46,10 @@ INTEGER :: NTHREADS
 !$EXTERNAL OMP_GET_MAX_THREADS
 
 CALL GETENV('EC_MEMINFO',EC_MEMINFO)
+#if defined(DARWIN)
+!!! File  "/sys/kernel/mm/hugepages/hugepages-*kB/nr_hugepages" does not exist on OSX.
+EC_MEMINFO = '0'
+#endif
 IF (EC_MEMINFO == '0') RETURN
 
 LLNOCOMM = (KCOMM == -1 .or. KCOMM == -2)

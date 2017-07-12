@@ -19,6 +19,13 @@
 #include <errno.h>
 #include "privpub.h"
 
+#if !defined(HOST_NAME_MAX) && defined(_POSIX_HOST_NAME_MAX)
+#define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+#endif
+#if !defined(HOST_NAME_MAX) && defined(_SC_HOST_NAME_MAX)
+#define HOST_NAME_MAX _SC_HOST_NAME_MAX
+#endif
+
 extern char **environ; /* Global Unix var */
 static int numenv = 0;
 

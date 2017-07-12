@@ -66,6 +66,15 @@ If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
 #include <pthread.h>
 #endif
 
+
+#include <unistd.h>
+#if !defined(HOST_NAME_MAX) && defined(_POSIX_HOST_NAME_MAX)
+#define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+#endif
+#if !defined(HOST_NAME_MAX) && defined(_SC_HOST_NAME_MAX)
+#define HOST_NAME_MAX _SC_HOST_NAME_MAX
+#endif
+
 /* === This doesn't handle recursive calls correctly (yet) === */
 
 #include "drhook.h"
@@ -108,8 +117,8 @@ extern void necsx_trbk_(const char *msg, int msglen); /* from ../utilities/gentr
 #endif
 #if defined(DARWIN)
   /*  A temporary fix to link on MacIntosh. Something more clever will be done later -REK. */
-void feenableexcept() { }
-void fedisableexcept() { }
+int feenableexcept (int excepts) { return 0; }
+int fedisableexcept(int excepts) { return 0; }
 #endif
 
 static void trapfpe(void)
@@ -5208,7 +5217,14 @@ int util_ihpstat_(int *option)
 
 #define SECS(x) ((int)(x))
 #define NSECS(x) ((int)(1000000000 * ((x) - SECS(x))))
- 
+
+#ifndef __timer_t_defined
+static void set_timed_kill()
+{
+  // Definition of timer_t, timer_create, timer_set
+  //   is a POSIX extention, not available on e.g. Darwin
+}
+#else
 static void set_timed_kill()
 {
 #if !defined MACOSX
@@ -5273,3 +5289,4 @@ static void set_timed_kill()
   }
 #endif
 }
+#endif
