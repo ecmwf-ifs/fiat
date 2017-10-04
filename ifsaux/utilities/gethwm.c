@@ -119,6 +119,7 @@ unsigned int sleep_(unsigned int seconds)
 
 ll_t getmaxhwm_()
 {
-  (void) gethwm_();
+  ll_t rc = gethwm_();
+  if (rc > maxhwm) maxhwm = rc;
   return maxhwm;
 }

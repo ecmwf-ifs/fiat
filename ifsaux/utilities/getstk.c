@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 typedef  long long int  ll_t;
@@ -77,10 +78,52 @@ getstk_()
 
 #if defined(LINUX)
 
+ll_t getvmpeak_()
+{
+  ll_t virtmempeak = 0;
+  FILE *fp = fopen("/proc/self/status","r");
+  if (fp) {
+    char in[4096];
+    while (fgets(in,sizeof(in),fp) == in) {
+      if (strncmp(in,"VmPeak:",7) == 0) {
+	ll_t value;
+	int nf = sscanf(in,"%*s %lld kB",&value);
+	if (nf == 1) virtmempeak = value * (ll_t) 1024;
+	break;
+      }
+    }
+    fclose(fp);
+  }
+  return virtmempeak;
+}
+
+ll_t linux_getstackusage_()
+{
+  ll_t stackused = 0;
+  FILE *fp = fopen("/proc/self/status","r");
+  if (fp) {
+    char in[4096];
+    while (fgets(in,sizeof(in),fp) == in) {
+      if (strncmp(in,"VmStk:",6) == 0) {
+	ll_t value;
+	int nf = sscanf(in,"%*s %lld kB",&value);
+	if (nf == 1) stackused = value * (ll_t) 1024;
+	break;
+      }
+    }
+    fclose(fp);
+  }
+  return stackused;
+}
+
 ll_t getstk_()
 {
+  /*
   extern ll_t getstackusage_();
   ll_t stackused = getstackusage_();
+  */
+  extern ll_t linux_getstackusage_();
+  ll_t stackused = linux_getstackusage_();
   if (stackused > maxstack) maxstack = stackused;
   return stackused;
 }
@@ -89,7 +132,8 @@ ll_t getstk_()
 ll_t
 getstk_() 
 { 
-#if defined(CRAY)
+/*#if defined(CRAY)*/
+#if 0
   return 0;
 #else
   extern ll_t getstackusage_();
@@ -110,6 +154,12 @@ getstk_()
 ll_t
 getmaxstk_()
 {
-  (void) getstk_();
+  ll_t stackused = getstk_();
+  if (stackused > maxstack) maxstack = stackused;
   return maxstack;
 }
+
+#if !defined(LINUX)
+ll_t getvmpeak_() { return 0L; }
+#endif
+
