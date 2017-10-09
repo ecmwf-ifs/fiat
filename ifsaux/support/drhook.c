@@ -127,7 +127,7 @@ int fedisableexcept(int excepts) { return 0; }
 static void trapfpe(void)
 {
   /* Enable some exceptions. At startup all exceptions are masked. */
-#if defined(SINGLE) && !defined(SGEMM)
+#if defined(PARKIND1_SINGLE) && !defined(SGEMM)
   /* For now ... we have issues in SGEMM with IEEE-invalid ... especially with LIBSCI from Cray */
   (void) feenableexcept(FE_DIVBYZERO|FE_OVERFLOW);
 #else
