@@ -1780,6 +1780,10 @@ signal_drhook_init(int enforce)
     return; /* Never initialize signals via DrHook (dangerous, but sometimes necessary) */
   }
   if (!ec_drhook) {
+#if defined(DARWIN)
+    long HOST_NAME_MAX = sysconf (_SC_HOST_NAME_MAX);
+    if (HOST_NAME_MAX <= 0) HOST_NAME_MAX = _POSIX_HOST_NAME_MAX;
+#endif
     int slen;
     char hostname[HOST_NAME_MAX];
     int ntids = 1;
@@ -5205,6 +5209,9 @@ int util_ihpstat_(int *option)
 #define SECS(x) ((int)(x))
 #define NSECS(x) ((int)(1000000000 * ((x) - SECS(x))))
  
+#if defined(DARWIN)
+static void set_timed_kill(){ }
+#else
 static void set_timed_kill()
 {
   if (drhook_timed_kill) {
@@ -5267,3 +5274,4 @@ static void set_timed_kill()
     free_drhook(s);
   }
 }
+#endif

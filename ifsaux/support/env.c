@@ -256,6 +256,10 @@ void ec_gethostname_(char a[],
 		     /* Hidden argument */
 		     int alen)
 {
+#if defined(DARWIN)
+    long HOST_NAME_MAX = sysconf (_SC_HOST_NAME_MAX);
+    if (HOST_NAME_MAX <= 0) HOST_NAME_MAX = _POSIX_HOST_NAME_MAX;
+#endif
   char s[HOST_NAME_MAX];
   memset(a,' ',alen);
   if (gethostname(s,sizeof(s)) == 0) {
