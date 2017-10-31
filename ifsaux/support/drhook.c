@@ -1503,7 +1503,8 @@ signal_harakiri(int sig SIG_EXTRA_ARGS)
 static void 
 signal_drhook(int sig SIG_EXTRA_ARGS)
 {
-  int nsigs, nfirst;
+  int nsigs;
+  volatile int nfirst;
   int tid = get_thread_id_();
   char *pfx = PREFIX(tid);
   if (signals_set && sig >= 1 && sig <= NSIG) {
@@ -1550,10 +1551,8 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	const char drhook_lockfile[] = "drhook_lock";
 	if (access(drhook_lockfile,F_OK) == -1) {
 	  int fd = creat(drhook_lockfile,S_IRUSR|S_IWUSR);
-	  if (fd >= 0) {
-	    close(fd);
-	    nfirst = 1;
-	  }
+	  if (fd >= 0) close(fd);
+	  nfirst = 1;
 	}
       }
 
