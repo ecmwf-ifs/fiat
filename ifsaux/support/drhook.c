@@ -1630,6 +1630,9 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	    s = "unrecognized si_code for SIGBUS";  break;
 	  }
 	}
+	else {
+	  s = "unrecognized si_code";
+	}
 	if (s) {
 	  fprintf(stderr,
 		  "%s %s [%s@%s:%d] Signal#%d was caused by %s [memaddr=%p], nsigs = %d\n",
