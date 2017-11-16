@@ -59,11 +59,11 @@ gethwm()
 
 #else  /* non-RS6K */
 
-#if defined(_CRAYC)
+#if defined(_CRAYC) || defined(USE_TCMALLOC)
 ll_t
 gethwm()
 {
-  extern ll_t get_tcmalloc_heap_size_();
+  extern size_t get_tcmalloc_heap_size_();
   return get_tcmalloc_heap_size_();
 }
 #elif defined(LINUX)
