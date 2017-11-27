@@ -3135,7 +3135,10 @@ do_prof()
 
 void c_drhook_prof_()
 {
-  if (ec_drhook) do_prof();
+  if (ec_drhook) {
+    do_prof();
+    do_prof_off = 1;
+  }
 }
 
 /*--- Check watch points ---*/

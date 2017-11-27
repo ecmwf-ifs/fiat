@@ -503,10 +503,9 @@ CALL GET_ENVIRONMENT_VARIABLE('PBS_JOBID',JOBID)
 IF (JOBID == '') CALL GET_ENVIRONMENT_VARIABLE('SLURM_JOB_ID',JOBID)
 IF (JOBID == '') CALL GET_ENVIRONMENT_VARIABLE('EC_MEMINFO_JOBID',JOBID)
 CALL PRT_EMPTY(KUN,2)
-WRITE(KUN,'(3a)',advance='no') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
-     "for program ",TRIM(PROGRAM)
 WT = UTIL_WALLTIME() - WT0
-WRITE(KUN,'(a,f10.3,a)') " -- wall-time : ",WT,"s" 
+WRITE(KUN,'(4a,f10.3,a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
+     "for program ",TRIM(PROGRAM)," -- wall-time : ",WT,"s" 
 WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,a,":",a,":",a,a,a,"-",a,"-",a)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running on ",NUMNODES," nodes (",NNUMA,&
      "-numa) with ",NPROC-IOTASKS, &
@@ -521,61 +520,85 @@ END SUBROUTINE PRT_DETAIL
 SUBROUTINE PRT_HDR(KUN)
 IMPLICIT NONE
 INTEGER(KIND=JPIM), INTENT(IN) :: KUN
-INTEGER(KIND=JPIM) :: INUMA
+INTEGER(KIND=JPIM) :: INUMA, ILEN
+CHARACTER(LEN=4096) :: CLBUF
 INUMA = NNUMA
 !INUMA = MAXNUMA
 !INUMA = 2
-WRITE(KUN,'(A)',advance='no') &
+
+ILEN = 0
+WRITE(CLBUF(ILEN+1:),'(A)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO                   | TC    | MEMORY USED(MB) |"
+ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
    IF (K == 0) THEN
-      WRITE(KUN,'(A)',advance='no') " MEMORY FREE(MB)"
+      WRITE(CLBUF(ILEN+1:),'(A)') " MEMORY FREE(MB)"
+      ILEN = LEN_TRIM(CLBUF)
    ELSE
-      WRITE(KUN,'(A)',advance='no') "  -------------  "
+      WRITE(CLBUF(ILEN+1:),'(A)') "  -------------  "
+      ILEN = LEN_TRIM(CLBUF) + 2
    ENDIF
 ENDDO
-WRITE(KUN,'(A)') "INCLUDING CACHED |  %USED %HUGE  | Energy  Power"
+WRITE(CLBUF(ILEN+1:),'(A)') "INCLUDING CACHED |  %USED %HUGE  | Energy  Power"
+WRITE(KUN,'(A)') TRIM(CLBUF)
 
-WRITE(KUN,'(A)',advance='no') &
+ILEN=0
+WRITE(CLBUF(ILEN+1:),'(A)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO                   | Malloc| Inc Heap        |"
+ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
-   WRITE(KUN,'(A,I1,A)',advance='no') " Numa region ",K,"  |"
+   WRITE(CLBUF(ILEN+1:),'(A,I2,A)') " Numa region ",K," |"
+   ILEN = LEN_TRIM(CLBUF)
 ENDDO
-WRITE(KUN,'(A)')  "                |               |    (J)    (W)"
+WRITE(CLBUF(ILEN+1:),'(A)')  "                |               |    (J)    (W)"
+WRITE(KUN,'(A)') TRIM(CLBUF)
 
-WRITE(KUN,'(A)',advance='no') &
+ILEN=0
+WRITE(CLBUF(ILEN+1:),'(A)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO Node Name         | Heap  | RSS("//zum//")        |"
+ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
-   WRITE(KUN,'(A)',advance='no') " Small  Huge or |"
+   WRITE(CLBUF(ILEN+1:),'(A)') " Small  Huge or |"
+   ILEN = LEN_TRIM(CLBUF)
 ENDDO
-WRITE(KUN,'(A)') " Total          |"
+WRITE(CLBUF(ILEN+1:),'(A)') " Total          |"
+WRITE(KUN,'(A)') TRIM(CLBUF)
 
-WRITE(KUN,'(A)',advance='no') &
+ILEN=0
+WRITE(CLBUF(ILEN+1:),'(A)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO                   | (sum) | Small    Huge   |"
+ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
-   WRITE(KUN,'(A)',advance='no') "  Only   Small  |"
+   WRITE(CLBUF(ILEN+1:),'(A)') "  Only   Small  |"
+   ILEN = LEN_TRIM(CLBUF)
 ENDDO
-WRITE(KUN,'(A)') " Memfree+Cached |"
+WRITE(CLBUF(ILEN+1:),'(A)') " Memfree+Cached |"
+WRITE(KUN,'(A)') TRIM(CLBUF)
 END SUBROUTINE PRT_HDR
 
 SUBROUTINE PRT_DATA(KUN)
 IMPLICIT NONE
 INTEGER(KIND=JPIM), INTENT(IN) :: KUN
-INTEGER(KIND=JPIM) :: INUMA
+INTEGER(KIND=JPIM) :: INUMA,ILEN
+CHARACTER(LEN=4096) :: CLBUF
 INUMA = NNUMA
 !INUMA = MAXNUMA
 !INUMA = 2
-WRITE(KUN,'(a,i4,1x,a,3i8,1x)',advance='no') &
+ILEN=0
+WRITE(CLBUF(ILEN+1:),'(a,i4,1x,a,3i8,1x)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO ", &
      NODENUM,LASTNODE,HEAP_SIZE,TASKSMALL,NODEHUGE
+ILEN = LEN_TRIM(CLBUF) + 1
 DO K=0,INUMA-1
-   WRITE(KUN,'(1x,2i8)',advance='no') SMALLPAGE(K),HUGEPAGE(K)
+   WRITE(CLBUF(ILEN+1:),'(1x,2i8)') SMALLPAGE(K),HUGEPAGE(K)
+   ILEN = LEN_TRIM(CLBUF)
 ENDDO
-WRITE(KUN,'(2x,2i8,3x,2f6.1,1x,i9,1x,i6,1x,a)') &
+WRITE(CLBUF(ILEN+1:),'(2x,2i8,3x,2f6.1,1x,i9,1x,i6,1x,a)') &
      MEMFREE,CACHED, &
      PERCENT_USED,&
      ENERGY,POWER,&
      trim(ID_STRING)
+WRITE(KUN,'(A)') TRIM(CLBUF)
 END SUBROUTINE PRT_DATA
 
 SUBROUTINE CONDBARR()
@@ -601,8 +624,10 @@ END SUBROUTINE CHECK_ERROR
 SUBROUTINE RNSORT(KUN)
 IMPLICIT NONE
 INTEGER(KIND=JPIM), INTENT(IN) :: KUN
+INTEGER(KIND=JPIM) :: ILEN
 CHARACTER(LEN=1) :: CLAST
 CHARACTER(LEN=4) :: CLMASTER
+CHARACTER(LEN=4096) :: CLBUF
 ALLOCATE(REF(0:NPROC-1))
 IOTASKS = 0
 K = 0
@@ -656,28 +681,31 @@ WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
 1000 FORMAT(A,2(1X,A5),1X,A12,5(1X,A6),2X,A)
 CALL PRT_EMPTY(KUN,1)
 DO I=0,NPROC-1
+   ILEN = 0
    NUMTH = RN(I)%NUMTH
    CLMASTER = '[No]'
    IF (RN(I)%NODEMASTER == 1) CLMASTER = ' Yes'
    IF (RN(I)%IORANK > 0) THEN
-      WRITE(KUN,1001,advance='no') &
+      WRITE(CLBUF(ILEN+1:),1001) &
            & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
            & I,RN(I)%NODENUM,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,RN(I)%IORANK,&
            & CLMASTER,REF(I),NUMTH,"{"
 1001  FORMAT(A,2(1X,I5),1X,A12,2(1X,I6),1X,A6,2(1X,I6),2X,A)
    ELSE
-      WRITE(KUN,1002,advance='no') &
+      WRITE(CLBUF(ILEN+1:),1002) &
            & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
            & I,RN(I)%NODENUM,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,"[No]",&
            & CLMASTER,REF(I),NUMTH,"{"
 1002  FORMAT(A,2(1X,I5),1X,A12,1X,I6,2(1X,A6),2(1X,I6),2X,A)
    ENDIF
+   ILEN = LEN_TRIM(CLBUF)
    CLAST = ','
    DO J=0,NUMTH-1
       IF (J == NUMTH-1) CLAST = '}'
-      WRITE(KUN,'(I0,A1)',advance='no') RN(I)%COREIDS(J),CLAST
+      WRITE(CLBUF(ILEN+1:),'(I0,A1)') RN(I)%COREIDS(J),CLAST
+      ILEN = LEN_TRIM(CLBUF)
    ENDDO
-   WRITE(KUN,'(1X)')
+   WRITE(KUN,'(A,1X)') TRIM(CLBUF)
 ENDDO
 CALL PRT_EMPTY(KUN,2)
 CALL FLUSH(KUN)
