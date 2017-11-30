@@ -1,3 +1,7 @@
+#ifdef RS6K
+@PROCESS NOCHECK
+#endif
+
 MODULE MPL_RECV_MOD
 
 !**** MPL_RECV Receive a message
