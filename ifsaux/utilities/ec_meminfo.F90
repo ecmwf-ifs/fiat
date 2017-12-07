@@ -505,7 +505,7 @@ IF (JOBID == '') CALL GET_ENVIRONMENT_VARIABLE('EC_MEMINFO_JOBID',JOBID)
 CALL PRT_EMPTY(KUN,2)
 WT = UTIL_WALLTIME() - WT0
 WRITE(KUN,'(4a,f10.3,a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
-     "for program ",TRIM(PROGRAM)," -- wall-time : ",WT,"s" 
+     "for program ",TRIM(PROGRAM)," -- wall-time : ",WT,"s"
 WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,a,":",a,":",a,a,a,"-",a,"-",a)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running on ",NUMNODES," nodes (",NNUMA,&
      "-numa) with ",NPROC-IOTASKS, &
