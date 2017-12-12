@@ -11,6 +11,7 @@ IMPLICIT NONE
 !              Sami Saarinen (ECMWF) : 02-MAR-2017 : Enabled flexible number of sockets & lots of tidying
 !              Sami Saarinen (ECMWF) : 09-MAR-2017 : Power monitoring added (via EC_PMON) -- works at least on Cray systems
 !              Sami Saarinen (ECMWF) : 12-MAR-2017 : Gather core affinities via call to ec_coreid()
+!              Sami Saarinen (ECMWF) : 12-DEC-2017 : Obtain MPI & OpenMP version information
 
 #include "ec_pmon.intfb.h"
 
@@ -479,13 +480,17 @@ SUBROUTINE PRT_TOTAL_ENERGIES(KUN)
 IMPLICIT NONE
 INTEGER(KIND=JPIM), INTENT(IN) :: KUN
 IF (KCALL == 1) THEN ! last call
+   WT = UTIL_WALLTIME() - WT0
    CALL PRT_EMPTY(KUN,2)
    WRITE(KUN,'(a,a,f12.3,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
         & " Total energy consumed : ",KWH(TOT_ENERGY), " kWh (",TOT_ENERGY," J)"
-   WRITE(KUN,'(a,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-        & " Peak power            : ",MAXPOWER," W (node "//trim(CLMAXNODE)//")"
+!-- Peak power below is misleading since based on values at sample points
+!   WRITE(KUN,'(a,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
+!        & " Peak power            : ",MAXPOWER," W (node "//trim(CLMAXNODE)//")"
+!-- Avg power must be calculated based on total Joules divided by wall time and num nodes
+   AVGPOWER = TOT_ENERGY / WT / NUMNODES
    WRITE(KUN,'(a,a,i0,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-        & " Avg. power            : ",AVGPOWER," W over ",NUMNODES," nodes"
+        & " Avg. power / node     : ",AVGPOWER," W across ",NUMNODES," nodes"
    CALL PRT_EMPTY(KUN,1)
 ENDIF
 END SUBROUTINE PRT_TOTAL_ENERGIES
@@ -502,7 +507,7 @@ IF (JOBNAME == '') CALL GET_ENVIRONMENT_VARIABLE('EC_MEMINFO_JOBNAME',JOBNAME)
 CALL GET_ENVIRONMENT_VARIABLE('PBS_JOBID',JOBID)
 IF (JOBID == '') CALL GET_ENVIRONMENT_VARIABLE('SLURM_JOB_ID',JOBID)
 IF (JOBID == '') CALL GET_ENVIRONMENT_VARIABLE('EC_MEMINFO_JOBID',JOBID)
-CALL PRT_EMPTY(KUN,2)
+CALL PRT_EMPTY(KUN,1)
 WT = UTIL_WALLTIME() - WT0
 WRITE(KUN,'(4a,f10.3,a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
      "for program ",TRIM(PROGRAM)," -- wall-time : ",WT,"s"
@@ -628,6 +633,9 @@ INTEGER(KIND=JPIM) :: ILEN
 CHARACTER(LEN=1) :: CLAST
 CHARACTER(LEN=4) :: CLMASTER
 CHARACTER(LEN=4096) :: CLBUF
+INTEGER(KIND=JPIM) :: impi_vers, impi_subvers, ilibrary_version_len
+INTEGER(KIND=JPIM) :: iomp_vers, iomp_subvers, iopenmp
+CHARACTER(LEN=256) :: clibrary_version
 ALLOCATE(REF(0:NPROC-1))
 IOTASKS = 0
 K = 0
@@ -659,7 +667,16 @@ DO I=0,NPROC-1
    ENDIF
 ENDDO
 NUMNODES = NODENUM
+CALL ecmpi_version(impi_vers, impi_subvers, clibrary_version, ilibrary_version_len)
+call ecomp_version(iomp_vers, iomp_subvers, iopenmp)
 CALL PRT_EMPTY(KUN,1)
+WRITE(KUN,'(a,i0,".",i0,4x,a)') &
+     & CLPFX(1:IPFXLEN)//&
+     & "## EC_MEMINFO : MPI-version ",impi_vers, impi_subvers, trim(clibrary_version)
+WRITE(KUN,'(a,i0,".",i0,4x,"_OPENMP=",i0)') &
+     & CLPFX(1:IPFXLEN)//&
+     & "## EC_MEMINFO : OpenMP-version ",iomp_vers, iomp_subvers, iopenmp
+CALL PRT_EMPTY(KUN,2)
 WRITE(KUN,1003) &
      & CLPFX(1:IPFXLEN)//&
      &"## EC_MEMINFO ********************************************************************************",&
@@ -707,7 +724,7 @@ DO I=0,NPROC-1
    ENDDO
    WRITE(KUN,'(A,1X)') TRIM(CLBUF)
 ENDDO
-CALL PRT_EMPTY(KUN,2)
+CALL PRT_EMPTY(KUN,1)
 CALL FLUSH(KUN)
 END SUBROUTINE RNSORT
 
