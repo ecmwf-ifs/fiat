@@ -13,7 +13,7 @@ void ecmpi_version_(int *version,
 		    char *library_version,
 		    int *resultlen
 		    /* hidden length */
-		    ,int len_library_version)
+		    ,const int len_library_version)
 {
   int slen = 0;
   if (version && subversion) {
@@ -25,11 +25,12 @@ void ecmpi_version_(int *version,
       *subversion = 0;
     }
   }
-  if (library_version) {
+  if (library_version && len_library_version > 0) {
     if (MPI_Get_library_version) {
       char s[4096];
       (void) MPI_Get_library_version(s,&slen);
       if (slen > len_library_version) slen = len_library_version;
+      while (slen > 0 && s[slen-1] == '\n') slen--;
       memset(library_version,' ',len_library_version);
       memcpy(library_version,s,slen);
     }
@@ -42,7 +43,7 @@ void ecmpi_version(int *version,
 		   char *library_version,
 		   int *resultlen
 		   /* hidden length */
-		   ,int len_library_version)
+		   ,const int len_library_version)
 {
   ecmpi_version_(version,subversion,library_version,resultlen,len_library_version);
 }

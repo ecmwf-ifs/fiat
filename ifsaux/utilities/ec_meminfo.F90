@@ -635,7 +635,7 @@ CHARACTER(LEN=4) :: CLMASTER
 CHARACTER(LEN=4096) :: CLBUF
 INTEGER(KIND=JPIM) :: impi_vers, impi_subvers, ilibrary_version_len
 INTEGER(KIND=JPIM) :: iomp_vers, iomp_subvers, iopenmp
-CHARACTER(LEN=256) :: clibrary_version
+CHARACTER(LEN=4096) :: clibrary_version
 ALLOCATE(REF(0:NPROC-1))
 IOTASKS = 0
 K = 0
@@ -670,9 +670,16 @@ NUMNODES = NODENUM
 CALL ecmpi_version(impi_vers, impi_subvers, clibrary_version, ilibrary_version_len)
 call ecomp_version(iomp_vers, iomp_subvers, iopenmp)
 CALL PRT_EMPTY(KUN,1)
-WRITE(KUN,'(a,i0,".",i0,4x,a)') &
+WRITE(KUN,'(a,i0,".",i0)') &
      & CLPFX(1:IPFXLEN)//&
-     & "## EC_MEMINFO : MPI-version ",impi_vers, impi_subvers, trim(clibrary_version)
+     & "## EC_MEMINFO : MPI-version ",impi_vers, impi_subvers
+WRITE(KUN,'(a)')  &
+     & CLPFX(1:IPFXLEN)//&
+     & "## EC_MEMINFO : Start of MPI-library version"
+WRITE(KUN,'(a)') trim(clibrary_version) ! This is could be a multiline, very long string
+WRITE(KUN,'(a)')  &
+     & CLPFX(1:IPFXLEN)//&
+     & "## EC_MEMINFO : End of MPI-library version"
 WRITE(KUN,'(a,i0,".",i0,4x,"_OPENMP=",i0)') &
      & CLPFX(1:IPFXLEN)//&
      & "## EC_MEMINFO : OpenMP-version ",iomp_vers, iomp_subvers, iopenmp
