@@ -680,7 +680,7 @@ WRITE(KUN,'(a)') trim(clibrary_version) ! This is could be a multiline, very lon
 WRITE(KUN,'(a)')  &
      & CLPFX(1:IPFXLEN)//&
      & "## EC_MEMINFO : End of MPI-library version"
-WRITE(KUN,'(a,i0,".",i0,4x,"_OPENMP=",i0)') &
+WRITE(KUN,'(a,i0,".",i0,".",i6.6)') &
      & CLPFX(1:IPFXLEN)//&
      & "## EC_MEMINFO : OpenMP-version ",iomp_vers, iomp_subvers, iopenmp
 CALL PRT_EMPTY(KUN,2)
