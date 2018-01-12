@@ -134,11 +134,14 @@ static void trapfpe(void)
   /* Enable some exceptions. At startup all exceptions are masked. */
 #if 1
   /* New coding -- honours DR_HOOK_TRAPFPE_{INVALID,DIVBYZERO,OVERLOW} set to 1 (or 0) */
-  int excepts = 0;
-  if (drhook_trapfpe_invalid) excepts |= FE_INVALID;
-  if (drhook_trapfpe_divbyzero) excepts |= FE_DIVBYZERO;
-  if (drhook_trapfpe_overflow) excepts |= FE_OVERFLOW;
-  (void) feenableexcept(excepts);
+  int enable = 0;
+  int disable = 0;
+  int dummy;
+  dummy = drhook_trapfpe_invalid ? (enable |= FE_INVALID) : (disable |= FE_INVALID);
+  dummy = drhook_trapfpe_divbyzero ? (enable |= FE_DIVBYZERO) : (disable |= FE_DIVBYZERO);
+  dummy = drhook_trapfpe_overflow ? (enable |= FE_OVERFLOW) : (disable |= FE_OVERFLOW);
+  if (enable) (void) feenableexcept(enable); // Turn ON these
+  if (disable) (void) fedisableexcept(disable); // Turn OFF these
 #else
 #if defined(PARKIND1_SINGLE) && !defined(SGEMM)
   /* For now ... we have issues in SGEMM with IEEE-invalid ... especially with LIBSCI from Cray */
