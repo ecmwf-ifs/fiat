@@ -103,6 +103,11 @@ int drhook_memtrace = 0; /* set to 1, if opt_memprof or opt_timeline ; used in g
 static char *start_stamp = NULL;
 static char *end_stamp = NULL;
 
+static int drhook_trapfpe = 1;
+static int drhook_trapfpe_invalid = 1;
+static int drhook_trapfpe_divbyzero = 1;
+static int drhook_trapfpe_overflow = 1;
+
 #if defined(NECSX)
 #pragma cdir options -Nv -Csopt
 extern void necsx_trbk_(const char *msg, int msglen); /* from ../utilities/gentrbk.F90 */
@@ -127,11 +132,20 @@ int fedisableexcept(int excepts) { return 0; }
 static void trapfpe(void)
 {
   /* Enable some exceptions. At startup all exceptions are masked. */
+#if 1
+  /* New coding -- honours DR_HOOK_TRAPFPE_{INVALID,DIVBYZERO,OVERLOW} set to 1 (or 0) */
+  int excepts = 0;
+  if (drhook_trapfpe_invalid) excepts |= FE_INVALID;
+  if (drhook_trapfpe_divbyzero) excepts |= FE_DIVBYZERO;
+  if (drhook_trapfpe_overflow) excepts |= FE_OVERFLOW;
+  (void) feenableexcept(excepts);
+#else
 #if defined(PARKIND1_SINGLE) && !defined(SGEMM)
   /* For now ... we have issues in SGEMM with IEEE-invalid ... especially with LIBSCI from Cray */
   (void) feenableexcept(FE_DIVBYZERO|FE_OVERFLOW);
 #else
   (void) feenableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);
+#endif
 #endif
 }
 
@@ -157,7 +171,6 @@ static void untrapfpe(void)
 
 static int drhook_harakiri_timeout = drhook_harakiri_timeout_default;
 static int drhook_use_lockfile = 1;
-static int drhook_trapfpe = 1;
 
 static int atp_enabled = 0; /* Cray ATP specific */
 static int atp_max_cores = 20; /* Cray ATP specific */
@@ -2297,6 +2310,28 @@ process_options()
     drhook_trapfpe = (value != 0) ? 1 : 0; /* currently accept just 0 or 1 */
   }
   OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_TRAPFPE=%d\n",pfx,TIMESTR(tid),FFL,drhook_trapfpe);
+
+  env = getenv("DR_HOOK_TRAPFPE_INVALID");
+  if (env) {
+    int value = atoi(env);
+    drhook_trapfpe_invalid = (value != 0) ? 1 : 0; /* currently accept just 0 or 1 */
+  }
+  OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_TRAPFPE_INVALID=%d\n",pfx,TIMESTR(tid),FFL,drhook_trapfpe_invalid);
+
+  env = getenv("DR_HOOK_TRAPFPE_DIVBYZERO");
+  if (env) {
+    int value = atoi(env);
+    drhook_trapfpe_divbyzero = (value != 0) ? 1 : 0; /* currently accept just 0 or 1 */
+  }
+  OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_TRAPFPE_DIVBYZERO=%d\n",pfx,TIMESTR(tid),FFL,drhook_trapfpe_divbyzero);
+
+  env = getenv("DR_HOOK_TRAPFPE_OVERFLOW");
+  if (env) {
+    int value = atoi(env);
+    drhook_trapfpe_overflow = (value != 0) ? 1 : 0; /* currently accept just 0 or 1 */
+  }
+  OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_TRAPFPE_OVERFLOW=%d\n",pfx,TIMESTR(tid),FFL,drhook_trapfpe_overflow);
+
 
   env = getenv("DR_HOOK_TIMED_KILL");
   if (env) {
