@@ -62,6 +62,7 @@ static void InitBFD();
 #if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(CRAYXT)
 #include <execinfo.h>
 #elif defined(DARWIN)
+#define _XOPEN_SOURCE
 #include <errno.h>
 #include <limits.h>
 #undef HANDLE
@@ -258,6 +259,8 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     /* To have a desired effect, 
        compile with -g (and maybe -O1 or greater to get some optimization)
        and link with -g -Wl,-export-dynamic */
+    char *linuxtrbk_fullpath = getenv("LINUXTRBK_FULLPATH");
+    int linuxtrbk_fullpath_on = (linuxtrbk_fullpath && *linuxtrbk_fullpath == '1') ? 1 : 0;
     void *trace[GNUC_BTRACE];
     ucontext_t *uc = (ucontext_t *)sigcontextptr;
     int fd = fileno(stderr);
@@ -311,7 +314,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 	    char line[LINELEN];
 	    if (!feof(fp) && fgets(line, LINELEN, fp)) {
 	      char *nl = strchr(func,'\n');
-	      const char *last_slash = strrchr(strings[i],'/');
+	      const char *last_slash = linuxtrbk_fullpath_on ? NULL : strrchr(strings[i],'/');
 	      if (last_slash) last_slash++; else last_slash = strings[i];
 	      if (nl) *nl = '\0';
 	      nl = strchr(line,'\n');
@@ -330,7 +333,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 	InitBFD();
 	for (i = 0 ; i < trace_size; ++i) {
 	  BFD_t b;
-	  const char *last_slash = strrchr(strings[i],'/');
+	  const char *last_slash = linuxtrbk_fullpath_on ? NULL : strrchr(strings[i],'/');
 	  if (last_slash) last_slash++; else last_slash = strings[i];
 	  rc = ResolveViaBFD(trace[i], &b, last_slash);
 	  if (rc == 0) {
