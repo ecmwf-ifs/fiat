@@ -138,7 +138,7 @@ void ec_PutArgs(int argc, char *argv[])
 const char *ec_GetArgs(int argno)
 {
   const char *arg = NULL;
-  if (argno == 0 && !args) {
+  if (argno == 0 /* && !args */) {
     arg = get_a_out();
   }
   else if (argno >= 0 && argno <= numargs && args) {
