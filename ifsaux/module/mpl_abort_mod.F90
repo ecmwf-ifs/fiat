@@ -29,18 +29,22 @@ CALL FLUSH(0)
 CALL EC_SLEEP(1) ! This rather than 'CALL SYSTEM("sleep 1")' ; see code ../support/env.c
 
 !------Traceback from only one thread
-IF (INUMTH > 1) CALL OML_SET_LOCK(MYLOCK=MAB_LOCK(1))
+!IF (INUMTH > 1) CALL OML_SET_LOCK(MYLOCK=MAB_LOCK(1))
+!$OMP CRITICAL (CRIT_MPL_ABORT)
+!$OMP FLUSH(MAB_CNT)
 IF(MAB_CNT == 0) THEN
   WRITE(MPL_ERRUNIT,'(A,I6,A,I6)') 'MPL_ABORT: CALLED FROM PROCESSOR ',MPL_RANK,' THRD',ITID
   IF(PRESENT(CDMESSAGE)) THEN
     WRITE(MPL_ERRUNIT,*) 'MPL_ABORT: THRD',ITID,"  ",CDMESSAGE
   ENDIF
   MAB_CNT=1
+!$OMP FLUSH(MAB_CNT)
   CALL SDL_TRACEBACK(ITID)
   CALL FLUSH(0)
   CALL EC_SLEEP(1) ! This rather than 'CALL SYSTEM("sleep 1")' ; see code ../support/env.c
 ENDIF
-IF (INUMTH > 1) CALL OML_UNSET_LOCK(MYLOCK=MAB_LOCK(1))
+!IF (INUMTH > 1) CALL OML_UNSET_LOCK(MYLOCK=MAB_LOCK(1))
+!$OMP END CRITICAL (CRIT_MPL_ABORT)
 ! ------All threads wait till traceback done
 CALL FLUSH(0)
 CALL EC_SLEEP(1) ! This rather than 'CALL SYSTEM("sleep 1")' ; see code ../support/env.c
