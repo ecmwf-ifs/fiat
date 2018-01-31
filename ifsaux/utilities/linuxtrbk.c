@@ -307,23 +307,60 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 	/* free(addr2linecmd); */
       }
       if (fp) {
+	extern char *cxxdemangle(const char *mangled_name, int *status); // cxxdemangle.cc (C++ code) : returned string must be free'd
 	for (i = 0; i < trace_size; i++) {
 	  int ok = 0;
 	  char func[LINELEN];
 	  if (!feof(fp) && fgets(func, LINELEN, fp)) {
 	    char line[LINELEN];
 	    if (!feof(fp) && fgets(line, LINELEN, fp)) {
+	      char *cxxfunc = NULL;
 	      char *nl = strchr(func,'\n');
+	      char *leftB, *plus;
 	      const char *last_slash = linuxtrbk_fullpath_on ? NULL : strrchr(strings[i],'/');
 	      if (last_slash) last_slash++; else last_slash = strings[i];
 	      if (nl) *nl = '\0';
+	      cxxfunc = cxxdemangle(func,NULL);
 	      nl = strchr(line,'\n');
 	      if (nl) *nl = '\0';
-	      fprintf(stderr, "%s %s [%s@%s:%d] [%d]: %s : %s() at %s\n", pfx, ts, FFL,i, last_slash, func, line);
+	      leftB = strchr(last_slash,'(');
+	      plus = strrchr(last_slash,'+');
+	      if (leftB && plus && (int)(plus-leftB) > 1) {
+		int istat = 0;
+		char *cxx = NULL;
+		char *therest = plus + 1;
+		*plus = '\0';
+		cxx = cxxdemangle(leftB + 1,&istat);
+		if (cxx) *leftB = '\0';
+		fprintf(stderr, "%s %s [%s@%s:%d] [%d]: %s%s%s+%s : %s%s at %s\n", 
+			pfx, ts, FFL, i,
+			last_slash,
+			cxx ? "(" : "",
+			cxx ? cxx : "",
+			therest,
+			cxxfunc ? cxxfunc : func, 
+			cxxfunc ? "" : "()",
+			line);
+		if (cxx) free(cxx);
+	      }
+	      else {
+		fprintf(stderr, "%s %s [%s@%s:%d] [%d]: %s : %s%s at %s\n", 
+			pfx, ts, FFL, i, 
+			last_slash, 
+			cxxfunc ? cxxfunc : func, 
+			cxxfunc ? "" : "()",
+			line);
+	      }
+	      if (cxxfunc) free(cxxfunc);
 	      ok = 1;
 	    }
 	  }
-	  if (!ok) fprintf(stderr, "%s %s [%s@%s:%d] [%d]: %s\n", pfx, ts, FFL,i, strings[i]);
+	  if (!ok) {
+	    char *cxx = cxxdemangle(strings[i],NULL);
+	    fprintf(stderr, "%s %s [%s@%s:%d] [%d]: %s\n", pfx, ts, FFL, i, 
+		    cxx ? cxx : strings[i]);
+	    if (cxx) free(cxx);
+	  }
 	} /* for (i = 0; i < trace_size; i++) */
 	fflush(stderr);
 	pclose(fp);
@@ -361,7 +398,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     char cmd[sizeof(TOSTR(PSTACKTRACE)) + 20];
     snprintf(cmd,sizeof(cmd),"%s %d", TOSTR(PSTACKTRACE), pid);
     fflush(NULL);
-    system(cmd);
+    { int idummy = system(cmd); }
     fflush(NULL);
   }
 #endif /* defined(PSTACKTRACE) */
@@ -432,7 +469,7 @@ void gdb_trbk_()
     
     /* fprintf(stderr,"%s\n",gdbcmd); */
     fflush(NULL);
-    system(gdbcmd);
+    { int idummy = system(gdbcmd); }
     fflush(NULL);
   }
 }
@@ -480,7 +517,7 @@ void dbx_trbk_()
     
     /* fprintf(stderr,"%s\n",dbxcmd); */
     fflush(NULL);
-    system(dbxcmd);
+    { int idummy = system(dbxcmd); }
     fflush(NULL);
   }
 }
