@@ -127,7 +127,11 @@ ENDIF
 IF (PAGESIZE == 0) THEN ! The *very* first time
    CALL EC_PMON(ENERGY,POWER)
 
-   CALL GETARG(0,PROGRAM)
+   !-- Neither of these two may stop working when linking with C++ (like in OOPS) ...
+   ! CALL GETARG(0,PROGRAM)
+   ! CALL GET_COMMAND_ARGUMENT(0,PROGRAM)
+   !... so using the old saviour from ifsaux/support/cargs.c:
+   CALL GETARG_C(0,PROGRAM)
 
    PAGESIZE=2048
    CALL GET_ENVIRONMENT_VARIABLE("HUGETLB_DEFAULT_PAGE_SIZE",VAL)

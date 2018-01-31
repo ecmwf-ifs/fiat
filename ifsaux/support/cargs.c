@@ -176,10 +176,20 @@ void getarg_c_(const int *argno, char *arg
 	       , const int arg_len)
 {
   int Argno = argno ? *argno : -1;
-  if (arg && arg_len > 0 && 
-      Argno >= 0 && Argno <= numargs && args && args[Argno].name) {
-    const char *s = args[Argno].name;
-    int len = args[Argno].len;
+  int len = 0;
+  const char *s = NULL;
+  /* Special case : Argno := 0 i.e. the executable name */
+  if (arg && arg_len > 0 && Argno == 0) {
+    s = get_a_out();
+    len = strlen(s);
+  }
+  else if (arg && arg_len > 0 && 
+      Argno > 0 && Argno <= numargs && args && args[Argno].name) {
+    s = args[Argno].name;
+    len = args[Argno].len;
+  }
+  if (arg && arg_len > 0) memset(arg,' ',arg_len);
+  if (s && len > 0) {
     if (arg_len < len) len = arg_len;
     strncpy(arg,s,len);
     if (arg_len > len) memset(&arg[len],' ',arg_len-len);
