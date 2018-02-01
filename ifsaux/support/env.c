@@ -19,6 +19,13 @@
 #include <errno.h>
 #include "privpub.h"
 
+#if !defined(HOST_NAME_MAX) && defined(_POSIX_HOST_NAME_MAX)
+#define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+#endif
+#if !defined(HOST_NAME_MAX) && defined(_SC_HOST_NAME_MAX)
+#define HOST_NAME_MAX _SC_HOST_NAME_MAX
+#endif
+
 extern char **environ; /* Global Unix var */
 static int numenv = 0;
 
@@ -260,7 +267,11 @@ void ec_gethostname_(char a[],
     long HOST_NAME_MAX = sysconf (_SC_HOST_NAME_MAX);
     if (HOST_NAME_MAX <= 0) HOST_NAME_MAX = _POSIX_HOST_NAME_MAX;
 #endif
+#if defined MACOSX
+  char s[256];
+#else
   char s[HOST_NAME_MAX];
+#endif
   memset(a,' ',alen);
   if (gethostname(s,sizeof(s)) == 0) {
     int len = strlen(s);
@@ -275,6 +286,34 @@ void ec_gethostname(char a[],
 {
   ec_gethostname_(a,alen);
 }
+
+/* For checking runtime affinities (not setting them, though) */
+
+#ifdef LINUX
+#include <sched.h>
+int sched_getcpu(void);
+#else
+#define sched_getcpu() -1
+#endif
+
+void ec_coreid_(int *coreid)
+{
+  if (coreid) *coreid = sched_getcpu();
+}
+
+void ec_coreid(int *coreid)
+{
+  ec_coreid_(coreid);
+}
+
+#ifdef ECMWF
+/* Some issues with Darshan -- better to use our own version of MPI_Wtime (mpi_wtime_ in Fortran) */
+double mpi_wtime_()
+{
+  extern double util_walltime_(); /* from drhook.c */
+  return util_walltime_();
+}
+#endif
 
 #if defined(__GNUC__)
 
@@ -299,6 +338,10 @@ void ec_gethostname(char a[],
 static pid_t gettid() {
   pid_t tid = syscall(SYS_gettid);
   return tid;
+}
+
+int getpid_() { /* GNU Fortran did not recognize this ? Here it comes then */
+  return (int)getpid();
 }
 
 static int GetMe()
@@ -343,18 +386,21 @@ int pthread_attr_init(pthread_attr_t *attr)
       else if (strchr(env_gs,'M')) guardsize *= 1048576; /* hence, in MiB */
       else if (strchr(env_gs,'K')) guardsize *= 1024; /* hence, in KiB */
       guardsize = RNDUP(guardsize,pgsize);
-      if (fp) fprintf(fp,
-		      "[%s@%s:%d] [pid=%ld:tid=%ld]: Requesting guard region size between thread stacks : %lld bytes (%s PAGESIZE = %d)\n",
-		      __FUNCTION__,__FILE__,__LINE__,
-		      (long int)pid,(long int)tid,
-		      (long long int)guardsize,
-		      (guardsize > pgsize) ? ">" : "<=",
-		      pgsize);
-      if (guardsize > pgsize) { /* Now we do bother */
+      if (guardsize > pgsize) { /* Now we *do* bother */
 	char *env_omp = getenv("OMP_STACKSIZE");
 	size_t omp_stacksize = env_omp ? atoll(env_omp) : 0;
 	size_t stacksize = 0;
 	int iret = pthread_attr_getstacksize(attr,&stacksize);
+#if 0
+	if (fp) fprintf(fp,
+			"[%s@%s:%d] [pid=%ld:tid=%ld]: Requesting guard region size "
+			"between thread stacks : %lld bytes (%s PAGESIZE = %d)\n",
+			__FUNCTION__,__FILE__,__LINE__,
+			(long int)pid,(long int)tid,
+			(long long int)guardsize,
+			(guardsize > pgsize) ? ">" : "<=",
+			pgsize);
+#endif
 	if (env_omp) {
 	  if (strchr(env_omp,'G')) omp_stacksize *= 1073741824; /* hence, in GiB */
 	  else if (strchr(env_omp,'M')) omp_stacksize *= 1048576; /* hence, in MiB */
@@ -397,7 +443,7 @@ static void MemInfoBeforeMain()
     pid_t pid = getpid();
     pid_t tid = gettid();
     int master = (pid == tid) ? 1 : 0;
-    if (me == 0 && master) meminfo_(&kout, &kstep); /* utilities/ec_cray_meminfo.F90 */
+    if (me == 0 && master) meminfo_(&kout, &kstep); /* utilities/ec_meminfo.F90 */
     done = 1;
   }
 }

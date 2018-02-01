@@ -23,3 +23,6 @@ struct statm
     int lrs;
     int dt;
 };
+
+extern int getstatm(struct statm *sm);
+

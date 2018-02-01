@@ -66,9 +66,21 @@ If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
 #include <pthread.h>
 #endif
 
+
+#include <unistd.h>
+#if !defined(HOST_NAME_MAX) && defined(_POSIX_HOST_NAME_MAX)
+#define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+#endif
+#if !defined(HOST_NAME_MAX) && defined(_SC_HOST_NAME_MAX)
+#define HOST_NAME_MAX _SC_HOST_NAME_MAX
+#endif
+
 /* === This doesn't handle recursive calls correctly (yet) === */
 
 #include "drhook.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 static void set_timed_kill();
 static void process_options();
@@ -108,14 +120,19 @@ extern void necsx_trbk_(const char *msg, int msglen); /* from ../utilities/gentr
 #endif
 #if defined(DARWIN)
   /*  A temporary fix to link on MacIntosh. Something more clever will be done later -REK. */
-void feenableexcept() { }
-void fedisableexcept() { }
+int feenableexcept (int excepts) { return 0; }
+int fedisableexcept(int excepts) { return 0; }
 #endif
 
 static void trapfpe(void)
 {
   /* Enable some exceptions. At startup all exceptions are masked. */
+#if defined(PARKIND1_SINGLE) && !defined(SGEMM)
+  /* For now ... we have issues in SGEMM with IEEE-invalid ... especially with LIBSCI from Cray */
+  (void) feenableexcept(FE_DIVBYZERO|FE_OVERFLOW);
+#else
   (void) feenableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);
+#endif
 }
 
 static void untrapfpe(void)
@@ -139,6 +156,7 @@ static void untrapfpe(void)
 #endif
 
 static int drhook_harakiri_timeout = drhook_harakiri_timeout_default;
+static int drhook_use_lockfile = 1;
 static int drhook_trapfpe = 1;
 
 static int atp_enabled = 0; /* Cray ATP specific */
@@ -191,6 +209,14 @@ static int opt_gencore_signal = 0;
 
 static int hpm_grp = 0;
 static int opt_random_memstat = 0; /* > 0 if to obtain random memory stats (maxhwm, maxstk) for tid=1. Updated when rand() % opt_random_memstat == 0 */
+
+static double opt_trace_stack = 0; /* if > 0, a multiplier for OMP_STACKSIZE to monitor high master thread stack usage --
+				      -- implies opt_random_memstat = 1 (regardless of DR_HOOK_RANDOM_MEMSTAT setting) 
+				      -- for master MPI task only (for the moment) */
+static long long int drhook_omp_stacksize = 0; /* Slave stack size -- 
+						  an indicative stack size even master thread should not exceed */
+static long long int drhook_stacksize_threshold = 0;
+static long long int slave_stacksize();
 
 /* Begin of developer options */
 static char *drhook_timed_kill = NULL; /* Timer assisted simulated kill of procs/threads by signal */
@@ -251,6 +277,7 @@ extern long long int getmaxcurheap_();
 extern long long int getcurheap_thread_(const int *tidnum);    /* *tidnum >= 1 && <= max_threads */
 extern long long int getmaxcurheap_thread_(const int *tidnum); /* *tidnum >= 1 && <= max_threads */
 extern long long int getpag_();
+extern long long int getvmpeak_();
 
 extern void ec_set_umask_();
 
@@ -565,9 +592,12 @@ static void dump_hugepages(int enforce, const char *pfx, int tid, int sig, int n
       double wt = WALLTIME();
       if (enforce || wt > next_scheduled) {
 	const int kcomm = -1;
+	const int kbarr = 0;
+	const int kiotask = 0;
+	const int kcall = -1;
 	const int ftnunitno = 0; /* stderr */
 	fflush(NULL);
-	ec_cray_meminfo_(&ftnunitno,pfx,&kcomm,strlen(pfx));
+	ec_meminfo_(&ftnunitno,pfx,&kcomm,&kbarr,&kiotask,&kcall,strlen(pfx));
 	fflush(NULL);
 	if (drhook_dump_buddyinfo) {
 	  dump_file(pfx,tid,sig,nsigs,"/proc/buddyinfo");
@@ -961,6 +991,20 @@ remove_calltree(int tid, drhook_key_t *keyptr,
 }
 
 /*--- memstat ---*/
+
+static long long int
+slave_stacksize()
+{
+  char *env_omp = getenv("OMP_STACKSIZE");
+  long long int stacksize = env_omp ? atoll(env_omp) : 0;
+  if (env_omp) {
+    if      (strchr(env_omp,'G')) stacksize *= (long long int)1073741824; /* hence, in GiB */
+    else if (strchr(env_omp,'M')) stacksize *= (long long int)1048576; /* hence, in MiB */
+    else if (strchr(env_omp,'K')) stacksize *= (long long int)1024; /* hence, in KiB */
+  }
+  if (stacksize < 0) stacksize = 0;
+  return stacksize;
+}
 
 static void
 memstat(drhook_key_t *keyptr, const int *thread_id, int in_getkey)
@@ -1459,7 +1503,7 @@ signal_harakiri(int sig SIG_EXTRA_ARGS)
 static void 
 signal_drhook(int sig SIG_EXTRA_ARGS)
 {
-  int nsigs;
+  int nsigs, nfirst;
   int tid = get_thread_id_();
   char *pfx = PREFIX(tid);
   if (signals_set && sig >= 1 && sig <= NSIG) {
@@ -1472,13 +1516,13 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     
     /* Signal catching */
 #ifdef _OPENMP
-#pragma omp critical
-    nsigs = (++signal_handler_called);
-    if (sl->ignore_atexit) signal_handler_ignore_atexit++;
-#else
-    nsigs = (++signal_handler_called); /* A tiny chance for a race condition between threads */
-    if (sl->ignore_atexit) signal_handler_ignore_atexit++;
+#pragma omp critical (thing)
 #endif
+    {
+      /* A tiny chance for a race condition between threads */
+      nsigs = (++signal_handler_called);
+      if (sl->ignore_atexit) signal_handler_ignore_atexit++;
+    }
 
     if (ec_drhook && tid >= 1 && tid <= numthreads) ec_drhook[tid-1].nsigs = nsigs; /* Store for possible signal_harakiri() */
     
@@ -1498,40 +1542,119 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 #ifdef _OPENMP
     max_threads = omp_get_max_threads();
 #endif
+    nfirst = drhook_use_lockfile ? 0 : 1;
     if (nsigs == 1) {
       /*---- First call to signal handler: call alarm(drhook_harakiri_timeout), tracebacks,  exit ------*/
       
-      /* Enjoy some output (only from the first guy that came in) */
-      long long int hwm = gethwm_();
-      long long int rss = getmaxrss_();
-      long long int maxstack = getmaxstk_();
-      long long int pag = getpag_();
-      rss /= 1048576;
-      hwm /= 1048576;
-      maxstack /= 1048576;
-      fprintf(stderr,
-	      "%s %s [%s@%s:%d] Received signal#%d (%s) :: %lldMB (heap),"
-	      " %lldMB (maxrss), %lldMB (maxstack), %lld (paging), nsigs = %d\n",
-	      pfx,TIMESTR(tid),FFL,
-	      sig, sl->name, hwm, rss, maxstack, pag, nsigs);
-      fprintf(stderr,
-	      "%s %s [%s@%s:%d] Also activating Harakiri-alarm (SIGALRM=%d) to expire after %ds elapsed to prevent hangs, nsigs = %d\n",
-	      pfx,TIMESTR(tid),FFL,
-	      SIGALRM,drhook_harakiri_timeout,nsigs);
+      if (!nfirst) {
+	const char drhook_lockfile[] = "drhook_lock";
+	if (access(drhook_lockfile,F_OK) == -1) {
+	  int fd = creat(drhook_lockfile,S_IRUSR|S_IWUSR);
+	  if (fd >= 0) {
+	    close(fd);
+	    nfirst = 1;
+	  }
+	}
+      }
+
+      if (nfirst) {
+	/* Enjoy some output (only from the first guy that came in) */
+	long long int hwm = gethwm_();
+	long long int rss = getmaxrss_();
+	long long int maxstack = getmaxstk_();
+	long long int vmpeak = getvmpeak_();
+	long long int pag = getpag_();
+	rss /= 1048576;
+	hwm /= 1048576;
+	maxstack /= 1048576;
+	vmpeak /= 1048576;
+	fprintf(stderr,
+		"%s %s [%s@%s:%d] Received signal#%d (%s) :: %lldMB (heap),"
+		" %lldMB (maxrss), %lldMB (maxstack), %lldMB (vmpeak), %lld (paging), nsigs = %d\n",
+		pfx,TIMESTR(tid),FFL,
+		sig, sl->name, hwm, rss, maxstack, vmpeak, pag, nsigs);
+	fprintf(stderr,
+		"%s %s [%s@%s:%d] Also activating Harakiri-alarm (SIGALRM=%d) to expire after %ds elapsed to prevent hangs, nsigs = %d\n",
+		pfx,TIMESTR(tid),FFL,
+		SIGALRM,drhook_harakiri_timeout,nsigs);
+      }
       JSETSIG(SIGALRM,1); /* This will now set another signal handler than signal_drhook */
       fflush(NULL);
       alarm(drhook_harakiri_timeout);
+
+#if defined(SA_SIGINFO) && SA_SIGINFO > 0
+      if (sigcode) {
+	const char *s = NULL;
+	void *addr = sigcode->si_addr;
+	if (sig == SIGFPE) {
+	  switch (sigcode->si_code) {
+	  case FPE_INTDIV: s = "integer divide by zero"; break;
+	  case FPE_INTOVF: s = "integer overflow"; break;
+	  case FPE_FLTDIV: s = "floating-point divide by zero"; break;
+	  case FPE_FLTOVF: s = "floating-point overflow"; break;
+	  case FPE_FLTUND: s = "floating-point underflow"; break;
+	  case FPE_FLTRES: s = "floating-point inexact result"; break;
+	  case FPE_FLTINV: s = "floating-point invalid operation"; break;
+	  case FPE_FLTSUB: s = "subscript out of range"; break;
+	  default:
+	    s = "unrecognized si_code for SIGFPE";  break;
+	  }
+	}
+	else if (sig == SIGILL) {
+	  switch (sigcode->si_code) {
+	  case ILL_ILLOPC: s = "illegal opcode"; break;
+	  case ILL_ILLOPN: s = "illegal operand"; break;
+	  case ILL_ILLADR: s = "illegal addressing mode"; break;
+	  case ILL_ILLTRP: s = "illegal trap"; break;
+	  case ILL_PRVOPC: s = "privileged opcode"; break;
+	  case ILL_PRVREG: s = "privileged register"; break;
+	  case ILL_COPROC: s = "coprocessor error"; break;
+	  case ILL_BADSTK: s = "internal stack error"; break;
+	  default:
+	    s = "unrecognized si_code for SIGILL";  break;
+	  }
+	}
+	else if (sig == SIGSEGV) {
+	  switch (sigcode->si_code) {
+	  case SEGV_MAPERR: s = "address not mapped to object"; break;
+          case SEGV_ACCERR: s = "invalid permissions for mapped object"; break;
+	  default:
+	    s = "unrecognized si_code for SIGSEGV";  break;
+	  }
+	}
+	else if (sig == SIGBUS) {
+	  switch (sigcode->si_code) {
+	  case BUS_ADRALN: s = "invalid address alignment"; break;
+          case BUS_ADRERR: s = "nonexistent physical address"; break;
+	  case BUS_OBJERR: s = "object-specific hardware error"; break;
+	  default:
+	    s = "unrecognized si_code for SIGBUS";  break;
+	  }
+	}
+	if (s) {
+	  fprintf(stderr,
+		  "%s %s [%s@%s:%d] Signal#%d was caused by %s [memaddr=%p], nsigs = %d\n",
+		  pfx,TIMESTR(tid),FFL,
+		  sig, s, addr, nsigs);
+	  fflush(NULL);
+	}
+      }
+#endif
+
     }
-    else if (nsigs > 1) {
+
+    if (nsigs > 1 || !nfirst) {
       /*----- 2nd (and subsequent) calls to signal handler: spin harakiri-timeout + 60 sec,  _exit ---------*/
       int offset = 60;
       int secs = drhook_harakiri_timeout+offset;
-      fprintf(stderr,
-	      "%s %s [%s@%s:%d] Calling signal_harakiri upon receipt of signal#%d"
-	      " after %ds spin, nsigs = %d\n",
-	      pfx,TIMESTR(tid),FFL,
-	      sig,secs,nsigs);
-      fflush(NULL);
+      if (!drhook_use_lockfile) { /* Less output if lockfile was used ... */
+	fprintf(stderr,
+		"%s %s [%s@%s:%d] Calling signal_harakiri upon receipt of signal#%d"
+		" after %ds spin, nsigs = %d, nfirst = %d\n",
+		pfx,TIMESTR(tid),FFL,
+		sig,secs,nsigs,nfirst);
+	fflush(NULL);
+      }
       spin(secs);
       signal_harakiri(sig SIG_PASS_EXTRA_ARGS);
     }
@@ -1563,13 +1686,13 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     /* Start critical region (we don't want any signals to interfere while doing this) */
     /* sigprocmask(SIG_BLOCK, &newmask, &oldmask); */
     
-    if (nsigs == 1) { 
+    if (nsigs == 1 && nfirst) { 
       /* Print Dr.Hook traceback */
       const int ftnunitno = 0; /* stderr */
       const int print_option = 2; /* calling tree */
       int level = 0;
 
-      dump_hugepages(1,pfx,tid,sig,nsigs);
+      dump_hugepages(0,pfx,tid,sig,nsigs); /* We don't wanna enforce anymore -- this the first arg == 0 now */
 
       if (drhook_dump_smaps) {
 	pid_t unixtid = gettid();
@@ -1785,7 +1908,11 @@ signal_drhook_init(int enforce)
     if (HOST_NAME_MAX <= 0) HOST_NAME_MAX = _POSIX_HOST_NAME_MAX;
 #endif
     int slen;
+#if defined MACOSX
+    char hostname[256];
+#else
     char hostname[HOST_NAME_MAX];
+#endif
     int ntids = 1;
 #ifdef _OPENMP
     ntids = omp_get_max_threads();
@@ -1951,8 +2078,24 @@ random_memstat(int tid, int enforce)
   if (tid == 1 && opt_random_memstat > 0 && opt_random_memstat <= RAND_MAX) {
     int random_number = rand();
     if (enforce || random_number % opt_random_memstat == 0) {
-      getmaxhwm_();
-      getmaxstk_();
+      long long int maxhwm = getmaxhwm_();
+      long long int maxstk = getmaxstk_();
+      if (drhook_stacksize_threshold > 0 && maxstk > drhook_stacksize_threshold) {
+	/* Abort hopefully with traceback */	
+	char *pfx = PREFIX(tid);
+	long long int vmpeak = getvmpeak_() / (long long int) 1048576;
+	long long int threshold = drhook_stacksize_threshold / (long long int) 1048576;
+	long long int ompstk = drhook_omp_stacksize / (long long int) 1048576;
+	maxstk /= (long long int) 1048576;
+	maxhwm /= (long long int) 1048576;
+	fprintf(stderr,
+		"%s %s [%s@%s:%d] Stack usage [MB] very high : %lld > %lld (= %g x OMP_STACKSIZE=%lld ; maxhwm=%lld ; vmpeak=%lld)\n",
+		pfx,TIMESTR(tid),FFL,
+		maxstk,threshold,
+		opt_trace_stack,ompstk,
+		maxhwm,vmpeak);
+	RAISE(SIGABRT);
+      }
     }
   }
 }
@@ -2084,14 +2227,36 @@ process_options()
     OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_TIMELINE_MB=%g\n",pfx,TIMESTR(tid),FFL,opt_timeline_MB);
   }
 
-  env = getenv("DR_HOOK_RANDOM_MEMSTAT");
-  if (env) {
-    opt_random_memstat = atoi(env);
-    if (opt_random_memstat < 0) opt_random_memstat = 0;
-    if (opt_random_memstat > RAND_MAX) opt_random_memstat = RAND_MAX;
-    random_memstat(1,1);
+  if (myproc == 1) { /* Only applicable for master MPI task for now */
+    env = getenv("DR_HOOK_TRACE_STACK");
+    if (env) {
+      opt_trace_stack = atof(env);
+      if (opt_trace_stack < 0) 
+	opt_trace_stack = 0;
+      else {
+	drhook_omp_stacksize = slave_stacksize();
+	if (drhook_omp_stacksize > 0) {
+	  drhook_stacksize_threshold = opt_trace_stack * drhook_omp_stacksize;
+	  opt_random_memstat = 1;
+	  random_memstat(1,1);
+	  OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_TRACE_STACK=%g\n",pfx,TIMESTR(tid),FFL,opt_trace_stack);
+	}
+	else
+	  opt_trace_stack = 0;
+      }
+    }
   }
-  
+
+  if (!opt_random_memstat) {
+    env = getenv("DR_HOOK_RANDOM_MEMSTAT");
+    if (env) {
+      opt_random_memstat = atoi(env);
+      if (opt_random_memstat < 0) opt_random_memstat = 0;
+      if (opt_random_memstat > RAND_MAX) opt_random_memstat = RAND_MAX;
+      random_memstat(1,1);
+    }
+  }
+
   OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_RANDOM_MEMSTAT=%d  (RAND_MAX=%d)\n",pfx,TIMESTR(tid),FFL,opt_random_memstat,RAND_MAX);
     
   env = getenv("DR_HOOK_HASHBITS");
@@ -2120,6 +2285,13 @@ process_options()
     drhook_harakiri_timeout = value;
   }
   OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_HARAKIRI_TIMEOUT=%d\n",pfx,TIMESTR(tid),FFL,drhook_harakiri_timeout);
+
+  env = getenv("DR_HOOK_USE_LOCKFILE");
+  if (env) {
+    int value = atoi(env);
+    drhook_use_lockfile = (value != 0) ? 1 : 0; /* currently accept just 0 or 1 */
+  }
+  OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_USE_LOCKFILE=%d\n",pfx,TIMESTR(tid),FFL,drhook_use_lockfile);
 
   env = getenv("DR_HOOK_TRAPFPE");
   if (env) {
@@ -2767,6 +2939,7 @@ if (overhead && tid >= 1 && tid <= numthreads) { \
   } \
   overhead[tid-1] += delta; \
 }
+
 /*--- itself ---*/
 
 #define ITSELF_0 \
@@ -2931,7 +3104,6 @@ static int do_prof_off = 0;
 static void
 do_prof()
 {
-
   /* to avoid recursive signals while atexit() (e.g. SIGXCPU) */
   if (signal_handler_ignore_atexit) return; 
 
@@ -2960,6 +3132,14 @@ do_prof()
     const int print_option = -7;
     int initlev = 0;
     c_drhook_print_(&ftnunitno, &master, &print_option, &initlev);
+  }
+}
+
+void c_drhook_prof_()
+{
+  if (ec_drhook) {
+    do_prof();
+    do_prof_off = 1;
   }
 }
 
@@ -3244,7 +3424,6 @@ c_drhook_start_(const char *name,
     char *pfx = PREFIX(tid);
     dump_hugepages(0,pfx,tid,0,-1);
   }
-  /* if (opt_random_memstat > 0) random_memstat(*thread_id,0); */
   if (!opt_callpath) {
     u.keyptr = getkey(*thread_id, name, name_len, 
 		      filename, filename_len,
@@ -3312,6 +3491,7 @@ c_drhook_start_(const char *name,
       }
     } /* if (opt_timeline_thread <= 0 || tid <= opt_timeline_thread) */
   }
+  if (opt_random_memstat > 0) random_memstat(*thread_id,0);
 }
 
 /*=== c_drhook_end_ ===*/
@@ -3347,7 +3527,6 @@ c_drhook_end_(const char *name,
     fprintf(stdout,"<x> %d %d %.*s %lld %lld\n",myproc,*thread_id,name_len,name,hwm,stk);
     fflush(stdout);
   }
-  if (opt_random_memstat > 0) random_memstat(*thread_id,0);
   if (timeline) {
     int tid = *thread_id;
     if (opt_timeline_thread <= 0 || tid <= opt_timeline_thread) {
@@ -3617,8 +3796,6 @@ static void print_routine_name0(FILE * fp, const char * p_name, int p_tid, const
   } /* if (fp && p) */
 
 
-#ifdef NECSX
-/* We need this because NEC SX refuses to write no more than 132 character for Fortran unit = 0 */
 static void
 DrHookPrint(int ftnunitno, const char *line)
 {
@@ -3633,7 +3810,6 @@ DrHookPrint(int ftnunitno, const char *line)
     OPTPRINT(fp,"%s\n",line);
   }
 }
-#endif
 
 void 
 c_drhook_print_(const int *ftnunitno,
@@ -3695,11 +3871,7 @@ c_drhook_print_(const int *ftnunitno,
 	    PRINT_WALL();
 	    PRINT_CPU();
 	    *s = 0;
-#ifdef NECSX
 	    DrHookPrint(*ftnunitno, line);
-#else
-	    dr_hook_prt_(ftnunitno, line, strlen(line));
-#endif
 	  }
 	  keyptr = keyptr->next;
 	  nestlevel++;
@@ -3718,15 +3890,12 @@ c_drhook_print_(const int *ftnunitno,
 	long long int hwm = getmaxhwm_()/1048576;
 	long long int rss = getmaxrss_()/1048576;
 	long long int maxstack = getmaxstk_()/1048576;
+	long long int vmpeak = getvmpeak_()/1048576;
 	snprintf(line,sizeof(line),
-		 "%s %s [%s@%s:%d] %lld MB (maxheap), %lld MB (maxrss), %lld MB (maxstack)",
+		 "%s %s [%s@%s:%d] %lld MB (maxheap), %lld MB (maxrss), %lld MB (maxstack), %lld MB (vmpeak)",
 		 pfx,TIMESTR(tid),FFL,
-		 hwm,rss,maxstack);
-#ifdef NECSX
+		 hwm,rss,maxstack,vmpeak);
 	DrHookPrint(*ftnunitno, line);
-#else
-	dr_hook_prt_(ftnunitno, line, strlen(line));
-#endif
       }
 
       if (tid > 1) {
@@ -3844,11 +4013,7 @@ c_drhook_print_(const int *ftnunitno,
 	    PRINT_CPU();
 	  }
 	  *s = 0;
-#ifdef NECSX
 	  DrHookPrint(*ftnunitno, line);
-#else
-	  dr_hook_prt_(ftnunitno, line, strlen(line));
-#endif
 	}
 	if (abs_print_option == 7 || abs_print_option == 5 || abs_print_option == 6) break;
 	if (treeptr) treeptr = treeptr->next;
@@ -4089,10 +4254,11 @@ c_drhook_print_(const int *ftnunitno,
 	  long long int hwm = getmaxhwm_()/1048576;
 	  long long int rss = getmaxrss_()/1048576;
 	  long long int maxstack = getmaxstk_()/1048576;
+	  long long int vmpeak = getvmpeak_()/1048576;
 	  long long int pag = getpag_();
 	  fprintf(fp,
-	  "\tMemory usage : %lld MBytes (heap), %lld MBytes (rss), %lld MBytes (stack), %lld (paging)\n",
-		  hwm,rss,maxstack,pag);
+	  "\tMemory usage : %lld MB (heap), %lld MB (rss), %lld MB (stack), %lld MB (vmpeak), %lld (paging)\n",
+		  hwm,rss,maxstack,vmpeak,pag);
 	}
 	if (opt_hpmprof) {
 	  mflop_rate = flop_tot / tottime;
@@ -4393,6 +4559,7 @@ c_drhook_print_(const int *ftnunitno,
 	  long long int hwm = gethwm_()/1048576;
 	  long long int rss = getrss_()/1048576;
 	  long long int maxstack = getmaxstk_()/1048576;
+	  long long int vmpeak = getvmpeak_()/1048576;
 	  long long int pag = getpag_();
 	  long long int maxseen = 0;
 	  long long int leaked = 0;
@@ -4407,8 +4574,8 @@ c_drhook_print_(const int *ftnunitno,
 	  maxseen /= 1048576;
 	  leaked /= 1048576;
 	  fprintf(fp,
-	  "\tMemory usage : %lld MBytes (max.seen), %lld MBytes (leaked), %lld MBytes (heap), %lld MBytes (max.rss), %lld MBytes (max.stack), %lld (paging)\n",
-		  maxseen,leaked,hwm,rss,maxstack,pag);
+	  "\tMemory usage : %lld MB (max.seen), %lld MB (leaked), %lld MB (heap), %lld MB (max.rss), %lld MB (max.stack), %lld MB (vmpeak), %lld (paging)\n",
+		  maxseen,leaked,hwm,rss,maxstack,vmpeak,pag);
 	  fprintf(fp,"\tNo. of procs/threads: %d procs, %d threads\n",nproc,numthreads);
 	}
 
@@ -5208,12 +5375,17 @@ int util_ihpstat_(int *option)
 
 #define SECS(x) ((int)(x))
 #define NSECS(x) ((int)(1000000000 * ((x) - SECS(x))))
- 
-#if defined(DARWIN)
-static void set_timed_kill(){ }
+
+#ifndef __timer_t_defined
+static void set_timed_kill()
+{
+  // Definition of timer_t, timer_create, timer_set
+  //   is a POSIX extention, not available on e.g. Darwin
+}
 #else
 static void set_timed_kill()
 {
+#if !defined MACOSX
   if (drhook_timed_kill) {
     const char delim[] = ", \t/";
     char *p, *s = strdup_drhook(drhook_timed_kill);
@@ -5273,5 +5445,6 @@ static void set_timed_kill()
     }
     free_drhook(s);
   }
+#endif
 }
 #endif
