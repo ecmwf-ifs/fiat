@@ -78,6 +78,7 @@ If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
 /* === This doesn't handle recursive calls correctly (yet) === */
 
 #include "drhook.h"
+#include "cas.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -512,6 +513,26 @@ static int timestr_len = 0;
 static pid_t gettid() {
   pid_t tid = syscall(SYS_gettid);
   return tid;
+}
+
+// Fortran callable : CALL GETTID_C(ITID) where INTEGER(KIND=4) :: ITID 
+
+void gettid_c_(int *tid)
+{
+  if (tid) *tid = (int)gettid();
+}
+
+void gettid_c(int *tid) { gettid_c_(tid); } 
+
+static void set_ec_drhook_label(const char *hostname)
+{
+  int slen = sizeof(ec_drhook[0].s);
+  int tid = get_thread_id_();
+  int j = tid - 1;
+  pid_t unixtid = gettid();
+  snprintf(ec_drhook[j].s,slen,"[EC_DRHOOK:%s:%d:%d:%lld:%lld]",
+	   hostname,myproc,tid,
+	   (long long int)pid, (long long int)unixtid);
 }
 
 
@@ -1532,13 +1553,14 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 #endif
     
     /* Signal catching */
-#ifdef _OPENMP
-#pragma omp critical (thing)
-#endif
     {
+      static volatile sig_atomic_t thing = 0;
       /* A tiny chance for a race condition between threads */
+      // Using compare-and-swap -stuff from the include cas.h (also in ecProf) 
+      cas_lock(&thing);
       nsigs = (++signal_handler_called);
       if (sl->ignore_atexit) signal_handler_ignore_atexit++;
+      cas_unlock(&thing);
     }
 
     if (ec_drhook && tid >= 1 && tid <= numthreads) ec_drhook[tid-1].nsigs = nsigs; /* Store for possible signal_harakiri() */
@@ -1939,15 +1961,15 @@ signal_drhook_init(int enforce)
     if (myproc == 1) {
       fprintf(stderr,"[EC_DRHOOK:hostname:myproc:omptid:pid:unixtid] [YYYYMMDD:HHMMSS:epoch:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",ntids);
     }
+#if 0
+    // TBD
+    run_fortran_omp_parallel_1_(&ntids,set_ec_drhook_label,hostname);
+#else
 #pragma omp parallel num_threads(ntids)
     {
-      int tid = get_thread_id_();
-      int j = tid - 1;
-      pid_t unixtid = gettid();
-      snprintf(ec_drhook[j].s,slen,"[EC_DRHOOK:%s:%d:%d:%lld:%lld]",
-	       hostname,myproc,tid,
-	       (long long int)pid, (long long int)unixtid);
+      set_ec_drhook_label(hostname);
     }
+#endif
   }
   env = getenv("ATP_ENABLED");
   atp_enabled = (env && *env == '1') ? 1 : 0;
