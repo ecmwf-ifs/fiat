@@ -524,14 +524,14 @@ void gettid_c_(int *tid)
 
 void gettid_c(int *tid) { gettid_c_(tid); } 
 
-static void set_ec_drhook_label(const char *hostname)
+static void set_ec_drhook_label(const char *hostname, int hlen)
 {
-  int slen = sizeof(ec_drhook[0].s);
   int tid = get_thread_id_();
   int j = tid - 1;
+  int slen = sizeof(ec_drhook[j].s);
   pid_t unixtid = gettid();
-  snprintf(ec_drhook[j].s,slen,"[EC_DRHOOK:%s:%d:%d:%lld:%lld]",
-	   hostname,myproc,tid,
+  snprintf(ec_drhook[j].s,slen,"[EC_DRHOOK:%*s:%d:%d:%lld:%lld]",
+	   hlen,hostname,myproc,tid,
 	   (long long int)pid, (long long int)unixtid);
 }
 
@@ -1963,11 +1963,11 @@ signal_drhook_init(int enforce)
     }
 #if 0
     // TBD
-    run_fortran_omp_parallel_1_(&ntids,set_ec_drhook_label,hostname);
+    run_fortran_omp_parallel_1_(&ntids,set_ec_drhook_label,hostname,strlen(hostname));
 #else
 #pragma omp parallel num_threads(ntids)
     {
-      set_ec_drhook_label(hostname);
+      set_ec_drhook_label(hostname,strlen(hostname));
     }
 #endif
   }
