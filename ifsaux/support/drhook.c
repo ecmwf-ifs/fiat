@@ -1507,6 +1507,7 @@ signal_harakiri(int sig SIG_EXTRA_ARGS)
   /* The following output should be malloc-free */
 
   time_t tp;
+  int idummy;
   int fd = fileno(stderr);
   int tid = get_thread_id_();
   int nsigs = TIDNSIGS(tid);
@@ -1531,7 +1532,7 @@ signal_harakiri(int sig SIG_EXTRA_ARGS)
   strcat(s,", nsigs = ");
   strcat(s,safe_llitoa(nsigs,buf,sizeof(buf)));
 
-  write(fd,s,strlen(s));
+  idummy = write(fd,s,strlen(s));
 
   raise(SIGKILL); /* Use raise, not RAISE here */
   _exit(128+ABS(sig)); /* Should never reach here, bu' in case it does, then ... */
@@ -1578,9 +1579,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     
     /* if (sig != SIGTERM) signal(SIGTERM, SIG_DFL); */  /* Let the default SIGTERM to occur */
     
-#ifdef _OPENMP
-    max_threads = omp_get_max_threads();
-#endif
+    coml_get_max_threads_(&max_threads);
     nfirst = drhook_use_lockfile ? 0 : 1;
     if (nsigs == 1) {
       /*---- First call to signal handler: call alarm(drhook_harakiri_timeout), tracebacks,  exit ------*/
@@ -1950,9 +1949,7 @@ signal_drhook_init(int enforce)
     char hostname[HOST_NAME_MAX];
 #endif
     int ntids = 1;
-#ifdef _OPENMP
-    ntids = omp_get_max_threads();
-#endif
+    coml_get_max_threads_(&ntids);
     numthreads = ntids;
     ec_drhook = calloc_drhook(ntids, sizeof(*ec_drhook));
     slen = sizeof(ec_drhook[0].s);
@@ -1961,9 +1958,13 @@ signal_drhook_init(int enforce)
     if (myproc == 1) {
       fprintf(stderr,"[EC_DRHOOK:hostname:myproc:omptid:pid:unixtid] [YYYYMMDD:HHMMSS:epoch:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",ntids);
     }
-#if 0
-    // TBD
-    run_fortran_omp_parallel_1_(&ntids,set_ec_drhook_label,hostname,strlen(hostname));
+#if 1
+    {
+      extern void run_fortran_omp_parallel_ipfstr_(const int *, 
+						   void (*func)(const char *, int),
+						   const char *, int);
+      run_fortran_omp_parallel_ipfstr_(&ntids,set_ec_drhook_label,hostname,strlen(hostname));
+    }
 #else
 #pragma omp parallel num_threads(ntids)
     {
@@ -5454,9 +5455,7 @@ static void set_timed_kill()
       int nelems = sscanf(p,"%d:%d:%d:%lf",
 			  &target_myproc, &target_omptid, &target_sig, &start_time);
       int ntids = 1;
-#ifdef _OPENMP
-      ntids = omp_get_max_threads();
-#endif
+      coml_get_max_threads_(&ntids);
       if (nelems == 4 && 
 	  (target_myproc == myproc || target_myproc == -1) &&
 	  (target_omptid == -1 || (target_omptid >= 1 && target_omptid <= ntids)) &&
