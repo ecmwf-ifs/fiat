@@ -536,6 +536,52 @@ static void set_ec_drhook_label(const char *hostname, int hlen)
 	   (long long int)pid, (long long int)unixtid);
 }
 
+#define SECS(x) ((int)(x))
+#define NSECS(x) ((int)(1000000000 * ((x) - SECS(x))))
+
+static void set_killer_timer(const int *ntids, const int *target_omptid, 
+			     const int *target_sig, const double *start_time,
+			     const char *p, int lenp)
+{
+  static volatile sig_atomic_t TimedKill = 0;
+  if (ntids && target_omptid && target_sig && start_time && p) {
+    int tid = get_thread_id_();
+    if (*target_omptid == -1 || *target_omptid == tid) {
+      char *pfx = PREFIX(tid);
+      timer_t timerid = { 0 };
+      struct itimerspec its = { 0 } ;
+      struct sigevent sev = { 0 } ;
+      sev.sigev_notify = SIGEV_THREAD_ID | SIGEV_SIGNAL;
+      sev.sigev_signo = *target_sig;
+      /* sev.sigev_notify_thread_id = gettid(); */
+      sev._sigev_un._tid = gettid(); 
+      sev.sigev_value.sival_ptr = &timerid;
+      
+      its.it_value.tv_sec = SECS(*start_time);
+      its.it_value.tv_nsec = NSECS(*start_time);
+      
+      its.it_interval.tv_sec = 0;
+      its.it_interval.tv_nsec = 0;
+      
+      timer_create(CLOCK_MONOTONIC, &sev, &timerid);
+      /* timer_create(CLOCK_REALTIME, &sev, &timerid); */
+      timer_settime(timerid, 0, &its, NULL);
+      
+      cas_lock(&TimedKill);
+      {
+	fprintf(stderr,
+		"%s %s [%s@%s:%d] Developer timer (%s) expires"
+		" after %.3fs through signal#%d (ntids=%d)\n",
+		pfx,TIMESTR(tid),FFL,
+		p,
+		*start_time, *target_sig, *ntids);
+	fflush(NULL);
+      }
+      cas_unlock(&TimedKill);
+    } /* if (target_omptid == -1 || target_omptid == tid) */
+  }
+}
+
 
 #if !defined(NCALLSTACK)
 #ifdef PARKIND1_SINGLE
@@ -5439,10 +5485,6 @@ int util_ihpstat_(int *option)
 }
 
 
-
-#define SECS(x) ((int)(x))
-#define NSECS(x) ((int)(1000000000 * ((x) - SECS(x))))
-
 #ifndef __timer_t_defined
 static void set_timed_kill()
 {
@@ -5469,42 +5511,20 @@ static void set_timed_kill()
 	  (target_omptid == -1 || (target_omptid >= 1 && target_omptid <= ntids)) &&
 	  (target_sig >= 1 && target_sig <= NSIG) &&
 	  start_time > 0) {
+#if 1
+	{
+	  extern void run_fortran_omp_parallel_ipfipipipdpstr_(const int *, 
+		 void (*func)(const int *, const int *, const int *, const double *, const char *, int len),
+			      const int *, const int *, const int *, const double *, const char *, int len);
+	  run_fortran_omp_parallel_ipfipipipdpstr_(&ntids,set_killer_timer,
+						   &ntids,&target_omptid,&target_sig,&start_time,p,strlen(p));
+	}
+#else
 #pragma omp parallel num_threads(ntids)
 	{
-	  int tid = get_thread_id_();
-	  if (target_omptid == -1 || target_omptid == tid) {
-	    char *pfx = PREFIX(tid);
-	    timer_t timerid = { 0 };
-	    struct itimerspec its = { 0 } ;
-	    struct sigevent sev = { 0 } ;
-	    sev.sigev_notify = SIGEV_THREAD_ID | SIGEV_SIGNAL;
-	    sev.sigev_signo = target_sig;
-	    /* sev.sigev_notify_thread_id = gettid(); */
-	    sev._sigev_un._tid = gettid(); 
-	    sev.sigev_value.sival_ptr = &timerid;
-	    
-	    its.it_value.tv_sec = SECS(start_time);
-	    its.it_value.tv_nsec = NSECS(start_time);
-	    
-	    its.it_interval.tv_sec = 0;
-	    its.it_interval.tv_nsec = 0;
-	    
-	    timer_create(CLOCK_MONOTONIC, &sev, &timerid);
-	    /* timer_create(CLOCK_REALTIME, &sev, &timerid); */
-	    timer_settime(timerid, 0, &its, NULL);
-	    
-#pragma omp critical (TimedKill)
-	    {
-	      fprintf(stderr,
-		      "%s %s [%s@%s:%d] Developer timer (%s) expires"
-		      " after %.3fs through signal#%d (ntids=%d)\n",
-		      pfx,TIMESTR(tid),FFL,
-		      p,
-		      start_time, target_sig, ntids);
-	      fflush(NULL);
-	    }
-	  } /* if (target_omptid == -1 || target_omptid == tid) */
+	  set_killer_timer(&ntids,&target_omptid,&target_sig,&start_time,p,strlen(p));
 	}
+#endif
       }
       p = strtok(NULL,delim);
     }
