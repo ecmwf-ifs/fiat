@@ -20,3 +20,14 @@ EXTERNAL :: FUNC
 CALL FUNC(KTIDS, TARGET_OMPTID, TARGET_SIG, START_TIME, CDSTR)
 !$OMP END PARALLEL
 end subroutine run_fortran_omp_parallel_ipfipipipdpstr
+
+subroutine get_openmp(kopenmp)
+use parkind1, only : JPIM
+implicit none
+INTEGER(KIND=JPIM), INTENT(out) :: kopenmp
+#ifdef _OPENMP
+kopenmp = _OPENMP
+#else
+kopenmp = 0
+#endif
+end subroutine get_openmp

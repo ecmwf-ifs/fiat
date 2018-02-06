@@ -23,9 +23,9 @@
 #include <pthread.h>
 #include <limits.h>
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
+//#ifdef _OPENMP
+//#include <omp.h>
+//#endif
 
 #ifdef RS6K
 #include <fptrap.h>

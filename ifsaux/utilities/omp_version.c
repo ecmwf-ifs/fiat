@@ -2,11 +2,11 @@ void ecomp_version_(int *version,
 		    int *subversion,
 		    int *openmp)
 {
+  extern void get_openmp_(int *);
   if (version && subversion && openmp) {
     *version = 0;
     *subversion = 0;
-#ifdef _OPENMP
-    *openmp = _OPENMP;
+    get_openmp_(openmp); // See Fortran file run_fortran_omp_parallel.F90
     if (*openmp >= 200505 && *openmp < 200805) {
       /* v2.5 */
       *version = 2;
@@ -32,9 +32,6 @@ void ecomp_version_(int *version,
       *version = 4;
       *subversion = 5;
     }
-#else
-    *openmp = 0;
-#endif
   }
 }
 
