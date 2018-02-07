@@ -19,7 +19,7 @@ INTEGER(KIND=JPIM), INTENT(IN) :: KU,KCOMM,KBARR,KIOTASK,KCALL
 CHARACTER(LEN=*), INTENT(IN) :: CDSTRING
 INTEGER(KIND=JPIM), PARAMETER :: ITAG = 98765
 INTEGER(KIND=JPIM) :: ID,KULOUT
-INTEGER(KIND=JPIM) :: II,I,J,K,MYPROC,NPROC,LEN,ERROR,NODENUM
+INTEGER(KIND=JPIM) :: II,I,J,K,MYPROC,NPROC,LEN,ERROR,NODENUM,JID
 INTEGER(KIND=JPIB) :: TASKSMALL,NODEHUGE,MEMFREE,CACHED,NFREE
 INTEGER(KIND=JPIB),SAVE :: NODEHUGE_CACHED
 INTEGER(KIND=JPIM), PARAMETER :: MAXNUMA_DEF = 4 ! Max number of "sockets" supported by default
@@ -304,6 +304,7 @@ IF (MYPROC == 0) THEN
    ENDIF
 
    DO NODENUM=1,NN
+      JID = 0
       DO II=1,NPROC-1
          IF (.NOT.DONE(II)) THEN
             J = REF(II)
@@ -312,6 +313,7 @@ IF (MYPROC == 0) THEN
                IF (RN(J)%NODEMASTER == 1) THEN ! Always the first task on particular NODENUM
                   LASTNODE = RN(J)%NODE
                   NRECV = SIZE(RECVBUF)
+                  JID = J
                ELSE
                   NRECV = 2
                ENDIF
@@ -367,6 +369,10 @@ IF (MYPROC == 0) THEN
    
       IF (LLNOCOMM) THEN
          ID_STRING = CSTAR
+      ELSE IF (KCALL == 0 .AND. JID > 0) THEN
+         ! This should signify the compute & I/O nodes (if they are separate)
+         CLSTR = RN(JID)%STR
+         ID_STRING = CSTAR//":"//TRIM(CLSTR)
       ELSE
          ID_STRING = CSTAR//":"//CDSTRING
       ENDIF
