@@ -1862,6 +1862,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	  case SIGTERM:
 	    if (atp_ignore_sigterm) break; /* SIGSEGV not reset to SIG_DFL as ATP now ignores SIGTERM */
 	    /* Fall thru (see man atp on Cray) */
+	  case SIGINT:
 	  case SIGFPE:
 	  case SIGILL:
 	  case SIGTRAP:
