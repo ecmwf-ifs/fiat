@@ -155,7 +155,13 @@ extern void ec_meminfo_(const int *KU, const char *CDSTRING,
 			int len_CDSTRING); /* see ec_meminfo.F90 */
 
 
-extern void coml_get_max_threads_(int *KTIDS); /* see comp_binding.F90 */
+/* see comp_binding.F90 */
+extern void coml_get_max_threads_(int *numthreads);
+extern void coml_my_thread_(int *mytid);
+
+/* see drhook.c */
+extern const char *drhook_TIMESTR(int tid);
+extern const char *drhook_PREFIX(int tid);
 
 /**** C-interface to Dr.Hook ****/
 

@@ -896,6 +896,28 @@ TimeStr(char *s, int slen)
   return s;
 }
 
+/* -- These 2 extern's are called primarily from LinuxTrbk() */
+
+const char *drhook_TIMESTR(int tid)
+{
+  static const char fixed[] = "";
+  if (tid <= 0) coml_my_thread_(&tid);
+  {
+    char *s = TIMESTR(tid);
+    return strlen(s) > 0 ? (const char *)s : fixed;
+  }
+}
+
+const char *drhook_PREFIX(int tid)
+{
+  static const char fixed[] = "";
+  if (tid <= 0) coml_my_thread_(&tid);
+  {
+    char *s = PREFIX(tid);
+    return strlen(s) > 0 ? (const char *)s : fixed;
+  }
+}
+
 /*--- hashfunc ---*/
 
 unsigned int

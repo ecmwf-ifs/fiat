@@ -18,7 +18,9 @@
 #include <unistd.h>
 #include <signal.h>
 #include <alloca.h>
+#include <math.h>
 #include "cargs.h"
+#include "drhook.h"
 
 #ifdef CRAYXT
 /* Cray XT3/XT4 with catamount microkernel */
@@ -222,8 +224,8 @@ static void SetMasterThreadsStackSizeBeforeMain()
 void
 LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 {
-  const char *pfx = prefix ? prefix : "";
-  const char *ts  = timestr ? timestr : "";
+  const char *pfx = prefix ? prefix : drhook_PREFIX(0);
+  const char *ts  = timestr ? timestr : drhook_TIMESTR(0);
   int sigcontextptr_given = sigcontextptr ? 1 : 0;
   extern void gdb_trbk_();
   extern void dbx_trbk_();
@@ -269,10 +271,12 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     char **strings = NULL;
     if (trace_size > 0) {
       /* overwrite sigaction with caller's address */
-#if defined(REG_RIP)
-      trace[1] = (void *) uc->uc_mcontext.gregs[REG_RIP]; /* REG_RIP only available in 64-bit mode */
-#elif defined(REG_EIP)
-      trace[1] = (void *) uc->uc_mcontext.gregs[REG_EIP]; /* REG_EIP only available in 32-bit mode */
+#ifdef __powerpc64__
+      trace[1] = uc ? (void *) uc->uc_mcontext.regs->nip : NULL;   // Trick from PAPI_overflow() 
+#elif defined(__x86_64__) && defined(REG_RIP) // gcc specific
+      trace[1] = uc ? (void *) uc->uc_mcontext.gregs[REG_RIP] : NULL; // RIP: x86_64 specific ; only available in 64-bit mode */
+#elif defined(__i386__) && defined(REG_EIP) // gcc specific
+      trace[1] = uc ? (void *) uc->uc_mcontext.gregs[REG_EIP] : NULL; // EIP: x86 specific ; only available in 32-bit mode */
 #endif
     }
     strings = backtrace_symbols(trace, trace_size);
@@ -307,6 +311,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 	/* free(addr2linecmd); */
       }
       if (fp) {
+	int ndigits = (trace_size > 0) ? 1 + (int)log10(trace_size) : 0;
 	extern char *cxxdemangle(const char *mangled_name, int *status); // cxxdemangle.cc (C++ code) : returned string must be free'd
 	for (i = 0; i < trace_size; i++) {
 	  int ok = 0;
@@ -332,8 +337,8 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 		*plus = '\0';
 		cxx = cxxdemangle(leftB + 1,&istat);
 		if (cxx) *leftB = '\0';
-		fprintf(stderr, "%s %s [%s@%s:%d] [%d]: %s%s%s+%s : %s%s at %s\n", 
-			pfx, ts, FFL, i,
+		fprintf(stderr, "%s %s [%s@%s:%d] [%*.*d]: %s%s%s+%s : %s%s at %s\n", 
+			pfx, ts, FFL, ndigits, ndigits, i,
 			last_slash,
 			cxx ? "(" : "",
 			cxx ? cxx : "",
@@ -344,8 +349,8 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 		if (cxx) free(cxx);
 	      }
 	      else {
-		fprintf(stderr, "%s %s [%s@%s:%d] [%d]: %s : %s%s at %s\n", 
-			pfx, ts, FFL, i, 
+		fprintf(stderr, "%s %s [%s@%s:%d] [%*.*d]: %s : %s%s at %s\n", 
+			pfx, ts, FFL, ndigits, ndigits, i, 
 			last_slash, 
 			cxxfunc ? cxxfunc : func, 
 			cxxfunc ? "" : "()",
@@ -357,7 +362,8 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 	  }
 	  if (!ok) {
 	    char *cxx = cxxdemangle(strings[i],NULL);
-	    fprintf(stderr, "%s %s [%s@%s:%d] [%d]: %s\n", pfx, ts, FFL, i, 
+	    fprintf(stderr, "%s %s [%s@%s:%d] [%*.*d]: %s\n", 
+		    pfx, ts, FFL, ndigits, ndigits, i, 
 		    cxx ? cxx : strings[i]);
 	    if (cxx) free(cxx);
 	  }
@@ -374,10 +380,14 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 	  if (last_slash) last_slash++; else last_slash = strings[i];
 	  rc = ResolveViaBFD(trace[i], &b, last_slash);
 	  if (rc == 0) {
-	    fprintf(stderr,"%s %s [%s@%s:%d] [%d]: %s : %s() at %s:%u\n",pfx,ts,FFL,i,last_slash,b.func,b.file,b.lineno);
+	    fprintf(stderr,"%s %s [%s@%s:%d] [%d]: %s : %s() at %s:%u\n",
+		    pfx,ts,FFL,i,
+		    last_slash,b.func,b.file,b.lineno);
 	  }
 	  else {
-	    fprintf(stderr,"%s %s [%s@%s:%d] [%d]: %s : %p\n",pfx,ts,FFL,i,last_slash,trace[i]);
+	    fprintf(stderr,"%s %s [%s@%s:%d] [%d]: %s : %p\n",
+		    pfx,ts,FFL,i,
+		    last_slash,trace[i]);
 	  }
 	}
       }
