@@ -552,7 +552,7 @@ INUMA = NNUMA
 
 ILEN = 0
 WRITE(CLBUF(ILEN+1:),'(A)') &
-     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                   | TC    | MEMORY USED(MB) |"
+     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                           | TC    | MEMORY USED(MB) |"
 ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
    IF (K == 0) THEN
@@ -568,7 +568,7 @@ WRITE(KUN,'(A)') TRIM(CLBUF)
 
 ILEN=0
 WRITE(CLBUF(ILEN+1:),'(A)') &
-     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                   | Malloc| Inc Heap        |"
+     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                           | Malloc| Inc Heap        |"
 ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
    WRITE(CLBUF(ILEN+1:),'(A,I2,A)') " Numa region ",K," |"
@@ -579,7 +579,7 @@ WRITE(KUN,'(A)') TRIM(CLBUF)
 
 ILEN=0
 WRITE(CLBUF(ILEN+1:),'(A)') &
-     CLPFX(1:IPFXLEN)//"## EC_MEMINFO Node Name         | Heap  | RSS("//zum//")        |"
+     CLPFX(1:IPFXLEN)//"## EC_MEMINFO Node Name                 | Heap  | RSS("//zum//")        |"
 ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
    WRITE(CLBUF(ILEN+1:),'(A)') " Small  Huge or |"
@@ -590,7 +590,7 @@ WRITE(KUN,'(A)') TRIM(CLBUF)
 
 ILEN=0
 WRITE(CLBUF(ILEN+1:),'(A)') &
-     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                   | (sum) | Small    Huge   |"
+     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                           | (sum) | Small    Huge   |"
 ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
    WRITE(CLBUF(ILEN+1:),'(A)') "  Only   Small  |"
