@@ -292,7 +292,10 @@ void ec_gethostname_(char a[],
 #endif
   memset(a,' ',alen);
   if (gethostname(s,sizeof(s)) == 0) {
-    int len = strlen(s);
+    int len;
+    char *pdot = strchr(s,'.');
+    if (pdot) *pdot = '\0'; // cut short from "." char e.g. hostname.fmi.fi becomes just "hostname"
+    len = strlen(s);
     if (len > alen) len = alen;
     memcpy(a,s,len);
   }
