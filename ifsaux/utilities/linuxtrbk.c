@@ -72,7 +72,7 @@ static void InitBFD();
 //#define __USE_GNU
 //#define _XOPEN_SOURCE
 
-#if !defined(CYGWIN)
+#if !defined(CYGWIN) && !defined(DARWIN)
 #include <ucontext.h>
 #endif
 
@@ -227,7 +227,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
   int sigcontextptr_given = sigcontextptr ? 1 : 0;
   extern void gdb_trbk_();
   extern void dbx_trbk_();
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN)
   ucontext_t ctx;
 #endif
   static int recur = 0;
