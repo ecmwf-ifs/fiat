@@ -75,6 +75,8 @@ If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
 #define HOST_NAME_MAX _SC_HOST_NAME_MAX
 #endif
 
+#define EC_HOST_NAME_MAX 512
+
 /* === This doesn't handle recursive calls correctly (yet) === */
 
 #include "drhook.h"
@@ -466,8 +468,8 @@ typedef struct drhook_watch_t {
 } drhook_watch_t;
 
 typedef struct drhook_prefix_t {
-  char s[256];
-  char timestr[128];
+  char s[3840];
+  char timestr[256];
   int nsigs;
 } drhook_prefix_t;
 
@@ -2013,11 +2015,8 @@ signal_drhook_init(int enforce)
   }
   if (!ec_drhook) {
     int slen;
-#if defined MACOSX
-    char hostname[256];
-#else
-    char hostname[HOST_NAME_MAX];
-#endif
+    char hostname[EC_HOST_NAME_MAX];
+    char *pdot;
     int ntids = 1;
     coml_get_max_threads_(&ntids);
     numthreads = ntids;
@@ -2025,6 +2024,8 @@ signal_drhook_init(int enforce)
     slen = sizeof(ec_drhook[0].s);
     timestr_len = sizeof(ec_drhook[0].timestr);
     if (gethostname(hostname,sizeof(hostname)) != 0) strcpy(hostname,"unknown");
+    pdot = strchr(hostname,'.');
+    if (pdot) *pdot = '\0'; // cut short from "." char e.g. hostname.fmi.fi becomes just "hostname"
     if (myproc == 1) {
       fprintf(stderr,"[EC_DRHOOK:hostname:myproc:omptid:pid:unixtid] [YYYYMMDD:HHMMSS:epoch:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",ntids);
     }

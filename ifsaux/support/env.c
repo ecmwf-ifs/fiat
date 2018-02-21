@@ -27,6 +27,8 @@
 #define HOST_NAME_MAX _SC_HOST_NAME_MAX
 #endif
 
+#define EC_HOST_NAME_MAX 512
+
 extern char **environ; /* Global Unix var */
 static int numenv = 0;
 
@@ -285,11 +287,7 @@ void ec_gethostname_(char a[],
 		     /* Hidden argument */
 		     int alen)
 {
-#if defined MACOSX
-  char s[256];
-#else
-  char s[HOST_NAME_MAX];
-#endif
+  char s[EC_HOST_NAME_MAX];
   memset(a,' ',alen);
   if (gethostname(s,sizeof(s)) == 0) {
     int len;
