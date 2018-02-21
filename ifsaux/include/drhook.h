@@ -157,6 +157,7 @@ extern void ec_meminfo_(const int *KU, const char *CDSTRING,
 
 /* see comp_binding.F90 */
 extern void coml_get_max_threads_(int *numthreads);
+extern void coml_get_num_threads_(int *numthreads);
 extern void coml_my_thread_(int *mytid);
 
 /* see drhook.c */

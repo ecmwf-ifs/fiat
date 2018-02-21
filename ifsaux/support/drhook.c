@@ -92,11 +92,15 @@ static char *TimeStr(char *s, int slen);
 int drhook_memtrace = 0; /* set to 1, if opt_memprof or opt_timeline ; used in getcurheap.c to lock stuff */
 
 #if !defined(CACHELINESIZE)
+#if defined(LEVEL1_DCACHE_LINESIZE)
+#define CACHELINESIZE LEVEL1_DCACHE_LINESIZE
+#else
 /* ***Note: A hardcoded cache line size in bytes !!! */
 #ifdef RS6K
 #define CACHELINESIZE 128
 #else
 #define CACHELINESIZE 64
+#endif
 #endif
 #endif
 
@@ -250,7 +254,11 @@ typedef struct drhook_timeline_t {
   double last_curheap_MB;
   double last_rss_MB;
   double last_stack_MB;
-  char pad[CACHELINESIZE - (3*sizeof(unsigned long long int) + 3*sizeof(double))]; /* padding : e.g. 64 bytes - 3*8 bytes */
+  double last_vmpeak_MB;
+//#if CACHELINESIZE > (2*sizeof(unsigned long long int) + 4*sizeof(double)) -- disallowed
+#if CACHELINESIZE > (2*8 + 4*8)
+  char pad[CACHELINESIZE - (2*sizeof(unsigned long long int) + 4*sizeof(double))]; /* padding : e.g. 64 bytes - 6*8 bytes */
+#endif
 } drhook_timeline_t; /* cachelinesize optimized --> less false sharing when running with OpenMP */
 
 static drhook_timeline_t *timeline = NULL;
@@ -3600,11 +3608,13 @@ c_drhook_start_(const char *name,
       double curheap = (opt_timeline_thread == 1 && tid == 1) ?
 	(double)(getcurheap_()/1048576.0) : (double)(getcurheap_thread_(&tid)/1048576.0); /* in MBytes */
       double stack = (double)(getstk_()/1048576.0); /* in MBytes */
+      double vmpeak = (double)(getvmpeak_()/1048576.0); /* in MBytes */
       if (mod != 0) {
 	double inc_MB;
 	inc_MB = tl->last_rss_MB - rss;
 	if (ABS(inc_MB) < opt_timeline_MB) inc_MB = tl->last_curheap_MB - curheap;
 	if (ABS(inc_MB) < opt_timeline_MB) inc_MB = tl->last_stack_MB - stack;
+	if (ABS(inc_MB) < opt_timeline_MB) inc_MB = tl->last_vmpeak_MB - vmpeak;
 	if (ABS(inc_MB) < opt_timeline_MB) bigjump = 0;
       }
       if (mod == 0 || bigjump) {
@@ -3616,6 +3626,7 @@ c_drhook_start_(const char *name,
 	  tl->last_rss_MB = rss;
 	  tl->last_curheap_MB = curheap;
 	  tl->last_stack_MB = stack;
+	  tl->last_vmpeak_MB = vmpeak;
 	  c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
 	}
 	coml_unset_lockid_(&DRHOOK_lock);
@@ -3668,11 +3679,13 @@ c_drhook_end_(const char *name,
       double curheap = (opt_timeline_thread == 1 && tid == 1) ?
 	(double)(getcurheap_()/1048576.0) : (double)(getcurheap_thread_(&tid)/1048576.0); /* in MBytes */
       double stack = (double)(getstk_()/1048576.0); /* in MBytes */
+      double vmpeak = (double)(getvmpeak_()/1048576.0); /* in MBytes */
       if (mod != 0) {
 	double inc_MB;
 	inc_MB = tl->last_rss_MB - rss;
 	if (ABS(inc_MB) < opt_timeline_MB) inc_MB = tl->last_curheap_MB - curheap;
 	if (ABS(inc_MB) < opt_timeline_MB) inc_MB = tl->last_stack_MB - stack;
+	if (ABS(inc_MB) < opt_timeline_MB) inc_MB = tl->last_vmpeak_MB - vmpeak;
 	if (ABS(inc_MB) < opt_timeline_MB) bigjump = 0;
       }
       if (mod == 0 || bigjump) {
@@ -3684,6 +3697,7 @@ c_drhook_end_(const char *name,
 	  tl->last_rss_MB = rss;
 	  tl->last_curheap_MB = curheap;
 	  tl->last_stack_MB = stack;
+	  tl->last_vmpeak_MB = vmpeak;
 	  c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
 	}
 	coml_unset_lockid_(&DRHOOK_lock);
@@ -3774,6 +3788,7 @@ c_drhook_memcounter_(const int *thread_id,
       (double)(getcurheap_()/1048576.0) : (double)(getcurheap_thread_(&tid)/1048576.0); /* in MBytes */
     double rss = (double)(getrss_()/1048576.0); /* in MBytes */
     double stack = (double)(getstk_()/1048576.0); /* in MBytes */
+    double vmpeak = (double)(getvmpeak_()/1048576.0); /* in MBytes */
     coml_set_lockid_(&DRHOOK_lock);
     {
       int ftnunitno = opt_timeline_unitno;
@@ -3784,6 +3799,7 @@ c_drhook_memcounter_(const int *thread_id,
       tl->last_curheap_MB = curheap;
       tl->last_rss_MB = rss;
       tl->last_stack_MB = stack;
+      tl->last_vmpeak_MB = vmpeak;
       c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
     }
     coml_unset_lockid_(&DRHOOK_lock);
@@ -4102,32 +4118,36 @@ c_drhook_print_(const int *ftnunitno,
 	  }
 	  if (is_timeline) {
 	    double wall = WALLTIME();
-	    double rss, curheap, stack;
+	    double rss, curheap, stack, vmpeak;
 	    drhook_timeline_t *tl = &timeline[tid-1];
 	    if (abs_print_option == 5 || abs_print_option == 6) { /* when called via drhook_begin/_end or memcounter */
 	      curheap = tl->last_curheap_MB;
 	      rss = tl->last_rss_MB;
 	      stack = tl->last_stack_MB;
+	      vmpeak = tl->last_vmpeak_MB;
 	    }
 	    else {
 	      rss = (double)(getrss_()/1048576.0); /* in MBytes */
 	      curheap = (opt_timeline_thread == 1 && tid == 1) ?
 		(double)(getcurheap_()/1048576.0) : (double)(getcurheap_thread_(&tid)/1048576.0); /* in MBytes */
-	      stack = stack = (double)(getstk_()/1048576.0); /* in MBytes */
+	      stack = (double)(getstk_()/1048576.0); /* in MBytes */
+	      vmpeak = (double)(getvmpeak_()/1048576.0); /* in MBytes */
 	      tl->last_curheap_MB = curheap;
 	      tl->last_rss_MB = rss;
 	      tl->last_stack_MB = stack;
+	      tl->last_vmpeak_MB = vmpeak;
 	    }
 	    if (opt_timeline_format == 1) {
-	      sprintf(s, "%.6f %.4g %.4g %.4g", wall, rss, curheap, stack);
+	      sprintf(s, "%.6f %.4g %.4g %.4g %.4g", wall, rss, curheap, stack, vmpeak);
 	    }
 	    else {
 	      sprintf(s,
-		      "wall=%.6f cpu=%.4g hwm=%.4g rss=%.4g curheap=%.4g stack=%.4g pag=%lld",
+		      "wall=%.6f cpu=%.4g hwm=%.4g rss=%.4g curheap=%.4g stack=%.4g vmpeak=%.4g pag=%lld",
 		      wall, CPUTIME(),
 		      (double)(gethwm_()/1048576.0), rss,
 		      curheap,
 		      (double)(getstk_()/1048576.0),
+		      (double)(getvmpeak_()/1048576.0),
 		      getpag_());
 	    }
 	    s += strlen(s);
@@ -4139,6 +4159,12 @@ c_drhook_print_(const int *ftnunitno,
 	      sprintf(s,"'#PROGRAM %s'",(*print_option == 7) ? "BEGIN" : "END");
 	    }
 	    s += strlen(s);
+	    {
+	      int current_numth = 0;
+	      coml_get_num_threads_(&current_numth);
+	      sprintf(s,"[#%d]",current_numth);
+	      s += strlen(s);
+	    }
 	  }
 	  else {
 	    PRINT_CALLS();
