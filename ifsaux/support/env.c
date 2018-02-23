@@ -285,16 +285,17 @@ void ec_gethostname(char a[],
 
 /* For checking runtime affinities (not setting them, though) */
 
-#ifdef LINUX
+#if defined(LINUX) && !defined(DARWIN)
 #include <sched.h>
 int sched_getcpu(void);
+#define getcpu() sched_getcpu()
 #else
-#define sched_getcpu() -1
+#define getcpu() -1
 #endif
 
 void ec_coreid_(int *coreid)
 {
-  if (coreid) *coreid = sched_getcpu();
+  if (coreid) *coreid = getcpu();
 }
 
 void ec_coreid(int *coreid)
