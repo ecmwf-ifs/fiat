@@ -135,21 +135,21 @@ IF (PAGESIZE == 0) THEN ! The *very* first time
    !... so using the old saviour from ifsaux/support/cargs.c:
    CALL GETARG_C(0,PROGRAM)
 
-   PAGESIZE=2048
    CALL GET_ENVIRONMENT_VARIABLE("HUGETLB_DEFAULT_PAGE_SIZE",VAL)
    I=INDEX(VAL,"M")
    IF(I > 0) THEN
       READ(VAL(1:I-1),*) PAGESIZE
       PAGESIZE=PAGESIZE*1024
+   ELSE
+      PAGESIZE=0
    ENDIF
 
    NODEHUGE=0
    
-   WRITE(FILENAME,'(a,i0,a)') "/sys/kernel/mm/hugepages/hugepages-", &
-        PAGESIZE,"kB/nr_hugepages"
-
    IF(PAGESIZE > 0) THEN
-      OPEN(502,FILE=FILENAME,STATUS="old")
+      WRITE(FILENAME,'(a,i0,a)') "/sys/kernel/mm/hugepages/hugepages-", &
+           PAGESIZE,"kB/nr_hugepages"
+      OPEN(502,FILE=FILENAME,STATUS="old",ACTION="read")
       READ(502,*) NODEHUGE
       CLOSE(502)
    ENDIF
@@ -347,9 +347,10 @@ IF (MYPROC == 0) THEN
       ENDDO
       
       PERCENT_USED(2) = 0
-      IF (HEAP_SIZE >= NODEHUGE) THEN
+      IF (NODEHUGE > 0 .and. HEAP_SIZE >= NODEHUGE) THEN
          ! running with small pages
          PERCENT_USED(1)=100.0*(TASKSMALL+NODEHUGE)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
+         CSTAR = " Sm/p"
       ELSE
          ! running with huge pages
          PERCENT_USED(1)=100.0*(HEAP_SIZE+TASKSMALL)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
@@ -359,12 +360,7 @@ IF (MYPROC == 0) THEN
             IF (PERCENT_USED(2) < 0) PERCENT_USED(2) = 0
             IF (PERCENT_USED(2) > 100) PERCENT_USED(2) = 100
          ENDIF
-      ENDIF
-
-      IF (PERCENT_USED(2) > 0) THEN
          CSTAR = " Hg/p"
-      ELSE
-         CSTAR = " Sm/p"
       ENDIF
    
       IF (LLNOCOMM) THEN
@@ -428,7 +424,7 @@ SUBROUTINE SLASH_PROC
   IMPLICIT NONE
   CALL EC_PMON(ENERGY,POWER)
   
-  OPEN(FILE="/proc/buddyinfo",UNIT=502,STATUS="old")
+  OPEN(FILE="/proc/buddyinfo",UNIT=502,STATUS="old",ACTION="read")
   
   N18 = 0 ! number of buddy columns (up to MAXCOLS)
   NNUMA = 0 ! number of NUMA-nodes (up to MAXNUMA)
@@ -464,7 +460,7 @@ SUBROUTINE SLASH_PROC
   MEMFREE = 0
   CACHED = 0
   
-  OPEN(FILE="/proc/meminfo",UNIT=502,STATUS="old")
+  OPEN(FILE="/proc/meminfo",UNIT=502,STATUS="old",ACTION="read")
   DO I=1,10
      READ(502,'(a)') LINE
      IF(LINE(1:7) == "MemFree") THEN
@@ -774,7 +770,7 @@ CALL FLUSH(KOUT)
 RETURN ! For now
 #if 0
 CALL EC_GETHOSTNAME(NODENAME) ! from support/env.c
-OPEN(FILE="/proc/buddyinfo",UNIT=502,ERR=98,STATUS="old")
+OPEN(FILE="/proc/buddyinfo",UNIT=502,ERR=98,STATUS="old",ACTION="read")
 READ(502,'(a)') LINE
 READ(502,'(a)') LINE
 DO INUMA=0,1
@@ -846,7 +842,7 @@ IF (MONINIT >= 0) THEN
       IF (CLEC_PMON == '0') MONINIT = -2 ! Never try again
    ENDIF
    IF (MONINIT >= 0) THEN
-      OPEN(503,FILE='/sys/cray/pm_counters/energy',IOSTAT=ISTAT,STATUS='old')
+      OPEN(503,FILE='/sys/cray/pm_counters/energy',IOSTAT=ISTAT,STATUS='old',ACTION='read')
       IF (ISTAT == 0) THEN
          READ(503,*,IOSTAT=ISTAT) ENERGY
          CLOSE(503)
@@ -866,7 +862,7 @@ IF (MONINIT >= 0) THEN
 ENDIF
 POWER = 0
 IF (MONINIT > 0) THEN
-   OPEN(504,FILE='/sys/cray/pm_counters/power',IOSTAT=ISTAT,STATUS='old')
+   OPEN(504,FILE='/sys/cray/pm_counters/power',IOSTAT=ISTAT,STATUS='old',ACTION='read')
    IF (ISTAT == 0) THEN
       READ(504,*,IOSTAT=ISTAT) POWER
       CLOSE(504)
