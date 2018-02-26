@@ -13,7 +13,6 @@
    of "call tracebackqq()" function.
    In our environment this is accomplished by calling fortran
    routine intel_trbk() from ifsaux/utilities/gentrbk.F90.
-   This source must be compiled with -DINTEL flag, too.
 
 */
 
@@ -34,12 +33,6 @@ If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
 #define PMAPI_POST_P4
 #define PMAPI_P6
  */
-
-#ifndef INTEL
-#ifdef __INTEL_COMPILER
-#define INTEL
-#endif
-#endif
 
 #if defined(PMAPI_P7)
 #define ENTRY_4 5
