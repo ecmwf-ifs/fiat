@@ -24,7 +24,7 @@ INTEGER(KIND=JPIB) :: TASKSMALL,NODEHUGE,MEMFREE,CACHED,NFREE
 INTEGER(KIND=JPIB),SAVE :: NODEHUGE_CACHED
 INTEGER(KIND=JPIM), PARAMETER :: MAXNUMA_DEF = 4 ! Max number of "sockets" supported by default
 INTEGER(KIND=JPIM), SAVE :: MAXNUMA = 0 ! Max number of "sockets" supported -- initialized to zero to enforce updated value (env EC_MAXNUMA)
-INTEGER(KIND=JPIM) :: NNUMA ! Actual number of "sockets"
+INTEGER(KIND=JPIM) :: NNUMA ! Actual number of "sockets" (can be 0 ob systems that do not have /proc/buddyinfo, e.g. WSL)
 !INTEGER(KIND=JPIB),DIMENSION(0:MAXNUMA-1) :: SMALLPAGE,HUGEPAGE
 INTEGER(KIND=JPIB),DIMENSION(:),ALLOCATABLE,SAVE :: SMALLPAGE,HUGEPAGE
 INTEGER(KIND=JPIB) :: GETMAXRSS,GETMAXHWM
@@ -96,7 +96,7 @@ OMP_GET_THREAD_NUM() = 0
 CALL GET_ENVIRONMENT_VARIABLE('EC_MEMINFO',CLEC_MEMINFO)
 IF (CLEC_MEMINFO == '0') RETURN
 
-IF (PAGESIZE == 0) WT0 = UTIL_WALLTIME()
+IF (LLFIRST_TIME) WT0 = UTIL_WALLTIME()
 IF (MAXTH == 0) MAXTH = OMP_GET_MAX_THREADS()
 
 LLNOCOMM = (KCOMM == -1 .or. KCOMM == -2)
@@ -126,7 +126,7 @@ ELSE
    ENDIF
 ENDIF
 
-IF (PAGESIZE == 0) THEN ! The *very* first time
+IF (LLFIRST_TIME) THEN ! The *very* first time
    CALL EC_PMON(ENERGY,POWER)
 
    !-- Neither of these two may stop working when linking with C++ (like in OOPS) ...
@@ -547,23 +547,25 @@ INTEGER(KIND=JPIM), INTENT(IN) :: KUN
 INTEGER(KIND=JPIM) :: INUMA, ILEN
 CHARACTER(LEN=4096) :: CLBUF
 INUMA = NNUMA
-!INUMA = MAXNUMA
-!INUMA = 2
 
 ILEN = 0
 WRITE(CLBUF(ILEN+1:),'(A)') &
-     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                           | TC    | MEMORY USED(MB) |"
+     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                           | TC    | MEMORY USED(MB) "
 ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
    IF (K == 0) THEN
-      WRITE(CLBUF(ILEN+1:),'(A)') " MEMORY FREE(MB)"
+      WRITE(CLBUF(ILEN+1:),'(A)') "| MEMORY FREE(MB)"
       ILEN = LEN_TRIM(CLBUF)
    ELSE
       WRITE(CLBUF(ILEN+1:),'(A)') "  -------------  "
       ILEN = LEN_TRIM(CLBUF) + 2
    ENDIF
 ENDDO
-WRITE(CLBUF(ILEN+1:),'(A)') "INCLUDING CACHED |  %USED %HUGE  | Energy  Power"
+IF (NNUMA > 0) THEN
+   WRITE(CLBUF(ILEN+1:),'(A)') "INCLUDING CACHED |  %USED %HUGE  | Energy  Power"
+ELSE
+   WRITE(CLBUF(ILEN+1:),'(A)') "  MEMORY FREE(MB) |  %USED %HUGE  | Energy  Power"
+ENDIF
 WRITE(KUN,'(A)') TRIM(CLBUF)
 
 ILEN=0
@@ -606,8 +608,7 @@ INTEGER(KIND=JPIM), INTENT(IN) :: KUN
 INTEGER(KIND=JPIM) :: INUMA,ILEN
 CHARACTER(LEN=4096) :: CLBUF
 INUMA = NNUMA
-!INUMA = MAXNUMA
-!INUMA = 2
+
 ILEN=0
 WRITE(CLBUF(ILEN+1:),'(a,i4,1x,a,3i8,1x)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO ", &
