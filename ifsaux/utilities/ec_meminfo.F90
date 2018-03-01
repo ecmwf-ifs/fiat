@@ -426,10 +426,11 @@ SUBROUTINE SLASH_PROC
   IMPLICIT NONE
   CALL EC_PMON(ENERGY,POWER)
   
-  OPEN(FILE="/proc/buddyinfo",UNIT=502,STATUS="old",ACTION="read")
-  
   N18 = 0 ! number of buddy columns (up to MAXCOLS)
   NNUMA = 0 ! number of NUMA-nodes (up to MAXNUMA)
+
+  OPEN(FILE="/proc/buddyinfo",UNIT=502,STATUS="old",ACTION="read",ERR=97)
+  
   READ(502,'(a)') LINE
   READ(502,'(a)') LINE
   READ(502,'(a)') LINE
@@ -447,6 +448,7 @@ SUBROUTINE SLASH_PROC
   
 99 CONTINUE
   CLOSE(502)
+97 CONTINUE
   
   SMALLPAGE(:) = 0
   HUGEPAGE(:) = 0
