@@ -554,7 +554,7 @@ WRITE(CLBUF(ILEN+1:),'(A)') &
 ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
    IF (K == 0) THEN
-      WRITE(CLBUF(ILEN+1:),'(A)') "| MEMORY FREE(MB)"
+      WRITE(CLBUF(ILEN+1:),'(A)') " | MEMORY FREE(MB)"
       ILEN = LEN_TRIM(CLBUF)
    ELSE
       WRITE(CLBUF(ILEN+1:),'(A)') "  -------------  "
@@ -562,7 +562,7 @@ DO K=0,INUMA-1
    ENDIF
 ENDDO
 IF (NNUMA > 0) THEN
-   WRITE(CLBUF(ILEN+1:),'(A)') "INCLUDING CACHED |  %USED %HUGE  | Energy  Power"
+   WRITE(CLBUF(ILEN+1:),'(A)') " INCLUDING CACHED|  %USED %HUGE  | Energy  Power"
 ELSE
    WRITE(CLBUF(ILEN+1:),'(A)') "  MEMORY FREE(MB) |  %USED %HUGE  | Energy  Power"
 ENDIF
