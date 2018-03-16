@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <errno.h>
+#include <time.h>
 #include "privpub.h"
 
 #if !defined(HOST_NAME_MAX) && defined(_POSIX_HOST_NAME_MAX)
@@ -25,6 +26,8 @@
 #if !defined(HOST_NAME_MAX) && defined(_SC_HOST_NAME_MAX)
 #define HOST_NAME_MAX _SC_HOST_NAME_MAX
 #endif
+
+#define EC_HOST_NAME_MAX 512
 
 extern char **environ; /* Global Unix var */
 static int numenv = 0;
@@ -217,10 +220,30 @@ ec_putenv_nooverwrite(const char *s,
 }
 
 
+/*--- sleep_by_spinning ---*/
+
+static int sleep_by_spinning(long secs, long nanosecs) { /* see also drhook.c */
+  /* This does not call sleep() at all i.e. is not SIGALRM driven */
+  int rc;
+  struct timespec req, rem;
+  req.tv_sec = secs;
+  req.tv_nsec = nanosecs;
+  rc = nanosleep(&req, &rem);
+  if (rc == -1) {
+    if (errno == EINTR) {
+      rc = rem.tv_sec;
+    }
+    else
+      rc = 0; /* Can't do much more about this */
+  }
+  return rc;
+}
+
 unsigned int
 ec_sleep_(const int *nsec)
 {
-  return sleep((nsec && *nsec > 0) ? *nsec : 0);
+  //return sleep((nsec && *nsec > 0) ? *nsec : 0);
+  return sleep_by_spinning((nsec && *nsec > 0) ? *nsec : 0, 0);
 }
 
 
@@ -239,7 +262,8 @@ ec_microsleep(int usecs) {
     struct timeval t;
     t.tv_sec =  usecs/1000000;
     t.tv_usec = usecs%1000000;
-    (void) select(0, NULL, NULL, NULL, &t);
+    // (void) select(0, NULL, NULL, NULL, &t);
+    (void) sleep_by_spinning(t.tv_sec, (long)1000*t.tv_usec);
   }
 }
 
@@ -263,14 +287,13 @@ void ec_gethostname_(char a[],
 		     /* Hidden argument */
 		     int alen)
 {
-#if defined MACOSX
-  char s[256];
-#else
-  char s[HOST_NAME_MAX];
-#endif
+  char s[EC_HOST_NAME_MAX];
   memset(a,' ',alen);
   if (gethostname(s,sizeof(s)) == 0) {
-    int len = strlen(s);
+    int len;
+    char *pdot = strchr(s,'.');
+    if (pdot) *pdot = '\0'; // cut short from "." char e.g. hostname.fmi.fi becomes just "hostname"
+    len = strlen(s);
     if (len > alen) len = alen;
     memcpy(a,s,len);
   }

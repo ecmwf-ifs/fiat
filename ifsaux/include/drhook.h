@@ -23,9 +23,9 @@
 #include <pthread.h>
 #include <limits.h>
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
+//#ifdef _OPENMP
+//#include <omp.h>
+//#endif
 
 #ifdef RS6K
 #include <fptrap.h>
@@ -140,6 +140,29 @@ c_drhook_check_watch_(const char *where,
 		      const int *allow_abort
 		      /* Hidden length */
 		      , int where_len);
+
+/* see dr_hook_prt.F90 for below */
+extern void dr_hook_prt_logical_(const int *ftnunitno, const void *ptr, const int *nmax);
+extern void dr_hook_prt_char_(const int *ftnunitno, const void *ptr, const int *nmax);
+extern void dr_hook_prt_i4_(const int *ftnunitno, const void *ptr, const int *nmax);
+extern void dr_hook_prt_i8_(const int *ftnunitno, const void *ptr, const int *nmax);
+extern void dr_hook_prt_r4_(const int *ftnunitno, const void *ptr, const int *nmax);
+extern void dr_hook_prt_r8_(const int *ftnunitno, const void *ptr, const int *nmax);
+
+extern void ec_meminfo_(const int *KU, const char *CDSTRING, 
+			const int *KCOMM, const int *KBARR, 
+			const int *KIOTASK, const int *KCALL,
+			int len_CDSTRING); /* see ec_meminfo.F90 */
+
+
+/* see comp_binding.F90 */
+extern void coml_get_max_threads_(int *numthreads);
+extern void coml_get_num_threads_(int *numthreads);
+extern void coml_my_thread_(int *mytid);
+
+/* see drhook.c */
+extern const char *drhook_TIMESTR(int tid);
+extern const char *drhook_PREFIX(int tid);
 
 /**** C-interface to Dr.Hook ****/
 

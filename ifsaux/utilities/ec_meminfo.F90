@@ -11,6 +11,7 @@ IMPLICIT NONE
 !              Sami Saarinen (ECMWF) : 02-MAR-2017 : Enabled flexible number of sockets & lots of tidying
 !              Sami Saarinen (ECMWF) : 09-MAR-2017 : Power monitoring added (via EC_PMON) -- works at least on Cray systems
 !              Sami Saarinen (ECMWF) : 12-MAR-2017 : Gather core affinities via call to ec_coreid()
+!              Sami Saarinen (ECMWF) : 12-DEC-2017 : Obtain MPI & OpenMP version information
 
 #include "ec_pmon.intfb.h"
 
@@ -18,12 +19,12 @@ INTEGER(KIND=JPIM), INTENT(IN) :: KU,KCOMM,KBARR,KIOTASK,KCALL
 CHARACTER(LEN=*), INTENT(IN) :: CDSTRING
 INTEGER(KIND=JPIM), PARAMETER :: ITAG = 98765
 INTEGER(KIND=JPIM) :: ID,KULOUT
-INTEGER(KIND=JPIM) :: II,I,J,K,MYPROC,NPROC,LEN,ERROR,NODENUM
+INTEGER(KIND=JPIM) :: II,I,J,K,MYPROC,NPROC,LEN,ERROR,NODENUM,JID
 INTEGER(KIND=JPIB) :: TASKSMALL,NODEHUGE,MEMFREE,CACHED,NFREE
 INTEGER(KIND=JPIB),SAVE :: NODEHUGE_CACHED
 INTEGER(KIND=JPIM), PARAMETER :: MAXNUMA_DEF = 4 ! Max number of "sockets" supported by default
 INTEGER(KIND=JPIM), SAVE :: MAXNUMA = 0 ! Max number of "sockets" supported -- initialized to zero to enforce updated value (env EC_MAXNUMA)
-INTEGER(KIND=JPIM) :: NNUMA ! Actual number of "sockets"
+INTEGER(KIND=JPIM) :: NNUMA ! Actual number of "sockets" (can be 0 ob systems that do not have /proc/buddyinfo, e.g. WSL)
 !INTEGER(KIND=JPIB),DIMENSION(0:MAXNUMA-1) :: SMALLPAGE,HUGEPAGE
 INTEGER(KIND=JPIB),DIMENSION(:),ALLOCATABLE,SAVE :: SMALLPAGE,HUGEPAGE
 INTEGER(KIND=JPIB) :: GETMAXRSS,GETMAXHWM
@@ -40,15 +41,16 @@ INTEGER(KIND=JPIM) :: N18
 INTEGER(KIND=JPIB),DIMENSION(:,:),ALLOCATABLE,SAVE :: NODE, BUCKET
 INTEGER(KIND=JPIB),DIMENSION(:),ALLOCATABLE,SAVE :: SENDBUF,RECVBUF
 REAL(KIND=JPRD) :: PERCENT_USED(2)
+CHARACTER(LEN=256) :: CLSTR
 CHARACTER(LEN=512) :: TMPDIR
 CHARACTER(LEN=512), SAVE :: PROGRAM = ' '
-CHARACTER(LEN=12)  :: NODENAME,LASTNODE,CLMAXNODE
+CHARACTER(LEN=20)  :: NODENAME,LASTNODE,CLMAXNODE
 CHARACTER(LEN=12)  :: VAL
 CHARACTER(LEN=1)   :: M
 CHARACTER(LEN=160) ::LINE
 CHARACTER(LEN=56) :: FILENAME
 CHARACTER(LEN=1) :: CLEC_MEMINFO
-CHARACTER(LEN=4) :: CSTAR
+CHARACTER(LEN=5) :: CSTAR
 CHARACTER(LEN=LEN(CSTAR)+1+LEN(CDSTRING)) :: ID_STRING
 CHARACTER(LEN=10) ::  CLDATEOD,CLTIMEOD,CLZONEOD
 CHARACTER(LEN=3), PARAMETER :: CLMON(1:12) = (/ &
@@ -67,6 +69,7 @@ TYPE RANKNODE_T
    INTEGER(KIND=JPIM) :: NUMTH
    INTEGER(KIND=JPIM), ALLOCATABLE :: COREIDS(:)
    CHARACTER(LEN=LEN(NODENAME)) :: NODE
+   CHARACTER(LEN=LEN(CLSTR)) :: STR
 END TYPE
 TYPE (RANKNODE_T), ALLOCATABLE, SAVE :: RN(:)
 INTEGER(KIND=JPIM), ALLOCATABLE, SAVE :: REF(:)
@@ -93,7 +96,7 @@ OMP_GET_THREAD_NUM() = 0
 CALL GET_ENVIRONMENT_VARIABLE('EC_MEMINFO',CLEC_MEMINFO)
 IF (CLEC_MEMINFO == '0') RETURN
 
-IF (PAGESIZE == 0) WT0 = UTIL_WALLTIME()
+IF (LLFIRST_TIME) WT0 = UTIL_WALLTIME()
 IF (MAXTH == 0) MAXTH = OMP_GET_MAX_THREADS()
 
 LLNOCOMM = (KCOMM == -1 .or. KCOMM == -2)
@@ -123,26 +126,30 @@ ELSE
    ENDIF
 ENDIF
 
-IF (PAGESIZE == 0) THEN ! The *very* first time
+IF (LLFIRST_TIME) THEN ! The *very* first time
    CALL EC_PMON(ENERGY,POWER)
 
-   CALL GETARG(0,PROGRAM)
+   !-- Neither of these two may stop working when linking with C++ (like in OOPS) ...
+   ! CALL GETARG(0,PROGRAM)
+   ! CALL GET_COMMAND_ARGUMENT(0,PROGRAM)
+   !... so using the old saviour from ifsaux/support/cargs.c:
+   CALL GETARG_C(0,PROGRAM)
 
-   PAGESIZE=2048
    CALL GET_ENVIRONMENT_VARIABLE("HUGETLB_DEFAULT_PAGE_SIZE",VAL)
    I=INDEX(VAL,"M")
    IF(I > 0) THEN
       READ(VAL(1:I-1),*) PAGESIZE
       PAGESIZE=PAGESIZE*1024
+   ELSE
+      PAGESIZE=0
    ENDIF
 
    NODEHUGE=0
    
-   WRITE(FILENAME,'(a,i0,a)') "/sys/kernel/mm/hugepages/hugepages-", &
-        PAGESIZE,"kB/nr_hugepages"
-
    IF(PAGESIZE > 0) THEN
-      OPEN(502,FILE=FILENAME,STATUS="old")
+      WRITE(FILENAME,'(a,i0,a)') "/sys/kernel/mm/hugepages/hugepages-", &
+           PAGESIZE,"kB/nr_hugepages"
+      OPEN(502,FILE=FILENAME,STATUS="old",ACTION="read")
       READ(502,*) NODEHUGE
       CLOSE(502)
    ENDIF
@@ -214,11 +221,15 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
             CALL CHECK_ERROR("from MPI_RECV(IORANK)",__FILE__,__LINE__)
             CALL MPI_RECV(NUMTH,1,MPI_INTEGER4,I,ITAG+2,KCOMM,IRECV_STATUS,ERROR)
             CALL CHECK_ERROR("from MPI_RECV(NUMTH)",__FILE__,__LINE__)
+            CALL MPI_RECV(CLSTR,LEN(CLSTR),MPI_BYTE,I,ITAG+3,KCOMM,IRECV_STATUS,ERROR)
+            CALL CHECK_ERROR("from MPI_RECV(CLSTR)",__FILE__,__LINE__)
             RN(I)%RANK = I
+            RN(I)%STR = CLSTR
          ELSE
             LASTNODE=NODENAME
             NUMTH = MAXTH
             RN(I)%RANK = 0 ! Itself
+            RN(I)%STR = CDSTRING
          ENDIF
          RN(I)%IORANK = IORANK
          RN(I)%NODEMASTER = 0
@@ -227,7 +238,7 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
          RN(I)%NUMTH = NUMTH
          ALLOCATE(RN(I)%COREIDS(0:NUMTH-1))
          IF (I > 0) THEN ! Receive in MPI-rank order
-            CALL MPI_RECV(RN(I)%COREIDS,NUMTH,MPI_INTEGER4,I,ITAG+3,KCOMM,IRECV_STATUS,ERROR)
+            CALL MPI_RECV(RN(I)%COREIDS,NUMTH,MPI_INTEGER4,I,ITAG+4,KCOMM,IRECV_STATUS,ERROR)
             CALL CHECK_ERROR("from MPI_RECV(COREIDS)",__FILE__,__LINE__)
          ELSE
             RN(I)%COREIDS = COREIDS
@@ -238,7 +249,7 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
       DO II=1,NPROC-1
          K = REF(II)
          I = RN(K)%RANK
-         CALL MPI_SEND(RN(K)%NODEMASTER,1,MPI_INTEGER4,I,ITAG+4,KCOMM,ERROR)
+         CALL MPI_SEND(RN(K)%NODEMASTER,1,MPI_INTEGER4,I,ITAG+5,KCOMM,ERROR)
          CALL CHECK_ERROR("from MPI_SEND(IAM_NODEMASTER)",__FILE__,__LINE__)
       ENDDO
    ELSE
@@ -248,9 +259,12 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
       CALL CHECK_ERROR("from MPI_SEND(IORANK)",__FILE__,__LINE__)
       CALL MPI_SEND(MAXTH,1,MPI_INTEGER4,0,ITAG+2,KCOMM,ERROR)
       CALL CHECK_ERROR("from MPI_SEND(MAXTH)",__FILE__,__LINE__)
-      CALL MPI_SEND(COREIDS,MAXTH,MPI_INTEGER4,0,ITAG+3,KCOMM,ERROR)
+      CLSTR = CDSTRING
+      CALL MPI_SEND(CLSTR,LEN(CLSTR),MPI_BYTE,0,ITAG+3,KCOMM,ERROR)
+      CALL CHECK_ERROR("from MPI_SEND(CLSTR)",__FILE__,__LINE__)
+      CALL MPI_SEND(COREIDS,MAXTH,MPI_INTEGER4,0,ITAG+4,KCOMM,ERROR)
       CALL CHECK_ERROR("from MPI_SEND(COREIDS)",__FILE__,__LINE__)
-      CALL MPI_RECV(IAM_NODEMASTER,1,MPI_INTEGER4,0,ITAG+4,KCOMM,IRECV_STATUS,ERROR)
+      CALL MPI_RECV(IAM_NODEMASTER,1,MPI_INTEGER4,0,ITAG+5,KCOMM,IRECV_STATUS,ERROR)
       CALL CHECK_ERROR("from MPI_RECV(IAM_NODEMASTER)",__FILE__,__LINE__)
    ENDIF
    DEALLOCATE(COREIDS)
@@ -290,6 +304,7 @@ IF (MYPROC == 0) THEN
    ENDIF
 
    DO NODENUM=1,NN
+      JID = 0
       DO II=1,NPROC-1
          IF (.NOT.DONE(II)) THEN
             J = REF(II)
@@ -298,6 +313,7 @@ IF (MYPROC == 0) THEN
                IF (RN(J)%NODEMASTER == 1) THEN ! Always the first task on particular NODENUM
                   LASTNODE = RN(J)%NODE
                   NRECV = SIZE(RECVBUF)
+                  JID = J
                ELSE
                   NRECV = 2
                ENDIF
@@ -331,28 +347,30 @@ IF (MYPROC == 0) THEN
       ENDDO
       
       PERCENT_USED(2) = 0
-      IF (HEAP_SIZE >= NODEHUGE) THEN
+      IF (NODEHUGE == 0 .or. HEAP_SIZE >= NODEHUGE) THEN
          ! running with small pages
-         PERCENT_USED(1)=100.0*(TASKSMALL+NODEHUGE)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
+         IF (TASKSMALL+NODEHUGE+MEMFREE+CACHED > 0) THEN
+            PERCENT_USED(1) = 100.0*(TASKSMALL+NODEHUGE)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
+         ELSE
+            PERCENT_USED(1) = 0
+         ENDIF
+         CSTAR = " Sm/p"
       ELSE
          ! running with huge pages
-         PERCENT_USED(1)=100.0*(HEAP_SIZE+TASKSMALL)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
-         IF (NODEHUGE > 0) THEN
-            NFREE = SUM(HUGEPAGE(0:NNUMA-1))
-            PERCENT_USED(2) = (100.0*(NODEHUGE - NFREE))/NODEHUGE
-            IF (PERCENT_USED(2) < 0) PERCENT_USED(2) = 0
-            IF (PERCENT_USED(2) > 100) PERCENT_USED(2) = 100
-         ENDIF
-      ENDIF
-
-      IF (PERCENT_USED(2) > 0) THEN
-         CSTAR = " H/p"
-      ELSE
-         CSTAR = " s/p"
+         PERCENT_USED(1) = 100.0*(HEAP_SIZE+TASKSMALL)/(TASKSMALL+NODEHUGE+MEMFREE+CACHED)
+         NFREE = SUM(HUGEPAGE(0:NNUMA-1))
+         PERCENT_USED(2) = (100.0*(NODEHUGE - NFREE))/NODEHUGE
+         IF (PERCENT_USED(2) < 0) PERCENT_USED(2) = 0
+         IF (PERCENT_USED(2) > 100) PERCENT_USED(2) = 100
+         CSTAR = " Hg/p"
       ENDIF
    
       IF (LLNOCOMM) THEN
          ID_STRING = CSTAR
+      ELSE IF (KCALL == 0 .AND. JID > 0) THEN
+         ! This should signify the compute & I/O nodes (if they are separate)
+         CLSTR = RN(JID)%STR
+         ID_STRING = CSTAR//":"//TRIM(CLSTR)
       ELSE
          ID_STRING = CSTAR//":"//CDSTRING
       ENDIF
@@ -374,7 +392,7 @@ IF (MYPROC == 0) THEN
             CLOSE(KULOUT)
          ENDIF
       ENDIF
-   ENDDO
+   ENDDO ! DO NODENUM=1,NN
    IF (ALLOCATED(DONE)) DEALLOCATE(DONE)
 ELSE
     SENDBUF(1)=HEAP_SIZE
@@ -408,10 +426,11 @@ SUBROUTINE SLASH_PROC
   IMPLICIT NONE
   CALL EC_PMON(ENERGY,POWER)
   
-  OPEN(FILE="/proc/buddyinfo",UNIT=502,STATUS="old")
-  
   N18 = 0 ! number of buddy columns (up to MAXCOLS)
   NNUMA = 0 ! number of NUMA-nodes (up to MAXNUMA)
+
+  OPEN(FILE="/proc/buddyinfo",UNIT=502,STATUS="old",ACTION="read",ERR=97)
+  
   READ(502,'(a)') LINE
   READ(502,'(a)') LINE
   READ(502,'(a)') LINE
@@ -429,6 +448,7 @@ SUBROUTINE SLASH_PROC
   
 99 CONTINUE
   CLOSE(502)
+97 CONTINUE
   
   SMALLPAGE(:) = 0
   HUGEPAGE(:) = 0
@@ -444,7 +464,7 @@ SUBROUTINE SLASH_PROC
   MEMFREE = 0
   CACHED = 0
   
-  OPEN(FILE="/proc/meminfo",UNIT=502,STATUS="old")
+  OPEN(FILE="/proc/meminfo",UNIT=502,STATUS="old",ACTION="read")
   DO I=1,10
      READ(502,'(a)') LINE
      IF(LINE(1:7) == "MemFree") THEN
@@ -479,13 +499,17 @@ SUBROUTINE PRT_TOTAL_ENERGIES(KUN)
 IMPLICIT NONE
 INTEGER(KIND=JPIM), INTENT(IN) :: KUN
 IF (KCALL == 1) THEN ! last call
+   WT = UTIL_WALLTIME() - WT0
    CALL PRT_EMPTY(KUN,2)
    WRITE(KUN,'(a,a,f12.3,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
         & " Total energy consumed : ",KWH(TOT_ENERGY), " kWh (",TOT_ENERGY," J)"
-   WRITE(KUN,'(a,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-        & " Peak power            : ",MAXPOWER," W (node "//trim(CLMAXNODE)//")"
+!-- Peak power below is misleading since based on values at sample points
+!   WRITE(KUN,'(a,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
+!        & " Peak power            : ",MAXPOWER," W (node "//trim(CLMAXNODE)//")"
+!-- Avg power must be calculated based on total Joules divided by wall time and num nodes
+   AVGPOWER = TOT_ENERGY / WT / NUMNODES
    WRITE(KUN,'(a,a,i0,a,i0,a)')  CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-        & " Avg. power            : ",AVGPOWER," W over ",NUMNODES," nodes"
+        & " Avg. power / node     : ",AVGPOWER," W across ",NUMNODES," nodes"
    CALL PRT_EMPTY(KUN,1)
 ENDIF
 END SUBROUTINE PRT_TOTAL_ENERGIES
@@ -502,7 +526,7 @@ IF (JOBNAME == '') CALL GET_ENVIRONMENT_VARIABLE('EC_MEMINFO_JOBNAME',JOBNAME)
 CALL GET_ENVIRONMENT_VARIABLE('PBS_JOBID',JOBID)
 IF (JOBID == '') CALL GET_ENVIRONMENT_VARIABLE('SLURM_JOB_ID',JOBID)
 IF (JOBID == '') CALL GET_ENVIRONMENT_VARIABLE('EC_MEMINFO_JOBID',JOBID)
-CALL PRT_EMPTY(KUN,2)
+CALL PRT_EMPTY(KUN,1)
 WT = UTIL_WALLTIME() - WT0
 WRITE(KUN,'(4a,f10.3,a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
      "for program ",TRIM(PROGRAM)," -- wall-time : ",WT,"s"
@@ -523,28 +547,30 @@ INTEGER(KIND=JPIM), INTENT(IN) :: KUN
 INTEGER(KIND=JPIM) :: INUMA, ILEN
 CHARACTER(LEN=4096) :: CLBUF
 INUMA = NNUMA
-!INUMA = MAXNUMA
-!INUMA = 2
 
 ILEN = 0
 WRITE(CLBUF(ILEN+1:),'(A)') &
-     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                   | TC    | MEMORY USED(MB) |"
+     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                           | TC    | MEMORY USED(MB) "
 ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
    IF (K == 0) THEN
-      WRITE(CLBUF(ILEN+1:),'(A)') " MEMORY FREE(MB)"
+      WRITE(CLBUF(ILEN+1:),'(A)') " | MEMORY FREE(MB)"
       ILEN = LEN_TRIM(CLBUF)
    ELSE
       WRITE(CLBUF(ILEN+1:),'(A)') "  -------------  "
       ILEN = LEN_TRIM(CLBUF) + 2
    ENDIF
 ENDDO
-WRITE(CLBUF(ILEN+1:),'(A)') "INCLUDING CACHED |  %USED %HUGE  | Energy  Power"
+IF (NNUMA > 0) THEN
+   WRITE(CLBUF(ILEN+1:),'(A)') " INCLUDING CACHED|  %USED %HUGE  | Energy  Power"
+ELSE
+   WRITE(CLBUF(ILEN+1:),'(A)') "  MEMORY FREE(MB) |  %USED %HUGE  | Energy  Power"
+ENDIF
 WRITE(KUN,'(A)') TRIM(CLBUF)
 
 ILEN=0
 WRITE(CLBUF(ILEN+1:),'(A)') &
-     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                   | Malloc| Inc Heap        |"
+     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                           | Malloc| Inc Heap        |"
 ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
    WRITE(CLBUF(ILEN+1:),'(A,I2,A)') " Numa region ",K," |"
@@ -555,7 +581,7 @@ WRITE(KUN,'(A)') TRIM(CLBUF)
 
 ILEN=0
 WRITE(CLBUF(ILEN+1:),'(A)') &
-     CLPFX(1:IPFXLEN)//"## EC_MEMINFO Node Name         | Heap  | RSS("//zum//")        |"
+     CLPFX(1:IPFXLEN)//"## EC_MEMINFO Node Name                 | Heap  | RSS("//zum//")        |"
 ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
    WRITE(CLBUF(ILEN+1:),'(A)') " Small  Huge or |"
@@ -566,7 +592,7 @@ WRITE(KUN,'(A)') TRIM(CLBUF)
 
 ILEN=0
 WRITE(CLBUF(ILEN+1:),'(A)') &
-     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                   | (sum) | Small    Huge   |"
+     CLPFX(1:IPFXLEN)//"## EC_MEMINFO                           | (sum) | Small    Huge   |"
 ILEN = LEN_TRIM(CLBUF)
 DO K=0,INUMA-1
    WRITE(CLBUF(ILEN+1:),'(A)') "  Only   Small  |"
@@ -582,8 +608,7 @@ INTEGER(KIND=JPIM), INTENT(IN) :: KUN
 INTEGER(KIND=JPIM) :: INUMA,ILEN
 CHARACTER(LEN=4096) :: CLBUF
 INUMA = NNUMA
-!INUMA = MAXNUMA
-!INUMA = 2
+
 ILEN=0
 WRITE(CLBUF(ILEN+1:),'(a,i4,1x,a,3i8,1x)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO ", &
@@ -628,6 +653,9 @@ INTEGER(KIND=JPIM) :: ILEN
 CHARACTER(LEN=1) :: CLAST
 CHARACTER(LEN=4) :: CLMASTER
 CHARACTER(LEN=4096) :: CLBUF
+INTEGER(KIND=JPIM) :: impi_vers, impi_subvers, ilibrary_version_len
+INTEGER(KIND=JPIM) :: iomp_vers, iomp_subvers, iopenmp
+CHARACTER(LEN=4096) :: clibrary_version
 ALLOCATE(REF(0:NPROC-1))
 IOTASKS = 0
 K = 0
@@ -659,7 +687,23 @@ DO I=0,NPROC-1
    ENDIF
 ENDDO
 NUMNODES = NODENUM
+CALL ecmpi_version(impi_vers, impi_subvers, clibrary_version, ilibrary_version_len)
+call ecomp_version(iomp_vers, iomp_subvers, iopenmp)
 CALL PRT_EMPTY(KUN,1)
+WRITE(KUN,'(a,i0,".",i0)') &
+     & CLPFX(1:IPFXLEN)//&
+     & "## EC_MEMINFO : MPI-version ",impi_vers, impi_subvers
+WRITE(KUN,'(a)')  &
+     & CLPFX(1:IPFXLEN)//&
+     & "## EC_MEMINFO : Start of MPI-library version"
+WRITE(KUN,'(a)') trim(clibrary_version) ! This is could be a multiline, very long string
+WRITE(KUN,'(a)')  &
+     & CLPFX(1:IPFXLEN)//&
+     & "## EC_MEMINFO : End of MPI-library version"
+WRITE(KUN,'(a,i0,".",i0,".",i6.6)') &
+     & CLPFX(1:IPFXLEN)//&
+     & "## EC_MEMINFO : OpenMP-version ",iomp_vers, iomp_subvers, iopenmp
+CALL PRT_EMPTY(KUN,2)
 WRITE(KUN,1003) &
      & CLPFX(1:IPFXLEN)//&
      &"## EC_MEMINFO ********************************************************************************",&
@@ -678,7 +722,7 @@ WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
      & "#","NODE#","NODENAME","MPI#","I/O#","MASTER","REF#","OMP#","Core affinities"
 WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
      & "=","=====","========","====","====","======","====","====","==============="
-1000 FORMAT(A,2(1X,A5),1X,A12,5(1X,A6),2X,A)
+1000 FORMAT(A,2(1X,A5),1X,A20,5(1X,A6),2X,A)
 CALL PRT_EMPTY(KUN,1)
 DO I=0,NPROC-1
    ILEN = 0
@@ -690,13 +734,13 @@ DO I=0,NPROC-1
            & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
            & I,RN(I)%NODENUM,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,RN(I)%IORANK,&
            & CLMASTER,REF(I),NUMTH,"{"
-1001  FORMAT(A,2(1X,I5),1X,A12,2(1X,I6),1X,A6,2(1X,I6),2X,A)
+1001  FORMAT(A,2(1X,I5),1X,A20,2(1X,I6),1X,A6,2(1X,I6),2X,A)
    ELSE
       WRITE(CLBUF(ILEN+1:),1002) &
            & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
            & I,RN(I)%NODENUM,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,"[No]",&
            & CLMASTER,REF(I),NUMTH,"{"
-1002  FORMAT(A,2(1X,I5),1X,A12,1X,I6,2(1X,A6),2(1X,I6),2X,A)
+1002  FORMAT(A,2(1X,I5),1X,A20,1X,I6,2(1X,A6),2(1X,I6),2X,A)
    ENDIF
    ILEN = LEN_TRIM(CLBUF)
    CLAST = ','
@@ -707,7 +751,7 @@ DO I=0,NPROC-1
    ENDDO
    WRITE(KUN,'(A,1X)') TRIM(CLBUF)
 ENDDO
-CALL PRT_EMPTY(KUN,2)
+CALL PRT_EMPTY(KUN,1)
 CALL FLUSH(KUN)
 END SUBROUTINE RNSORT
 
@@ -719,7 +763,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM), INTENT(IN) :: KOUT, KSTEP
 CHARACTER(LEN=32) CLSTEP
 CHARACTER(LEN=160) :: LINE
-CHARACTER(LEN=12) :: NODENAME
+CHARACTER(LEN=20) :: NODENAME
 INTEGER(KIND=JPIB) :: NODE(0:17), ISMALL, IHUGE, ITOTAL
 INTEGER(KIND=JPIM) :: I,INUMA,ICOMM
 #include "ec_meminfo.intfb.h"
@@ -731,7 +775,7 @@ CALL FLUSH(KOUT)
 RETURN ! For now
 #if 0
 CALL EC_GETHOSTNAME(NODENAME) ! from support/env.c
-OPEN(FILE="/proc/buddyinfo",UNIT=502,ERR=98,STATUS="old")
+OPEN(FILE="/proc/buddyinfo",UNIT=502,ERR=98,STATUS="old",ACTION="read")
 READ(502,'(a)') LINE
 READ(502,'(a)') LINE
 DO INUMA=0,1
@@ -803,7 +847,7 @@ IF (MONINIT >= 0) THEN
       IF (CLEC_PMON == '0') MONINIT = -2 ! Never try again
    ENDIF
    IF (MONINIT >= 0) THEN
-      OPEN(503,FILE='/sys/cray/pm_counters/energy',IOSTAT=ISTAT,STATUS='old')
+      OPEN(503,FILE='/sys/cray/pm_counters/energy',IOSTAT=ISTAT,STATUS='old',ACTION='read')
       IF (ISTAT == 0) THEN
          READ(503,*,IOSTAT=ISTAT) ENERGY
          CLOSE(503)
@@ -823,7 +867,7 @@ IF (MONINIT >= 0) THEN
 ENDIF
 POWER = 0
 IF (MONINIT > 0) THEN
-   OPEN(504,FILE='/sys/cray/pm_counters/power',IOSTAT=ISTAT,STATUS='old')
+   OPEN(504,FILE='/sys/cray/pm_counters/power',IOSTAT=ISTAT,STATUS='old',ACTION='read')
    IF (ISTAT == 0) THEN
       READ(504,*,IOSTAT=ISTAT) POWER
       CLOSE(504)
