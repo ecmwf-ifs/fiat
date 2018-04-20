@@ -56,7 +56,6 @@ static void InitBFD();
 
 #if defined(__GNUC__)
 
-#define _GNU_SOURCE
 #include <pthread.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -84,7 +83,6 @@ static void InitBFD();
 #define ADDR2LINE /usr/bin/addr2line
 #endif
 
-#define GNUC_BTRACE 128
 #define len_addr2linecmd (sizeof(TOSTR(ADDR2LINE)) + 80 + 4096 + GNUC_BTRACE * 30)
 static char prealloc_addr2linecmd[len_addr2linecmd] = "";
 

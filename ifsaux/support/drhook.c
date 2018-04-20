@@ -1,5 +1,7 @@
 #define _DRHOOK_C_   1
 
+#define _GNU_SOURCE
+
 /* 
    drhook.c
 
@@ -78,6 +80,10 @@ If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#ifdef __USE_GNU
+#include <dlfcn.h>
+#endif
+
 static void set_timed_kill();
 static void process_options();
 static char *TimeStr(char *s, int slen);
@@ -103,6 +109,27 @@ int drhook_memtrace = 0; /* set to 1, if opt_memprof or opt_timeline ; used in g
 static char *start_stamp = NULL;
 static char *end_stamp = NULL;
 
+static int numthreads = 0;
+static int myproc = 1;
+static int nproc = -1;
+static int max_threads = 1;
+
+extern int get_thread_id_();
+
+typedef struct drhook_prefix_t {
+  char s[3840];
+  char timestr[256];
+  int nsigs;
+} drhook_prefix_t;
+
+static drhook_prefix_t *ec_drhook = NULL;
+static int timestr_len = 0;
+
+#define PREFIX(tid) (ec_drhook && tid >= 1 && tid <= numthreads) ? ec_drhook[tid-1].s : ""
+#define TIDNSIGS(tid) (ec_drhook && tid >= 1 && tid <= numthreads) ? ec_drhook[tid-1].nsigs : -1
+#define TIMESTR(tid) (timestr_len > 0 && ec_drhook && tid >= 1 && tid <= numthreads) ? TimeStr(ec_drhook[tid-1].timestr,timestr_len) : ""
+#define FFL __FUNCTION__,__FILE__,__LINE__
+
 static int drhook_trapfpe = 1;
 static int drhook_trapfpe_invalid = 1;
 static int drhook_trapfpe_divbyzero = 1;
@@ -117,19 +144,23 @@ extern void necsx_trbk_(const char *msg, int msglen); /* from ../utilities/gentr
 
 #if defined(__GNUC__) && !defined(NO_TRAPFPE)
 
-#define _GNU_SOURCE 1
 #if defined(CYGWIN)
 #include <mingw/fenv.h>
 #else
 #include <fenv.h>
 #endif
+
+extern int feenableexcept(int excepts);
+extern int fedisableexcept(int excepts);
+extern int fegetexcept(void);
+
 #if defined(DARWIN)
   /*  A temporary fix to link on MacIntosh. Something more clever will be done later -REK. */
 int feenableexcept (int excepts) { return 0; }
 int fedisableexcept(int excepts) { return 0; }
 #endif
 
-static void trapfpe(void)
+static void trapfpe(int silent)
 {
   /* Enable some exceptions. At startup all exceptions are masked. */
 #if 1
@@ -137,25 +168,56 @@ static void trapfpe(void)
   int enable = 0;
   int disable = 0;
   int dummy;
+  int rc_enable = 0;
+  int rc_disable = 0;
+  int excepts_before, excepts_after;
   dummy = drhook_trapfpe_invalid ? (enable |= FE_INVALID) : (disable |= FE_INVALID);
   dummy = drhook_trapfpe_divbyzero ? (enable |= FE_DIVBYZERO) : (disable |= FE_DIVBYZERO);
   dummy = drhook_trapfpe_overflow ? (enable |= FE_OVERFLOW) : (disable |= FE_OVERFLOW);
-  if (enable) (void) feenableexcept(enable); // Turn ON these
-  if (disable) (void) fedisableexcept(disable); // Turn OFF these
+  if (!silent && myproc == 1) {
+    excepts_before = fegetexcept();
+  }
+  if (enable) rc_enable = feenableexcept(enable); // Turn ON these
+  if (disable) rc_disable = fedisableexcept(disable); // Turn OFF these
+  if (!silent && myproc == 1) {
+    int tid = get_thread_id_();
+    char *pfx = PREFIX(tid);
+    excepts_after = fegetexcept();
+    fprintf(stderr,
+	    "%s %s [%s@%s:%d] DR_HOOK trapfpe() : Exceptions before = 0x%x -- after = 0x%x\n",
+	    pfx,TIMESTR(tid),FFL,
+	    excepts_before, excepts_after);
+    fprintf(stderr,
+	    "%s %s [%s@%s:%d] DR_HOOK trapfpe() : with FE_INVALID = 0x%x -- FE_DIVBYZERO = 0x%x -- FE_OVERFLOW = 0x%x\n",
+	    pfx,TIMESTR(tid),FFL,
+	    (int)FE_INVALID,(int)FE_DIVBYZERO,(int)FE_OVERFLOW);
+    if (enable) {
+      fprintf(stderr,
+	      "%s %s [%s@%s:%d] DR_HOOK trapfpe() : feenableexcept(0x%x) returns rc=%d\n",
+	      pfx,TIMESTR(tid),FFL,
+	      enable,rc_enable);
+    }
+    if (disable) {
+      fprintf(stderr,
+	      "%s %s [%s@%s:%d] DR_HOOK trapfpe() : fedisableexcept(0x%x) returns rc=%d\n",
+	      pfx,TIMESTR(tid),FFL,
+	      disable,rc_disable);
+    }
+  }
 #else
 #if defined(PARKIND1_SINGLE) && !defined(SGEMM)
   /* For now ... we have issues in SGEMM with IEEE-invalid ... especially with LIBSCI from Cray */
-  (void) feenableexcept(FE_DIVBYZERO|FE_OVERFLOW);
+  int rc = feenableexcept(FE_DIVBYZERO|FE_OVERFLOW);
 #else
-  (void) feenableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);
+  int rc = feenableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);
 #endif
 #endif
 }
 
-static void untrapfpe(void)
+static void untrapfpe(int silent)
 {
   /* Disable some exceptions. At startup all exceptions are masked. */
-  (void)fedisableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);
+  int rc = fedisableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);
 }
 
 #endif /* defined(__GNUC__) */
@@ -164,8 +226,8 @@ static void untrapfpe(void)
 
 #if (!defined(LINUX) || defined(CYGWIN) || defined(NO_TRAPFPE)) && defined(__GNUC__)
 /* For example Solaris with gcc */
-#define trapfpe()
-#define untrapfpe()
+#define trapfpe(x)
+#define untrapfpe(x)
 #endif
 
 #ifndef drhook_harakiri_timeout_default
@@ -236,8 +298,10 @@ static long long int slave_stacksize();
 
 /* Begin of developer options */
 static char *drhook_timed_kill = NULL; /* Timer assisted simulated kill of procs/threads by signal */
+static int drhook_dump_maps = 1; /* Print /proc/<tid>/maps from signal handler (before moving to ATP or below) */
 static int drhook_dump_smaps = 0; /* Print /proc/<tid>/smaps from signal handler (before moving to ATP or below) */
-static int drhook_dump_buddyinfo = 0; /* Print /proc/buddyinfo from signal handler (before moving to ATP or below) */
+static int drhook_dump_buddyinfo = 1; /* Print /proc/buddyinfo from signal handler (before moving to ATP or below) */
+static int drhook_dump_meminfo = 1; /* Print /proc/meminfo from signal handler (before moving to ATP or below) */
 static int drhook_dump_hugepages = 0;
 static double drhook_dump_hugepages_freq = 0;
 /* End of developer options */
@@ -348,7 +412,6 @@ static double my_inv_irtc_rate = 0;
 #include "raise.h"
 #include "cargs.h"
 
-extern int get_thread_id_();
 extern void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr);
 
 /*** typedefs ***/
@@ -468,19 +531,9 @@ typedef struct drhook_watch_t {
   struct drhook_watch_t *next;
 } drhook_watch_t;
 
-typedef struct drhook_prefix_t {
-  char s[3840];
-  char timestr[256];
-  int nsigs;
-} drhook_prefix_t;
-
 /*** static (local) variables ***/
 
 static o_lock_t DRHOOK_lock = 0;
-static int numthreads = 0;
-static int myproc = 1;
-static int nproc = -1;
-static int max_threads = 1;
 static pid_t pid = -1;
 static drhook_key_t      **keydata  = NULL;
 static drhook_calltree_t **calltree = NULL;
@@ -502,13 +555,6 @@ static drhook_key_t **curkeyptr = NULL; /* pointers to current keyptr (per threa
 static drhook_watch_t *watch = NULL;
 static drhook_watch_t *last_watch = NULL;
 static int watch_count = 0; /* No. of *active* watch points */
-static drhook_prefix_t *ec_drhook = NULL;
-static int timestr_len = 0;
-
-#define PREFIX(tid) (ec_drhook && tid >= 1 && tid <= numthreads) ? ec_drhook[tid-1].s : ""
-#define TIDNSIGS(tid) (ec_drhook && tid >= 1 && tid <= numthreads) ? ec_drhook[tid-1].nsigs : -1
-#define TIMESTR(tid) (timestr_len > 0 && ec_drhook && tid >= 1 && tid <= numthreads) ? TimeStr(ec_drhook[tid-1].timestr,timestr_len) : ""
-#define FFL __FUNCTION__,__FILE__,__LINE__
 
 #ifndef SYS_gettid
 #define SYS_gettid __NR_gettid
@@ -634,12 +680,17 @@ static double mip_count(const drhook_key_t *keyptr);
 
 /*--- spin ---*/
 
-static int spin(int secs) {
+static int nanospin(int secs, int nanosecs) {
   struct timespec req, rem;
   req.tv_sec = secs;
-  req.tv_nsec = 0;
+  req.tv_nsec = nanosecs;
   return nanosleep(&req, &rem);
 }
+
+static int spin(int secs) {
+  return nanospin(secs, 0);
+}
+
 
 /*--- dump_file ---*/
 
@@ -651,12 +702,12 @@ static void dump_file(const char *pfx, int tid, int sig, int nsigs, const char f
   char *tst = TIMESTR(tid);
   if (sig > 0 && nsigs >= 1) {
     fprintf(stderr,
-	    "%s %s [%s@%s:%d] Developer option shows content of the file '%s', signal#%d, nsigs = %d\n",
+	    "%s %s [%s@%s:%d] Content of the file '%s', signal#%d, nsigs = %d\n",
 	    pfx,tst,FFL,filename,sig,nsigs);
   }
   else {
     fprintf(stderr,
-	    "%s %s [%s@%s:%d] Developer option shows content of the file '%s'\n",
+	    "%s %s [%s@%s:%d] Content of the file '%s'\n",
 	    pfx,tst,FFL,filename);
   }
   fp = fopen(filename,"r");
@@ -688,6 +739,8 @@ static void dump_hugepages(int enforce, const char *pfx, int tid, int sig, int n
 	fflush(NULL);
 	if (drhook_dump_buddyinfo) {
 	  dump_file(pfx,tid,sig,nsigs,"/proc/buddyinfo");
+	}
+	if (drhook_dump_meminfo) {
 	  dump_file(pfx,tid,sig,nsigs,"/proc/meminfo");
 	}
 	wt = WALLTIME();
@@ -1167,7 +1220,7 @@ memstat(drhook_key_t *keyptr, const int *thread_id, int in_getkey)
 
 #ifdef RS6K
 static void
-flptrap(int sig)
+flptrap(int sig, int silent)
 {
   if (sig == SIGFPE) {
     /* From John Hague, IBM, UK (--> thanks a lot, John !!)*/
@@ -1185,16 +1238,16 @@ flptrap(int sig)
 }
 #elif defined(__GNUC__) && !defined(NO_TRAPFPE)
 static void
-flptrap(int sig)
+flptrap(int sig, int silent)
 {
   if (sig == SIGFPE) {
     /* Adapted from www.twinkle.ws/arnaud/CompilerTricks.html#Glibc_FP */
-    trapfpe(); /* No need for pgf90's -Ktrap=fp  now ? */
+    trapfpe(silent); /* No need for pgf90's -Ktrap=fp  now ? */
   }
 }
 #else
 static void
-flptrap(int sig)
+flptrap(int sig, int silent)
 {
   return; /* A dummy */
 }
@@ -1279,7 +1332,7 @@ trapfpe_treatment(int sig, int silent)
 		pfx,TIMESTR(tid),FFL,
 		drhook_trapfpe);
       }
-      flptrap(sig); /* Has FLP-trapping on, regardless */
+      flptrap(sig,silent); /* Has FLP-trapping on, regardless */
     }
     else {
       if (!silent && myproc == 1) {
@@ -1288,7 +1341,7 @@ trapfpe_treatment(int sig, int silent)
 		pfx,TIMESTR(tid),FFL,
 		drhook_trapfpe);
       }
-      untrapfpe(); /* Turns off a possible -Ktrap=fp from pgf90 */
+      untrapfpe(silent); /* Turns off a possible -Ktrap=fp from pgf90 */
     }
 #endif
   }
@@ -1472,6 +1525,9 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
     sigaction(x,&sl->new,&sl->old);					\
     sl->ignore_atexit = ignore_flag;					\
     trapfpe_treatment(x,0);						\
+  }
+
+#if 0
     {									\
       int tid = get_thread_id_();					\
       char *pfx = PREFIX(tid);						\
@@ -1483,7 +1539,8 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 	      sl->new.sa_handler,					\
 	      sl->old.sa_handler);					\
     }									\
-  }
+
+#endif
 
 #if defined(RS6K) && defined(__64BIT__)
 #define DRH_STRUCT_RLIMIT struct rlimit64
@@ -1613,27 +1670,35 @@ signal_harakiri(int sig SIG_EXTRA_ARGS)
 static void 
 signal_drhook(int sig SIG_EXTRA_ARGS)
 {
+  volatile int nfirst = drhook_use_lockfile ? 0 : 1;
   int nsigs;
-  volatile int nfirst;
-  int tid = get_thread_id_();
-  char *pfx = PREFIX(tid);
+  int trace_size;
+  int tid;
+  pid_t unixtid;
+  char *pfx;
+  void *trace[GNUC_BTRACE];
+  // Let only one ("fastest") thread per task to this error processing
+  static volatile sig_atomic_t thing = 0;
+  cas_lock(&thing);
+
+  trace_size = backtrace(trace, GNUC_BTRACE);
+
+  unixtid = gettid();
+
+  tid = get_thread_id_();
+  pfx = PREFIX(tid);
+
   if (signals_set && sig >= 1 && sig <= NSIG) {
     drhook_sig_t *sl = &siglist[sig];
     sigset_t newmask, oldmask;
 
-#if 0    
-    signal(sig, SIG_IGN); /* We may not need this ... */
-#endif
-    
+    /* A tiny chance for a race condition between threads */
+    // Using compare-and-swap -stuff from the include cas.h (also in ecProf) 
+
     /* Signal catching */
     {
-      static volatile sig_atomic_t thing = 0;
-      /* A tiny chance for a race condition between threads */
-      // Using compare-and-swap -stuff from the include cas.h (also in ecProf) 
-      cas_lock(&thing);
       nsigs = (++signal_handler_called);
       if (sl->ignore_atexit) signal_handler_ignore_atexit++;
-      cas_unlock(&thing);
     }
 
     if (ec_drhook && tid >= 1 && tid <= numthreads) ec_drhook[tid-1].nsigs = nsigs; /* Store for possible signal_harakiri() */
@@ -1652,16 +1717,29 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     /* if (sig != SIGTERM) signal(SIGTERM, SIG_DFL); */  /* Let the default SIGTERM to occur */
     
     coml_get_max_threads_(&max_threads);
-    nfirst = drhook_use_lockfile ? 0 : 1;
     if (nsigs == 1) {
       /*---- First call to signal handler: call alarm(drhook_harakiri_timeout), tracebacks,  exit ------*/
       
       if (!nfirst) {
 	const char drhook_lockfile[] = "drhook_lock";
 	if (access(drhook_lockfile,F_OK) == -1) {
-	  int fd = creat(drhook_lockfile,S_IRUSR|S_IWUSR);
-	  if (fd >= 0) close(fd);
-	  nfirst = 1;
+	  int fd = open(drhook_lockfile,O_RDONLY);
+	  if (fd == -1) { // File did not exist -- create it
+	    fd = open(drhook_lockfile, O_CREAT|O_WRONLY|O_TRUNC|O_EXCL, S_IRUSR|S_IWUSR);
+	    if (fd >= 0) {
+	      int rc_lock = flock(fd, LOCK_EX | LOCK_NB);
+	      if (rc_lock == 0) {
+		size_t count = sizeof(myproc);
+		ssize_t sz = write(fd,&myproc,count);
+		if (sz == count) nfirst = 1;
+		//rc_lock = flock(fd, LOCK_UN);
+	      }
+	      close(fd);
+	    }
+	  }
+	  else { // after all the file already existed
+	    close(fd);
+	  }
 	}
       }
 
@@ -1681,10 +1759,12 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 		" %lldMB (maxrss), %lldMB (maxstack), %lldMB (vmpeak), %lld (paging), nsigs = %d\n",
 		pfx,TIMESTR(tid),FFL,
 		sig, sl->name, hwm, rss, maxstack, vmpeak, pag, nsigs);
+#if 0
 	fprintf(stderr,
 		"%s %s [%s@%s:%d] Also activating Harakiri-alarm (SIGALRM=%d) to expire after %ds elapsed to prevent hangs, nsigs = %d\n",
 		pfx,TIMESTR(tid),FFL,
 		SIGALRM,drhook_harakiri_timeout,nsigs);
+#endif
       }
       JSETSIG(SIGALRM,1); /* This will now set another signal handler than signal_drhook */
       fflush(NULL);
@@ -1694,6 +1774,16 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       if (sigcode) {
 	const char *s = NULL;
 	void *addr = sigcode->si_addr;
+	void *bt = addr;
+	ucontext_t *uc = (ucontext_t *)sigcontextptr;
+#ifdef __powerpc64__
+	bt = uc ? (void *) uc->uc_mcontext.regs->nip : NULL;   // Trick from PAPI_overflow()
+#elif defined(__x86_64__) && defined(REG_RIP) // gcc specific
+	bt = uc ? (void *) uc->uc_mcontext.gregs[REG_RIP] : NULL; // RIP: x86_64 specific ; only available in 64-bit mode */
+#elif defined(__i386__) && defined(REG_EIP) // gcc specific
+	bt = uc ? (void *) uc->uc_mcontext.gregs[REG_EIP] : NULL; // EIP: x86 specific ; only available in 32-bit mode */
+#endif
+	if (!addr) addr = bt;
 	if (sig == SIGFPE) {
 	  switch (sigcode->si_code) {
 	  case FPE_INTDIV: s = "integer divide by zero"; break;
@@ -1742,11 +1832,57 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	else {
 	  s = "unrecognized si_code";
 	}
+
 	if (s) {
+#ifdef __USE_GNU
+	  int works = 0;
+	  Dl_info dlinfo;
+	  if (dladdr(bt,&dlinfo) == 0) {
+	    dlinfo.dli_fname = NULL;
+	    dlinfo.dli_sname = NULL;
+	    dlinfo.dli_fbase = 0;
+	  }
+	  else
+	    works = 1;
+
+	  fprintf(stderr,
+		  "%s %s [%s@%s:%d] Signal#%d was caused by %s [memaddr=%p] : %p at %s(%s), nsigs = %d\n",
+		  pfx,TIMESTR(tid),FFL,
+		  sig, s, 
+		  addr,
+		  bt,
+		  dlinfo.dli_fname ? dlinfo.dli_fname : "<unknown_object>",
+		  dlinfo.dli_sname ? dlinfo.dli_sname : "<unknown_function>",
+		  nsigs);
+
+	  if (works && trace_size > 0) {
+	    int ndigits = (trace_size > 0) ? 1 + (int)log10(trace_size) : 0;
+	    int jt;
+	    for (jt = 0; jt < trace_size; ++jt) {
+	      void *pbt = trace[jt];
+	      if (dladdr(pbt,&dlinfo) == 0) {
+		dlinfo.dli_fname = NULL;
+		dlinfo.dli_sname = NULL;
+		dlinfo.dli_fbase = 0;
+	      }
+	      fprintf(stderr,
+		      "%s %s [%s@%s:%d] : [%*.*d]: %s %s %p %p # addr2line\n",
+		      pfx,TIMESTR(tid),FFL,
+		      ndigits, ndigits, jt,
+		      dlinfo.dli_sname ? dlinfo.dli_sname : "<unknown_function>",
+		      dlinfo.dli_fname ? dlinfo.dli_fname : "<unknown_object>",
+		      dlinfo.dli_fbase,
+		      pbt);
+	    }
+	  }
+#else
 	  fprintf(stderr,
 		  "%s %s [%s@%s:%d] Signal#%d was caused by %s [memaddr=%p], nsigs = %d\n",
 		  pfx,TIMESTR(tid),FFL,
-		  sig, s, addr, nsigs);
+		  sig, s, 
+		  addr, 
+		  nsigs);
+#endif
 	  fflush(NULL);
 	}
       }
@@ -1803,20 +1939,35 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       const int print_option = 2; /* calling tree */
       int level = 0;
 
-      dump_hugepages(0,pfx,tid,sig,nsigs); /* We don't wanna enforce anymore -- this the first arg == 0 now */
-
-      if (drhook_dump_smaps) {
-	pid_t unixtid = gettid();
-	char filename[256];
-	snprintf(filename,sizeof(filename),"/proc/%ld/smaps",(long)unixtid);
-	dump_file(pfx,tid,sig,nsigs,filename);
-      }
-
       fprintf(stderr,
 	      "%s %s [%s@%s:%d] Starting DrHook backtrace for signal#%d, nsigs = %d\n",
 	      pfx,TIMESTR(tid),FFL,
 	      sig,nsigs);
+
+      dump_hugepages(0,pfx,tid,sig,nsigs); /* We don't wanna enforce anymore -- this the first arg == 0 now */
+
+      if (drhook_dump_smaps) {
+	char filename[64];
+	snprintf(filename,sizeof(filename),"/proc/%ld/smaps",(long)unixtid);
+	dump_file(pfx,tid,sig,nsigs,filename);
+      }
+
+      if (drhook_dump_maps) {
+	char filename[64];
+	snprintf(filename,sizeof(filename),"/proc/%ld/maps",(long)unixtid);
+	dump_file(pfx,tid,sig,nsigs,filename);
+      }
+
+      if (drhook_dump_buddyinfo) {
+	dump_file(pfx,tid,sig,nsigs,"/proc/buddyinfo");
+      }
+
+      if (drhook_dump_meminfo) {
+	dump_file(pfx,tid,sig,nsigs,"/proc/meminfo");
+      }
+
       fflush(NULL);
+
       c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
       fflush(NULL);
 
@@ -1975,6 +2126,8 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     fflush(NULL);
     _exit(errcode);
   }
+
+  cas_unlock(&thing);
 }
 
 void
@@ -2444,12 +2597,26 @@ process_options()
   }
   if (drhook_dump_smaps) OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_DUMP_SMAPS=%d\n",pfx,TIMESTR(tid),FFL,drhook_dump_smaps);
 
+  env = getenv("DR_HOOK_DUMP_MAPS");
+  if (env) {
+    ienv = atoi(env);
+    drhook_dump_maps = (ienv != 0) ? 1 : 0;
+  }
+  if (drhook_dump_maps) OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_DUMP_MAPS=%d\n",pfx,TIMESTR(tid),FFL,drhook_dump_maps);
+
   env = getenv("DR_HOOK_DUMP_BUDDYINFO");
   if (env) {
     ienv = atoi(env);
     drhook_dump_buddyinfo = (ienv != 0) ? 1 : 0;
   }
   if (drhook_dump_buddyinfo) OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_DUMP_BUDDYINFO=%d\n",pfx,TIMESTR(tid),FFL,drhook_dump_buddyinfo);
+
+  env = getenv("DR_HOOK_DUMP_MEMINFO");
+  if (env) {
+    ienv = atoi(env);
+    drhook_dump_meminfo = (ienv != 0) ? 1 : 0;
+  }
+  if (drhook_dump_meminfo) OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_DUMP_MEMINFO=%d\n",pfx,TIMESTR(tid),FFL,drhook_dump_meminfo);
 
   env = getenv("DR_HOOK_DUMP_HUGEPAGES");
   if (env) {

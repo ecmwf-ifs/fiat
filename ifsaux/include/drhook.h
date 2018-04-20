@@ -1,10 +1,14 @@
 #ifndef _DRHOOK_H_
 #define _DRHOOK_H_
 
+#ifndef GNUC_BTRACE
+#define GNUC_BTRACE 128
+#endif
+
 #ifdef _DRHOOK_C_
 
 #if defined(__GNUC__)
-#define _GNU_SOURCE 1
+#define _GNU_SOURCE
 #endif
 
 #include <stdio.h>
@@ -22,6 +26,8 @@
 #include <sys/types.h>
 #include <pthread.h>
 #include <limits.h>
+#include <execinfo.h>
+#include <sys/file.h>
 
 //#ifdef _OPENMP
 //#include <omp.h>
