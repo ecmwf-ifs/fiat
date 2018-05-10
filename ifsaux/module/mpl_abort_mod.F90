@@ -9,6 +9,7 @@ USE SDL_MOD, ONLY : SDL_TRACEBACK, SDL_DISABORT
 USE F90_UNIX_IO, ONLY: FLUSH
 #endif
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE YOMHOOK  , ONLY : LHOOK
 
 PRIVATE
 PUBLIC MPL_ABORT
@@ -25,9 +26,6 @@ ITID=OML_MY_THREAD()
 INUMTH=OML_MAX_THREADS()
 
 IF (MPL_UNIT > 0) CALL FLUSH(MPL_UNIT)
-CALL FLUSH(0)
-CALL EC_SLEEP(1) ! This rather than 'CALL SYSTEM("sleep 1")' ; see code ../support/env.c
-
 !------Traceback from only one thread
 !$OMP CRITICAL (CRIT_MPL_ABORT)
 !$OMP FLUSH(MAB_CNT)
@@ -38,13 +36,13 @@ IF (MAB_CNT == 0) THEN
   ENDIF
   MAB_CNT=1
 !$OMP FLUSH(MAB_CNT)
-  CALL SDL_TRACEBACK(ITID)
+  IF (LHOOK) THEN
+     CALL TABORT() ! should not hang and calls DrHook's error traceback processing (more robust nowadays)
+  ELSE
+     CALL SDL_TRACEBACK(ITID) ! this may hang in LinuxTrbk() addr2line with Intel compiler
+  ENDIF
 ENDIF
-! ------All threads wait till traceback done
-CALL FLUSH(0)
-CALL EC_SLEEP(1) ! This rather than 'CALL SYSTEM("sleep 1")' ; see code ../support/env.c
 !$OMP END CRITICAL (CRIT_MPL_ABORT)
-
 CALL SDL_DISABORT(MPL_COMM_OML(ITID))
 
 END SUBROUTINE MPL_ABORT
