@@ -130,6 +130,7 @@ static int timestr_len = 0;
 #define TIMESTR(tid) (timestr_len > 0 && ec_drhook && tid >= 1 && tid <= numthreads) ? TimeStr(ec_drhook[tid-1].timestr,timestr_len) : ""
 #define FFL __FUNCTION__,__FILE__,__LINE__
 
+static int drhook_trapfpe_master_init = 0;
 static int drhook_trapfpe = 1;
 static int drhook_trapfpe_invalid = 1;
 static int drhook_trapfpe_divbyzero = 1;
@@ -165,6 +166,7 @@ static void trapfpe(int silent)
   /* Enable some exceptions. At startup all exceptions are masked. */
 #if 1
   /* New coding -- honours DR_HOOK_TRAPFPE_{INVALID,DIVBYZERO,OVERLOW} set to 1 (or 0) */
+  int tid = get_thread_id_();
   int enable = 0;
   int disable = 0;
   int dummy;
@@ -180,7 +182,6 @@ static void trapfpe(int silent)
   if (enable) rc_enable = feenableexcept(enable); // Turn ON these
   if (disable) rc_disable = fedisableexcept(disable); // Turn OFF these
   if (!silent && myproc == 1) {
-    int tid = get_thread_id_();
     char *pfx = PREFIX(tid);
     excepts_after = fegetexcept();
     fprintf(stderr,
@@ -206,6 +207,7 @@ static void trapfpe(int silent)
 	      pfx,TIMESTR(tid),FFL,
 	      disable,disable,rc_disable);
     }
+    if (tid == 1) drhook_trapfpe_master_init = 1; // go-ahead for slave threads in trapfpe_slave_threads()
   }
 #else
 #if defined(PARKIND1_SINGLE) && !defined(SGEMM)
@@ -1349,6 +1351,27 @@ trapfpe_treatment(int sig, int silent)
 #endif
   }
 }
+
+/* Fortran callable : calls trapfpe() for slave threads if drhook_trapfpe indicated so
+   Called from DR_HOOK_UTIL_MULTI after DR_HOOK_UTIL (master thread) has been called
+   Matters only for slave threads
+   If *silent = 0, then more verbose output */
+
+void
+trapfpe_slave_threads_(const int *silent)
+{
+  int tid = get_thread_id_();
+  if (tid > 1) { // slave threads
+    if (drhook_trapfpe_master_init) trapfpe_treatment(SIGFPE, *silent);
+  }
+}
+
+void
+trapfpe_slave_threads(const int *silent)
+{
+  trapfpe_slave_threads_(silent);
+}
+
 
 /*--- restore_default_signals ---*/
 
