@@ -184,24 +184,27 @@ static void trapfpe(int silent)
     char *pfx = PREFIX(tid);
     excepts_after = fegetexcept();
     fprintf(stderr,
-	    "%s %s [%s@%s:%d] DR_HOOK trapfpe() : Exceptions before = 0x%x -- after = 0x%x\n",
+	    "%s %s [%s@%s:%d] DR_HOOK trapfpe() : Exceptions before = 0x%x [%d] -- after = 0x%x [%d]\n",
 	    pfx,TIMESTR(tid),FFL,
-	    excepts_before, excepts_after);
+	    excepts_before, excepts_before,
+	    excepts_after, excepts_after);
     fprintf(stderr,
-	    "%s %s [%s@%s:%d] DR_HOOK trapfpe() : with FE_INVALID = 0x%x -- FE_DIVBYZERO = 0x%x -- FE_OVERFLOW = 0x%x\n",
+    "%s %s [%s@%s:%d] DR_HOOK trapfpe() : with FE_INVALID = 0x%x [%d] -- FE_DIVBYZERO = 0x%x [%d] -- FE_OVERFLOW = 0x%x [%d]\n",
 	    pfx,TIMESTR(tid),FFL,
-	    (int)FE_INVALID,(int)FE_DIVBYZERO,(int)FE_OVERFLOW);
+	    (int)FE_INVALID, (int)FE_INVALID,
+	    (int)FE_DIVBYZERO, (int)FE_DIVBYZERO,
+	    (int)FE_OVERFLOW, (int)FE_OVERFLOW);
     if (enable) {
       fprintf(stderr,
-	      "%s %s [%s@%s:%d] DR_HOOK trapfpe() : feenableexcept(0x%x) returns rc=%d\n",
+	      "%s %s [%s@%s:%d] DR_HOOK trapfpe() : feenableexcept(0x%x [%d]) returns rc=%d\n",
 	      pfx,TIMESTR(tid),FFL,
-	      enable,rc_enable);
+	      enable,enable,rc_enable);
     }
     if (disable) {
       fprintf(stderr,
-	      "%s %s [%s@%s:%d] DR_HOOK trapfpe() : fedisableexcept(0x%x) returns rc=%d\n",
+	      "%s %s [%s@%s:%d] DR_HOOK trapfpe() : fedisableexcept(0x%x [%d]) returns rc=%d\n",
 	      pfx,TIMESTR(tid),FFL,
-	      disable,rc_disable);
+	      disable,disable,rc_disable);
     }
   }
 #else
