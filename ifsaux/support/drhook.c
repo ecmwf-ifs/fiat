@@ -1871,15 +1871,30 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	  else
 	    works = 1;
 
-	  fprintf(stderr,
-		  "%s %s [%s@%s:%d] Signal#%d was caused by %s [memaddr=%p] : %p at %s(%s), nsigs = %d\n",
-		  pfx,TIMESTR(tid),FFL,
-		  sig, s, 
-		  addr,
-		  bt,
-		  dlinfo.dli_fname ? dlinfo.dli_fname : "<unknown_object>",
-		  dlinfo.dli_sname ? dlinfo.dli_sname : "<unknown_function>",
-		  nsigs);
+	  if (sig == SIGFPE) {
+	    int excepts = fegetexcept();
+	    fprintf(stderr,
+		    "%s %s [%s@%s:%d] Signal#%d was caused by %s [memaddr=%p] [excepts=0x%x [%d]] : %p at %s(%s), nsigs = %d\n",
+		    pfx,TIMESTR(tid),FFL,
+		    sig, s, 
+		    addr,
+		    excepts, excepts,
+		    bt,
+		    dlinfo.dli_fname ? dlinfo.dli_fname : "<unknown_object>",
+		    dlinfo.dli_sname ? dlinfo.dli_sname : "<unknown_function>",
+		    nsigs);
+	  }
+	  else {
+	    fprintf(stderr,
+		    "%s %s [%s@%s:%d] Signal#%d was caused by %s [memaddr=%p] : %p at %s(%s), nsigs = %d\n",
+		    pfx,TIMESTR(tid),FFL,
+		    sig, s, 
+		    addr,
+		    bt,
+		    dlinfo.dli_fname ? dlinfo.dli_fname : "<unknown_object>",
+		    dlinfo.dli_sname ? dlinfo.dli_sname : "<unknown_function>",
+		    nsigs);
+	  }
 
 	  if (works && trace_size > 0) {
 	    int ndigits = (trace_size > 0) ? 1 + (int)log10(trace_size) : 0;
