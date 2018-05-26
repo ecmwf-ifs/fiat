@@ -588,6 +588,15 @@ static void set_ec_drhook_label(const char *hostname, int hlen)
 #define SECS(x) ((int)(x))
 #define NSECS(x) ((int)(1000000000 * ((x) - SECS(x))))
 
+#ifndef __timer_t_defined
+static void set_killer_timer(const int *ntids, const int *target_omptid, 
+			     const int *target_sig, const double *start_time,
+			     const char *p, int lenp)
+{
+  // Definition of timer_t, timer_create, timer_set
+  //   is a POSIX extention, not available on e.g. Darwin
+}
+#else
 static void set_killer_timer(const int *ntids, const int *target_omptid, 
 			     const int *target_sig, const double *start_time,
 			     const char *p, int lenp)
@@ -630,7 +639,7 @@ static void set_killer_timer(const int *ntids, const int *target_omptid,
     } /* if (target_omptid == -1 || target_omptid == tid) */
   }
 }
-
+#endif
 
 #if !defined(NCALLSTACK)
 #ifdef PARKIND1_SINGLE
@@ -721,6 +730,15 @@ static void dump_file(const char *pfx, int tid, int sig, int nsigs, const char f
 }
 
 /*--- dump_hugepages ---*/
+
+// Forward declaration of subroutine in ec_meminfo.F90
+void ec_meminfo_( const int* ku,
+                  const char* cdstring,
+                  const int* kcomm,
+                  const int* kbarr,
+                  const int* kiotask,
+                  const int* kcall,
+                  int cdstring_strlen );
 
 static void dump_hugepages(int enforce, const char *pfx, int tid, int sig, int nsigs)
 {
@@ -3443,6 +3461,15 @@ void c_drhook_prof_()
 
 /*--- Check watch points ---*/
 
+// Forward declarations of subroutines defined in dr_hook_prt.F90
+
+void dr_hook_prt_logical_( const int* kunit, const void* ptr, const int* n );
+void dr_hook_prt_char_( const int* kunit, const void* ptr, const int* n );
+void dr_hook_prt_i4_( const int* kunit, const void* ptr, const int* n );
+void dr_hook_prt_i8_( const int* kunit, const void* ptr, const int* n );
+void dr_hook_prt_r4_( const int* kunit, const void* ptr, const int* n );
+void dr_hook_prt_r8_( const int* kunit, const void* ptr, const int* n );
+
 typedef enum { /* See dr_hook_watch_mod.F90 */
   KEYNONE =  0,
   KEYLOG  =  1,
@@ -5732,7 +5759,7 @@ static void set_timed_kill()
 #else
 #pragma omp parallel num_threads(ntids)
 	{
-	  set_killer_timer(&ntids,&target_omptid,&target_sig,&start_time,p,strlen(p));
+	   (&ntids,&target_omptid,&target_sig,&start_time,p,strlen(p));
 	}
 #endif
       }
