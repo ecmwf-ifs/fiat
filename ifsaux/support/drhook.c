@@ -158,6 +158,7 @@ extern int fegetexcept(void);
   /*  A temporary fix to link on MacIntosh. Something more clever will be done later -REK. */
 int feenableexcept (int excepts) { return 0; }
 int fedisableexcept(int excepts) { return 0; }
+int fegetexcept(void) { return 0; }
 #endif
 
 static void trapfpe(int silent)
