@@ -591,16 +591,16 @@ static void set_ec_drhook_label(const char *hostname, int hlen)
 
 #ifndef __timer_t_defined
 static void set_killer_timer(const int *ntids, const int *target_omptid, 
-			     const int *target_sig, const double *start_time,
-			     const char *p, int lenp)
+                             const int *target_sig, const double *start_time,
+                             const char *p, int lenp)
 {
   // Definition of timer_t, timer_create, timer_set
   //   is a POSIX extention, not available on e.g. Darwin
 }
 #else
 static void set_killer_timer(const int *ntids, const int *target_omptid, 
-			     const int *target_sig, const double *start_time,
-			     const char *p, int lenp)
+                             const int *target_sig, const double *start_time,
+                             const char *p, int lenp)
 {
   static volatile sig_atomic_t TimedKill = 0;
   if (ntids && target_omptid && target_sig && start_time && p) {
