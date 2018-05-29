@@ -5760,7 +5760,7 @@ static void set_timed_kill()
 #else
 #pragma omp parallel num_threads(ntids)
 	{
-	   (&ntids,&target_omptid,&target_sig,&start_time,p,strlen(p));
+	  set_killer_timer(&ntids,&target_omptid,&target_sig,&start_time,p,strlen(p));
 	}
 #endif
       }
