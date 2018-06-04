@@ -2168,6 +2168,10 @@ signal_drhook_init(int enforce)
     return; /* Never initialize signals via DrHook (dangerous, but sometimes necessary) */
   }
   if (!ec_drhook) {
+#if defined(DARWIN)
+    long HOST_NAME_MAX = sysconf (_SC_HOST_NAME_MAX);
+    if (HOST_NAME_MAX <= 0) HOST_NAME_MAX = _POSIX_HOST_NAME_MAX;
+#endif
     int slen;
     char hostname[EC_HOST_NAME_MAX];
     char *pdot;

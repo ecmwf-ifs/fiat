@@ -6,6 +6,10 @@ USE MPL_ARG_MOD, ONLY : MPL_GETARG
 USE YOMGSTATS, ONLY : LAST_KNUM,LAST_KSWITCH,LDETAILED_STATS,MYPROC_STATS, &
                       NHOOK_MESSAGES,TIME_LAST_CALL
 USE YOMHOOKSTACK, ONLY : LL_THREAD_FIRST,ISAVE,IMAXSTACK,CSTACK   ! For monitoring thread stack usage
+!<DrHack> 
+USE MPL_MYRANK_MOD,ONLY : MPL_MYRANK ! useful for DrHack
+USE YOMLUN_IFSAUX, ONLY : NULDRHACK
+!</DrHack>
 #ifdef NAG
 USE F90_UNIX_ENV, ONLY: GETARG
 #endif
@@ -38,8 +42,59 @@ CHARACTER(LEN=3) CHEAP ! For monitoring heap usage
 INTEGER          JHEAP ! For monitoring heap usage
 DATA JHEAP/0/
 
+!useful variable for DrHack
+LOGICAL,SAVE :: LL_DRHACK=.FALSE. !set to .TRUE. if MPIRANK=0 and Env variable DR_HACK=1
+
 #include "user_clock.h"
 
+!
+! Florian Suzat (METEO-FRANCE) Sept 2017 : add drHack functionality
+!
+! drHack documentation:
+! ----------------------------------
+! ARPIFS has become a huge and complicated program. Debugging it can be very
+! painful especially for newbies. Documenting it is also is a huge and tedious
+! job.
+! The idea behind “drHack” is basically to hack drHook: using the calls 
+! "IF (LHOOK) CALL DR_HOOK('XXX',I,ZHOOK_HANDLE)" 
+! (where XXX is the name of a routine, and I is 0 at the beginning of the
+! routine and 1 at
+! the end) in order to build a big XML file describing the ARPIFS calling tree.
+! At initialization, if both environmental variables DR_HOOK and DR_HACK are set
+! equal to 1, 
+! then the hack is activated, otherwise everything works as usual.
+
+! IMPORTANT: for the moment, it does not work with openmp
+! (need to run with openmp=1) 
+
+! When active, we first open a file drhack.txt.
+! Every time the program enters a routine, we append <ROUTINE_NAME> to the
+! file, and every time the routine is left, we append </ROUTINE_NAME> (mind the
+! “/” extra character).
+! Then, at the end of the run, the (big!) file drhack.txt contains the calling
+! tree of the MPI processor number 0 as an XML file:
+! <MASTER>
+! <STACK_MIX_INIT_STACK>
+! <STACK_MIX_GETSTACKUSAGEX>
+! </STACK_MIX_GETSTACKUSAGEX>
+! </STACK_MIX_INIT_STACK>
+! <CNT0>
+! <GEOMETRY_MOD_GEOMETRY_SET>
+! </GEOMETRY_MOD_GEOMETRY_SET>
+! ....
+! 
+! The resulting files are not usable as is (because they are too big). But with
+! a few
+! lines of python, it is easy to produce a condensed version of the drhack.txt
+! file
+! (if you want an example script, you may ask florian.suzat@meteo.fr).
+! Then, with html and javascript, these condensed files are read and a
+! dynamic collapsible search tree is built.
+! Illustrations of such pages can be seen at http://intra.cnrm.meteo.fr/drhack/ 
+! (only from the MeteoFrance network... If you want an export, mail
+! florian.suzat@meteo.fr)
+
+! Hope this help...
 
 ! -----------------------------------------------------------------
 
@@ -102,6 +157,13 @@ IF (LL_FIRST_TIME) THEN
   ENDIF
 !JFH------------ End ---------------------------------------------
 
+ !DrHack initialisation
+ CALL GET_ENVIRONMENT_VARIABLE('DR_HACK',CLENV)
+ IF ((CLENV == '1') .and. ( MPL_MYRANK() ==1 )) THEN
+   LL_DRHACK=.TRUE.  
+   OPEN (UNIT = NULDRHACK, file = "drhack.txt",position="append",action="write")
+ ENDIF
+
 ENDIF
 
 !JFH---Code to monitor stack usage by threads---------------------
@@ -151,6 +213,12 @@ ELSE IF (KCASE == 1) THEN
 !JFH------------ End ---------------------------------------------
   CALL C_DRHOOK_END  (CDNAME, IMYTID, PKEY, CDFILENAME, KSIZEINFO)
 ENDIF
+! calling the drHackFunction
+IF (LL_DRHACK) THEN 
+  CALL DR_HACK(CDNAME,KCASE,NULDRHACK)
+ENDIF
+
+
 
 !GM---Code to find gstats SUMB time-------------------------------
 IF( LDETAILED_STATS .AND. LLFINDSUMB )THEN
@@ -175,3 +243,46 @@ ENDIF
 !GM------------ End ---------------------------------------------
 
 END SUBROUTINE DR_HOOK_UTIL
+
+SUBROUTINE DR_HACK(ROUTINE,START,DRHACKUNIT)
+! Different implementation of this have been tested, but this one, even if it is
+! not elegant at all, is almost fast.... 
+
+USE PARKIND1  ,ONLY : JPIM
+IMPLICIT NONE
+CHARACTER(LEN=*),INTENT(IN) :: ROUTINE
+INTEGER(KIND=JPIM),INTENT(IN) :: START
+INTEGER(KIND=JPIM),INTENT(IN) :: DRHACKUNIT
+INTEGER(KIND=JPIM) :: i
+CHARACTER(LEN(ROUTINE)) :: ROUTINE_CLEAN
+
+! replace some special character
+DO i = 1,LEN(ROUTINE)
+ SELECT CASE (ROUTINE(i:i))
+  CASE ("<")
+   ROUTINE_CLEAN (i:i)="_"
+  CASE (">")
+   ROUTINE_CLEAN (i:i)="_"
+  CASE (":")
+   ROUTINE_CLEAN (i:i)="_"
+  CASE (" ")
+   ROUTINE_CLEAN (i:i)="_"
+  CASE DEFAULT
+   ROUTINE_CLEAN (i:i)=ROUTINE(i:i)
+ END SELECT
+END DO
+
+
+IF (START==0) THEN
+ WRITE(DRHACKUNIT,*) '<',ROUTINE_CLEAN,'>'
+ELSE
+ WRITE(DRHACKUNIT,*) '</',ROUTINE_CLEAN,'>'
+ !CLOSE FILE IF LAST ROUTINE
+ IF (ROUTINE_CLEAN .eq. 'MODEL_MOD_MODEL_DELETE') THEN
+   CLOSE (DRHACKUNIT)
+ ENDIF
+ENDIF
+
+END SUBROUTINE DR_HACK
+
+
