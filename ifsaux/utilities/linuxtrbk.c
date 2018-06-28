@@ -61,7 +61,13 @@ static void InitBFD();
 #include <sys/resource.h>
 
 #if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(CRAYXT)
+#ifdef __NEC__
+static int backtrace(void **buffer, int size) { return 0; }
+static char **backtrace_symbols(void *const *buffer, int size) { return NULL; }
+static void backtrace_symbols_fd(void *const *buffer, int size, int fd) { }
+#else
 #include <execinfo.h>
+#endif
 #elif defined(DARWIN)
 #define _XOPEN_SOURCE
 #include <errno.h>
