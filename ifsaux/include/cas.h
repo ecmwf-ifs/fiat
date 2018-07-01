@@ -12,7 +12,7 @@
 #define INLINE __inline__
 #endif
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__NEC__)
 
 #define CAS(lock,oldval,newval) __sync_bool_compare_and_swap(lock,oldval,newval)
 

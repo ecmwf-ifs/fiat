@@ -253,6 +253,9 @@ ec_sleep(const int *nsec)
   return ec_sleep_(nsec);
 }
 
+#ifdef __NEC__
+void sleep_(const int *nsec) { (void)ec_sleep_(nsec); }
+#endif
 
 /* Microsecond-sleep, by S.Saarinen, 25-jan-2008 */
 
@@ -308,7 +311,7 @@ void ec_gethostname(char a[],
 
 /* For checking runtime affinities (not setting them, though) */
 
-#ifdef LINUX
+#if defined(LINUX) && !defined(__NEC__)
 #include <sched.h>
 int sched_getcpu(void);
 #else

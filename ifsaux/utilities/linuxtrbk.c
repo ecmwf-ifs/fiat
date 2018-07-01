@@ -60,14 +60,8 @@ static void InitBFD();
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(CRAYXT)
-#ifdef __NEC__
-static int backtrace(void **buffer, int size) { return 0; }
-static char **backtrace_symbols(void *const *buffer, int size) { return NULL; }
-static void backtrace_symbols_fd(void *const *buffer, int size, int fd) { }
-#else
+#if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(CRAYXT) && !defined(__NEC__)
 #include <execinfo.h>
-#endif
 #elif defined(DARWIN)
 #define _XOPEN_SOURCE
 #include <errno.h>
@@ -238,7 +232,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 #endif
   static int recur = 0;
   const char *a_out = ec_GetArgs(0);
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(__NEC__)
   if (!sigcontextptr) {
       sigcontextptr = (getcontext(&ctx) == 0) ? &ctx : NULL;
   }
@@ -258,7 +252,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     }
   }
 
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(__NEC__)
   //fflush(NULL);
 
   if (sigcontextptr) {
