@@ -613,8 +613,8 @@ static void set_killer_timer(const int *ntids, const int *target_omptid,
       sev._sigev_un._tid = gettid();
 #else
       sev.sigev_notify = SIGEV_SIGNAL;
-      sev.sigev_value.sival_ptr = &timerid;
 #endif
+      sev.sigev_value.sival_ptr = &timerid;
       
       its.it_value.tv_sec = SECS(*start_time);
       its.it_value.tv_nsec = NSECS(*start_time);
