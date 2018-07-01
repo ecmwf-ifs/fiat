@@ -605,11 +605,16 @@ static void set_killer_timer(const int *ntids, const int *target_omptid,
       timer_t timerid = { 0 };
       struct itimerspec its = { 0 } ;
       struct sigevent sev = { 0 } ;
-      sev.sigev_notify = SIGEV_THREAD_ID | SIGEV_SIGNAL;
       sev.sigev_signo = *target_sig;
+
+#if defined(SIGEV_THREAD_ID)
+      sev.sigev_notify = SIGEV_THREAD_ID | SIGEV_SIGNAL;
       /* sev.sigev_notify_thread_id = gettid(); */
-      sev._sigev_un._tid = gettid(); 
+      sev._sigev_un._tid = gettid();
+#else
+      sev.sigev_notify = SIGEV_SIGNAL;
       sev.sigev_value.sival_ptr = &timerid;
+#endif
       
       its.it_value.tv_sec = SECS(*start_time);
       its.it_value.tv_nsec = NSECS(*start_time);
