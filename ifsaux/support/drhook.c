@@ -161,6 +161,10 @@ int feenableexcept (int excepts) { return 0; }
 int fedisableexcept(int excepts) { return 0; }
 #endif
 
+#if defined(__NEC__)
+int fegetexcept(void) { return 0; }
+#endif
+
 static void trapfpe(int silent)
 {
   /* Enable some exceptions. At startup all exceptions are masked. */

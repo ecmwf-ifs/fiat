@@ -131,14 +131,26 @@ ec_getenv_(const char *s,
 
 void
 ec_getenv(const char *s,
-	   char *value,
-	   /* Hidden arguments */
-	   int slen,
-	   const int valuelen)
+	  char *value,
+	  /* Hidden arguments */
+	  int slen,
+	  const int valuelen)
 {
   ec_getenv_(s, value, slen, valuelen);
 }
 
+
+#ifdef __NEC__
+void
+getenv_(const char *s,
+	char *value,
+	/* Hidden arguments */
+	int slen,
+	const int valuelen)
+{
+  ec_getenv_(s, value, slen, valuelen);
+}
+#endif
 
 void
 ec_putenv_(const char *s,
