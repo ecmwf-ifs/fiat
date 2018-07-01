@@ -611,6 +611,8 @@ static void set_killer_timer(const int *ntids, const int *target_omptid,
       sev.sigev_notify = SIGEV_THREAD_ID | SIGEV_SIGNAL;
       /* sev.sigev_notify_thread_id = gettid(); */
       sev._sigev_un._tid = gettid();
+#elif defined(SIGEV_THREAD)
+      sev.sigev_notify = SIGEV_THREAD | SIGEV_SIGNAL;
 #else
       sev.sigev_notify = SIGEV_SIGNAL;
 #endif
