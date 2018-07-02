@@ -267,6 +267,8 @@ ec_sleep(const int *nsec)
 
 #ifdef __NEC__
 void sleep_(const int *nsec) { (void)ec_sleep_(nsec); }
+
+void flush_(const int *io) { } /* temporary fix */
 #endif
 
 /* Microsecond-sleep, by S.Saarinen, 25-jan-2008 */
@@ -320,6 +322,10 @@ void ec_gethostname(char a[],
 {
   ec_gethostname_(a,alen);
 }
+
+#ifdef __NEC__
+int hostnm_(char a[], int alen) { ec_gethostname_(a,alen); return 0; }
+#endif
 
 /* For checking runtime affinities (not setting them, though) */
 
