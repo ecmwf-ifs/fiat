@@ -219,6 +219,14 @@ static void SetMasterThreadsStackSizeBeforeMain()
 /* End of disabled code section */
 #endif
 
+#ifdef __NEC__
+void
+LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
+{
+  extern void gdb_trbk_();
+  gdb_trbk_();
+}
+#else
 void
 LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 {
@@ -418,6 +426,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
   fprintf(stderr,"%s %s [%s@%s:%d] End of backtrace(s)\n",pfx,ts,FFL);
   recur--;
 }
+#endif
  
 void linux_trbk_(void)
 {
@@ -460,20 +469,8 @@ void gdb_trbk_()
 	    "[gdb_trbk] : Invoking %s ...\n",
 	    TOSTR(GNUDEBUGGER));
     snprintf(gdbcmd,sizeof(gdbcmd),
-	     "set +e; /bin/echo '"
-	     "set watchdog 1\n"
-	     "set confirm off\n"
-	     "set pagination off\n"
-	     "set print elements 16\n"
-	     "set print repeats 3\n"
-	     "set print sevenbit-strings on\n"
-	     "where\n"
-	     "quit\n' > ./gdb_drhook.%d ; "
-	     "%s -x ./gdb_drhook.%d -q -n -f -batch %s %d < /dev/null ; "
-	     "/bin/rm -f ./gdb_drhook.%d"
-	     , pid
-	     , TOSTR(GNUDEBUGGER), pid, a_out, pid
-	     , pid);
+	     "set +eux; %s -batch -n -q -ex 'thread apply all bt' %s %ld < /dev/null",
+	     TOSTR(GNUDEBUGGER), a_out, (long int)pid);
     
     /* fprintf(stderr,"%s\n",gdbcmd); */
     fflush(NULL);

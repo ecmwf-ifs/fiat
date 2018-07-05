@@ -69,6 +69,12 @@ ENDIF
 #endif
   CALL INTEL_TRBK() ! See ifsaux/utilities/gentrbk.F90
   WRITE(0,*)'SDL_TRACEBACK: Done INTEL_TRBK, THRD = ',ITID
+#elif defined(__NEC__)
+  ! A traceback using gdb-debugger, if available AND 
+  ! activated via 'export GDBDEBUGGER=1'
+  WRITE(0,*)'SDL_TRACEBACK: Calling GDB_TRBK, THRD = ',ITID
+  CALL GDB_TRBK() ! See ifsaux/utilities/linuxtrbk.c
+  WRITE(0,*)'SDL_TRACEBACK: Done GDB_TRBK, THRD = ',ITID
 #elif defined(LINUX) || defined(SUN4)
   WRITE(0,*)'SDL_TRACEBACK: Calling LINUX_TRBK, THRD = ',ITID
   CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
