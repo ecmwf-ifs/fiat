@@ -223,8 +223,15 @@ static void SetMasterThreadsStackSizeBeforeMain()
 void
 LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 {
+#if 1
+  // When VE_TRACEBACK=ALL the following should have the same impact as with implicit traceback (when compiled & linked with -traceback)
+  // NB: No control on output channel
+  if (!sigcontextptr) sigcontextptr = __builtin_frame_address(0);
+  __builtin_traceback(sigcontextptr);
+#else
   extern void gdb_trbk_();
   gdb_trbk_();
+#endif
 }
 #else
 void
