@@ -2090,7 +2090,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	  case SIGTERM:
 	    if (atp_ignore_sigterm) break; /* SIGSEGV not reset to SIG_DFL as ATP now ignores SIGTERM */
 	    /* Fall thru (see man atp on Cray) */
-	  case SIGINT:
+	  case SIGINT: /* Also, see ifssig.c : used as a RESTART signal, confusingly enough */
 	  case SIGFPE:
 	  case SIGILL:
 	  case SIGTRAP:
@@ -2291,7 +2291,7 @@ signal_drhook_init(int enforce)
   SETSIG(SIGILL,0);
 #endif
   SETSIG(SIGTRAP,0); /* Should be switched off when used with debuggers */
-  SETSIG(SIGINT,0);
+  SETSIG(SIGINT,0);  /* Also, see ifssig.c : used as a RESTART signal, confusingly enough */
   if (atp_enabled) {
     /* We let ATP to catch SIGQUIT (it uses this for non-failed tasks, we think) -- thus commented out */
     /* SETSIG(SIGQUIT,0); */

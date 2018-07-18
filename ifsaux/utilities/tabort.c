@@ -11,7 +11,7 @@ void tabort_()
 {
   static volatile sig_atomic_t irecur = 0;
   if (++irecur == 1) {
-    const int sig = SIGINT;
+    const int sig = SIGABRT;
     int ret = raise(sig); /* We get better DrHook & LinuxTrbk's with this than abort() aka SIGABRT */
     // abort(); -- essentially raise(SIGABRT) but with messier output (and may bypass DrHook)
     if (ret == 0) { // Means raise() was okay and tracebacks etc. DrHooks took place
