@@ -346,7 +346,7 @@ void ec_coreid(int *coreid)
   ec_coreid_(coreid);
 }
 
-#ifdef ECMWF
+#ifdef DARSHAN
 /* Some issues with Darshan -- better to use our own version of MPI_Wtime (mpi_wtime_ in Fortran) */
 double mpi_wtime_()
 {
