@@ -34,6 +34,8 @@ INTEGER(KIND=JPIB) :: ENERGY, POWER
 INTEGER(KIND=JPIB) :: TOT_ENERGY, MAXPOWER, AVGPOWER
 INTEGER(KIND=JPIM),SAVE :: PAGESIZE = 0
 INTEGER(KIND=JPIM),SAVE :: MAXTH = 0
+INTEGER(KIND=JPIM),SAVE :: MAXTH_COMP = 0
+INTEGER(KIND=JPIM),SAVE :: MAXTH_IO = 0
 INTEGER(KIND=JPIM),PARAMETER :: MAXCOLS = 18 ! Max numerical columns in /proc/buddyinfo (often just 11, but Cray has 18 entries)
 INTEGER(KIND=JPIM) :: N18
 !INTEGER(KIND=JPIB),DIMENSION(0:MAXCOLS-1,0:MAXNUMA-1) :: NODE, BUCKET
@@ -242,6 +244,11 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
             CALL CHECK_ERROR("from MPI_RECV(COREIDS)",__FILE__,__LINE__)
          ELSE
             RN(I)%COREIDS = COREIDS
+         ENDIF
+         IF (IORANK == 0) THEN
+            MAXTH_COMP = MAX(MAXTH_COMP,NUMTH)
+         ELSE
+            MAXTH_IO = MAX(MAXTH_IO,NUMTH)
          ENDIF
       ENDDO
       CALL RNSORT(KULOUT) ! Output now goes to meminfo.txt
@@ -531,10 +538,10 @@ CALL PRT_EMPTY(KUN,1)
 WT = UTIL_WALLTIME() - WT0
 WRITE(KUN,'(4a,f10.3,a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
      "for program ",TRIM(PROGRAM)," -- wall-time : ",WT,"s"
-WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,a,":",a,":",a,a,a,"-",a,"-",a)') &
+WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a,a,":",a,":",a,a,a,"-",a,"-",a)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running on ",NUMNODES," nodes (",NNUMA,&
      "-numa) with ",NPROC-IOTASKS, &
-     " compute + ",IOTASKS," I/O-tasks and ", MAXTH, " threads at ", &
+     " compute + ",IOTASKS," I/O-tasks and ", MAXTH_COMP, "/", MAXTH_IO, " threads at ", &
      CLTIMEOD(1:2),CLTIMEOD(3:4),CLTIMEOD(5:10), &
      " on ",CLDATEOD(7:8),CLMON(IMON),CLDATEOD(1:4)
 WRITE(KUN,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO The Job Name is ",TRIM(JOBNAME), &
@@ -714,10 +721,10 @@ WRITE(KUN,1003) &
      &"## EC_MEMINFO ********************************************************************************"
 1003 FORMAT((A))
 CALL PRT_EMPTY(KUN,1)
-WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a)') &
+WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a') &
      & CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running on ",NUMNODES," nodes (",NNUMA,&
      & "-numa) with ",NPROC-IOTASKS, &
-     & " compute + ",IOTASKS," I/O-tasks and ", MAXTH, " threads"
+     & " compute + ",IOTASKS," I/O-tasks and ", MAXTH_COMP, "/", MAXTH_IO, " threads"
 CALL PRT_EMPTY(KUN,1)
 WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
      & "#","NODE#","NODENAME","MPI#","I/O#","MASTER","REF#","OMP#","Core affinities"
