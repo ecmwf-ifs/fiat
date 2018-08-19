@@ -721,7 +721,7 @@ WRITE(KUN,1003) &
      &"## EC_MEMINFO ********************************************************************************"
 1003 FORMAT((A))
 CALL PRT_EMPTY(KUN,1)
-WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a') &
+WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a)') &
      & CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running on ",NUMNODES," nodes (",NNUMA,&
      & "-numa) with ",NPROC-IOTASKS, &
      & " compute + ",IOTASKS," I/O-tasks and ", MAXTH_COMP, "/", MAXTH_IO, " threads"
