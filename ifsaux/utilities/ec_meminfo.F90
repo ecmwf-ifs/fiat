@@ -149,11 +149,14 @@ IF (LLFIRST_TIME) THEN ! The *very* first time
    NODEHUGE=0
    
    IF(PAGESIZE > 0) THEN
-      WRITE(FILENAME,'(a,i0,a)') "/sys/kernel/mm/hugepages/hugepages-", &
-           PAGESIZE,"kB/nr_hugepages"
-      OPEN(502,FILE=FILENAME,STATUS="old",ACTION="read")
-      READ(502,*) NODEHUGE
+      !WRITE(FILENAME,'(a,i0,a)') "/sys/kernel/mm/hugepages/hugepages-", &
+      !     PAGESIZE,"kB/nr_hugepages"
+      FILENAME='/proc/sys/vm/nr_hugepages' ! more generic; contents the same as in /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
+      OPEN(502,FILE=FILENAME,STATUS="old",ACTION="read",ERR=999)
+      READ(502,*,ERR=998,END=998) NODEHUGE
+998   continue
       CLOSE(502)
+999   continue
    ENDIF
 
    NODEHUGE=NODEHUGE*PAGESIZE
@@ -472,16 +475,18 @@ SUBROUTINE SLASH_PROC
   MEMFREE = 0
   CACHED = 0
   
-  OPEN(FILE="/proc/meminfo",UNIT=502,STATUS="old",ACTION="read")
+  OPEN(FILE="/proc/meminfo",UNIT=502,STATUS="old",ACTION="read",ERR=977)
   DO I=1,10
-     READ(502,'(a)') LINE
+     READ(502,'(a)',ERR=988,END=988) LINE
      IF(LINE(1:7) == "MemFree") THEN
         READ(LINE(9:80),*) MEMFREE 
      ELSEIF(LINE(1:6) == "Cached") THEN
         READ(LINE(8:80),*) CACHED
      ENDIF
   ENDDO
+988 continue
   CLOSE(502)
+977 continue
   
   MEMFREE=MEMFREE/1024
   CACHED=CACHED/1024
@@ -784,8 +789,8 @@ RETURN ! For now
 #if 0
 CALL EC_GETHOSTNAME(NODENAME) ! from support/env.c
 OPEN(FILE="/proc/buddyinfo",UNIT=502,ERR=98,STATUS="old",ACTION="read")
-READ(502,'(a)') LINE
-READ(502,'(a)') LINE
+READ(502,'(a)',END=99) LINE
+READ(502,'(a)',END=99) LINE
 DO INUMA=0,1
    NODE(:)=0
    READ(502,'(a)',END=99) LINE
