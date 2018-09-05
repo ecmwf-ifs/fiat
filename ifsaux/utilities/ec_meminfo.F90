@@ -254,11 +254,11 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
             MAXTH_IO = MAX(MAXTH_IO,NUMTH)
          ENDIF
       ENDDO
-      CALL RNSORT(KULOUT) ! Output now goes to meminfo.txt
+      CALL RNSORT(KULOUT) ! Output now goes to "meminfo.txt"
       IAM_NODEMASTER = RN(0)%NODEMASTER ! Itself
       DO II=1,NPROC-1
          K = REF(II)
-         I = RN(K)%RANK
+         I = RN(K)%RANK ! And I := K by definition in case you wondered about this (unnecessary?) indirection
          CALL MPI_SEND(RN(K)%NODEMASTER,1,MPI_INTEGER4,I,ITAG+5,KCOMM,ERROR)
          CALL CHECK_ERROR("from MPI_SEND(IAM_NODEMASTER)",__FILE__,__LINE__)
       ENDDO
@@ -739,27 +739,28 @@ WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
 CALL PRT_EMPTY(KUN,1)
 DO I=0,NPROC-1
    ILEN = 0
-   NUMTH = RN(I)%NUMTH
+   K = REF(I) ! Keeping tasks within the same node together (in case of rank-reordering)
+   NUMTH = RN(K)%NUMTH
    CLMASTER = '[No]'
-   IF (RN(I)%NODEMASTER == 1) CLMASTER = ' Yes'
-   IF (RN(I)%IORANK > 0) THEN
+   IF (RN(K)%NODEMASTER == 1) CLMASTER = ' Yes'
+   IF (RN(K)%IORANK > 0) THEN
       WRITE(CLBUF(ILEN+1:),1001) &
            & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-           & I,RN(I)%NODENUM-1,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,RN(I)%IORANK,&
-           & CLMASTER,REF(I),NUMTH,"{"
+           & I,RN(K)%NODENUM-1,TRIM(ADJUSTL(RN(K)%NODE)),RN(K)%RANK,RN(K)%IORANK,&
+           & CLMASTER,K,NUMTH,"{"
 1001  FORMAT(A,2(1X,I5),1X,A20,2(1X,I6),1X,A6,2(1X,I6),2X,A)
    ELSE
       WRITE(CLBUF(ILEN+1:),1002) &
            & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-           & I,RN(I)%NODENUM-1,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,"[No]",&
-           & CLMASTER,REF(I),NUMTH,"{"
+           & I,RN(K)%NODENUM-1,TRIM(ADJUSTL(RN(K)%NODE)),RN(K)%RANK,"[No]",&
+           & CLMASTER,K,NUMTH,"{"
 1002  FORMAT(A,2(1X,I5),1X,A20,1X,I6,2(1X,A6),2(1X,I6),2X,A)
    ENDIF
    ILEN = LEN_TRIM(CLBUF)
    CLAST = ','
    DO J=0,NUMTH-1
       IF (J == NUMTH-1) CLAST = '}'
-      WRITE(CLBUF(ILEN+1:),'(I0,A1)') RN(I)%COREIDS(J),CLAST
+      WRITE(CLBUF(ILEN+1:),'(I0,A1)') RN(K)%COREIDS(J),CLAST
       ILEN = LEN_TRIM(CLBUF)
    ENDDO
    WRITE(KUN,'(A,1X)') TRIM(CLBUF)
