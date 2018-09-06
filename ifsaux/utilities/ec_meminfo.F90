@@ -549,7 +549,7 @@ WRITE(KUN,'(4a,f10.3,a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory infor
 WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a,a,":",a,":",a,a,a,"-",a,"-",a)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running on ",NUMNODES," nodes (",NNUMA,&
      "-numa) with ",NPROC-IOTASKS, &
-     " compute + ",IOTASKS," I/O-tasks and ", MAXTH_COMP, "/", MAXTH_IO, " threads at ", &
+     " compute + ",IOTASKS," I/O-tasks and ", MAXTH_COMP, "+", MAXTH_IO, " threads at ", &
      CLTIMEOD(1:2),CLTIMEOD(3:4),CLTIMEOD(5:10), &
      " on ",CLDATEOD(7:8),CLMON(IMON),CLDATEOD(1:4)
 WRITE(KUN,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO The Job Name is ",TRIM(JOBNAME), &
@@ -732,7 +732,7 @@ CALL PRT_EMPTY(KUN,1)
 WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a)') &
      & CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running on ",NUMNODES," nodes (",NNUMA,&
      & "-numa) with ",NPROC-IOTASKS, &
-     & " compute + ",IOTASKS," I/O-tasks and ", MAXTH_COMP, "/", MAXTH_IO, " threads"
+     & " compute + ",IOTASKS," I/O-tasks and ", MAXTH_COMP, "+", MAXTH_IO, " threads"
 CALL PRT_EMPTY(KUN,1)
 WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
      & "#","NODE#","NODENAME","MPI#","I/O#","MASTER","REF#","OMP#","Core affinities"
