@@ -19,7 +19,7 @@ INTEGER(KIND=JPIM), INTENT(IN) :: KU,KCOMM,KBARR,KIOTASK,KCALL
 CHARACTER(LEN=*), INTENT(IN) :: CDSTRING
 INTEGER(KIND=JPIM), PARAMETER :: ITAG = 98765
 INTEGER(KIND=JPIM) :: ID,KULOUT
-INTEGER(KIND=JPIM) :: II,JJ,I,J,K,MYPROC,NPROC,LEN,ERROR,NODENUM,JID
+INTEGER(KIND=JPIM) :: II,JJ,I,J,K,MYPROC,NPROC,LEN,ERROR,NODENUM,JID,IDX
 INTEGER(KIND=JPIB) :: TASKSMALL,NODEHUGE,MEMFREE,CACHED,NFREE
 INTEGER(KIND=JPIB),SAVE :: NODEHUGE_CACHED
 INTEGER(KIND=JPIM), PARAMETER :: MAXNUMA_DEF = 4 ! Max number of "sockets" supported by default
@@ -60,7 +60,7 @@ CHARACTER(LEN=3), PARAMETER :: CLMON(1:12) = (/ &
      'Jul','Aug','Sep','Oct','Nov','Dec' /)
 INTEGER(KIND=JPIM) :: IVALUES(8), IMON
 INTEGER(KIND=JPIM) :: IRECV_STATUS(MPI_STATUS_SIZE)
-LOGICAL :: LLNOCOMM, LLNOHDR
+LOGICAL :: LLNOCOMM, LLNOHDR, LLREORDERED
 INTEGER(KIND=JPIM), SAVE :: IAM_NODEMASTER = 0
 LOGICAL, SAVE :: LLFIRST_TIME = .TRUE.
 TYPE RANKNODE_T
@@ -75,7 +75,6 @@ TYPE RANKNODE_T
    CHARACTER(LEN=LEN(CLSTR)) :: STR
 END TYPE
 TYPE (RANKNODE_T), ALLOCATABLE, SAVE :: RN(:)
-INTEGER(KIND=JPIM), ALLOCATABLE, SAVE :: REF(:)
 INTEGER(KIND=JPIM), ALLOCATABLE :: COREIDS(:)
 LOGICAL, ALLOCATABLE :: DONE(:)
 INTEGER(KIND=JPIM), SAVE :: NUMNODES = 0
@@ -132,7 +131,6 @@ ELSE
 ENDIF
 
 IF (LLFIRST_TIME) THEN ! The *very* first time
-   NCOMM_WORLD_REORDERED = KCOMM
    CALL EC_PMON(ENERGY,POWER)
 
    !-- Neither of these two may stop working when linking with C++ (like in OOPS) ...
@@ -204,7 +202,7 @@ ENDIF
 
 IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
 ! Fetch affinities (over OpenMP threads)
-! Note: e.g. I/O-task may have different thread count than computational tasks
+! Note: I/O-tasks may now have different number of threads than on computational tasks
    ALLOCATE(COREIDS(0:MAXTH-1))
 #ifdef _OPENMP
 !$OMP PARALLEL NUM_THREADS(MAXTH) SHARED(COREIDS) PRIVATE(MYTH)
@@ -215,6 +213,8 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
 !$OMP END PARALLEL
 #endif
 
+! Store the communicator we are in (reordered or not) -- to be used in the EC_MPI_FINALIZE
+   NCOMM_WORLD_REORDERED = KCOMM
 ! Fetch node names & numbers per task
    IORANK = 0
    IF (KIOTASK > 0) IORANK = 1
@@ -223,7 +223,7 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
       ALLOCATE(RN(0:NPROC-1))
       DO I=0,NPROC-1
          RN(I)%NODENUM = -1
-         IF (I > 0) THEN ! Receive in MPI-rank order
+         IF (I > 0) THEN ! Receive in the MPI-rank order of KCOMM (i.e. may not be the same as MPI_COMM_WORLD -order)
             CALL MPI_RECV(LASTNODE,LEN(LASTNODE),MPI_BYTE,I,ITAG,KCOMM,IRECV_STATUS,ERROR)
             CALL CHECK_ERROR("from MPI_RECV(LASTNODE)",__FILE__,__LINE__)
             CALL MPI_RECV(IORANK,1,MPI_INTEGER4,I,ITAG+1,KCOMM,IRECV_STATUS,ERROR)
@@ -234,7 +234,7 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
             CALL CHECK_ERROR("from MPI_RECV(NUMTH)",__FILE__,__LINE__)
             CALL MPI_RECV(CLSTR,LEN(CLSTR),MPI_BYTE,I,ITAG+4,KCOMM,IRECV_STATUS,ERROR)
             CALL CHECK_ERROR("from MPI_RECV(CLSTR)",__FILE__,__LINE__)
-            RN(I)%RANK = IRECV_STATUS(MPI_SOURCE)
+            RN(I)%RANK = I
             RN(I)%STR = CLSTR
          ELSE
             LASTNODE=NODENAME
@@ -266,10 +266,8 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
       CALL RNSORT(KULOUT) ! Output now goes to "meminfo.txt"
 
       IAM_NODEMASTER = RN(0)%NODEMASTER ! Itself
-      DO II=1,NPROC-1
-         K = REF(II)
-         I = RN(K)%RANK ! And I := K by definition in case you wondered about this (unnecessary?) indirection
-         CALL MPI_SEND(RN(K)%NODEMASTER,1,MPI_INTEGER4,I,ITAG+6,KCOMM,ERROR)
+      DO I=1,NPROC-1
+         CALL MPI_SEND(RN(I)%NODEMASTER,1,MPI_INTEGER4,I,ITAG+6,KCOMM,ERROR)
          CALL CHECK_ERROR("from MPI_SEND(IAM_NODEMASTER)",__FILE__,__LINE__)
       ENDDO
    ELSE
@@ -279,7 +277,7 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
       CALL CHECK_ERROR("from MPI_SEND(IORANK)",__FILE__,__LINE__)
       CALL MPI_COMM_RANK(MPI_COMM_WORLD,K,ERROR)
       CALL MPI_SEND(K,1,MPI_INTEGER4,0,ITAG+2,KCOMM,ERROR)
-      CALL CHECK_ERROR("from MPI_SEND(IORANK)",__FILE__,__LINE__)
+      CALL CHECK_ERROR("from MPI_SEND(RANK_WORLD)",__FILE__,__LINE__)
       CALL MPI_SEND(MAXTH,1,MPI_INTEGER4,0,ITAG+3,KCOMM,ERROR)
       CALL CHECK_ERROR("from MPI_SEND(MAXTH)",__FILE__,__LINE__)
       CLSTR = CDSTRING
@@ -326,17 +324,19 @@ IF (MYPROC == 0) THEN
       DONE(:) = .FALSE.
    ENDIF
 
+   LLREORDERED = (NCOMM_WORLD_REORDERED /= 0 .and. NCOMM_WORLD_REORDERED /= MPI_COMM_WORLD)
+   
    DO NODENUM=1,NN
       JID = 0
       DO II=1,NPROC-1
          IF (.NOT.DONE(II)) THEN
-            J = REF(II)
+            J = II ! Used to be REF(II) -- don't know why ?!
             IF (RN(J)%NODENUM == NODENUM) THEN
                I = RN(J)%RANK
                IF (RN(J)%NODEMASTER == 1) THEN ! Always the first task on particular NODENUM
                   LASTNODE = RN(J)%NODE
                   NRECV = SIZE(RECVBUF)
-                  JID = J
+                  JID = J ! Always >= 1
                ELSE
                   NRECV = 2
                ENDIF
@@ -394,7 +394,17 @@ IF (MYPROC == 0) THEN
       ELSE IF (KCALL == 0 .AND. JID > 0) THEN
          ! This should signify the compute & I/O nodes (if they are separate)
          CLSTR = RN(JID)%STR
-         ID_STRING = CSTAR//":"//TRIM(CLSTR)
+         IF (LLREORDERED) THEN
+            ! When ranks are reordered, then a node usually contains both compute & I/O tasks
+            IDX = INDEX(CLSTR,':') ! usually index to ":" in strings "master:computation" or "master:io-server"
+            IF (IDX > 0) THEN
+               ID_STRING = CSTAR//":"//CLSTR(1:IDX)//"reordered" ! ranks reordered, usually comp + io, but could be user given EC_RANK_REORDER w/o any io considerations
+            ELSE ! bailout
+               ID_STRING = CSTAR//":"//CDSTRING
+            ENDIF
+         ELSE
+            ID_STRING = CSTAR//":"//TRIM(CLSTR)
+         ENDIF
       ELSE
          ID_STRING = CSTAR//":"//CDSTRING
       ENDIF
@@ -682,47 +692,55 @@ CHARACTER(LEN=4096) :: CLBUF
 INTEGER(KIND=JPIM) :: impi_vers, impi_subvers, ilibrary_version_len
 INTEGER(KIND=JPIM) :: iomp_vers, iomp_subvers, iopenmp
 CHARACTER(LEN=4096) :: clibrary_version
-INTEGER(KIND=JPIM), ALLOCATABLE :: REORDER(:)
-ALLOCATE(REORDER(0:NPROC-1))
+LOGICAL :: LLDONE(0:NPROC-1)
+INTEGER(KIND=JPIM), ALLOCATABLE :: REF(0:NPROC-1) ! Keep list of the order tasks been added
+INTEGER(KIND=JPIM), ALLOCATABLE :: IRANK(0:NPROC-1) ! Reconstruction of IRANK [world -> local comm] in case we need this -- see ec_rank_reorder.F90
+LLDONE(:) = .FALSE.
 DO I=0,NPROC-1
    II = RN(I)%RANK_WORLD
-   REORDER(II) = I
+   IRANK(II) = I
 ENDDO
-ALLOCATE(REF(0:NPROC-1))
 IOTASKS = 0
 K = 0
 NODENUM = 0
-DO II=0,NPROC-1
-!   I = II
-   I = REORDER(II) ! Node masters per original (MPI_COMM_WORLD) ranking order to avoid untrue node ordering
-   IF (RN(I)%IORANK == 1) THEN
-      IOTASKS = IOTASKS + 1
-      RN(I)%IORANK = IOTASKS
-   ELSE
-      RN(I)%IORANK = 0
-   ENDIF
+DO I=0,NPROC-1
    IF (RN(I)%NODENUM == -1) THEN
+      IF (RN(I)%IORANK == 1) THEN
+         IOTASKS = IOTASKS + 1
+         RN(I)%IORANK = IOTASKS
+      ELSE
+         RN(I)%IORANK = 0
+      ENDIF
       NODENUM = NODENUM + 1
       RN(I)%NODENUM = NODENUM
       RN(I)%NODEMASTER = 1
+      LLDONE(I) = .TRUE.
+      ! NB: Adjacent REF-elements allow us to operate with particular node's tasks that follow their the node-master
       REF(K) = I
       K = K + 1
       LASTNODE = RN(I)%NODE
-!      DO J=I+1,NPROC-1
-      DO JJ=0,NPROC-1
-         J = REORDER(JJ)
-         IF (RN(J)%NODE == LASTNODE) THEN
+!      DO J=I+1,NPROC-1 ! not valid anymore since ranks might have been reordered -- need to run through the whole list
+      DO J=0,NPROC-1
+         IF (.NOT.LLDONE(J)) THEN
             IF (RN(J)%NODENUM == -1) THEN
-               RN(J)%NODENUM = NODENUM
-               RN(J)%NODEMASTER = 0
-               REF(K) = J
-               K = K + 1
+               IF (RN(J)%NODE == LASTNODE) THEN
+                  RN(J)%NODENUM = NODENUM
+                  IF (RN(J)%IORANK == 1) THEN
+                     IOTASKS = IOTASKS + 1
+                     RN(J)%IORANK = IOTASKS
+                  ELSE
+                     RN(J)%IORANK = 0
+                  ENDIF
+                  RN(J)%NODEMASTER = 0
+                  LLDONE(J) = .TRUE.
+                  REF(K) = J
+                  K = K + 1
+               ENDIF
             ENDIF
          ENDIF
       ENDDO
    ENDIF
 ENDDO
-DEALLOCATE(REORDER)
 NUMNODES = NODENUM
 CALL ecmpi_version(impi_vers, impi_subvers, clibrary_version, ilibrary_version_len)
 call ecomp_version(iomp_vers, iomp_subvers, iopenmp)
@@ -761,30 +779,31 @@ WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
      & "=","=====","========","====","======","====","======","====","====","==============="
 1000 FORMAT(A,2(1X,A5),1X,A20,6(1X,A6),2X,A)
 CALL PRT_EMPTY(KUN,1)
-DO I=0,NPROC-1
+DO K=0,NPROC-1 ! Loop over the task as they have been added (see few lines earlier how REF(K) has been getting its values I or J)
    ILEN = 0
-   K = REF(I) ! Keeping tasks within the same node together (in case of rank-reordering)
-   NUMTH = RN(K)%NUMTH
+   ! A formidable trick ? No need for a nested loop over 0:NPROC-1 to keep tasks within the same node together in the output (in case of rank-reordering)
+   I = REF(K)
+   NUMTH = RN(I)%NUMTH
    CLMASTER = '[No]'
-   IF (RN(K)%NODEMASTER == 1) CLMASTER = ' Yes'
-   IF (RN(K)%IORANK > 0) THEN
+   IF (RN(I)%NODEMASTER == 1) CLMASTER = ' Yes'
+   IF (RN(I)%IORANK > 0) THEN
       WRITE(CLBUF(ILEN+1:),1001) &
            & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-           & I,RN(K)%NODENUM-1,TRIM(ADJUSTL(RN(K)%NODE)),RN(K)%RANK,RN(K)%RANK_WORLD,RN(K)%IORANK,&
-           & CLMASTER,K,NUMTH,"{"
+           & K,RN(I)%NODENUM-1,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,RN(I)%RANK_WORLD,RN(I)%IORANK-1,&
+           & CLMASTER,I,NUMTH,"{"
 1001  FORMAT(A,2(1X,I5),1X,A20,3(1X,I6),1X,A6,2(1X,I6),2X,A)
    ELSE
       WRITE(CLBUF(ILEN+1:),1002) &
            & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-           & I,RN(K)%NODENUM-1,TRIM(ADJUSTL(RN(K)%NODE)),RN(K)%RANK,RN(K)%RANK_WORLD,"[No]",&
-           & CLMASTER,K,NUMTH,"{"
+           & K,RN(I)%NODENUM-1,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,RN(I)%RANK_WORLD,"[No]",&
+           & CLMASTER,I,NUMTH,"{"
 1002  FORMAT(A,2(1X,I5),1X,A20,2(1X,I6),2(1X,A6),2(1X,I6),2X,A)
    ENDIF
    ILEN = LEN_TRIM(CLBUF)
    CLAST = ','
    DO J=0,NUMTH-1
       IF (J == NUMTH-1) CLAST = '}'
-      WRITE(CLBUF(ILEN+1:),'(I0,A1)') RN(K)%COREIDS(J),CLAST
+      WRITE(CLBUF(ILEN+1:),'(I0,A1)') RN(I)%COREIDS(J),CLAST
       ILEN = LEN_TRIM(CLBUF)
    ENDDO
    WRITE(KUN,'(A,1X)') TRIM(CLBUF)
