@@ -307,10 +307,10 @@ static long long int slave_stacksize();
 
 /* Begin of developer options */
 static char *drhook_timed_kill = NULL; /* Timer assisted simulated kill of procs/threads by signal */
-static int drhook_dump_maps = 1; /* Print /proc/<tid>/maps from signal handler (before moving to ATP or below) */
+static int drhook_dump_maps = 0; /* Print /proc/<tid>/maps from signal handler (before moving to ATP or below) */
 static int drhook_dump_smaps = 0; /* Print /proc/<tid>/smaps from signal handler (before moving to ATP or below) */
-static int drhook_dump_buddyinfo = 1; /* Print /proc/buddyinfo from signal handler (before moving to ATP or below) */
-static int drhook_dump_meminfo = 1; /* Print /proc/meminfo from signal handler (before moving to ATP or below) */
+static int drhook_dump_buddyinfo = 0; /* Print /proc/buddyinfo from signal handler (before moving to ATP or below) */
+static int drhook_dump_meminfo = 0; /* Print /proc/meminfo from signal handler (before moving to ATP or below) */
 static int drhook_dump_hugepages = 0;
 static double drhook_dump_hugepages_freq = 0;
 /* End of developer options */
@@ -2050,6 +2050,15 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	
 #ifdef __INTEL_COMPILER
 	intel_trbk_(); /* from ../utilities/gentrbk.F90 */
+
+#if 0
+	to be done : fixes (?) hangs Intel MPI
+   CALL GET_ENVIRONMENT_VARIABLE("SLURM_JOBID",CLJOBID)
+	  IF (CLJOBID /= ' ') THEN
+	  CALL SYSTEM("set -x; sleep 10; scancel --signal=TERM "//trim(CLJOBID)//" &")
+   ENDIF
+#endif
+
 #endif
 	
 #if defined(NECSX)
