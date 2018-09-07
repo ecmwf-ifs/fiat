@@ -680,19 +680,19 @@ CHARACTER(LEN=4096) :: CLBUF
 INTEGER(KIND=JPIM) :: impi_vers, impi_subvers, ilibrary_version_len
 INTEGER(KIND=JPIM) :: iomp_vers, iomp_subvers, iopenmp
 CHARACTER(LEN=4096) :: clibrary_version
-!INTEGER(KIND=JPIM), ALLOCATABLE :: REORDER(:)
-!ALLOCATE(REORDER(0:NPROC-1))
-!DO I=0,NPROC-1
-!   II = RN(I)%RANK_WORLD
-!   REORDER(II) = I
-!ENDDO
+INTEGER(KIND=JPIM), ALLOCATABLE :: REORDER(:)
+ALLOCATE(REORDER(0:NPROC-1))
+DO I=0,NPROC-1
+   II = RN(I)%RANK_WORLD
+   REORDER(II) = I
+ENDDO
 ALLOCATE(REF(0:NPROC-1))
 IOTASKS = 0
 K = 0
 NODENUM = 0
 DO II=0,NPROC-1
-!   I = REORDER(II)
-   I = II ! for now
+!   I = II
+   I = REORDER(II) ! Node masters per original (MPI_COMM_WORLD) ranking order to avoid untrue node ordering
    IF (RN(I)%IORANK == 1) THEN
       IOTASKS = IOTASKS + 1
       RN(I)%IORANK = IOTASKS
@@ -718,7 +718,7 @@ DO II=0,NPROC-1
       ENDDO
    ENDIF
 ENDDO
-!DEALLOCATE(REORDER)
+DEALLOCATE(REORDER)
 NUMNODES = NODENUM
 CALL ecmpi_version(impi_vers, impi_subvers, clibrary_version, ilibrary_version_len)
 call ecomp_version(iomp_vers, iomp_subvers, iopenmp)
