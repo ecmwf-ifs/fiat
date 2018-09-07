@@ -234,7 +234,7 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
             CALL CHECK_ERROR("from MPI_RECV(NUMTH)",__FILE__,__LINE__)
             CALL MPI_RECV(CLSTR,LEN(CLSTR),MPI_BYTE,I,ITAG+4,KCOMM,IRECV_STATUS,ERROR)
             CALL CHECK_ERROR("from MPI_RECV(CLSTR)",__FILE__,__LINE__)
-            RN(I)%RANK = I
+            RN(I)%RANK = IRECV_STATUS(MPI_SOURCE)
             RN(I)%STR = CLSTR
          ELSE
             LASTNODE=NODENAME
@@ -262,7 +262,9 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
             MAXTH_IO = MAX(MAXTH_IO,NUMTH)
          ENDIF
       ENDDO
+      
       CALL RNSORT(KULOUT) ! Output now goes to "meminfo.txt"
+
       IAM_NODEMASTER = RN(0)%NODEMASTER ! Itself
       DO II=1,NPROC-1
          K = REF(II)
