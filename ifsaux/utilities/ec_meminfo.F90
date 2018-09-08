@@ -693,8 +693,8 @@ INTEGER(KIND=JPIM) :: impi_vers, impi_subvers, ilibrary_version_len
 INTEGER(KIND=JPIM) :: iomp_vers, iomp_subvers, iopenmp
 CHARACTER(LEN=4096) :: clibrary_version
 LOGICAL :: LLDONE(0:NPROC-1)
-INTEGER(KIND=JPIM), ALLOCATABLE :: REF(0:NPROC-1) ! Keep list of the order tasks been added
-INTEGER(KIND=JPIM), ALLOCATABLE :: IRANK(0:NPROC-1) ! Reconstruction of IRANK [world -> local comm] in case we need this -- see ec_rank_reorder.F90
+INTEGER(KIND=JPIM) :: REF(0:NPROC-1) ! Keep list of the order tasks been added
+INTEGER(KIND=JPIM) :: IRANK(0:NPROC-1) ! Reconstruction of IRANK [world -> local comm] in case we need this -- see ec_rank_reorder.F90
 LLDONE(:) = .FALSE.
 DO I=0,NPROC-1
    II = RN(I)%RANK_WORLD
