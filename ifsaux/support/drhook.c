@@ -1700,6 +1700,8 @@ signal_harakiri(int sig SIG_EXTRA_ARGS)
 
   idummy = write(fd,s,strlen(s));
 
+  batch_kill_();
+  
   raise(SIGKILL); /* Use raise, not RAISE here */
   _brexit(128+ABS(sig)); /* Should never reach here, bu' in case it does, then ... */
 }

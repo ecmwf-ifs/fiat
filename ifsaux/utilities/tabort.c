@@ -7,18 +7,25 @@ extern void abor1_(const char msg[], int msglen);
 
 #pragma weak abor1_
 
-void _brexit(int errcode)
+void batch_kill_()
 {
 #ifdef __INTEL_COMPILER
-  // Fixes (?) hangs Intel MPI
-  char *env = getenv("SLURM_JOBID");
-  if (env) {
-    // static char cmd[128] = "set -x; sleep 10; scancel --signal=TERM ";
-    static char cmd[128] = "set -x; sleep 10; scancel ";
-    strcat(cmd,env);
-    system(cmd);
+  {
+    // Fixes (?) hangs Intel MPI
+    char *env = getenv("SLURM_JOBID");
+    if (env) {
+      // static char cmd[128] = "set -x; sleep 10; scancel --signal=TERM ";
+      static char cmd[128] = "set -x; sleep 10; scancel ";
+      strcat(cmd,env);
+      system(cmd);
+    }
   }
 #endif
+}
+
+void _brexit(int errcode)
+{
+  batch_kill_();
   _exit(errcode);
 }
 
