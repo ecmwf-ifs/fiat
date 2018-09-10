@@ -14,8 +14,8 @@ void batch_kill_()
     // Fixes (?) hangs Intel MPI
     char *env = getenv("SLURM_JOBID");
     if (env) {
-      // static char cmd[128] = "set -x; sleep 10; scancel --signal=TERM ";
-      static char cmd[128] = "set -x; sleep 10; scancel ";
+      static char cmd[128] = "set -x; sleep 10; scancel --signal=TERM ";
+      //static char cmd[128] = "set -x; sleep 10; scancel ";
       strcat(cmd,env);
       system(cmd);
     }
