@@ -1637,7 +1637,7 @@ signal_gencore(int sig SIG_EXTRA_ARGS)
       }
       /* Should never end up here */
       fflush(NULL);
-      _exit(128+ABS(sig));
+      _brexit(128+ABS(sig));
     } /* if (sig >= 1 && sig <= NSIG && sig == opt_gencore_signal) */
   }
 }
@@ -1701,7 +1701,7 @@ signal_harakiri(int sig SIG_EXTRA_ARGS)
   idummy = write(fd,s,strlen(s));
 
   raise(SIGKILL); /* Use raise, not RAISE here */
-  _exit(128+ABS(sig)); /* Should never reach here, bu' in case it does, then ... */
+  _brexit(128+ABS(sig)); /* Should never reach here, bu' in case it does, then ... */
 }
 
 static void 
@@ -1748,7 +1748,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       - try to call tracebacks and exit (which includes atexits)
       - 2nd (and subsequent) interupts will 
       - spin for 20 sec (to give 1st interrupt time to complete tracebacks) 
-      - and then call _exit (bypassing atexit)
+      - and then call _brexit (bypassing atexit)
       ------------------------------------------------------------*/
     
     /* if (sig != SIGTERM) signal(SIGTERM, SIG_DFL); */  /* Let the default SIGTERM to occur */
@@ -1943,7 +1943,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     }
 
     if (nsigs > 1 || !nfirst) {
-      /*----- 2nd (and subsequent) calls to signal handler: spin harakiri-timeout + 60 sec,  _exit ---------*/
+      /*----- 2nd (and subsequent) calls to signal handler: spin harakiri-timeout + 60 sec,  _brexit ---------*/
       int offset = 60;
       int secs = drhook_harakiri_timeout+offset;
       if (!drhook_use_lockfile) { /* Less output if lockfile was used ... */
@@ -2050,15 +2050,6 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	
 #ifdef __INTEL_COMPILER
 	intel_trbk_(); /* from ../utilities/gentrbk.F90 */
-
-#if 0
-	to be done : fixes (?) hangs Intel MPI
-   CALL GET_ENVIRONMENT_VARIABLE("SLURM_JOBID",CLJOBID)
-	  IF (CLJOBID /= ' ') THEN
-	  CALL SYSTEM("set -x; sleep 10; scancel --signal=TERM "//trim(CLJOBID)//" &")
-   ENDIF
-#endif
-
 #endif
 	
 #if defined(NECSX)
@@ -2165,7 +2156,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	    abort();
 	  }
 	}
-	/* Now proceed to definitive _exit() */
+	/* Now proceed to definitive _brexit() */
       }
       else {
 	fprintf(stderr,
@@ -2181,11 +2172,11 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
   {
     int errcode = 128 + ABS(sig);
     /* Make sure that the process/thread really exits now -- immediately !! */
-    fprintf(stderr, "%s %s [%s@%s:%d] Error _exit(%d) upon receipt of signal#%d, nsigs = %d\n",
+    fprintf(stderr, "%s %s [%s@%s:%d] Error _brexit(%d) upon receipt of signal#%d, nsigs = %d\n",
 	    pfx,TIMESTR(tid),FFL,
 	    errcode,sig,nsigs);
     fflush(NULL);
-    _exit(errcode);
+    _brexit(errcode);
   }
 
   cas_unlock(&thing);

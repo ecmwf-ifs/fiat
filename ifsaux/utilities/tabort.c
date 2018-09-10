@@ -7,6 +7,20 @@ extern void abor1_(const char msg[], int msglen);
 
 #pragma weak abor1_
 
+void _brexit(int errcode)
+{
+#ifdef __INTEL_COMPILER
+  // Fixes (?) hangs Intel MPI
+  char *env = getenv("SLURM_JOBID");
+  if (env) {
+    static char cmd[128] = "set -x; sleep 10; scancel --signal=TERM ";
+    strcat(cmd,env);
+    system(cmd);
+  }
+#endif
+  _exit(errcode);
+}
+
 void tabort_()
 {
   static volatile sig_atomic_t irecur = 0;
@@ -18,7 +32,7 @@ void tabort_()
       exit(128 + sig);
     }
     else { // raise() wasn't okay -- so we get hell out of here ... now !!!
-      _exit(128 + sig);
+      _brexit(128 + sig);
     }
   }
 }
