@@ -2291,7 +2291,7 @@ signal_drhook_init(int enforce)
   SETSIG(SIGILL,0);
 #endif
   SETSIG(SIGTRAP,0); /* Should be switched off when used with debuggers */
-  SETSIG(SIGINT,0);  /* Also, see ifssig.c : used as a RESTART signal, confusingly enough */
+  // SETSIG(SIGINT,0);  /* Also, see ifssig.c : used as a RESTART signal, confusingly enough */
   if (atp_enabled) {
     /* We let ATP to catch SIGQUIT (it uses this for non-failed tasks, we think) -- thus commented out */
     /* SETSIG(SIGQUIT,0); */

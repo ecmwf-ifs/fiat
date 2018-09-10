@@ -13,7 +13,8 @@ void _brexit(int errcode)
   // Fixes (?) hangs Intel MPI
   char *env = getenv("SLURM_JOBID");
   if (env) {
-    static char cmd[128] = "set -x; sleep 10; scancel --signal=TERM ";
+    // static char cmd[128] = "set -x; sleep 10; scancel --signal=TERM ";
+    static char cmd[128] = "set -x; sleep 10; scancel ";
     strcat(cmd,env);
     system(cmd);
   }
@@ -23,18 +24,18 @@ void _brexit(int errcode)
 
 void tabort_()
 {
+  int ret = -1;
+  const int sig = SIGABRT;
   static volatile sig_atomic_t irecur = 0;
   if (++irecur == 1) {
-    const int sig = SIGABRT;
-    int ret = raise(sig); /* We get better DrHook & LinuxTrbk's with this than abort() aka SIGABRT */
+    ret = raise(sig); /* We get better DrHook & LinuxTrbk's with this than abort() aka SIGABRT */
     // abort(); -- essentially raise(SIGABRT) but with messier output (and may bypass DrHook)
     if (ret == 0) { // Means raise() was okay and tracebacks etc. DrHooks took place
       exit(128 + sig);
     }
-    else { // raise() wasn't okay -- so we get hell out of here ... now !!!
-      _brexit(128 + sig);
-    }
   }
+  // Still here ?? get the hell out of here ... now !!
+  if (ret != 0) _brexit(128 + sig);
 }
 
 void abort_()

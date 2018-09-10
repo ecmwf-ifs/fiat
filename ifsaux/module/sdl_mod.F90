@@ -136,7 +136,8 @@ CALL VPP_ABORT()
 IF (LHOOK) THEN
    CALL GET_ENVIRONMENT_VARIABLE("SLURM_JOBID",CLJOBID)
    IF (CLJOBID /= ' ') THEN
-      CALL SYSTEM("set -x; sleep 10; scancel --signal=TERM "//trim(CLJOBID)//" &")
+      !!CALL SYSTEM("set -x; sleep 10; scancel --signal=TERM "//trim(CLJOBID)//" &")
+      CALL SYSTEM("set -x; sleep 10; scancel "//trim(CLJOBID)//" &")
    ENDIF
 ENDIF
 #endif
