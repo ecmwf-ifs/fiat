@@ -1720,6 +1720,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
   static volatile sig_atomic_t been_here_already = 0;
   static volatile sig_atomic_t thing = 0;
 
+  if (sig < 1 || sig > NSIG) return; // .. since have seen this, too :-(
   if (been_here_already++ > 0) return; // avoid calling more than once ... since it leads more often than not into troubles
   
   cas_lock(&thing);
