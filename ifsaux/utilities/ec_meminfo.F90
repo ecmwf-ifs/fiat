@@ -60,7 +60,7 @@ CHARACTER(LEN=3), PARAMETER :: CLMON(1:12) = (/ &
      'Jul','Aug','Sep','Oct','Nov','Dec' /)
 INTEGER(KIND=JPIM) :: IVALUES(8), IMON
 INTEGER(KIND=JPIM) :: IRECV_STATUS(MPI_STATUS_SIZE)
-LOGICAL :: LLNOCOMM, LLNOHDR, LLREORDERED
+LOGICAL :: LLNOCOMM, LLNOHDR
 INTEGER(KIND=JPIM), SAVE :: IAM_NODEMASTER = 0
 LOGICAL, SAVE :: LLFIRST_TIME = .TRUE.
 TYPE RANKNODE_T
@@ -87,8 +87,8 @@ REAL(KIND=JPRD) :: WT
 CHARACTER(LEN=64) :: CLPFX
 CHARACTER(LEN=3) :: ZUM
 INTEGER(KIND=JPIM) :: IPFXLEN, NUMTH, MYTH
-INTEGER(KIND=JPIM) :: NCOMM_WORLD_REORDERED = 0
-COMMON /cmn_meminfo/ NCOMM_WORLD_REORDERED
+INTEGER(KIND=JPIM) :: NCOMM_MEMINFO = 0
+COMMON /cmn_meminfo/ NCOMM_MEMINFO
 INTEGER OMP_GET_MAX_THREADS, OMP_GET_THREAD_NUM
 #ifdef _OPENMP
 EXTERNAL OMP_GET_MAX_THREADS, OMP_GET_THREAD_NUM
@@ -213,8 +213,8 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
 !$OMP END PARALLEL
 #endif
 
-! Store the communicator we are in (reordered or not) -- to be used in the EC_MPI_FINALIZE
-   NCOMM_WORLD_REORDERED = KCOMM
+! Store the communicator we are in upon entering EC_MEMINFO for the first time -- to be used in the EC_MPI_FINALIZE
+   NCOMM_MEMINFO = KCOMM
 ! Fetch node names & numbers per task
    IORANK = 0
    IF (KIOTASK > 0) IORANK = 1
@@ -324,8 +324,6 @@ IF (MYPROC == 0) THEN
       DONE(:) = .FALSE.
    ENDIF
 
-   LLREORDERED = (NCOMM_WORLD_REORDERED /= 0 .and. NCOMM_WORLD_REORDERED /= MPI_COMM_WORLD)
-   
    DO NODENUM=1,NN
       JID = 0
       DO II=1,NPROC-1
@@ -394,17 +392,7 @@ IF (MYPROC == 0) THEN
       ELSE IF (KCALL == 0 .AND. JID > 0) THEN
          ! This should signify the compute & I/O nodes (if they are separate)
          CLSTR = RN(JID)%STR
-         IF (LLREORDERED) THEN
-            ! When ranks are reordered, then a node usually contains both compute & I/O tasks
-            IDX = INDEX(CLSTR,':') ! usually index to ":" in strings "master:computation" or "master:io-server"
-            IF (IDX > 0) THEN
-               ID_STRING = CSTAR//":"//CLSTR(1:IDX)//"reordered" ! ranks reordered, usually comp + io, but could be user given EC_RANK_REORDER w/o any io considerations
-            ELSE ! bailout
-               ID_STRING = CSTAR//":"//CDSTRING
-            ENDIF
-         ELSE
-            ID_STRING = CSTAR//":"//TRIM(CLSTR)
-         ENDIF
+         ID_STRING = CSTAR//":"//TRIM(CLSTR)
       ELSE
          ID_STRING = CSTAR//":"//CDSTRING
       ENDIF
@@ -694,12 +682,7 @@ INTEGER(KIND=JPIM) :: iomp_vers, iomp_subvers, iopenmp
 CHARACTER(LEN=4096) :: clibrary_version
 LOGICAL :: LLDONE(0:NPROC-1)
 INTEGER(KIND=JPIM) :: REF(0:NPROC-1) ! Keep list of the order tasks been added
-INTEGER(KIND=JPIM) :: IRANK(0:NPROC-1) ! Reconstruction of IRANK [world -> local comm] in case we need this -- see ec_rank_reorder.F90
 LLDONE(:) = .FALSE.
-DO I=0,NPROC-1
-   II = RN(I)%RANK_WORLD
-   IRANK(II) = I
-ENDDO
 IOTASKS = 0
 K = 0
 NODENUM = 0
@@ -719,7 +702,7 @@ DO I=0,NPROC-1
       REF(K) = I
       K = K + 1
       LASTNODE = RN(I)%NODE
-!      DO J=I+1,NPROC-1 ! not valid anymore since ranks might have been reordered -- need to run through the whole list
+!      DO J=I+1,NPROC-1 ! not valid anymore since ranks might have been reordered -- need to run through the whole list -- LLNODE speeds up
       DO J=0,NPROC-1
          IF (.NOT.LLDONE(J)) THEN
             IF (RN(J)%NODENUM == -1) THEN
@@ -781,7 +764,7 @@ WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
 CALL PRT_EMPTY(KUN,1)
 DO K=0,NPROC-1 ! Loop over the task as they have been added (see few lines earlier how REF(K) has been getting its values I or J)
    ILEN = 0
-   ! A formidable trick ? No need for a nested loop over 0:NPROC-1 to keep tasks within the same node together in the output (in case of rank-reordering)
+   ! A formidable trick ? No need for a nested loop over 0:NPROC-1 to keep tasks within the same node together in the output
    I = REF(K)
    NUMTH = RN(I)%NUMTH
    CLMASTER = '[No]'
@@ -871,10 +854,10 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM), INTENT(OUT) :: KERROR
 LOGICAL, INTENT(IN) :: LDCALLFINITO
 CHARACTER(LEN=*), INTENT(IN) :: CALLER
-LOGICAL :: LLINIT, LLFIN, LLREORDERED
+LOGICAL :: LLINIT, LLFIN, LLNOTMPIWORLD
 INTEGER(KIND=JPIM) :: IERR, ICOMM
-INTEGER(KIND=JPIM) :: NCOMM_WORLD_REORDERED
-COMMON /cmn_meminfo/ NCOMM_WORLD_REORDERED
+INTEGER(KIND=JPIM) :: NCOMM_MEMINFO
+COMMON /cmn_meminfo/ NCOMM_MEMINFO
 #include "ec_meminfo.intfb.h"
 KERROR = 0
 IF (LDCALLFINITO) THEN !*** common MPI_Finalize()
@@ -882,18 +865,18 @@ IF (LDCALLFINITO) THEN !*** common MPI_Finalize()
    IF (LLINIT .AND. IERR == 0) THEN
       CALL MPI_FINALIZED(LLFIN,IERR)
       IF (.NOT.LLFIN .AND. IERR == 0) THEN
-         LLREORDERED = (NCOMM_WORLD_REORDERED /= 0 .and. NCOMM_WORLD_REORDERED /= MPI_COMM_WORLD)
-         IF (LLREORDERED) THEN
-            ICOMM = NCOMM_WORLD_REORDERED
+         LLNOTMPIWORLD = (NCOMM_MEMINFO /= 0 .and. NCOMM_MEMINFO /= MPI_COMM_WORLD)
+         IF (LLNOTMPIWORLD) THEN
+            ICOMM = NCOMM_MEMINFO
          ELSE
             ICOMM = MPI_COMM_WORLD
          ENDIF
          CALL EC_MEMINFO(-1,"ec_mpi_finalize:"//caller,ICOMM,KBARR=1,KIOTASK=-1,KCALL=1)
          CALL c_drhook_prof() ! ifsaux/support/drhook.c : Make sure DrHook output is produced before MPI_Finalize (in case it fails)
          CALL MPI_BARRIER(ICOMM,IERR)
-         IF (LLREORDERED) THEN
-            CALL MPI_COMM_FREE(NCOMM_WORLD_REORDERED,IERR)
-            NCOMM_WORLD_REORDERED = 0
+         IF (LLNOTMPIWORLD) THEN
+            ! CALL MPI_COMM_FREE(NCOMM_MEMINFO,IERR)
+            NCOMM_MEMINFO = 0
          ENDIF
          CALL MPI_FINALIZE(KERROR)
       ENDIF
