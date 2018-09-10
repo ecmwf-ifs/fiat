@@ -1715,7 +1715,11 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
   char *pfx;
   void *trace[GNUC_BTRACE];
   // Let only one ("fastest") thread per task to this error processing
+  static volatile sig_atomic_t been_here_already = 0;
   static volatile sig_atomic_t thing = 0;
+
+  if (been_here_already++ > 0) return; // avoid calling more than once ... since it leads more often than not into troubles
+  
   cas_lock(&thing);
 
   trace_size = backtrace(trace, GNUC_BTRACE);
