@@ -131,19 +131,9 @@ CALL VPP_ABORT()
 
 #else
 
-#if defined(__INTEL_COMPILER)
-! Intel compiler seems to hang in MPI_ABORT -- on all but the failing task(s) :-(
-IF (LHOOK) THEN
-   CALL GET_ENVIRONMENT_VARIABLE("SLURM_JOBID",CLJOBID)
-   IF (CLJOBID /= ' ') THEN
-      !!CALL SYSTEM("set -x; sleep 10; scancel --signal=TERM "//trim(CLJOBID)//" &")
-      CALL SYSTEM("set -x; sleep 10; scancel "//trim(CLJOBID)//" &")
-   ENDIF
-ENDIF
-#endif
-
 IRETURN_CODE=1
-CALL MPI_ABORT(KCOMM,IRETURN_CODE,IERROR)
+!CALL MPI_ABORT(KCOMM,IRETURN_CODE,IERROR)
+CALL MPI_ABORT(MPI_COMM_WORLD,IRETURN_CODE,IERROR) ! Tracked by the supervisor/process-damager (manager) -- KCOMM /= MPI_COMM_WORLD may hang as sub-communicator
 
 #endif
 
