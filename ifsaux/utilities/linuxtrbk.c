@@ -60,7 +60,7 @@ static void InitBFD();
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(CRAYXT)
+#if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(CRAYXT) && !defined(__NEC__)
 #include <execinfo.h>
 #elif defined(DARWIN)
 #define _XOPEN_SOURCE
@@ -219,6 +219,21 @@ static void SetMasterThreadsStackSizeBeforeMain()
 /* End of disabled code section */
 #endif
 
+#ifdef __NEC__
+void
+LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
+{
+#if 1
+  // When VE_TRACEBACK=ALL the following should have the same impact as with implicit traceback (when compiled & linked with -traceback)
+  // NB: No control on output channel
+  if (!sigcontextptr) sigcontextptr = __builtin_frame_address(0);
+  __builtin_traceback(sigcontextptr);
+#else
+  extern void gdb_trbk_();
+  gdb_trbk_();
+#endif
+}
+#else
 void
 LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 {
@@ -232,7 +247,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 #endif
   static int recur = 0;
   const char *a_out = ec_GetArgs(0);
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(__NEC__)
   if (!sigcontextptr) {
       sigcontextptr = (getcontext(&ctx) == 0) ? &ctx : NULL;
   }
@@ -252,7 +267,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     }
   }
 
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(__NEC__)
   //fflush(NULL);
 
   if (sigcontextptr) {
@@ -418,6 +433,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
   fprintf(stderr,"%s %s [%s@%s:%d] End of backtrace(s)\n",pfx,ts,FFL);
   recur--;
 }
+#endif
  
 void linux_trbk_(void)
 {
@@ -460,20 +476,8 @@ void gdb_trbk_()
 	    "[gdb_trbk] : Invoking %s ...\n",
 	    TOSTR(GNUDEBUGGER));
     snprintf(gdbcmd,sizeof(gdbcmd),
-	     "set +e; /bin/echo '"
-	     "set watchdog 1\n"
-	     "set confirm off\n"
-	     "set pagination off\n"
-	     "set print elements 16\n"
-	     "set print repeats 3\n"
-	     "set print sevenbit-strings on\n"
-	     "where\n"
-	     "quit\n' > ./gdb_drhook.%d ; "
-	     "%s -x ./gdb_drhook.%d -q -n -f -batch %s %d < /dev/null ; "
-	     "/bin/rm -f ./gdb_drhook.%d"
-	     , pid
-	     , TOSTR(GNUDEBUGGER), pid, a_out, pid
-	     , pid);
+	     "set +eux; %s -batch -n -q -ex 'thread apply all bt' %s %ld < /dev/null",
+	     TOSTR(GNUDEBUGGER), a_out, (long int)pid);
     
     /* fprintf(stderr,"%s\n",gdbcmd); */
     fflush(NULL);

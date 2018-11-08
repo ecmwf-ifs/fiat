@@ -26,7 +26,11 @@
 #include <sys/types.h>
 #include <pthread.h>
 #include <limits.h>
+#ifdef __NEC__
+static int backtrace(void **buffer, int size) { return 0; }
+#else
 #include <execinfo.h>
+#endif
 #include <sys/file.h>
 
 //#ifdef _OPENMP

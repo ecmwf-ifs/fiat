@@ -131,14 +131,26 @@ ec_getenv_(const char *s,
 
 void
 ec_getenv(const char *s,
-	   char *value,
-	   /* Hidden arguments */
-	   int slen,
-	   const int valuelen)
+	  char *value,
+	  /* Hidden arguments */
+	  int slen,
+	  const int valuelen)
 {
   ec_getenv_(s, value, slen, valuelen);
 }
 
+
+#ifdef __NEC__
+void
+getenv_(const char *s,
+	char *value,
+	/* Hidden arguments */
+	int slen,
+	const int valuelen)
+{
+  ec_getenv_(s, value, slen, valuelen);
+}
+#endif
 
 void
 ec_putenv_(const char *s,
@@ -253,6 +265,11 @@ ec_sleep(const int *nsec)
   return ec_sleep_(nsec);
 }
 
+#ifdef __NEC__
+void sleep_(const int *nsec) { (void)ec_sleep_(nsec); }
+
+void flush_(const int *io) { } /* temporary fix */
+#endif
 
 /* Microsecond-sleep, by S.Saarinen, 25-jan-2008 */
 
@@ -306,9 +323,13 @@ void ec_gethostname(char a[],
   ec_gethostname_(a,alen);
 }
 
+#ifdef __NEC__
+int hostnm_(char a[], int alen) { ec_gethostname_(a,alen); return 0; }
+#endif
+
 /* For checking runtime affinities (not setting them, though) */
 
-#if defined(LINUX) && !defined(DARWIN)
+#if defined(LINUX) && !defined(DARWIN) && !defined(__NEC__)
 #include <sched.h>
 int sched_getcpu(void);
 #define getcpu() sched_getcpu()
@@ -326,7 +347,7 @@ void ec_coreid(int *coreid)
   ec_coreid_(coreid);
 }
 
-#ifdef ECMWF
+#ifdef DARSHAN
 /* Some issues with Darshan -- better to use our own version of MPI_Wtime (mpi_wtime_ in Fortran) */
 double mpi_wtime_()
 {

@@ -19,7 +19,7 @@ INTEGER(KIND=JPIM), INTENT(IN) :: KU,KCOMM,KBARR,KIOTASK,KCALL
 CHARACTER(LEN=*), INTENT(IN) :: CDSTRING
 INTEGER(KIND=JPIM), PARAMETER :: ITAG = 98765
 INTEGER(KIND=JPIM) :: ID,KULOUT
-INTEGER(KIND=JPIM) :: II,I,J,K,MYPROC,NPROC,LEN,ERROR,NODENUM,JID
+INTEGER(KIND=JPIM) :: II,JJ,I,J,K,MYPROC,NPROC,LEN,ERROR,NODENUM,JID,IDX
 INTEGER(KIND=JPIB) :: TASKSMALL,NODEHUGE,MEMFREE,CACHED,NFREE
 INTEGER(KIND=JPIB),SAVE :: NODEHUGE_CACHED
 INTEGER(KIND=JPIM), PARAMETER :: MAXNUMA_DEF = 4 ! Max number of "sockets" supported by default
@@ -34,6 +34,8 @@ INTEGER(KIND=JPIB) :: ENERGY, POWER
 INTEGER(KIND=JPIB) :: TOT_ENERGY, MAXPOWER, AVGPOWER
 INTEGER(KIND=JPIM),SAVE :: PAGESIZE = 0
 INTEGER(KIND=JPIM),SAVE :: MAXTH = 0
+INTEGER(KIND=JPIM),SAVE :: MAXTH_COMP = 0
+INTEGER(KIND=JPIM),SAVE :: MAXTH_IO = 0
 INTEGER(KIND=JPIM),PARAMETER :: MAXCOLS = 18 ! Max numerical columns in /proc/buddyinfo (often just 11, but Cray has 18 entries)
 INTEGER(KIND=JPIM) :: N18
 !INTEGER(KIND=JPIB),DIMENSION(0:MAXCOLS-1,0:MAXNUMA-1) :: NODE, BUCKET
@@ -63,6 +65,7 @@ INTEGER(KIND=JPIM), SAVE :: IAM_NODEMASTER = 0
 LOGICAL, SAVE :: LLFIRST_TIME = .TRUE.
 TYPE RANKNODE_T
    INTEGER(KIND=JPIM) :: NODENUM
+   INTEGER(KIND=JPIM) :: RANK_WORLD
    INTEGER(KIND=JPIM) :: RANK
    INTEGER(KIND=JPIM) :: IORANK
    INTEGER(KIND=JPIM) :: NODEMASTER
@@ -72,7 +75,6 @@ TYPE RANKNODE_T
    CHARACTER(LEN=LEN(CLSTR)) :: STR
 END TYPE
 TYPE (RANKNODE_T), ALLOCATABLE, SAVE :: RN(:)
-INTEGER(KIND=JPIM), ALLOCATABLE, SAVE :: REF(:)
 INTEGER(KIND=JPIM), ALLOCATABLE :: COREIDS(:)
 LOGICAL, ALLOCATABLE :: DONE(:)
 INTEGER(KIND=JPIM), SAVE :: NUMNODES = 0
@@ -86,6 +88,8 @@ REAL(KIND=JPRD) :: WT
 CHARACTER(LEN=64) :: CLPFX
 CHARACTER(LEN=3) :: ZUM
 INTEGER(KIND=JPIM) :: IPFXLEN, NUMTH, MYTH
+INTEGER(KIND=JPIM) :: NCOMM_MEMINFO = 0
+COMMON /cmn_meminfo/ NCOMM_MEMINFO
 INTEGER OMP_GET_MAX_THREADS, OMP_GET_THREAD_NUM
 #ifdef _OPENMP
 EXTERNAL OMP_GET_MAX_THREADS, OMP_GET_THREAD_NUM
@@ -148,14 +152,17 @@ IF (LLFIRST_TIME) THEN ! The *very* first time
    NODEHUGE=0
    
    IF(PAGESIZE > 0) THEN
-      WRITE(FILENAME,'(a,i0,a)') "/sys/kernel/mm/hugepages/hugepages-", &
-           PAGESIZE,"kB/nr_hugepages"
+      !WRITE(FILENAME,'(a,i0,a)') "/sys/kernel/mm/hugepages/hugepages-", &
+      !     PAGESIZE,"kB/nr_hugepages"
+      FILENAME='/proc/sys/vm/nr_hugepages' ! more generic; contents the same as in /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
       INQUIRE(FILE=FILENAME, EXIST=FILE_EXISTS)
       IF( FILE_EXISTS ) THEN
-        OPEN(502,FILE=FILENAME,STATUS="old",ACTION="read")
-        READ(502,*) NODEHUGE
+        OPEN(502,FILE=FILENAME,STATUS="old",ACTION="read",ERR=999)
+        READ(502,*,ERR=998,END=998) NODEHUGE
+998     continue
         CLOSE(502)
       ENDIF
+999   continue
    ENDIF
 
    NODEHUGE=NODEHUGE*PAGESIZE
@@ -199,7 +206,7 @@ ENDIF
 
 IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
 ! Fetch affinities (over OpenMP threads)
-! Note: e.g. I/O-task may have different thread count than computational tasks
+! Note: I/O-tasks may now have different number of threads than on computational tasks
    ALLOCATE(COREIDS(0:MAXTH-1))
 #ifdef _OPENMP
 !$OMP PARALLEL NUM_THREADS(MAXTH) SHARED(COREIDS) PRIVATE(MYTH)
@@ -210,6 +217,8 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
 !$OMP END PARALLEL
 #endif
 
+! Store the communicator we are in upon entering EC_MEMINFO for the first time -- to be used in the EC_MPI_FINALIZE
+   NCOMM_MEMINFO = KCOMM
 ! Fetch node names & numbers per task
    IORANK = 0
    IF (KIOTASK > 0) IORANK = 1
@@ -218,23 +227,27 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
       ALLOCATE(RN(0:NPROC-1))
       DO I=0,NPROC-1
          RN(I)%NODENUM = -1
-         IF (I > 0) THEN ! Receive in MPI-rank order
+         IF (I > 0) THEN ! Receive in the MPI-rank order of KCOMM (i.e. may not be the same as MPI_COMM_WORLD -order)
             CALL MPI_RECV(LASTNODE,LEN(LASTNODE),MPI_BYTE,I,ITAG,KCOMM,IRECV_STATUS,ERROR)
             CALL CHECK_ERROR("from MPI_RECV(LASTNODE)",__FILE__,__LINE__)
             CALL MPI_RECV(IORANK,1,MPI_INTEGER4,I,ITAG+1,KCOMM,IRECV_STATUS,ERROR)
             CALL CHECK_ERROR("from MPI_RECV(IORANK)",__FILE__,__LINE__)
-            CALL MPI_RECV(NUMTH,1,MPI_INTEGER4,I,ITAG+2,KCOMM,IRECV_STATUS,ERROR)
+            CALL MPI_RECV(K,1,MPI_INTEGER4,I,ITAG+2,KCOMM,IRECV_STATUS,ERROR)
+            CALL CHECK_ERROR("from MPI_RECV(RANK_WORLD)",__FILE__,__LINE__)
+            CALL MPI_RECV(NUMTH,1,MPI_INTEGER4,I,ITAG+3,KCOMM,IRECV_STATUS,ERROR)
             CALL CHECK_ERROR("from MPI_RECV(NUMTH)",__FILE__,__LINE__)
-            CALL MPI_RECV(CLSTR,LEN(CLSTR),MPI_BYTE,I,ITAG+3,KCOMM,IRECV_STATUS,ERROR)
+            CALL MPI_RECV(CLSTR,LEN(CLSTR),MPI_BYTE,I,ITAG+4,KCOMM,IRECV_STATUS,ERROR)
             CALL CHECK_ERROR("from MPI_RECV(CLSTR)",__FILE__,__LINE__)
             RN(I)%RANK = I
             RN(I)%STR = CLSTR
          ELSE
             LASTNODE=NODENAME
             NUMTH = MAXTH
+            CALL MPI_COMM_RANK(MPI_COMM_WORLD,K,ERROR)
             RN(I)%RANK = 0 ! Itself
             RN(I)%STR = CDSTRING
          ENDIF
+         RN(I)%RANK_WORLD = K
          RN(I)%IORANK = IORANK
          RN(I)%NODEMASTER = 0
          RN(I)%NODE = LASTNODE
@@ -242,18 +255,23 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
          RN(I)%NUMTH = NUMTH
          ALLOCATE(RN(I)%COREIDS(0:NUMTH-1))
          IF (I > 0) THEN ! Receive in MPI-rank order
-            CALL MPI_RECV(RN(I)%COREIDS,NUMTH,MPI_INTEGER4,I,ITAG+4,KCOMM,IRECV_STATUS,ERROR)
+            CALL MPI_RECV(RN(I)%COREIDS,NUMTH,MPI_INTEGER4,I,ITAG+5,KCOMM,IRECV_STATUS,ERROR)
             CALL CHECK_ERROR("from MPI_RECV(COREIDS)",__FILE__,__LINE__)
          ELSE
             RN(I)%COREIDS = COREIDS
          ENDIF
+         IF (IORANK == 0) THEN
+            MAXTH_COMP = MAX(MAXTH_COMP,NUMTH)
+         ELSE
+            MAXTH_IO = MAX(MAXTH_IO,NUMTH)
+         ENDIF
       ENDDO
-      CALL RNSORT(KULOUT) ! Output now goes to meminfo.txt
+      
+      CALL RNSORT(KULOUT) ! Output now goes to "meminfo.txt"
+
       IAM_NODEMASTER = RN(0)%NODEMASTER ! Itself
-      DO II=1,NPROC-1
-         K = REF(II)
-         I = RN(K)%RANK
-         CALL MPI_SEND(RN(K)%NODEMASTER,1,MPI_INTEGER4,I,ITAG+5,KCOMM,ERROR)
+      DO I=1,NPROC-1
+         CALL MPI_SEND(RN(I)%NODEMASTER,1,MPI_INTEGER4,I,ITAG+6,KCOMM,ERROR)
          CALL CHECK_ERROR("from MPI_SEND(IAM_NODEMASTER)",__FILE__,__LINE__)
       ENDDO
    ELSE
@@ -261,14 +279,17 @@ IF (LLFIRST_TIME .and. .not. LLNOCOMM) THEN
       CALL CHECK_ERROR("from MPI_SEND(NODENAME)",__FILE__,__LINE__)
       CALL MPI_SEND(IORANK,1,MPI_INTEGER4,0,ITAG+1,KCOMM,ERROR)
       CALL CHECK_ERROR("from MPI_SEND(IORANK)",__FILE__,__LINE__)
-      CALL MPI_SEND(MAXTH,1,MPI_INTEGER4,0,ITAG+2,KCOMM,ERROR)
+      CALL MPI_COMM_RANK(MPI_COMM_WORLD,K,ERROR)
+      CALL MPI_SEND(K,1,MPI_INTEGER4,0,ITAG+2,KCOMM,ERROR)
+      CALL CHECK_ERROR("from MPI_SEND(RANK_WORLD)",__FILE__,__LINE__)
+      CALL MPI_SEND(MAXTH,1,MPI_INTEGER4,0,ITAG+3,KCOMM,ERROR)
       CALL CHECK_ERROR("from MPI_SEND(MAXTH)",__FILE__,__LINE__)
       CLSTR = CDSTRING
-      CALL MPI_SEND(CLSTR,LEN(CLSTR),MPI_BYTE,0,ITAG+3,KCOMM,ERROR)
+      CALL MPI_SEND(CLSTR,LEN(CLSTR),MPI_BYTE,0,ITAG+4,KCOMM,ERROR)
       CALL CHECK_ERROR("from MPI_SEND(CLSTR)",__FILE__,__LINE__)
-      CALL MPI_SEND(COREIDS,MAXTH,MPI_INTEGER4,0,ITAG+4,KCOMM,ERROR)
+      CALL MPI_SEND(COREIDS,MAXTH,MPI_INTEGER4,0,ITAG+5,KCOMM,ERROR)
       CALL CHECK_ERROR("from MPI_SEND(COREIDS)",__FILE__,__LINE__)
-      CALL MPI_RECV(IAM_NODEMASTER,1,MPI_INTEGER4,0,ITAG+5,KCOMM,IRECV_STATUS,ERROR)
+      CALL MPI_RECV(IAM_NODEMASTER,1,MPI_INTEGER4,0,ITAG+6,KCOMM,IRECV_STATUS,ERROR)
       CALL CHECK_ERROR("from MPI_RECV(IAM_NODEMASTER)",__FILE__,__LINE__)
    ENDIF
    DEALLOCATE(COREIDS)
@@ -311,13 +332,13 @@ IF (MYPROC == 0) THEN
       JID = 0
       DO II=1,NPROC-1
          IF (.NOT.DONE(II)) THEN
-            J = REF(II)
+            J = II ! Used to be REF(II) -- don't know why ?!
             IF (RN(J)%NODENUM == NODENUM) THEN
                I = RN(J)%RANK
                IF (RN(J)%NODEMASTER == 1) THEN ! Always the first task on particular NODENUM
                   LASTNODE = RN(J)%NODE
                   NRECV = SIZE(RECVBUF)
-                  JID = J
+                  JID = J ! Always >= 1
                ELSE
                   NRECV = 2
                ENDIF
@@ -471,16 +492,18 @@ SUBROUTINE SLASH_PROC
   
   INQUIRE(FILE="/proc/meminfo", EXIST=FILE_EXISTS)
   IF( FILE_EXISTS ) THEN
-    OPEN(FILE="/proc/meminfo",UNIT=502,STATUS="old",ACTION="read")
+    OPEN(FILE="/proc/meminfo",UNIT=502,STATUS="old",ACTION="read",ERR=977)
     DO I=1,10
-       READ(502,'(a)') LINE
-       IF(LINE(1:7) == "MemFree") THEN
-          READ(LINE(9:80),*) MEMFREE
-       ELSEIF(LINE(1:6) == "Cached") THEN
-          READ(LINE(8:80),*) CACHED
-       ENDIF
+      READ(502,'(a)',ERR=988,END=988) LINE
+      IF(LINE(1:7) == "MemFree") THEN
+        READ(LINE(9:80),*) MEMFREE 
+      ELSEIF(LINE(1:6) == "Cached") THEN
+        READ(LINE(8:80),*) CACHED
+      ENDIF
     ENDDO
+988 continue
     CLOSE(502)
+977 continue
   
     MEMFREE=MEMFREE/1024
     CACHED=CACHED/1024
@@ -539,10 +562,10 @@ CALL PRT_EMPTY(KUN,1)
 WT = UTIL_WALLTIME() - WT0
 WRITE(KUN,'(4a,f10.3,a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO Detailed memory information ", &
      "for program ",TRIM(PROGRAM)," -- wall-time : ",WT,"s"
-WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,a,":",a,":",a,a,a,"-",a,"-",a)') &
+WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a,a,":",a,":",a,a,a,"-",a,"-",a)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running on ",NUMNODES," nodes (",NNUMA,&
      "-numa) with ",NPROC-IOTASKS, &
-     " compute + ",IOTASKS," I/O-tasks and ", MAXTH, " threads at ", &
+     " compute + ",IOTASKS," I/O-tasks and ", MAXTH_COMP, "+", MAXTH_IO, " threads at ", &
      CLTIMEOD(1:2),CLTIMEOD(3:4),CLTIMEOD(5:10), &
      " on ",CLDATEOD(7:8),CLMON(IMON),CLDATEOD(1:4)
 WRITE(KUN,'(4a)') CLPFX(1:IPFXLEN)//"## EC_MEMINFO The Job Name is ",TRIM(JOBNAME), &
@@ -621,7 +644,7 @@ INUMA = NNUMA
 ILEN=0
 WRITE(CLBUF(ILEN+1:),'(a,i4,1x,a,3i8,1x)') &
      CLPFX(1:IPFXLEN)//"## EC_MEMINFO ", &
-     NODENUM,LASTNODE,HEAP_SIZE,TASKSMALL,NODEHUGE
+     NODENUM-1,LASTNODE,HEAP_SIZE,TASKSMALL,NODEHUGE
 ILEN = LEN_TRIM(CLBUF) + 1
 DO K=0,INUMA-1
    WRITE(CLBUF(ILEN+1:),'(1x,2i8)') SMALLPAGE(K),HUGEPAGE(K)
@@ -665,31 +688,45 @@ CHARACTER(LEN=4096) :: CLBUF
 INTEGER(KIND=JPIM) :: impi_vers, impi_subvers, ilibrary_version_len
 INTEGER(KIND=JPIM) :: iomp_vers, iomp_subvers, iopenmp
 CHARACTER(LEN=4096) :: clibrary_version
-ALLOCATE(REF(0:NPROC-1))
+LOGICAL :: LLDONE(0:NPROC-1)
+INTEGER(KIND=JPIM) :: REF(0:NPROC-1) ! Keep list of the order tasks been added
+LLDONE(:) = .FALSE.
 IOTASKS = 0
 K = 0
 NODENUM = 0
 DO I=0,NPROC-1
-   IF (RN(I)%IORANK == 1) THEN
-      IOTASKS = IOTASKS + 1
-      RN(I)%IORANK = IOTASKS
-   ELSE
-      RN(I)%IORANK = 0
-   ENDIF
    IF (RN(I)%NODENUM == -1) THEN
+      IF (RN(I)%IORANK == 1) THEN
+         IOTASKS = IOTASKS + 1
+         RN(I)%IORANK = IOTASKS
+      ELSE
+         RN(I)%IORANK = 0
+      ENDIF
       NODENUM = NODENUM + 1
       RN(I)%NODENUM = NODENUM
       RN(I)%NODEMASTER = 1
+      LLDONE(I) = .TRUE.
+      ! NB: Adjacent REF-elements allow us to operate with particular node's tasks that follow their the node-master
       REF(K) = I
       K = K + 1
       LASTNODE = RN(I)%NODE
-      DO J=I+1,NPROC-1
-         IF (RN(J)%NODENUM == -1) THEN
-            IF (RN(J)%NODE == LASTNODE) THEN
-               RN(J)%NODENUM = NODENUM
-               RN(J)%NODEMASTER = 0
-               REF(K) = J
-               K = K + 1
+!      DO J=I+1,NPROC-1 ! not valid anymore since ranks might have been reordered -- need to run through the whole list -- LLNODE speeds up
+      DO J=0,NPROC-1
+         IF (.NOT.LLDONE(J)) THEN
+            IF (RN(J)%NODENUM == -1) THEN
+               IF (RN(J)%NODE == LASTNODE) THEN
+                  RN(J)%NODENUM = NODENUM
+                  IF (RN(J)%IORANK == 1) THEN
+                     IOTASKS = IOTASKS + 1
+                     RN(J)%IORANK = IOTASKS
+                  ELSE
+                     RN(J)%IORANK = 0
+                  ENDIF
+                  RN(J)%NODEMASTER = 0
+                  LLDONE(J) = .TRUE.
+                  REF(K) = J
+                  K = K + 1
+               ENDIF
             ENDIF
          ENDIF
       ENDDO
@@ -722,34 +759,36 @@ WRITE(KUN,1003) &
      &"## EC_MEMINFO ********************************************************************************"
 1003 FORMAT((A))
 CALL PRT_EMPTY(KUN,1)
-WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a)') &
+WRITE(KUN,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a)') &
      & CLPFX(1:IPFXLEN)//"## EC_MEMINFO Running on ",NUMNODES," nodes (",NNUMA,&
      & "-numa) with ",NPROC-IOTASKS, &
-     & " compute + ",IOTASKS," I/O-tasks and ", MAXTH, " threads"
+     & " compute + ",IOTASKS," I/O-tasks and ", MAXTH_COMP, "+", MAXTH_IO, " threads"
 CALL PRT_EMPTY(KUN,1)
 WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-     & "#","NODE#","NODENAME","MPI#","I/O#","MASTER","REF#","OMP#","Core affinities"
+     & "#","NODE#","NODENAME","MPI#","WORLD#","I/O#","MASTER","REF#","OMP#","Core affinities"
 WRITE(KUN,1000) CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-     & "=","=====","========","====","====","======","====","====","==============="
-1000 FORMAT(A,2(1X,A5),1X,A20,5(1X,A6),2X,A)
+     & "=","=====","========","====","======","====","======","====","====","==============="
+1000 FORMAT(A,2(1X,A5),1X,A20,6(1X,A6),2X,A)
 CALL PRT_EMPTY(KUN,1)
-DO I=0,NPROC-1
+DO K=0,NPROC-1 ! Loop over the task as they have been added (see few lines earlier how REF(K) has been getting its values I or J)
    ILEN = 0
+   ! A formidable trick ? No need for a nested loop over 0:NPROC-1 to keep tasks within the same node together in the output
+   I = REF(K)
    NUMTH = RN(I)%NUMTH
    CLMASTER = '[No]'
    IF (RN(I)%NODEMASTER == 1) CLMASTER = ' Yes'
    IF (RN(I)%IORANK > 0) THEN
       WRITE(CLBUF(ILEN+1:),1001) &
            & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-           & I,RN(I)%NODENUM,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,RN(I)%IORANK,&
-           & CLMASTER,REF(I),NUMTH,"{"
-1001  FORMAT(A,2(1X,I5),1X,A20,2(1X,I6),1X,A6,2(1X,I6),2X,A)
+           & K,RN(I)%NODENUM-1,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,RN(I)%RANK_WORLD,RN(I)%IORANK-1,&
+           & CLMASTER,I,NUMTH,"{"
+1001  FORMAT(A,2(1X,I5),1X,A20,3(1X,I6),1X,A6,2(1X,I6),2X,A)
    ELSE
       WRITE(CLBUF(ILEN+1:),1002) &
            & CLPFX(1:IPFXLEN)//"## EC_MEMINFO ",&
-           & I,RN(I)%NODENUM,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,"[No]",&
-           & CLMASTER,REF(I),NUMTH,"{"
-1002  FORMAT(A,2(1X,I5),1X,A20,1X,I6,2(1X,A6),2(1X,I6),2X,A)
+           & K,RN(I)%NODENUM-1,TRIM(ADJUSTL(RN(I)%NODE)),RN(I)%RANK,RN(I)%RANK_WORLD,"[No]",&
+           & CLMASTER,I,NUMTH,"{"
+1002  FORMAT(A,2(1X,I5),1X,A20,2(1X,I6),2(1X,A6),2(1X,I6),2X,A)
    ENDIF
    ILEN = LEN_TRIM(CLBUF)
    CLAST = ','
@@ -785,8 +824,8 @@ RETURN ! For now
 #if 0
 CALL EC_GETHOSTNAME(NODENAME) ! from support/env.c
 OPEN(FILE="/proc/buddyinfo",UNIT=502,ERR=98,STATUS="old",ACTION="read")
-READ(502,'(a)') LINE
-READ(502,'(a)') LINE
+READ(502,'(a)',END=99) LINE
+READ(502,'(a)',END=99) LINE
 DO INUMA=0,1
    NODE(:)=0
    READ(502,'(a)',END=99) LINE
@@ -824,21 +863,33 @@ INTEGER(KIND=JPIM), INTENT(OUT) :: KERROR
 LOGICAL, INTENT(IN) :: LDCALLFINITO
 LOGICAL, INTENT(IN) :: LDMEMINFO
 CHARACTER(LEN=*), INTENT(IN) :: CALLER
-LOGICAL :: LLINIT, LLFIN
-INTEGER(KIND=JPIM) :: IERR
+LOGICAL :: LLINIT, LLFIN, LLNOTMPIWORLD
+INTEGER(KIND=JPIM) :: IERR, ICOMM
+INTEGER(KIND=JPIM) :: NCOMM_MEMINFO
+COMMON /cmn_meminfo/ NCOMM_MEMINFO
 #include "ec_meminfo.intfb.h"
 KERROR = 0
 IF (LDCALLFINITO) THEN !*** common MPI_Finalize()
-   CALL MPI_INITIALIZED(LLINIT,IERR)
-   IF (LLINIT .AND. IERR == 0) THEN
-      CALL MPI_FINALIZED(LLFIN,IERR)
-      IF (.NOT.LLFIN .AND. IERR == 0) THEN
-         IF( LDMEMINFO ) CALL EC_MEMINFO(-1,"ec_mpi_finalize:"//caller,MPI_COMM_WORLD,KBARR=1,KIOTASK=-1,KCALL=1)
-         CALL c_drhook_prof() ! ifsaux/support/drhook.c : Make sure DrHook output is produced before MPI_Finalize (in case it fails)
-         CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
-         CALL MPI_FINALIZE(KERROR)
+  CALL MPI_INITIALIZED(LLINIT,IERR)
+  IF (LLINIT .AND. IERR == 0) THEN
+    CALL MPI_FINALIZED(LLFIN,IERR)
+    IF (.NOT.LLFIN .AND. IERR == 0) THEN
+      LLNOTMPIWORLD = (NCOMM_MEMINFO /= 0 .and. NCOMM_MEMINFO /= MPI_COMM_WORLD)
+      IF (LLNOTMPIWORLD) THEN
+        ICOMM = NCOMM_MEMINFO
+      ELSE
+        ICOMM = MPI_COMM_WORLD
       ENDIF
-   ENDIF
+      IF( LDMEMINFO ) CALL EC_MEMINFO(-1,"ec_mpi_finalize:"//caller,ICOMM,KBARR=1,KIOTASK=-1,KCALL=1)
+      CALL c_drhook_prof() ! ifsaux/support/drhook.c : Make sure DrHook output is produced before MPI_Finalize (in case it fails)
+      CALL MPI_BARRIER(ICOMM,IERR)
+      IF (LLNOTMPIWORLD) THEN
+        ! CALL MPI_COMM_FREE(NCOMM_MEMINFO,IERR)
+        NCOMM_MEMINFO = 0
+      ENDIF
+      CALL MPI_FINALIZE(KERROR)
+    ENDIF
+  ENDIF
 ENDIF
 END SUBROUTINE EC_MPI_FINALIZE
 

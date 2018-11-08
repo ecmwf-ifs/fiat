@@ -130,6 +130,7 @@ static int timestr_len = 0;
 #define TIMESTR(tid) (timestr_len > 0 && ec_drhook && tid >= 1 && tid <= numthreads) ? TimeStr(ec_drhook[tid-1].timestr,timestr_len) : ""
 #define FFL __FUNCTION__,__FILE__,__LINE__
 
+static int drhook_trapfpe_master_init = 0;
 static int drhook_trapfpe = 1;
 static int drhook_trapfpe_invalid = 1;
 static int drhook_trapfpe_divbyzero = 1;
@@ -161,11 +162,16 @@ int fedisableexcept(int excepts) { return 0; }
 int fegetexcept(void) { return 0; }
 #endif
 
+#if defined(__NEC__)
+int fegetexcept(void) { return 0; }
+#endif
+
 static void trapfpe(int silent)
 {
   /* Enable some exceptions. At startup all exceptions are masked. */
 #if 1
   /* New coding -- honours DR_HOOK_TRAPFPE_{INVALID,DIVBYZERO,OVERLOW} set to 1 (or 0) */
+  int tid = get_thread_id_();
   int enable = 0;
   int disable = 0;
   int dummy;
@@ -181,29 +187,32 @@ static void trapfpe(int silent)
   if (enable) rc_enable = feenableexcept(enable); // Turn ON these
   if (disable) rc_disable = fedisableexcept(disable); // Turn OFF these
   if (!silent && myproc == 1) {
-    int tid = get_thread_id_();
     char *pfx = PREFIX(tid);
     excepts_after = fegetexcept();
     fprintf(stderr,
-	    "%s %s [%s@%s:%d] DR_HOOK trapfpe() : Exceptions before = 0x%x -- after = 0x%x\n",
+	    "%s %s [%s@%s:%d] DR_HOOK trapfpe() : Exceptions before = 0x%x [%d] -- after = 0x%x [%d]\n",
 	    pfx,TIMESTR(tid),FFL,
-	    excepts_before, excepts_after);
+	    excepts_before, excepts_before,
+	    excepts_after, excepts_after);
     fprintf(stderr,
-	    "%s %s [%s@%s:%d] DR_HOOK trapfpe() : with FE_INVALID = 0x%x -- FE_DIVBYZERO = 0x%x -- FE_OVERFLOW = 0x%x\n",
+    "%s %s [%s@%s:%d] DR_HOOK trapfpe() : with FE_INVALID = 0x%x [%d] -- FE_DIVBYZERO = 0x%x [%d] -- FE_OVERFLOW = 0x%x [%d]\n",
 	    pfx,TIMESTR(tid),FFL,
-	    (int)FE_INVALID,(int)FE_DIVBYZERO,(int)FE_OVERFLOW);
+	    (int)FE_INVALID, (int)FE_INVALID,
+	    (int)FE_DIVBYZERO, (int)FE_DIVBYZERO,
+	    (int)FE_OVERFLOW, (int)FE_OVERFLOW);
     if (enable) {
       fprintf(stderr,
-	      "%s %s [%s@%s:%d] DR_HOOK trapfpe() : feenableexcept(0x%x) returns rc=%d\n",
+	      "%s %s [%s@%s:%d] DR_HOOK trapfpe() : feenableexcept(0x%x [%d]) returns rc=%d\n",
 	      pfx,TIMESTR(tid),FFL,
-	      enable,rc_enable);
+	      enable,enable,rc_enable);
     }
     if (disable) {
       fprintf(stderr,
-	      "%s %s [%s@%s:%d] DR_HOOK trapfpe() : fedisableexcept(0x%x) returns rc=%d\n",
+	      "%s %s [%s@%s:%d] DR_HOOK trapfpe() : fedisableexcept(0x%x [%d]) returns rc=%d\n",
 	      pfx,TIMESTR(tid),FFL,
-	      disable,rc_disable);
+	      disable,disable,rc_disable);
     }
+    if (tid == 1) drhook_trapfpe_master_init = 1; // go-ahead for slave threads in trapfpe_slave_threads()
   }
 #else
 #if defined(PARKIND1_SINGLE) && !defined(SGEMM)
@@ -299,10 +308,10 @@ static long long int slave_stacksize();
 
 /* Begin of developer options */
 static char *drhook_timed_kill = NULL; /* Timer assisted simulated kill of procs/threads by signal */
-static int drhook_dump_maps = 1; /* Print /proc/<tid>/maps from signal handler (before moving to ATP or below) */
+static int drhook_dump_maps = 0; /* Print /proc/<tid>/maps from signal handler (before moving to ATP or below) */
 static int drhook_dump_smaps = 0; /* Print /proc/<tid>/smaps from signal handler (before moving to ATP or below) */
-static int drhook_dump_buddyinfo = 1; /* Print /proc/buddyinfo from signal handler (before moving to ATP or below) */
-static int drhook_dump_meminfo = 1; /* Print /proc/meminfo from signal handler (before moving to ATP or below) */
+static int drhook_dump_buddyinfo = 0; /* Print /proc/buddyinfo from signal handler (before moving to ATP or below) */
+static int drhook_dump_meminfo = 0; /* Print /proc/meminfo from signal handler (before moving to ATP or below) */
 static int drhook_dump_hugepages = 0;
 static double drhook_dump_hugepages_freq = 0;
 /* End of developer options */
@@ -610,10 +619,17 @@ static void set_killer_timer(const int *ntids, const int *target_omptid,
       timer_t timerid = { 0 };
       struct itimerspec its = { 0 } ;
       struct sigevent sev = { 0 } ;
-      sev.sigev_notify = SIGEV_THREAD_ID | SIGEV_SIGNAL;
       sev.sigev_signo = *target_sig;
+
+#if defined(SIGEV_THREAD_ID)
+      sev.sigev_notify = SIGEV_THREAD_ID | SIGEV_SIGNAL;
       /* sev.sigev_notify_thread_id = gettid(); */
-      sev._sigev_un._tid = gettid(); 
+      sev._sigev_un._tid = gettid();
+#elif defined(SIGEV_THREAD)
+      sev.sigev_notify = SIGEV_THREAD | SIGEV_SIGNAL;
+#else
+      sev.sigev_notify = SIGEV_SIGNAL;
+#endif
       sev.sigev_value.sival_ptr = &timerid;
       
       its.it_value.tv_sec = SECS(*start_time);
@@ -1366,6 +1382,27 @@ trapfpe_treatment(int sig, int silent)
   }
 }
 
+/* Fortran callable : calls trapfpe() for slave threads if drhook_trapfpe indicated so
+   Called from DR_HOOK_UTIL_MULTI after DR_HOOK_UTIL (master thread) has been called
+   Matters only for slave threads
+   If *silent = 0, then more verbose output */
+
+void
+trapfpe_slave_threads_(const int *silent)
+{
+  int tid = get_thread_id_();
+  if (tid > 1) { // slave threads
+    if (drhook_trapfpe_master_init) trapfpe_treatment(SIGFPE, *silent);
+  }
+}
+
+void
+trapfpe_slave_threads(const int *silent)
+{
+  trapfpe_slave_threads_(silent);
+}
+
+
 /*--- restore_default_signals ---*/
 
 static void
@@ -1682,6 +1719,10 @@ signal_harakiri(int sig SIG_EXTRA_ARGS)
 
   idummy = write(fd,s,strlen(s));
 
+#if 0
+  batch_kill_();
+#endif
+  
   raise(SIGKILL); /* Use raise, not RAISE here */
   _exit(128+ABS(sig)); /* Should never reach here, bu' in case it does, then ... */
 }
@@ -1697,7 +1738,12 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
   char *pfx;
   void *trace[GNUC_BTRACE];
   // Let only one ("fastest") thread per task to this error processing
+  static volatile sig_atomic_t been_here_already = 0;
   static volatile sig_atomic_t thing = 0;
+
+  if (sig < 1 || sig > NSIG) return; // .. since have seen this, too :-(
+  if (been_here_already++ > 0) return; // avoid calling more than once ... since it leads more often than not into troubles
+  
   cas_lock(&thing);
 
   trace_size = backtrace(trace, GNUC_BTRACE);
@@ -1864,15 +1910,30 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	  else
 	    works = 1;
 
-	  fprintf(stderr,
-		  "%s %s [%s@%s:%d] Signal#%d was caused by %s [memaddr=%p] : %p at %s(%s), nsigs = %d\n",
-		  pfx,TIMESTR(tid),FFL,
-		  sig, s, 
-		  addr,
-		  bt,
-		  dlinfo.dli_fname ? dlinfo.dli_fname : "<unknown_object>",
-		  dlinfo.dli_sname ? dlinfo.dli_sname : "<unknown_function>",
-		  nsigs);
+	  if (sig == SIGFPE) {
+	    int excepts = fegetexcept();
+	    fprintf(stderr,
+		    "%s %s [%s@%s:%d] Signal#%d was caused by %s [memaddr=%p] [excepts=0x%x [%d]] : %p at %s(%s), nsigs = %d\n",
+		    pfx,TIMESTR(tid),FFL,
+		    sig, s, 
+		    addr,
+		    excepts, excepts,
+		    bt,
+		    dlinfo.dli_fname ? dlinfo.dli_fname : "<unknown_object>",
+		    dlinfo.dli_sname ? dlinfo.dli_sname : "<unknown_function>",
+		    nsigs);
+	  }
+	  else {
+	    fprintf(stderr,
+		    "%s %s [%s@%s:%d] Signal#%d was caused by %s [memaddr=%p] : %p at %s(%s), nsigs = %d\n",
+		    pfx,TIMESTR(tid),FFL,
+		    sig, s, 
+		    addr,
+		    bt,
+		    dlinfo.dli_fname ? dlinfo.dli_fname : "<unknown_object>",
+		    dlinfo.dli_sname ? dlinfo.dli_sname : "<unknown_function>",
+		    nsigs);
+	  }
 
 	  if (works && trace_size > 0) {
 	    int ndigits = (trace_size > 0) ? 1 + (int)log10(trace_size) : 0;
@@ -2057,7 +2118,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 	  case SIGTERM:
 	    if (atp_ignore_sigterm) break; /* SIGSEGV not reset to SIG_DFL as ATP now ignores SIGTERM */
 	    /* Fall thru (see man atp on Cray) */
-	  case SIGINT:
+	  case SIGINT: /* Also, see ifssig.c : used as a RESTART signal, confusingly enough */
 	  case SIGFPE:
 	  case SIGILL:
 	  case SIGTRAP:
@@ -2262,7 +2323,7 @@ signal_drhook_init(int enforce)
   SETSIG(SIGILL,0);
 #endif
   SETSIG(SIGTRAP,0); /* Should be switched off when used with debuggers */
-  SETSIG(SIGINT,0);
+  // SETSIG(SIGINT,0);  /* Also, see ifssig.c : used as a RESTART signal, confusingly enough */
   if (atp_enabled) {
     /* We let ATP to catch SIGQUIT (it uses this for non-failed tasks, we think) -- thus commented out */
     /* SETSIG(SIGQUIT,0); */
