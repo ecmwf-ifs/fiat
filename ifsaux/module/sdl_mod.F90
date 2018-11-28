@@ -38,6 +38,7 @@ SUBROUTINE SDL_TRACEBACK(KTID)
 
 INTEGER(KIND=JPIM), INTENT(IN), OPTIONAL :: KTID
 INTEGER(KIND=JPIM) ITID, IPRINT_OPTION, ILEVEL
+CHARACTER(LEN=80) :: CLTRBK
 #ifdef NECSX
 CHARACTER(LEN=*), PARAMETER :: CLNECMSG = '*** Calling NEC traceback ***'
 #endif
@@ -62,13 +63,16 @@ ENDIF
   CALL XL__TRBK()
   WRITE(0,*)'SDL_TRACEBACK: Done XL_TRBK, THRD = ',ITID
 #elif defined(__INTEL_COMPILER)
-  WRITE(0,*)'SDL_TRACEBACK: Calling INTEL_TRBK, THRD = ',ITID
-#if defined(LINUX)
-  ! This often gives more information than INTEL_TRBK ...
-  CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
-#endif
-  CALL INTEL_TRBK() ! See ifsaux/utilities/gentrbk.F90
-  WRITE(0,*)'SDL_TRACEBACK: Done INTEL_TRBK, THRD = ',ITID
+  CALL GET_ENVIRONMENT_VARIABLE("EC_LINUX_TRBK",CLTRBK)
+  IF (CLTRBK=='1') THEN
+    WRITE(0,*)'SDL_TRACEBACK: Calling LINUX_TRBK, THRD = ',ITID
+    CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
+    WRITE(0,*)'SDL_TRACEBACK: Done LINUX_TRBK, THRD = ',ITID
+  ELSE
+    WRITE(0,*)'SDL_TRACEBACK: Calling INTEL_TRBK, THRD = ',ITID
+    CALL INTEL_TRBK() ! See ifsaux/utilities/gentrbk.F90
+    WRITE(0,*)'SDL_TRACEBACK: Done INTEL_TRBK, THRD = ',ITID
+  ENDIF
 #elif defined(LINUX) || defined(SUN4)
   WRITE(0,*)'SDL_TRACEBACK: Calling LINUX_TRBK, THRD = ',ITID
   CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
@@ -118,6 +122,7 @@ INTEGER(KIND=JPIM), INTENT(IN) :: KCOMM
 
 INTEGER(KIND=JPIM) :: IRETURN_CODE,IERROR
 CHARACTER(LEN=80) :: CLJOBID
+CHARACTER(LEN=80) :: CLTRBK
 
 #ifdef VPP
 
@@ -127,11 +132,15 @@ CALL VPP_ABORT()
 
 #if defined(__INTEL_COMPILER)
 ! Intel compiler seems to hang in MPI_ABORT -- on all but the failing task(s) :-(
+! ... when linux trbk is used. REK
+CALL GET_ENVIRONMENT_VARIABLE("EC_LINUX_TRBK",CLTRBK)
+IF (CLTRBK=='1') THEN
 IF (LHOOK) THEN
    CALL GET_ENVIRONMENT_VARIABLE("SLURM_JOBID",CLJOBID)
    IF (CLJOBID /= ' ') THEN
       CALL SYSTEM("set -x; sleep 10; scancel --signal=TERM "//trim(CLJOBID)//" &")
    ENDIF
+ENDIF
 ENDIF
 #endif
 

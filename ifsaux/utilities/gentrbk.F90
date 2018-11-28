@@ -10,37 +10,19 @@ USE MPL_MODULE, ONLY : MPL_MYRANK
 CHARACTER*80 MESSAGE
 LOGICAL :: DONE_TRACEBACK = .FALSE.
 INTEGER :: MYPROC,MYTHREAD
-
-#ifdef _OPENMP
-INTEGER,EXTERNAL :: OMP_GET_THREAD_NUM
-#endif
+!$ INTEGER,EXTERNAL :: OMP_GET_THREAD_NUM
 
 IF(DONE_TRACEBACK) THEN
   WRITE(0,*) "INTEL_TRBK already called"
-  RETURN
-ENDIF
-
-MYPROC=MPL_MYRANK()
-#ifdef _OPENMP
-MYTHREAD=OMP_GET_THREAD_NUM() + 1
-#else
-MYTHREAD=1
-#endif
-
-#ifndef BOM
-  WRITE(MESSAGE,'(A,I4,A,I2,A)') &
-  &           "Process ",MYPROC," thread ",MYTHREAD, &
-  &           " calling tracebackqq from intel_trbk()"
-#ifndef __INTEL_COMPILER
+ELSE
+  MYPROC=MPL_MYRANK()
+  MYTHREAD=1
+!$ MYTHREAD=OMP_GET_THREAD_NUM() + 1
+  WRITE(MESSAGE,'(A,I4,A,I2,A)') "Process ",MYPROC," thread ",MYTHREAD, &
+   &           " calling tracebackqq from intel_trbk()"
   CALL TRACEBACKQQ(MESSAGE, USER_EXIT_CODE=-1)
-#endif
-#endif
-#ifdef LINUX
-  WRITE(0,*) "Process ",MYPROC," thread ",MYTHREAD, &
- &           " calling linux_trbk from intel_trbk()"
-  CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
-#endif
-DONE_TRACEBACK=.TRUE.
+  DONE_TRACEBACK=.TRUE.
+ENDIF
 END SUBROUTINE INTEL_TRBK
 #endif
 
