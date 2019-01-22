@@ -541,8 +541,9 @@ getcurheap()
     if (drhook_memtrace) pthread_mutex_unlock(&getcurheap_lock);
   }
   return curvalue;
-#elif defined(_CRAYC)
-  extern ll_t get_tcmalloc_current_allocated_bytes_();
+  // Cray linker: if you intend to link with -hstd_alloc and use Cray C compiler, then compile this file with -DSTD_ALLOC too
+#elif !defined(STD_ALLOC) && (defined(_CRAYC) || defined(USE_TCMALLOC))
+  extern size_t get_tcmalloc_current_allocated_bytes_();
   return get_tcmalloc_current_allocated_bytes_();
 #else
   ll_t rc = gethwm_();

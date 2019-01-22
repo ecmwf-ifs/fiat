@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <errno.h>
+#include <time.h>
 #include "privpub.h"
 
 #if !defined(HOST_NAME_MAX) && defined(_POSIX_HOST_NAME_MAX)
@@ -25,6 +26,8 @@
 #if !defined(HOST_NAME_MAX) && defined(_SC_HOST_NAME_MAX)
 #define HOST_NAME_MAX _SC_HOST_NAME_MAX
 #endif
+
+#define EC_HOST_NAME_MAX 512
 
 extern char **environ; /* Global Unix var */
 static int numenv = 0;
@@ -128,14 +131,26 @@ ec_getenv_(const char *s,
 
 void
 ec_getenv(const char *s,
-	   char *value,
-	   /* Hidden arguments */
-	   int slen,
-	   const int valuelen)
+	  char *value,
+	  /* Hidden arguments */
+	  int slen,
+	  const int valuelen)
 {
   ec_getenv_(s, value, slen, valuelen);
 }
 
+
+#ifdef __NEC__
+void
+getenv_(const char *s,
+	char *value,
+	/* Hidden arguments */
+	int slen,
+	const int valuelen)
+{
+  ec_getenv_(s, value, slen, valuelen);
+}
+#endif
 
 void
 ec_putenv_(const char *s,
@@ -217,10 +232,30 @@ ec_putenv_nooverwrite(const char *s,
 }
 
 
+/*--- sleep_by_spinning ---*/
+
+static int sleep_by_spinning(long secs, long nanosecs) { /* see also drhook.c */
+  /* This does not call sleep() at all i.e. is not SIGALRM driven */
+  int rc;
+  struct timespec req, rem;
+  req.tv_sec = secs;
+  req.tv_nsec = nanosecs;
+  rc = nanosleep(&req, &rem);
+  if (rc == -1) {
+    if (errno == EINTR) {
+      rc = rem.tv_sec;
+    }
+    else
+      rc = 0; /* Can't do much more about this */
+  }
+  return rc;
+}
+
 unsigned int
 ec_sleep_(const int *nsec)
 {
-  return sleep((nsec && *nsec > 0) ? *nsec : 0);
+  //return sleep((nsec && *nsec > 0) ? *nsec : 0);
+  return sleep_by_spinning((nsec && *nsec > 0) ? *nsec : 0, 0);
 }
 
 
@@ -230,6 +265,11 @@ ec_sleep(const int *nsec)
   return ec_sleep_(nsec);
 }
 
+#ifdef __NEC__
+void sleep_(const int *nsec) { (void)ec_sleep_(nsec); }
+
+void flush_(const int *io) { } /* temporary fix */
+#endif
 
 /* Microsecond-sleep, by S.Saarinen, 25-jan-2008 */
 
@@ -239,7 +279,8 @@ ec_microsleep(int usecs) {
     struct timeval t;
     t.tv_sec =  usecs/1000000;
     t.tv_usec = usecs%1000000;
-    (void) select(0, NULL, NULL, NULL, &t);
+    // (void) select(0, NULL, NULL, NULL, &t);
+    (void) sleep_by_spinning(t.tv_sec, (long)1000*t.tv_usec);
   }
 }
 
@@ -263,18 +304,13 @@ void ec_gethostname_(char a[],
 		     /* Hidden argument */
 		     int alen)
 {
-#if defined(DARWIN)
-    long HOST_NAME_MAX = sysconf (_SC_HOST_NAME_MAX);
-    if (HOST_NAME_MAX <= 0) HOST_NAME_MAX = _POSIX_HOST_NAME_MAX;
-#endif
-#if defined MACOSX
-  char s[256];
-#else
-  char s[HOST_NAME_MAX];
-#endif
+  char s[EC_HOST_NAME_MAX];
   memset(a,' ',alen);
   if (gethostname(s,sizeof(s)) == 0) {
-    int len = strlen(s);
+    int len;
+    char *pdot = strchr(s,'.');
+    if (pdot) *pdot = '\0'; // cut short from "." char e.g. hostname.fmi.fi becomes just "hostname"
+    len = strlen(s);
     if (len > alen) len = alen;
     memcpy(a,s,len);
   }
@@ -287,18 +323,23 @@ void ec_gethostname(char a[],
   ec_gethostname_(a,alen);
 }
 
+#ifdef __NEC__
+int hostnm_(char a[], int alen) { ec_gethostname_(a,alen); return 0; }
+#endif
+
 /* For checking runtime affinities (not setting them, though) */
 
-#ifdef LINUX
+#if defined(LINUX) && !defined(DARWIN) && !defined(__NEC__)
 #include <sched.h>
 int sched_getcpu(void);
+#define getcpu() sched_getcpu()
 #else
-#define sched_getcpu() -1
+#define getcpu() -1
 #endif
 
 void ec_coreid_(int *coreid)
 {
-  if (coreid) *coreid = sched_getcpu();
+  if (coreid) *coreid = getcpu();
 }
 
 void ec_coreid(int *coreid)
@@ -306,7 +347,7 @@ void ec_coreid(int *coreid)
   ec_coreid_(coreid);
 }
 
-#ifdef ECMWF
+#ifdef DARSHAN
 /* Some issues with Darshan -- better to use our own version of MPI_Wtime (mpi_wtime_ in Fortran) */
 double mpi_wtime_()
 {

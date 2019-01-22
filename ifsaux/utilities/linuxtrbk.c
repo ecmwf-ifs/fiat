@@ -18,7 +18,9 @@
 #include <unistd.h>
 #include <signal.h>
 #include <alloca.h>
+#include <math.h>
 #include "cargs.h"
+#include "drhook.h"
 
 #ifdef CRAYXT
 /* Cray XT3/XT4 with catamount microkernel */
@@ -54,12 +56,11 @@ static void InitBFD();
 
 #if defined(__GNUC__)
 
-#define _GNU_SOURCE
 #include <pthread.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(CRAYXT)
+#if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(CRAYXT) && !defined(__NEC__)
 #include <execinfo.h>
 #elif defined(DARWIN)
 #define _XOPEN_SOURCE
@@ -82,7 +83,6 @@ static void InitBFD();
 #define ADDR2LINE /usr/bin/addr2line
 #endif
 
-#define GNUC_BTRACE 128
 #define len_addr2linecmd (sizeof(TOSTR(ADDR2LINE)) + 80 + 4096 + GNUC_BTRACE * 30)
 static char prealloc_addr2linecmd[len_addr2linecmd] = "";
 
@@ -219,11 +219,26 @@ static void SetMasterThreadsStackSizeBeforeMain()
 /* End of disabled code section */
 #endif
 
+#ifdef __NEC__
 void
 LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 {
-  const char *pfx = prefix ? prefix : "";
-  const char *ts  = timestr ? timestr : "";
+#if 1
+  // When VE_TRACEBACK=ALL the following should have the same impact as with implicit traceback (when compiled & linked with -traceback)
+  // NB: No control on output channel
+  if (!sigcontextptr) sigcontextptr = __builtin_frame_address(0);
+  __builtin_traceback(sigcontextptr);
+#else
+  extern void gdb_trbk_();
+  gdb_trbk_();
+#endif
+}
+#else
+void
+LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
+{
+  const char *pfx = prefix ? prefix : drhook_PREFIX(0);
+  const char *ts  = timestr ? timestr : drhook_TIMESTR(0);
   int sigcontextptr_given = sigcontextptr ? 1 : 0;
   extern void gdb_trbk_();
   extern void dbx_trbk_();
@@ -232,7 +247,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 #endif
   static int recur = 0;
   const char *a_out = ec_GetArgs(0);
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(__NEC__)
   if (!sigcontextptr) {
       sigcontextptr = (getcontext(&ctx) == 0) ? &ctx : NULL;
   }
@@ -252,7 +267,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     }
   }
 
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(__NEC__)
   //fflush(NULL);
 
   if (sigcontextptr) {
@@ -269,10 +284,12 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     char **strings = NULL;
     if (trace_size > 0) {
       /* overwrite sigaction with caller's address */
-#if defined(REG_RIP)
-      trace[1] = (void *) uc->uc_mcontext.gregs[REG_RIP]; /* REG_RIP only available in 64-bit mode */
-#elif defined(REG_EIP)
-      trace[1] = (void *) uc->uc_mcontext.gregs[REG_EIP]; /* REG_EIP only available in 32-bit mode */
+#ifdef __powerpc64__
+      trace[1] = uc ? (void *) uc->uc_mcontext.regs->nip : NULL;   // Trick from PAPI_overflow() 
+#elif defined(__x86_64__) && defined(REG_RIP) // gcc specific
+      trace[1] = uc ? (void *) uc->uc_mcontext.gregs[REG_RIP] : NULL; // RIP: x86_64 specific ; only available in 64-bit mode */
+#elif defined(__i386__) && defined(REG_EIP) // gcc specific
+      trace[1] = uc ? (void *) uc->uc_mcontext.gregs[REG_EIP] : NULL; // EIP: x86 specific ; only available in 32-bit mode */
 #endif
     }
     strings = backtrace_symbols(trace, trace_size);
@@ -307,23 +324,62 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 	/* free(addr2linecmd); */
       }
       if (fp) {
+	int ndigits = (trace_size > 0) ? 1 + (int)log10(trace_size) : 0;
+	extern char *cxxdemangle(const char *mangled_name, int *status); // cxxdemangle.cc (C++ code) : returned string must be free'd
 	for (i = 0; i < trace_size; i++) {
 	  int ok = 0;
 	  char func[LINELEN];
 	  if (!feof(fp) && fgets(func, LINELEN, fp)) {
 	    char line[LINELEN];
 	    if (!feof(fp) && fgets(line, LINELEN, fp)) {
+	      char *cxxfunc = NULL;
 	      char *nl = strchr(func,'\n');
+	      char *leftB, *plus;
 	      const char *last_slash = linuxtrbk_fullpath_on ? NULL : strrchr(strings[i],'/');
 	      if (last_slash) last_slash++; else last_slash = strings[i];
 	      if (nl) *nl = '\0';
+	      cxxfunc = cxxdemangle(func,NULL);
 	      nl = strchr(line,'\n');
 	      if (nl) *nl = '\0';
-	      fprintf(stderr, "%s %s [%s@%s:%d] [%d]: %s : %s() at %s\n", pfx, ts, FFL,i, last_slash, func, line);
+	      leftB = strchr(last_slash,'(');
+	      plus = strrchr(last_slash,'+');
+	      if (leftB && plus && (int)(plus-leftB) > 1) {
+		int istat = 0;
+		char *cxx = NULL;
+		char *therest = plus + 1;
+		*plus = '\0';
+		cxx = cxxdemangle(leftB + 1,&istat);
+		if (cxx) *leftB = '\0';
+		fprintf(stderr, "%s %s [%s@%s:%d] [%*.*d]: %s%s%s+%s : %s%s at %s\n", 
+			pfx, ts, FFL, ndigits, ndigits, i,
+			last_slash,
+			cxx ? "(" : "",
+			cxx ? cxx : "",
+			therest,
+			cxxfunc ? cxxfunc : func, 
+			cxxfunc ? "" : "()",
+			line);
+		if (cxx) free(cxx);
+	      }
+	      else {
+		fprintf(stderr, "%s %s [%s@%s:%d] [%*.*d]: %s : %s%s at %s\n", 
+			pfx, ts, FFL, ndigits, ndigits, i, 
+			last_slash, 
+			cxxfunc ? cxxfunc : func, 
+			cxxfunc ? "" : "()",
+			line);
+	      }
+	      if (cxxfunc) free(cxxfunc);
 	      ok = 1;
 	    }
 	  }
-	  if (!ok) fprintf(stderr, "%s %s [%s@%s:%d] [%d]: %s\n", pfx, ts, FFL,i, strings[i]);
+	  if (!ok) {
+	    char *cxx = cxxdemangle(strings[i],NULL);
+	    fprintf(stderr, "%s %s [%s@%s:%d] [%*.*d]: %s\n", 
+		    pfx, ts, FFL, ndigits, ndigits, i, 
+		    cxx ? cxx : strings[i]);
+	    if (cxx) free(cxx);
+	  }
 	} /* for (i = 0; i < trace_size; i++) */
 	fflush(stderr);
 	pclose(fp);
@@ -337,10 +393,14 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 	  if (last_slash) last_slash++; else last_slash = strings[i];
 	  rc = ResolveViaBFD(trace[i], &b, last_slash);
 	  if (rc == 0) {
-	    fprintf(stderr,"%s %s [%s@%s:%d] [%d]: %s : %s() at %s:%u\n",pfx,ts,FFL,i,last_slash,b.func,b.file,b.lineno);
+	    fprintf(stderr,"%s %s [%s@%s:%d] [%d]: %s : %s() at %s:%u\n",
+		    pfx,ts,FFL,i,
+		    last_slash,b.func,b.file,b.lineno);
 	  }
 	  else {
-	    fprintf(stderr,"%s %s [%s@%s:%d] [%d]: %s : %p\n",pfx,ts,FFL,i,last_slash,trace[i]);
+	    fprintf(stderr,"%s %s [%s@%s:%d] [%d]: %s : %p\n",
+		    pfx,ts,FFL,i,
+		    last_slash,trace[i]);
 	  }
 	}
       }
@@ -361,7 +421,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     char cmd[sizeof(TOSTR(PSTACKTRACE)) + 20];
     snprintf(cmd,sizeof(cmd),"%s %d", TOSTR(PSTACKTRACE), pid);
     fflush(NULL);
-    system(cmd);
+    { int idummy = system(cmd); }
     fflush(NULL);
   }
 #endif /* defined(PSTACKTRACE) */
@@ -373,6 +433,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
   fprintf(stderr,"%s %s [%s@%s:%d] End of backtrace(s)\n",pfx,ts,FFL);
   recur--;
 }
+#endif
  
 void linux_trbk_(void)
 {
@@ -415,24 +476,12 @@ void gdb_trbk_()
 	    "[gdb_trbk] : Invoking %s ...\n",
 	    TOSTR(GNUDEBUGGER));
     snprintf(gdbcmd,sizeof(gdbcmd),
-	     "set +e; /bin/echo '"
-	     "set watchdog 1\n"
-	     "set confirm off\n"
-	     "set pagination off\n"
-	     "set print elements 16\n"
-	     "set print repeats 3\n"
-	     "set print sevenbit-strings on\n"
-	     "where\n"
-	     "quit\n' > ./gdb_drhook.%d ; "
-	     "%s -x ./gdb_drhook.%d -q -n -f -batch %s %d < /dev/null ; "
-	     "/bin/rm -f ./gdb_drhook.%d"
-	     , pid
-	     , TOSTR(GNUDEBUGGER), pid, a_out, pid
-	     , pid);
+	     "set +eux; %s -batch -n -q -ex 'thread apply all bt' %s %ld < /dev/null",
+	     TOSTR(GNUDEBUGGER), a_out, (long int)pid);
     
     /* fprintf(stderr,"%s\n",gdbcmd); */
     fflush(NULL);
-    system(gdbcmd);
+    { int idummy = system(gdbcmd); }
     fflush(NULL);
   }
 }
@@ -480,7 +529,7 @@ void dbx_trbk_()
     
     /* fprintf(stderr,"%s\n",dbxcmd); */
     fflush(NULL);
-    system(dbxcmd);
+    { int idummy = system(dbxcmd); }
     fflush(NULL);
   }
 }

@@ -13,8 +13,8 @@ MODULE SDL_MOD
 
 USE PARKIND1  ,ONLY : JPIM  ,JPRB
 USE YOMHOOK   ,ONLY : LHOOK ,DR_HOOK
-USE OML_MOD, ONLY : OML_MY_THREAD
-
+USE OML_MOD   ,ONLY : OML_MY_THREAD
+USE MPL_MPIF  ,ONLY : MPI_COMM_WORLD
 IMPLICIT NONE
 
 SAVE
@@ -69,6 +69,12 @@ ENDIF
 #endif
   CALL INTEL_TRBK() ! See ifsaux/utilities/gentrbk.F90
   WRITE(0,*)'SDL_TRACEBACK: Done INTEL_TRBK, THRD = ',ITID
+#elif defined(__NEC__)
+  ! A traceback using gdb-debugger, if available AND 
+  ! activated via 'export GDBDEBUGGER=1'
+  WRITE(0,*)'SDL_TRACEBACK: Calling GDB_TRBK, THRD = ',ITID
+  CALL GDB_TRBK() ! See ifsaux/utilities/linuxtrbk.c
+  WRITE(0,*)'SDL_TRACEBACK: Done GDB_TRBK, THRD = ',ITID
 #elif defined(LINUX) || defined(SUN4)
   WRITE(0,*)'SDL_TRACEBACK: Calling LINUX_TRBK, THRD = ',ITID
   CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
@@ -117,7 +123,6 @@ SUBROUTINE SDL_DISABORT(KCOMM)
 INTEGER(KIND=JPIM), INTENT(IN) :: KCOMM
 
 INTEGER(KIND=JPIM) :: IRETURN_CODE,IERROR
-CHARACTER(LEN=80) :: CLJOBID
 
 #ifdef VPP
 
@@ -125,18 +130,9 @@ CALL VPP_ABORT()
 
 #else
 
-#if defined(__INTEL_COMPILER)
-! Intel compiler seems to hang in MPI_ABORT -- on all but the failing task(s) :-(
-IF (LHOOK) THEN
-   CALL GET_ENVIRONMENT_VARIABLE("SLURM_JOBID",CLJOBID)
-   IF (CLJOBID /= ' ') THEN
-      CALL SYSTEM("set -x; sleep 10; scancel --signal=TERM "//trim(CLJOBID)//" &")
-   ENDIF
-ENDIF
-#endif
-
-IRETURN_CODE=1
-CALL MPI_ABORT(KCOMM,IRETURN_CODE,IERROR)
+IRETURN_CODE=SIGABRT
+!CALL MPI_ABORT(KCOMM,IRETURN_CODE,IERROR)
+CALL MPI_ABORT(MPI_COMM_WORLD,IRETURN_CODE,IERROR) ! Tracked by the supervisor/process-damager (manager) -- KCOMM /= MPI_COMM_WORLD may hang as sub-communicator
 
 #endif
 

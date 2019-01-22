@@ -3,12 +3,13 @@ MODULE MPL_ABORT_MOD
 USE MPL_DATA_MODULE
 USE MPL_MPIF
 USE OML_MOD
-USE YOMABRT
+USE YOMABRT, ONLY : MAB_CNT
 USE SDL_MOD, ONLY : SDL_TRACEBACK, SDL_DISABORT
 #ifdef NAG
 USE F90_UNIX_IO, ONLY: FLUSH
 #endif
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE YOMHOOK  , ONLY : LHOOK
 
 PRIVATE
 PUBLIC MPL_ABORT
@@ -25,26 +26,23 @@ ITID=OML_MY_THREAD()
 INUMTH=OML_MAX_THREADS()
 
 IF (MPL_UNIT > 0) CALL FLUSH(MPL_UNIT)
-CALL FLUSH(0)
-CALL EC_SLEEP(1) ! This rather than 'CALL SYSTEM("sleep 1")' ; see code ../support/env.c
-
 !------Traceback from only one thread
-IF (INUMTH > 1) CALL OML_SET_LOCK(MYLOCK=MAB_LOCK(1))
-IF(MAB_CNT == 0) THEN
+!$OMP CRITICAL (CRIT_MPL_ABORT)
+!$OMP FLUSH(MAB_CNT)
+IF (MAB_CNT == 0) THEN
   WRITE(MPL_ERRUNIT,'(A,I6,A,I6)') 'MPL_ABORT: CALLED FROM PROCESSOR ',MPL_RANK,' THRD',ITID
   IF(PRESENT(CDMESSAGE)) THEN
     WRITE(MPL_ERRUNIT,*) 'MPL_ABORT: THRD',ITID,"  ",CDMESSAGE
   ENDIF
   MAB_CNT=1
-  CALL SDL_TRACEBACK(ITID)
-  CALL FLUSH(0)
-  CALL EC_SLEEP(1) ! This rather than 'CALL SYSTEM("sleep 1")' ; see code ../support/env.c
+!$OMP FLUSH(MAB_CNT)
+  IF (LHOOK) THEN
+     CALL TABORT() ! should not hang and calls DrHook's error traceback processing (more robust nowadays)
+  ELSE
+     CALL SDL_TRACEBACK(ITID) ! this may hang in LinuxTrbk() addr2line with Intel compiler
+  ENDIF
 ENDIF
-IF (INUMTH > 1) CALL OML_UNSET_LOCK(MYLOCK=MAB_LOCK(1))
-! ------All threads wait till traceback done
-CALL FLUSH(0)
-CALL EC_SLEEP(1) ! This rather than 'CALL SYSTEM("sleep 1")' ; see code ../support/env.c
-
+!$OMP END CRITICAL (CRIT_MPL_ABORT)
 CALL SDL_DISABORT(MPL_COMM_OML(ITID))
 
 END SUBROUTINE MPL_ABORT
