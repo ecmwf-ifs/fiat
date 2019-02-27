@@ -59,11 +59,12 @@ gethwm()
 
 #else  /* non-RS6K */
 
-#if defined(_CRAYC)
+// Cray linker: if you intend to link with -hstd_alloc and use Cray C compiler, then compile this file with -DSTD_ALLOC too
+#if !defined(STD_ALLOC) && (defined(_CRAYC) || defined(USE_TCMALLOC))
 ll_t
 gethwm()
 {
-  extern ll_t get_tcmalloc_heap_size_();
+  extern size_t get_tcmalloc_heap_size_();
   return get_tcmalloc_heap_size_();
 }
 #elif defined(LINUX)

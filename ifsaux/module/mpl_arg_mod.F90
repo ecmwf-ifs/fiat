@@ -1,11 +1,11 @@
 MODULE MPL_ARG_MOD
 
-!**** MPL_GETARG : A substitute for GETARG for MPL applications
-!     MPL_IARGC  : A substitute for function IARGC for MPL applications
+!**** MPL_GETARG : A substitute for GET_COMMAND_ARGUMENT (formerly GETARG) for MPL applications
+!     MPL_IARGC  : A substitute for function COMMAND_ARGUMENT_COUNT (formerly IARGC) for MPL applications
 
 !     Purpose.
 !     --------
-!     MPL-task#1 calls getarg until iargc() arguments read
+!     MPL-task#1 calls GET_COMMAND_ARGUMENT until COMMAND_ARGUMENT_COUNT() arguments read
 !     or until the argument is a terminating argument
 !     Then arguments are passed on to other processors
 !     If MPL has not been initialized, it will be done now.
@@ -40,11 +40,6 @@ MODULE MPL_ARG_MOD
 USE PARKIND1  ,ONLY : JPIM
 USE MPL_MPIF
 USE MPL_DATA_MODULE, ONLY : MPL_NUMPROC,LINITMPI_VIA_MPL,LMPLUSERCOMM,MPLUSERCOMM
-
-
-#ifdef NAG
-USE F90_UNIX_ENV, ONLY: GETARG, IARGC
-#endif
 
 IMPLICIT NONE
 
@@ -85,9 +80,6 @@ SUBROUTINE INIT_ARGS()
 INTEGER(KIND=JPIM) :: IARGS
 INTEGER(KIND=JPIM) :: IERROR, IROOT, ICOUNT
 INTEGER(KIND=JPIM) :: IRANK, INUMPROC, IRET, J
-#ifndef NAG
-INTEGER(KIND=JPIM) :: IARGC
-#endif
 INTEGER(KIND=JPIM) :: IARGC_C
 CHARACTER(LEN=LEN(CL_TERMINATE)) :: ENV_CL_TERMINATE
 CHARACTER(LEN=JP_ARGLEN) :: CLARG0
@@ -124,7 +116,7 @@ IF (N_ARGS == -1) THEN
   IF (IRANK == 1 .OR. INUMPROC == 1) THEN
     CALL GET_ENVIRONMENT_VARIABLE('MPL_CL_TERMINATE',ENV_CL_TERMINATE)
     IF (ENV_CL_TERMINATE /= ' ') CL_TERMINATE = ENV_CL_TERMINATE
-    IARGS = IARGC()
+    IARGS = COMMAND_ARGUMENT_COUNT()
     LLCARGS = (IARGS < 0) ! Should be true for non-F90 main programs
     IF (LLCARGS) THEN
       IARGS = IARGC_C()
@@ -132,7 +124,7 @@ IF (N_ARGS == -1) THEN
       CALL GETARG_C(0,CLARG0) ! The executable name (see ifsaux/support/cargs.c)
     ELSE
       CALL PUTARG_INFO(IARGS, TRIM(CL_TERMINATE)) ! (see ifsaux/support/cargs.c)
-      CALL GETARG(0,CLARG0)                       ! The executable name (normal F90 way)
+      CALL GET_COMMAND_ARGUMENT(0,CLARG0)         ! The executable name (normal F2003 way)
       CALL PUTARG_C(0,TRIM(CLARG0))               ! (see ifsaux/support/cargs.c)
     ENDIF
     IF (IARGS < 0) IARGS = 0
@@ -143,7 +135,7 @@ IF (N_ARGS == -1) THEN
       IF (LLCARGS) THEN
         CALL GETARG_C(J,CL_ARGS(J))
       ELSE
-        CALL GETARG(J,CL_ARGS(J))
+        CALL GET_COMMAND_ARGUMENT(J,CL_ARGS(J))
         CALL PUTARG_C(J,TRIM(CL_ARGS(J)))
       ENDIF
       IF (CL_ARGS(J) == CL_TERMINATE) EXIT
@@ -173,9 +165,6 @@ END SUBROUTINE INIT_ARGS
 SUBROUTINE MPL_GETARG(KARG, CDARG)
 INTEGER(KIND=JPIM), INTENT(IN) :: KARG
 CHARACTER(LEN=*), INTENT(OUT)  :: CDARG
-#ifndef NAG
-INTEGER(KIND=JPIM) :: IARGC
-#endif
 IF (N_ARGS == -1) CALL INIT_ARGS()
 IF (KARG >= 0 .AND. KARG <= N_ARGS) THEN
   CDARG = CL_ARGS(KARG)
