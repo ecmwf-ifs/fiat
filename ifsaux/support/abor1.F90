@@ -70,7 +70,7 @@ CALL ABOR1(CDTEXT)
 END SUBROUTINE ABOR1FL
 
 
-SUBROUTINE ABOR1_EXCEPTION_HANDLER() BIND(C)
+SUBROUTINE ABOR1_EXCEPTION_HANDLER()
   !! This routine, when registered as the fckit exception handler, will be called
   !! whenever any C++ exception is thrown. The exception is intercepted and can
   !! be inquired through the variable FCKIT_EXCEPTION.
