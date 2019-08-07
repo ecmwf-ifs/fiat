@@ -37,6 +37,13 @@
 #define strequ(s1,s2)     ((void *)s1 && (void *)s2 && strcmp(s1,s2) == 0)
 #define strnequ(s1,s2,n)  ((void *)s1 && (void *)s2 && memcmp(s1,s2,n) == 0)
 
+#ifdef WITHOUT_CXXDEMANGLE
+static char *cxxdemangle(const char *mangled_name, int *status) {
+  if( status ) *status = 1;
+  return NULL;
+}
+#endif
+
 typedef struct {
   const char *func;
   const char *file;

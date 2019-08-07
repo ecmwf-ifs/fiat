@@ -3,7 +3,6 @@
 #include <errno.h>
 #include <stdio.h>
 
-#ifdef LINUX
 
 /*
  *
@@ -11,6 +10,19 @@
  *
  */
 
+#if defined(LINUX)
+
+#if defined(__PGI)
+#warning PGI (tested up to 19.4) does not support __sync_fetch_and_add, skipping memory_hook
+/*
+ * Comments/Modifications by Willem Deconinck, ECMWF
+ * Problem with PGI: undefined symbol __sync_fetch_and_add
+ *
+ * --> Is this not GNU specific rather than LINUX?
+ * + C11 has new standard API available in <stdatomic.h>,
+ *   but PGI/19.4 does not yet support it.
+ */
+#else
 
 static size_t align = 0;  /* Must be a multiple of sizeof (void) */
 static unsigned char snan8[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf4, 0x7f };
@@ -96,7 +108,5 @@ memory_hook_exit_ ()
   if (count > 0)
     printf ("MEMORY_HOOK_COUNT = %d\n", count);
 }
-
 #endif
-
-
+#endif
