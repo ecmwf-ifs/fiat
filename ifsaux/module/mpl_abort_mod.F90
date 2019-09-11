@@ -22,6 +22,9 @@ IMPLICIT NONE
 
 CHARACTER*(*),INTENT(IN),OPTIONAL :: CDMESSAGE
 INTEGER(KIND=JPIM) :: IRETURN_CODE,IERROR,ITID,INUMTH
+
+CHARACTER(LEN=80) :: CLTRBK
+
 ITID=OML_MY_THREAD()
 INUMTH=OML_MAX_THREADS()
 
@@ -36,10 +39,16 @@ IF (MAB_CNT == 0) THEN
   ENDIF
   MAB_CNT=1
 !$OMP FLUSH(MAB_CNT)
-  IF (LHOOK) THEN
+
+#if defined(__INTEL_COMPILER)
+  CALL GET_ENVIRONMENT_VARIABLE("EC_LINUX_TRBK",CLTRBK)
+#else
+  CLTRBK='1'
+#endif
+  IF (LHOOK .AND. CLTRBK=='1') THEN
      CALL TABORT() ! should not hang and calls DrHook's error traceback processing (more robust nowadays)
   ELSE
-     CALL SDL_TRACEBACK(ITID) ! this may hang in LinuxTrbk() addr2line with Intel compiler
+     CALL SDL_TRACEBACK(ITID) ! this will no longer hang with Intel compiler because intel tracebackqq is called, not linux traceback
   ENDIF
 ENDIF
 !$OMP END CRITICAL (CRIT_MPL_ABORT)
