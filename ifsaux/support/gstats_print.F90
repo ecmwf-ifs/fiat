@@ -492,7 +492,7 @@ ELSEIF(LSTATS) THEN
   WRITE(KULOUT,*) ''
   WRITE(KULOUT,'(A)') 'STATS FOR ALL TASKS'
   WRITE(KULOUT,'(A)') &
-  &' NUM ROUTINE                                     CALLS  MEAN(ms)   MAX(ms)   FRAC(%)  UNBAL(%)'
+  &' NUM ROUTINE                                     CALLS      MEAN(ms)       MAX(ms)   FRAC(%)  UNBAL(%)'
   ZTOTUNBAL = 0.0_JPRD
   DO JNUM=0,500
     IF(NCALLS(JNUM) > 1) THEN
@@ -507,11 +507,11 @@ ELSEIF(LSTATS) THEN
         ZUNBAL=0.0
       ENDIF
       ZFRAC=ZFRACMAX(JNUM)
-      WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
+      WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F13.3),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
 
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,/,A,A40,A,/,A,I8,A,2(A,F9.1,A,/),2(A,F9.2,A,/),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,/,A,A40,A,/,A,I8,A,2(A,F13.3,A,/),2(A,F9.2,A,/),A)')&
          &'<item id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -799,10 +799,10 @@ ELSE
 ENDIF
 
 IF ( MYPROC_STATS == 1) THEN
-  WRITE(KULOUT,'(3(A,F10.1)/)')'TOTAL WALLCLOCK TIME ',ZTOTAL,&
+  WRITE(KULOUT,'(3(A,F11.3)/)')'TOTAL WALLCLOCK TIME ',ZTOTAL,&
    &' CPU TIME',ZTOTCPU,' VECTOR TIME ',ZTOTVCPU
   IF(LXML_STATS)THEN
-    WRITE(IXMLLUN,'(3(A,F10.1,A,/)/)')'<totalwallclocktime>',ZTOTAL,&
+    WRITE(IXMLLUN,'(3(A,F11.3,A,/)/)')'<totalwallclocktime>',ZTOTAL,&
      &'</totalwallclocktime>',&
      &'<cputime>',ZTOTCPU,'</cputime>',&
      & '<vectortime>',ZTOTVCPU,'</vectortime>'
