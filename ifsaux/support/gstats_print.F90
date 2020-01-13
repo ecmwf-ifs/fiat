@@ -111,7 +111,7 @@ ZSUMMAX(:)= 0.0_JPRD
 ZSUMTOT(:)= 0.0_JPRD
 
 ! OPEN GSTATS.XML for xml statistics
-IF(LXML_STATS)THEN
+IF(LXML_STATS .AND. MYPROC_STATS==1)THEN
   IXMLLUN=40
   OPEN (UNIT=IXMLLUN, FILE='gstats.xml',ACTION='write')
   WRITE(IXMLLUN,'(A)')'<?xml version="1.0" encoding="UTF-8"?>'
@@ -301,7 +301,7 @@ ELSEIF(LSTATS) THEN
              &ZSTDDEV,ZMAX,ZSUMB,ZFRAC
             IF(LXML_STATS)THEN
               WRITE(IXMLLUN,&
-               & '(A,I4,A,//,A,A40,A,//,A,I5,A,//,6(A,F9.1,A,//),A,F5.1,A,//,A,F8.2,A,//,A)')&
+               & '(A,I4,A,/,A,A40,A,/,A,I5,A,/,6(A,F9.1,A,/),A,F5.1,A,/,A,F8.2,A,/,A)')&
                & '<num id="',JNUM,'">',&
                & '<description>',CCDESC(JNUM),'</description>',&
                & '<sum unit="seconds">',ICALLS,'</sum>',&
@@ -327,7 +327,7 @@ ELSEIF(LSTATS) THEN
        &'CPU-TIME AND VECTOR CPU-TIME AS PERCENT OF TOTAL ',&
        &TTCPUSUM(0)/TIMESUM(0)*100.0_JPRD,TVCPUSUM(0)/TIMESUM(0)*100.0_JPRD
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'((A,F8.1,A,//,A,F8.1,A))')&
+        WRITE(IXMLLUN,'((A,F8.1,A,/,A,F8.1,A))')&
          &'<cpufraction>',&
          &TTCPUSUM(0)/TIMESUM(0)*100.0_JPRD,&
          &'</cpufraction>',&
@@ -342,7 +342,7 @@ ELSEIF(LSTATS) THEN
          & ,ZT_SUM, ' SECONDS ',ZT_SUM/TIMESUM(0)*100.0_JPRD,&
          &' PERCENT OF TOTAL'
         IF(LXML_STATS)THEN
-          WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)')'<zcom unit="seconds">',&
+          WRITE(IXMLLUN,'(A,F10.1,A,/,A,F6.2,A)')'<zcom unit="seconds">',&
            &ZT_SUM,'</zcom>',&
            &'<fraczcom unit="percent">',ZT_SUM/TIMESUM(0)*100.0_JPRD,&
            &'</fraczcom>'
@@ -353,7 +353,7 @@ ELSEIF(LSTATS) THEN
          & ,ZT_SUM2, ' SECONDS ',ZT_SUM2/TIMESUM(0)*100.0_JPRD,&
          &' PERCENT OF TOTAL'
         IF(LXML_STATS)THEN
-          WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)') &
+          WRITE(IXMLLUN,'(A,F10.1,A,/,A,F6.2,A)') &
            &'<parallelztime unit="seconds">',&
            &ZT_SUM2, '</parallelztime>',&
            &'<fracparallelztime unit="percent">',ZT_SUM2/TIMESUM(0)*100.0_JPRD,&
@@ -365,7 +365,7 @@ ELSEIF(LSTATS) THEN
          & ,ZT_SUMIO, ' SECONDS ',ZT_SUMIO/TIMESUM(0)*100.0_JPRD,&
          &' PERCENT OF TOTAL'
         IF(LXML_STATS)THEN
-          WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)')'<ioztime unit="seconds">',&
+          WRITE(IXMLLUN,'(A,F10.1,A,/,A,F6.2,A)')'<ioztime unit="seconds">',&
            &ZT_SUMIO, '</ioztime>',&
            &'<fracioztime unit="percent">',ZT_SUMIO/TIMESUM(0)*100.0_JPRD,&
            &'</fracioztime>'
@@ -376,7 +376,7 @@ ELSEIF(LSTATS) THEN
         & ,ZT_SUM3, ' SECONDS ',ZT_SUM3/TIMESUM(0)*100.0_JPRD,&
          &' PERCENT OF TOTAL'
         IF(LXML_STATS)THEN
-          WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)')'<serialztime unit="seconds">',&
+          WRITE(IXMLLUN,'(A,F10.1,A,/,A,F6.2,A)')'<serialztime unit="seconds">',&
            & ZT_SUM3,'</serialztime>',&
            &'<fracserialztime unit="percent">',&
            &ZT_SUM3/TIMESUM(0)*100.0_JPRD,&
@@ -388,7 +388,7 @@ ELSEIF(LSTATS) THEN
          & ,ZT_SUM4, ' SECONDS ',ZT_SUM4/TIMESUM(0)*100.0_JPRD,&
          &' PERCENT OF TOTAL'
         IF(LXML_STATS)THEN
-          WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)')&
+          WRITE(IXMLLUN,'(A,F10.1,A,/,A,F6.2,A)')&
            &'<barrierztime unit="seconds">',&
            &ZT_SUM4,'</barrierztime>',&
            & '<fracbarrierztime unit="percent">',&
@@ -399,7 +399,7 @@ ELSEIF(LSTATS) THEN
         WRITE(KULOUT,'(A,F10.1,A,F6.2,A)')'SUMMED TIME IN MIXED SECTIONS   = '&
          & ,ZT_SUM5, ' SECONDS ',ZT_SUM5/TIMESUM(0)*100.0_JPRD,&
          &' PERCENT OF TOTAL'
-        WRITE(IXMLLUN,'(A,F10.1,A,//,A,F6.2,A)')&
+        WRITE(IXMLLUN,'(A,F10.1,A,/,A,F6.2,A)')&
          &'<mixedztime unit="seconds">',&
          &ZT_SUM5,'</mixedztime>',&
          & '<fracmixedztime unit="percent">',&
@@ -492,7 +492,7 @@ ELSEIF(LSTATS) THEN
   WRITE(KULOUT,*) ''
   WRITE(KULOUT,'(A)') 'STATS FOR ALL TASKS'
   WRITE(KULOUT,'(A)') &
-  &' NUM ROUTINE                                     CALLS  MEAN(ms)   MAX(ms)   FRAC(%)  UNBAL(%)'
+  &' NUM ROUTINE                                     CALLS      MEAN(ms)       MAX(ms)   FRAC(%)  UNBAL(%)'
   ZTOTUNBAL = 0.0_JPRD
   DO JNUM=0,500
     IF(NCALLS(JNUM) > 1) THEN
@@ -507,11 +507,11 @@ ELSEIF(LSTATS) THEN
         ZUNBAL=0.0
       ENDIF
       ZFRAC=ZFRACMAX(JNUM)
-      WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
+      WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F13.3),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
 
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,//,A,A40,A,//,A,I8,A,2(A,F9.1,A,//),2(A,F9.2,A,//),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,/,A,A40,A,/,A,I8,A,2(A,F13.3,A,/),2(A,F9.2,A,/),A)')&
          &'<item id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -553,7 +553,7 @@ IF(LSTATS_COMMS)THEN
       WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,//,A,A40,A,//,A,I8,A,//,2(A,F9.1,A,//),2(A,F9.2,A,//),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,/,A,A40,A,/,A,I8,A,/,2(A,F9.1,A,/),2(A,F9.2,A,/),A)')&
          &'<comitem id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -626,7 +626,7 @@ IF(LSTATS_OMP)THEN
       WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,//,A,A40,A,//,A,I8,A,//,2(A,F9.1,A,//),2(A,F9.2,A,//),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,/,A,A40,A,/,A,I8,A,/,2(A,F9.1,A,/),2(A,F9.2,A,/),A)')&
          &'<parallelitem id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -671,7 +671,7 @@ IF(LSTATS_OMP)THEN
       WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,//,A,A40,A,//,A,I8,A,//,2(A,F9.1,A,//),2(A,F9.2,A,//),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,/,A,A40,A,/,A,I8,A,/,2(A,F9.1,A,/),2(A,F9.2,A,/),A)')&
          &'<para_io_item id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -717,7 +717,7 @@ IF(LSTATS_OMP)THEN
       WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,A,A40,A,A,I8,A,2(A,F9.1,A),2(A,F9.2,A,//),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,A,A40,A,A,I8,A,2(A,F9.1,A),2(A,F9.2,A,/),A)')&
          &'<serialitem id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -761,7 +761,7 @@ IF(LSTATS_OMP)THEN
       WRITE(KULOUT,'(I4,1X,A40,1X,I8,2(1X,F9.1),2(1X,F9.2))')&
        &JNUM,CCDESC(JNUM),ICALLS,ZMEAN,ZMAX,ZFRAC,ZUNBAL
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,A,A40,A,A,I8,A,2(A,F9.1,A),2(A,F9.2,A,//),A)')&
+        WRITE(IXMLLUN,'(A,I4,A,A,A40,A,A,I8,A,2(A,F9.1,A),2(A,F9.2,A,/),A)')&
          &'<mixeditem id="',JNUM,'">',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -799,10 +799,10 @@ ELSE
 ENDIF
 
 IF ( MYPROC_STATS == 1) THEN
-  WRITE(KULOUT,'(3(A,F10.1)/)')'TOTAL WALLCLOCK TIME ',ZTOTAL,&
+  WRITE(KULOUT,'(3(A,F11.3)/)')'TOTAL WALLCLOCK TIME ',ZTOTAL,&
    &' CPU TIME',ZTOTCPU,' VECTOR TIME ',ZTOTVCPU
   IF(LXML_STATS)THEN
-    WRITE(IXMLLUN,'(3(A,F10.1,A,//)/)')'<totalwallclocktime>',ZTOTAL,&
+    WRITE(IXMLLUN,'(3(A,F11.3,A,/)/)')'<totalwallclocktime>',ZTOTAL,&
      &'</totalwallclocktime>',&
      &'<cputime>',ZTOTCPU,'</cputime>',&
      & '<vectortime>',ZTOTVCPU,'</vectortime>'
@@ -976,7 +976,7 @@ IF(LSTATS_MEM)THEN
        &JNUM,CCDESC(JNUM),ICALLS,INUM,IMEM,JMEM,NTMEM(JNUM,5)
 
       IF(LXML_STATS)THEN
-        WRITE(IXMLLUN,'(A,I4,A,//,A,A20,A,//,A,I8,A,//,A,I6,A,//,3(A,I9,A,//))')&
+        WRITE(IXMLLUN,'(A,I4,A,/,A,A20,A,/,A,I8,A,/,A,I6,A,/,3(A,I9,A,/))')&
          &'<memitem id="',JNUM,'"/>',&
          &'<description>',CCDESC(JNUM),'</description>',&
          &'<calls>',ICALLS,'</calls>',&
@@ -994,7 +994,7 @@ IF(LSTATS_MEM)THEN
     WRITE(IXMLLUN,'(A)')'</memory>'
   ENDIF
 ENDIF
-IF(LXML_STATS)THEN
+IF(LXML_STATS .AND. MYPROC_STATS==1)THEN
   WRITE(IXMLLUN,'(A)')'</gstats>'
   CLOSE(IXMLLUN)
 ENDIF

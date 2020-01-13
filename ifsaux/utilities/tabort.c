@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <unistd.h>
 
 extern void abor1_(const char msg[], int msglen);
 
@@ -32,6 +33,10 @@ void _brexit(int errcode)
   _exit(errcode);
 }
 #endif
+
+// Forward declarations
+void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr);
+void cmpi_abort_(int *rc);
 
 void tabort_()
 {

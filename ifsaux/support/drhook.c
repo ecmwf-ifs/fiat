@@ -63,11 +63,8 @@ If *ALSO* intending to run on IBM P5+ systems, then set also BOTH
 
 
 #include <unistd.h>
-#if !defined(HOST_NAME_MAX) && defined(_POSIX_HOST_NAME_MAX)
-#define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
-#endif
-#if !defined(HOST_NAME_MAX) && defined(_SC_HOST_NAME_MAX)
-#define HOST_NAME_MAX _SC_HOST_NAME_MAX
+#if defined(DARWIN)
+#include <pthread.h>
 #endif
 
 #define EC_HOST_NAME_MAX 512
@@ -571,7 +568,13 @@ static int watch_count = 0; /* No. of *active* watch points */
 #endif
 
 static pid_t gettid() {
+#if defined(DARWIN)
+  uint64_t tid64;
+  pthread_threadid_np(NULL, &tid64);
+  pid_t tid = (pid_t)tid64;
+#else
   pid_t tid = syscall(SYS_gettid);
+#endif
   return tid;
 }
 
@@ -2248,10 +2251,6 @@ signal_drhook_init(int enforce)
     return; /* Never initialize signals via DrHook (dangerous, but sometimes necessary) */
   }
   if (!ec_drhook) {
-#if defined(DARWIN)
-    long HOST_NAME_MAX = sysconf (_SC_HOST_NAME_MAX);
-    if (HOST_NAME_MAX <= 0) HOST_NAME_MAX = _POSIX_HOST_NAME_MAX;
-#endif
     int slen;
     char hostname[EC_HOST_NAME_MAX];
     char *pdot;

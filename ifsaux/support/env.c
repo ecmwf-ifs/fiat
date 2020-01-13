@@ -20,13 +20,6 @@
 #include <time.h>
 #include "privpub.h"
 
-#if !defined(HOST_NAME_MAX) && defined(_POSIX_HOST_NAME_MAX)
-#define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
-#endif
-#if !defined(HOST_NAME_MAX) && defined(_SC_HOST_NAME_MAX)
-#define HOST_NAME_MAX _SC_HOST_NAME_MAX
-#endif
-
 #define EC_HOST_NAME_MAX 512
 
 extern char **environ; /* Global Unix var */
@@ -377,7 +370,13 @@ double mpi_wtime_()
 #endif
 
 static pid_t gettid() {
+#if defined(DARWIN)
+  uint64_t tid64;
+  pthread_threadid_np(NULL, &tid64);
+  pid_t tid = (pid_t)tid64;
+#else
   pid_t tid = syscall(SYS_gettid);
+#endif
   return tid;
 }
 

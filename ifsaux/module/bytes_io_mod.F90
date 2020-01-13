@@ -1,4 +1,6 @@
-MODULE BYTES_IO_MOD !**** Interface to BYTES_IO
+MODULE BYTES_IO_MOD
+
+!**** Interface to BYTES_IO
 
 !     Purpose.
 !     --------
