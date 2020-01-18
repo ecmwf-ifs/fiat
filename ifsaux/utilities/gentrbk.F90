@@ -33,7 +33,7 @@ MYTHREAD=1
   &           "Process ",MYPROC," thread ",MYTHREAD, &
   &           " calling tracebackqq from intel_trbk()"
 #ifndef __INTEL_COMPILER
-  CALL TRACEBACKQQ(MESSAGE, USER_EXIT_CODE=-1)
+!FIXME  CALL TRACEBACKQQ(MESSAGE, USER_EXIT_CODE=-1)
 #endif
 #endif
 #ifdef LINUX
