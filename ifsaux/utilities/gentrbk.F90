@@ -33,7 +33,9 @@ MYTHREAD=1
   &           "Process ",MYPROC," thread ",MYTHREAD, &
   &           " calling tracebackqq from intel_trbk()"
 #ifdef __INTEL_COMPILER
-  CALL TRACEBACKQQ(MESSAGE, USER_EXIT_CODE=-1)
+! Commented out, as TRACEBACKQQ is strangely missing from IFCORE module
+! on leap42 ifort version 18.1
+!  CALL TRACEBACKQQ(MESSAGE, USER_EXIT_CODE=-1)
 #endif
 #endif
 #ifdef LINUX
