@@ -38,22 +38,20 @@ SUBROUTINE SDL_TRACEBACK(KTID)
 
 INTEGER(KIND=JPIM), INTENT(IN), OPTIONAL :: KTID
 INTEGER(KIND=JPIM) ITID, IPRINT_OPTION, ILEVEL
+CHARACTER(LEN=80) :: CLTRBK
 #ifdef NECSX
 CHARACTER(LEN=*), PARAMETER :: CLNECMSG = '*** Calling NEC traceback ***'
 #endif
-
 IF (PRESENT(KTID)) THEN
   ITID = KTID
 ELSE
   ITID = OML_MY_THREAD()
 ENDIF
-
 IF (LHOOK) THEN
   IPRINT_OPTION = 2
   ILEVEL = 0
   CALL C_DRHOOK_PRINT(0, ITID, IPRINT_OPTION, ILEVEL) ! from drhook.c
 ENDIF
-
 #if defined(VPP)
   CALL ERRTRA
   IF (PRESENT(KTID)) CALL SLEEP(28)
@@ -62,13 +60,17 @@ ENDIF
   CALL XL__TRBK()
   WRITE(0,*)'SDL_TRACEBACK: Done XL_TRBK, THRD = ',ITID
 #elif defined(__INTEL_COMPILER)
-  WRITE(0,*)'SDL_TRACEBACK: Calling INTEL_TRBK, THRD = ',ITID
-#if defined(LINUX)
-  ! This often gives more information than INTEL_TRBK ...
-  CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
-#endif
-  CALL INTEL_TRBK() ! See ifsaux/utilities/gentrbk.F90
-  WRITE(0,*)'SDL_TRACEBACK: Done INTEL_TRBK, THRD = ',ITID
+
+  CALL GET_ENVIRONMENT_VARIABLE("EC_LINUX_TRBK",CLTRBK)
+  IF (CLTRBK=='1') THEN
+    WRITE(0,*)'SDL_TRACEBACK: Calling LINUX_TRBK, THRD = ',ITID
+    CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
+    WRITE(0,*)'SDL_TRACEBACK: Done LINUX_TRBK, THRD = ',ITID
+  ELSE
+    WRITE(0,*)'SDL_TRACEBACK: Calling INTEL_TRBK, THRD = ',ITID
+    CALL INTEL_TRBK() ! See ifsaux/utilities/gentrbk.F90
+    WRITE(0,*)'SDL_TRACEBACK: Done INTEL_TRBK, THRD = ',ITID
+  ENDIF
 #elif defined(__NEC__)
   ! A traceback using gdb-debugger, if available AND 
   ! activated via 'export GDBDEBUGGER=1'
@@ -123,12 +125,27 @@ SUBROUTINE SDL_DISABORT(KCOMM)
 INTEGER(KIND=JPIM), INTENT(IN) :: KCOMM
 
 INTEGER(KIND=JPIM) :: IRETURN_CODE,IERROR
+CHARACTER(LEN=80) :: CLJOBID
+CHARACTER(LEN=80) :: CLTRBK
 
 #ifdef VPP
 
 CALL VPP_ABORT()
 
 #else
+#if defined(__INTEL_COMPILER)
+! Intel compiler seems to hang in MPI_ABORT -- on all but the failing task(s)
+! ... when linux trbk is used. REK
+CALL GET_ENVIRONMENT_VARIABLE("EC_LINUX_TRBK",CLTRBK)
+IF (CLTRBK=='1') THEN
+IF (LHOOK) THEN
+  CALL GET_ENVIRONMENT_VARIABLE("SLURM_JOBID",CLJOBID)
+  IF (CLJOBID /= ' ') THEN
+    CALL SYSTEM("set -x; sleep 10; scancel --signal=TERM "//trim(CLJOBID)//" &")
+  ENDIF
+ENDIF
+ENDIF
+#endif
 
 IRETURN_CODE=SIGABRT
 !CALL MPI_ABORT(KCOMM,IRETURN_CODE,IERROR)

@@ -60,7 +60,7 @@ C     USAGE OF FORTRAN90 INTRINSIC FUNCTION.
       RETURN
       ENDFUNCTION TIMEF
 
-#elif defined(ECMWF)
+#else
 
       FUNCTION TIMEF()
 !ss: Uses util_walltime_() from DrHook -- 
@@ -82,32 +82,4 @@ C     USAGE OF FORTRAN90 INTRINSIC FUNCTION.
       ENDIF
       ENDFUNCTION TIMEF
 
-#else
-      FUNCTION TIMEF()
-      USE PARKIND1, ONLY : JPIM, JPRD
-      IMPLICIT NONE
-      REAL(KIND=JPRD)         :: TIMEF
-      INTEGER(KIND=JPIM),SAVE :: IFIRST
-      INTEGER(KIND=JPIM)      :: I_RATE, I_TIME1
-      REAL(KIND=JPRD),SAVE    :: ZFIRST
-      REAL(KIND=JPRD)         :: ZTIMEF
-      DATA IFIRST/0/
-
-!RJ       save ifirst,zfirst
-!
-!     This is a real time clock in milliseconds.
-!     Usage of Fortran90 intrinsic function.
-      CALL SYSTEM_CLOCK (COUNT=I_TIME1,COUNT_RATE=I_RATE)
-      ZTIMEF=REAL(I_TIME1,KIND=JPRD)/REAL(I_RATE,KIND=JPRD)
-
-      IF(IFIRST.EQ.0) THEN
-         IFIRST=1
-         ZFIRST=ZTIMEF
-         TIMEF=0.0
-      ELSE
-         TIMEF=1000.0*(ZTIMEF-ZFIRST)
-      ENDIF
-
-      RETURN
-      ENDFUNCTION TIMEF
 #endif
