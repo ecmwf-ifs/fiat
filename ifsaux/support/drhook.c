@@ -567,6 +567,7 @@ static int watch_count = 0; /* No. of *active* watch points */
 #define SYS_gettid __NR_gettid
 #endif
 
+#if !defined(_GNU_SOURCE) || !defined(__GLIBC__) || __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 30)
 static pid_t gettid() {
 #if defined(DARWIN)
   uint64_t tid64;
@@ -577,6 +578,7 @@ static pid_t gettid() {
 #endif
   return tid;
 }
+#endif
 
 // Fortran callable : CALL GETTID_C(ITID) where INTEGER(KIND=4) :: ITID 
 
