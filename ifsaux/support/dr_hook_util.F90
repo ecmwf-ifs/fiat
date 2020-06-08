@@ -105,11 +105,19 @@ IF (LL_FIRST_TIME) THEN
   IRET = SETVBUF3F(0, 1, 0) ! Set unit#0 into line-buffering mode to avoid messy output
 #endif
   CALL OML_INIT()
+  !DrHack initialisation moved here because it needs mpl
+  CALL GET_ENVIRONMENT_VARIABLE('DR_HACK',CLENV)
+  IF (CLENV == '1') THEN
+    LL_DRHACK=.TRUE.  
+  ENDIF
   CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK_NOT_MPI',CLENV)
-  IF (CLENV == ' ' .OR. CLENV == '0' .OR. &
+  IF (LL_DRHACK .OR. CLENV == ' ' .OR. CLENV == '0' .OR. &
     & CLENV == 'false' .OR. CLENV == 'FALSE') THEN
     LLMPI=.TRUE.
     CALL MPL_INIT(LDINFO=.FALSE.) ! Do not produce any output
+    IF (LL_DRHACK .AND. MPL_MYRANK()==1) THEN
+      OPEN (UNIT = NULDRHACK, file = "drhack.txt",position="append",action="write")
+    ENDIF
   ELSE
     LLMPI=.FALSE.
   ENDIF
@@ -153,14 +161,6 @@ IF (LL_FIRST_TIME) THEN
     ENDIF
   ENDIF
 !JFH------------ End ---------------------------------------------
-
- !DrHack initialisation
- CALL GET_ENVIRONMENT_VARIABLE('DR_HACK',CLENV)
- IF ((CLENV == '1') .and. ( MPL_MYRANK() ==1 )) THEN
-   LL_DRHACK=.TRUE.  
-   OPEN (UNIT = NULDRHACK, file = "drhack.txt",position="append",action="write")
- ENDIF
-
 ENDIF
 
 !JFH---Code to monitor stack usage by threads---------------------
