@@ -1,7 +1,16 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 SUBROUTINE ABOR1(CDTEXT)
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMLUN_IFSAUX, ONLY : NULOUT,NULERR
+USE PARKIND_FAUX  ,ONLY : JPIM
+USE YOMLUN_FAUX, ONLY : NULOUT,NULERR
 USE MPL_MODULE, ONLY : MPL_ABORT, MPL_RANK, MPL_NUMPROC
 USE SDL_MOD, ONLY : SDL_TRACEBACK, SDL_SRLABORT
 #ifdef NAG
@@ -53,8 +62,8 @@ ENDIF
 END SUBROUTINE BREXIT
 
 SUBROUTINE ABOR1FL(CDFILE, KLINENUM, CDTEXT)
-USE PARKIND1  ,ONLY : JPIM
-USE YOMLUN_IFSAUX, ONLY : NULOUT,NULERR
+USE PARKIND_FAUX  ,ONLY : JPIM
+USE YOMLUN_FAUX, ONLY : NULOUT,NULERR
 #ifdef NAG
 USE F90_UNIX_IO, ONLY: FLUSH
 #endif
@@ -84,5 +93,7 @@ IF( FCKIT_EXCEPTION%LOCATION%IS_SET() ) then
 ELSE
   CALL ABOR1( FCKIT_EXCEPTION%WHAT() )
 ENDIF
+#else
+CALL ABOR1( "An unknown exception is handled via ABOR1_EXCEPTION_HANDLER. Compile faux with fckit to get a better error message" )
 #endif
 END SUBROUTINE

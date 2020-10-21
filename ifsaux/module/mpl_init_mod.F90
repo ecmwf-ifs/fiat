@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 MODULE MPL_INIT_MOD
 
 !**** MPL_INIT - Initialises the Message passing environment
@@ -37,6 +46,7 @@ MODULE MPL_INIT_MOD
 !                       MPL_INIT aborts when an error is detected.
 !           KPROCS   -  Number of processes which have been initialised
 !                       in the MPI_COMM_WORLD communicator
+!
 !     Author.
 !     -------
 !        D.Dent, M.Hamrud     ECMWF
@@ -51,7 +61,7 @@ MODULE MPL_INIT_MOD
 !        P. Towers     3-Jul-2014 Add call to ec_cray_meminfo
 !     ------------------------------------------------------------------
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE PARKIND_FAUX  ,ONLY : JPIM
 USE OML_MOD, ONLY : OML_INIT, OML_MAX_THREADS
 USE MPL_MPIF
 USE MPL_DATA_MODULE
@@ -140,15 +150,6 @@ IF (.NOT.LLINIT) THEN
 
   CALL GET_ENVIRONMENT_VARIABLE('ARCH',CL_ARCH)
 
-#ifndef OPS_COMPILE
-#ifdef RS6K
-  IF(CL_ARCH(1:10)=='ibm_power6')THEN
-!   write(0,*)'POWER6: CALLING EC_BIND BEFORE MPI_INIT'
-    CALL EC_BIND()
-  ENDIF
-#endif
-#endif
-
 
 #ifndef MPI1
   IREQUIRED = MPI_THREAD_MULTIPLE
@@ -165,20 +166,11 @@ IF (.NOT.LLINIT) THEN
 CALL MPI_Comm_rank(MPI_COMM_WORLD, IME, IERROR)
 
 ! Print out thread safety etc. messages -- must use MPI_Comm_rank since MPL not initialized just yet
-IF (IME == 0) THEN
-   WRITE(0,'(1X,A,4(1X,I0),1(1X,L1))') &
-        & 'MAIN: IREQUIRED, MPI_THREAD_MULTIPLE, MPI_THREAD_SINGLE, IPROVIDED, LTHSAFEMPI =',&
-        &        IREQUIRED, MPI_THREAD_MULTIPLE, MPI_THREAD_SINGLE, IPROVIDED, LTHSAFEMPI
+IF (IME == 0 .AND. LLINFO ) THEN
+   WRITE(MPL_UNIT,'(1X,A,4(1X,I0),1(1X,L1))') &
+        & 'MPL_INIT: IREQUIRED, MPI_THREAD_MULTIPLE, MPI_THREAD_SINGLE, IPROVIDED, LTHSAFEMPI =',&
+        &            IREQUIRED, MPI_THREAD_MULTIPLE, MPI_THREAD_SINGLE, IPROVIDED, LTHSAFEMPI
 ENDIF
-
-#ifndef OPS_COMPILE
-#ifdef RS6K
-  IF(CL_ARCH(1:10)=='ibm_power4')THEN
-!   write(0,*)'POWER5: CALLING EC_BIND AFTER MPI_INIT'
-    CALL EC_BIND()
-  ENDIF
-#endif
-#endif
 
   LINITMPI_VIA_MPL = .TRUE.
 !  CALL ec_mpi_atexit() ! ifsaux/support/endian.c: to make sure MPI_FINALIZE gets called
@@ -289,37 +281,6 @@ DO IP=ISTA,IMAX_THREADS
 ENDDO
 MPL_COMM = MPL_COMM_OML(1) ! i.e. not necessary MPI_COMM_WORLD anymore
 
-#ifdef VPP
-MPL_METHOD=JP_BLOCKING_STANDARD
-MPL_MBX_SIZE=4000000
-CL_MBX_SIZE=' '
-CALL GET_ENVIRONMENT_VARIABLE('VPP_MBX_SIZE',CL_MBX_SIZE)
-IF(CL_MBX_SIZE == ' ') THEN
-  CALL GET_ENVIRONMENT_VARIABLE('MPL_MBX_SIZE',CL_MBX_SIZE)
-ENDIF
-IF(CL_MBX_SIZE /= ' ') THEN
-  READ(CL_MBX_SIZE,*) MPL_MBX_SIZE
-ENDIF
-IF (LLINFO) WRITE(MPL_UNIT,'(A)')'MPL_INIT : MPL_METHOD=JP_BLOCKING_STANDARD'
-IF (LLINFO) WRITE(MPL_UNIT,'(A,I0)')'MPL_INIT : MAILBOX SIZE=',MPL_MBX_SIZE
-LUSEHLMPI = .FALSE.
-
-!#elif defined (LINUX)
-!MPL_METHOD=JP_BLOCKING_STANDARD
-!MPL_MBX_SIZE=4000000
-!CL_MBX_SIZE=' '
-!CALL GET_ENVIRONMENT_VARIABLE('VPP_MBX_SIZE',CL_MBX_SIZE)
-!IF(CL_MBX_SIZE == ' ') THEN
-!  CALL GET_ENVIRONMENT_VARIABLE('MPL_MBX_SIZE',CL_MBX_SIZE)
-!ENDIF
-!IF(CL_MBX_SIZE /= ' ') THEN
-!  READ(CL_MBX_SIZE,*) MPL_MBX_SIZE
-!ENDIF
-!IF (LLINFO) WRITE(MPL_UNIT,'(A)')'MPL_INIT : MPL_METHOD=JP_BLOCKING_STANDARD'
-!IF (LLINFO) WRITE(MPL_UNIT,'(A,I0)')'MPL_INIT : MAILBOX SIZE=',MPL_MBX_SIZE
-!LUSEHLMPI = .FALSE.
-
-#else
 CL_METHOD=' '
 CALL GET_ENVIRONMENT_VARIABLE('MPL_METHOD',CL_METHOD)
 IF (CL_METHOD == 'JP_BLOCKING_STANDARD' ) THEN
@@ -342,7 +303,6 @@ ENDIF
 
 CALL MPL_BUFFER_METHOD(KMP_TYPE=MPL_METHOD,KMBX_SIZE=MPL_MBX_SIZE,LDINFO=LLINFO)
 LUSEHLMPI = .TRUE.
-#endif
 
 CALL MPI_COMM_RANK (MPI_COMM_WORLD, IWORLD_RANK, IERROR)
 CALL MPI_COMM_SIZE (MPI_COMM_WORLD, IWORLD_SIZE, IERROR)

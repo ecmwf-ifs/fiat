@@ -8,9 +8,21 @@
  * nor does it submit to any jurisdiction.
  */
 
-INTERFACE
-SUBROUTINE EC_PMON(ENERGY,POWER)
-USE PARKIND_FAUX, ONLY : JPIB
-INTEGER(KIND=JPIB),INTENT(OUT) :: ENERGY,POWER
-END SUBROUTINE EC_PMON
-END INTERFACE
+/* ecmwf_transfer.c  */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* Used in module strhandler (stransfer) */
+
+void
+ecmwf_transfer_(void *out, const int *Len_out,
+		const void *in, const int *Len_in
+		/* Possible hidden argument (not referred) */
+		, int Sta_lin)
+{
+  size_t len = *Len_out;
+  if (*Len_in < len) len = *Len_in;
+  if (len > 0) memcpy(out,in,len);
+}

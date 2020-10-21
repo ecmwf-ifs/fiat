@@ -1,6 +1,15 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 MODULE MPL_TOUR_TABLE_MOD
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE PARKIND_FAUX  ,ONLY : JPIM
 
 USE MPL_DATA_MODULE, ONLY : MPL_NUMPROC, MPL_RANK, MPL_ERRUNIT
 USE MPL_MESSAGE_MOD

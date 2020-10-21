@@ -1,6 +1,15 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 SUBROUTINE GETMEMSTAT(KOUT, CDLABEL)
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPIB
+USE PARKIND_FAUX  ,ONLY : JPIM, JPRD, JPIB
 
 USE MPL_MODULE
 
@@ -12,7 +21,7 @@ INTEGER(KIND=JPIM) :: I, IMYPROC, INPROC, IOFFSET
 INTEGER(KIND=JPIM), PARAMETER :: JP_MEMKEYS = 5  ! pls. consult ifsaux/utilities/getmemvals.F90
 INTEGER(KIND=JPIM) IMEMKEYS(JP_MEMKEYS)
 INTEGER(KIND=JPIB) IMEMVALS(JP_MEMKEYS)
-REAL(KIND=JPRB), ALLOCATABLE :: ZSEND(:), ZRECV(:)
+REAL(KIND=JPRD), ALLOCATABLE :: ZSEND(:), ZRECV(:)
 INTEGER(KIND=JPIM), ALLOCATABLE :: ICOUNTS(:)
 CHARACTER(LEN=1) CLENV
 

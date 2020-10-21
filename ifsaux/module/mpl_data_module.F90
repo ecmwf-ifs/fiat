@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 MODULE MPL_DATA_MODULE
 
 !     Author.
@@ -28,10 +37,11 @@ MODULE MPL_DATA_MODULE
 !  LTHSAFEMPI   : Thread safe MPI, if .TRUE. (default)
 
 USE MPL_MPIF , ONLY : MPI_COMM_WORLD
-USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE OML_MOD   ,ONLY : OML_MAX_THREADS, OML_MY_THREAD
+USE PARKIND_FAUX  ,ONLY : JPIM
 
 IMPLICIT NONE
+
+PRIVATE :: JPIM
 
 SAVE
 

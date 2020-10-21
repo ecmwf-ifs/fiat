@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 SUBROUTINE GSTATS_SETUP( KPROC,KMYPROC,KPRCIDS,&
  & LDSTATS,LDSTATSCPU,LDSYNCSTATS,LDDETAILED_STATS,LDBARRIER_STATS,LDBARRIER_STATS2,&
  & LDSTATS_OMP,LDSTATS_COMMS,LDSTATS_MEM,KSTATS_MEM,LDSTATS_ALLOC,&
@@ -44,7 +53,7 @@ SUBROUTINE GSTATS_SETUP( KPROC,KMYPROC,KPRCIDS,&
 !                             rather than LBARRIER_STATS
 !     ------------------------------------------------------------------
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE PARKIND_FAUX  ,ONLY : JPIM     ,JPRD
 
 USE YOMGSTATS
 USE MPL_STATS_MOD
@@ -95,7 +104,7 @@ IF (LTRACE_STATS .AND. NTRACE_STATS>0 ) THEN
   ALLOCATE(NCALL_TRACE(NTRACE_STATS))
   ALLOCATE(TIME_TRACE (NTRACE_STATS))
   NCALL_TRACE(:) = 0
-  TIME_TRACE (:) = 0.0_JPRB
+  TIME_TRACE (:) = 0.0_JPRD
 ENDIF
 
 

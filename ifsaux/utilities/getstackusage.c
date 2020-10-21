@@ -1,9 +1,15 @@
+/*
+ * (C) Copyright 2005- ECMWF.
+ * 
+ * This software is licensed under the terms of the Apache Licence Version 2.0
+ * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+ * In applying this licence, ECMWF does not waive the privileges and immunities
+ * granted to it by virtue of its status as an intergovernmental organisation
+ * nor does it submit to any jurisdiction.
+ */
+
 typedef long long int ll_t;
 typedef unsigned long long int ull_t;
-
-#ifdef VPP
-ll_t getstackusage_dummy_() { return 0L; }
-#else
 
 #if defined(LINUX) && defined(USE_MEMORY_MONITOR)
 #include <stdio.h>
@@ -46,5 +52,4 @@ ll_t getstackusage_()
 
 ll_t getstackusage_() { return 0L; }
 
-#endif
 #endif

@@ -7,9 +7,9 @@
 ! nor does it submit to any jurisdiction.
 !
 
-MODULE PARKIND2
+MODULE PARKIND_FAUX
 !
-!     *** Define huge kinds for strong typing ***
+!     *** Define usual kinds for strong typing ***
 !
 IMPLICIT NONE
 SAVE
@@ -17,15 +17,15 @@ SAVE
 !     Integer Kinds
 !     -------------
 !
-INTEGER, PARAMETER :: JPIH = SELECTED_INT_KIND(18)
+INTEGER, PARAMETER :: JPIM = SELECTED_INT_KIND(9)
+INTEGER, PARAMETER :: JPIB = SELECTED_INT_KIND(12)
+
 !
 !     Real Kinds
 !     ----------
 !
-#ifdef REALHUGE
-INTEGER, PARAMETER :: JPRH = SELECTED_REAL_KIND(31,291)
-#else
-INTEGER, PARAMETER :: JPRH = SELECTED_REAL_KIND(13,300)
-#endif
-!
-END MODULE PARKIND2
+INTEGER, PARAMETER :: JPRM = SELECTED_REAL_KIND(6,37)
+INTEGER, PARAMETER :: JPRD = SELECTED_REAL_KIND(13,300)
+
+
+END MODULE PARKIND_FAUX

@@ -1,6 +1,15 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 SUBROUTINE GETHEAPSTAT(KOUT, CDLABEL)
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB     ,JPIB
+USE PARKIND_FAUX  ,ONLY : JPIM     ,JPRD     ,JPIB
 
 USE MPL_MODULE
 
@@ -17,7 +26,7 @@ INTEGER(KIND=JPIM), PARAMETER :: JP_NPROFILE = 9 ! pls. consult ifsaux/utilities
 INTEGER(KIND=JPIM), PARAMETER :: ISIZE = JP_NPROFILE+1
 INTEGER(KIND=JPIB) ILIMIT(ISIZE)
 INTEGER(KIND=JPIB) ICNT(ISIZE)
-REAL(KIND=JPRB), ALLOCATABLE :: ZSEND(:), ZRECV(:)
+REAL(KIND=JPRD), ALLOCATABLE :: ZSEND(:), ZRECV(:)
 INTEGER(KIND=JPIM), ALLOCATABLE :: ICOUNTS(:)
 CHARACTER(LEN=1) CLENV
 CHARACTER(LEN=80) CLTEXT(0:4)

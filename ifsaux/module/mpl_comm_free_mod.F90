@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 MODULE MPL_COMM_FREE_MOD
 
 !**** *MPL_COMM_FREE_MOD*  - Release ressources used by a communicator
@@ -7,7 +16,7 @@ MODULE MPL_COMM_FREE_MOD
 !      Philippe Marguinaud *METEO FRANCE*
 !      Original : 11-09-2012
 
-USE PARKIND1, ONLY : JPIM
+USE PARKIND_FAUX, ONLY : JPIM
 
 IMPLICIT NONE
 

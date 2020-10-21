@@ -8,9 +8,21 @@
  * nor does it submit to any jurisdiction.
  */
 
-INTERFACE
-SUBROUTINE EC_PMON(ENERGY,POWER)
-USE PARKIND_FAUX, ONLY : JPIB
-INTEGER(KIND=JPIB),INTENT(OUT) :: ENERGY,POWER
-END SUBROUTINE EC_PMON
-END INTERFACE
+/* cargs.h */
+
+/* prototypes for ifsaux/support/cargs.c */
+
+/* Author: Sami Saarinen, ECMWF, 27-Apr-2006 */
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+/* The following two as in C-main : "int main(int argc, char *argv[])" */
+
+int ec_argc(void);
+char **ec_argv(void);
+
+#if defined(__cplusplus)
+}
+#endif

@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 SUBROUTINE GSTATS(KNUM,KSWITCH)
 
 !**** *GSTATS*  - Gather timing statistics
@@ -52,7 +61,7 @@ SUBROUTINE GSTATS(KNUM,KSWITCH)
 !      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
-USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB     ,JPIB
+USE PARKIND_FAUX  ,ONLY : JPRD, JPIM ,JPIB
 USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK
 
 USE YOMGSTATS  
@@ -78,10 +87,10 @@ LOGICAL :: LLMFIRST=.TRUE.
 SAVE IIMEM, IIPAG, IIMEMC
 
 INTEGER(KIND=JPIM),SAVE :: NUM_THREADS
-REAL(KIND=JPRB),ALLOCATABLE,SAVE :: ZHOOK_HANDLE(:)
-REAL(KIND=JPRB),SAVE :: ZHOOK_HANDLE_COMMS, ZHOOK_HANDLE_COMMS1
-REAL(KIND=JPRB),SAVE :: ZHOOK_HANDLE_TRANS
-REAL(KIND=JPRB),SAVE :: ZHOOK_HANDLE_BARR
+REAL(KIND=JPRD),ALLOCATABLE,SAVE :: ZHOOK_HANDLE(:)
+REAL(KIND=JPRD),SAVE :: ZHOOK_HANDLE_COMMS, ZHOOK_HANDLE_COMMS1
+REAL(KIND=JPRD),SAVE :: ZHOOK_HANDLE_TRANS
+REAL(KIND=JPRD),SAVE :: ZHOOK_HANDLE_BARR
 CHARACTER*4 CC
 
 CHARACTER (LEN = 10) ::  CLDATEOD,CLZONEOD
@@ -94,7 +103,7 @@ INTEGER(KIND=JPIM) :: NMAX_STATS, KULNAM
 LOGICAL :: LLFINDSUMB=.FALSE.
 INTEGER(KIND=JPIM),SAVE :: ISUMBSTACK(10)
 INTEGER(KIND=JPIM) :: J
-REAL(KIND=JPRB) :: ZSUM,ZSUMB,ZTOT
+REAL(KIND=JPRD)    :: ZSUM,ZSUMB,ZTOT
 REAL(KIND=JPRD)    :: SBYTES,RBYTES
 INTEGER(KIND=JPIM) :: NSEND,NRECV
 
@@ -417,7 +426,7 @@ IF(LSTATS) THEN
 ! ZSUM=SUM(TIMESUM(500:JPMAXSTAT))
 ! ZSUMB=SUM(TIMESUMB(500:JPMAXSTAT))
 ! ZTOT=ZCLOCK1-TIMELCALL(0)
-! IF( (ZSUM+ZSUMB)/ZTOT >1.0_JPRB )THEN
+! IF( (ZSUM+ZSUMB)/ZTOT >1.0_JPRD )THEN
 !   write(0,'("GSTATS_DEBUG: KNUM=",I6," KSWITCH=",I1," (zsum+zsumb)/ztot=",F10.6)')&
 !    &KNUM,KSWITCH,(zsum+zsumb)/ztot
 ! ENDIF

@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 !-- Generic traceback calls here
 
 SUBROUTINE GENTRBK_DUMMY
@@ -46,11 +55,6 @@ MYTHREAD=1
 DONE_TRACEBACK=.TRUE.
 END SUBROUTINE INTEL_TRBK
 
-#ifndef VPP
-SUBROUTINE ERRTRA
-END SUBROUTINE ERRTRA
-#endif
-
 #ifdef NECSX
 SUBROUTINE NECSX_TRBK(CDMESS)
 IMPLICIT NONE
@@ -60,7 +64,7 @@ CALL DBX_TRBK()
 END SUBROUTINE NECSX_TRBK
 
 SUBROUTINE NECSX_TRBK_FL(CDMESS, CDFILENAME, KLINENO)
-USE PARKIND1  ,ONLY : JPIM
+USE PARKIND_FAUX  ,ONLY : JPIM
 IMPLICIT NONE
 CHARACTER(LEN=*), INTENT(IN) :: CDMESS
 CHARACTER(LEN=*), INTENT(IN) :: CDFILENAME

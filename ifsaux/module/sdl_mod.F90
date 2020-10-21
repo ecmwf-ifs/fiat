@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 MODULE SDL_MOD
 
 !    Interface between user applications and system-dependent intrinsic
@@ -11,7 +20,7 @@ MODULE SDL_MOD
 !   11-Apr-2005 R. El Khatib  *METEO-FRANCE*
 !   26-Apr-2006 S.T.Saarinen  Dr.Hook trace, calls to EC_RAISE, Intel/ifort traceback
 
-USE PARKIND1  ,ONLY : JPIM  ,JPRB
+USE PARKIND_FAUX  ,ONLY : JPIM
 USE YOMHOOK   ,ONLY : LHOOK ,DR_HOOK
 USE OML_MOD   ,ONLY : OML_MY_THREAD
 USE MPL_MPIF  ,ONLY : MPI_COMM_WORLD
@@ -52,14 +61,7 @@ IF (LHOOK) THEN
   ILEVEL = 0
   CALL C_DRHOOK_PRINT(0, ITID, IPRINT_OPTION, ILEVEL) ! from drhook.c
 ENDIF
-#if defined(VPP)
-  CALL ERRTRA
-  IF (PRESENT(KTID)) CALL SLEEP(28)
-#elif defined(RS6K)
-  WRITE(0,*)'SDL_TRACEBACK: Calling XL_TRBK, THRD = ',ITID
-  CALL XL__TRBK()
-  WRITE(0,*)'SDL_TRACEBACK: Done XL_TRBK, THRD = ',ITID
-#elif defined(__INTEL_COMPILER)
+#if defined(__INTEL_COMPILER)
 
   CALL GET_ENVIRONMENT_VARIABLE("EC_LINUX_TRBK",CLTRBK)
   IF (CLTRBK=='1') THEN

@@ -1,3 +1,13 @@
+/*
+ * (C) Copyright 2005- ECMWF.
+ * 
+ * This software is licensed under the terms of the Apache Licence Version 2.0
+ * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+ * In applying this licence, ECMWF does not waive the privileges and immunities
+ * granted to it by virtue of its status as an intergovernmental organisation
+ * nor does it submit to any jurisdiction.
+ */
+
 #define _DRHOOK_C_   1
 
 #define _GNU_SOURCE
@@ -212,12 +222,7 @@ static void trapfpe(int silent)
     if (tid == 1) drhook_trapfpe_master_init = 1; // go-ahead for slave threads in trapfpe_slave_threads()
   }
 #else
-#if defined(PARKIND1_SINGLE) && !defined(SGEMM)
-  /* For now ... we have issues in SGEMM with IEEE-invalid ... especially with LIBSCI from Cray */
-  int rc = feenableexcept(FE_DIVBYZERO|FE_OVERFLOW);
-#else
   int rc = feenableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);
-#endif
 #endif
 }
 
@@ -664,7 +669,7 @@ static void set_killer_timer(const int *ntids, const int *target_omptid,
 #endif
 
 #if !defined(NCALLSTACK)
-#ifdef PARKIND1_SINGLE
+#ifdef PARKIND_FAUX_SINGLE
 /* > 0 : USE call stack approach : needed for single precision version */
 #define NCALLSTACK 64
 #else

@@ -1,3 +1,13 @@
+/*
+ * (C) Copyright 2005- ECMWF.
+ * 
+ * This software is licensed under the terms of the Apache Licence Version 2.0
+ * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+ * In applying this licence, ECMWF does not waive the privileges and immunities
+ * granted to it by virtue of its status as an intergovernmental organisation
+ * nor does it submit to any jurisdiction.
+ */
+
 /* crc.c : in fact equivalent to Unix cksum (when crc32) */
 /* Calculates 32-bit  Cyclic Redundancy Check as in Unix cksum command */
 /* Also calculates 64-bit  Cyclic Redundancy Check */
@@ -154,18 +164,4 @@ crc64_(const void *vbuf, const long long int *pnbuf,
     /* checksum the length */
     *pnCRC = pp_cksum64(nbuf, nCRC);
   }
-}
-
-/* Not related to crc at all ;-( */
-/* Used in module strhandler (stransfer) */
-
-void
-ecmwf_transfer_(void *out, const int *Len_out,
-		const void *in, const int *Len_in
-		/* Possible hidden argument (not referred) */
-		, int Sta_lin)
-{
-  size_t len = *Len_out;
-  if (*Len_in < len) len = *Len_in;
-  if (len > 0) memcpy(out,in,len);
 }

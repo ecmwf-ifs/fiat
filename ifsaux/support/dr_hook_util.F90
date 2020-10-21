@@ -1,5 +1,14 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 SUBROUTINE DR_HOOK_UTIL(LDHOOK,CDNAME,KCASE,PKEY,CDFILENAME,KSIZEINFO)
-USE PARKIND1  ,ONLY : JPIM     ,JPRB    ,JPRD
+USE PARKIND_FAUX  ,ONLY : JPIM     ,JPRD
 USE OML_MOD,ONLY : OML_MAX_THREADS,OML_MY_THREAD,OML_INIT
 USE MPL_INIT_MOD, ONLY : MPL_INIT
 USE MPL_ARG_MOD, ONLY : MPL_GETARG
@@ -8,14 +17,14 @@ USE YOMGSTATS, ONLY : LAST_KNUM,LAST_KSWITCH,LDETAILED_STATS,MYPROC_STATS, &
 USE YOMHOOKSTACK, ONLY : LL_THREAD_FIRST,ISAVE,IMAXSTACK,CSTACK   ! For monitoring thread stack usage
 !<DrHack> 
 USE MPL_MYRANK_MOD,ONLY : MPL_MYRANK ! useful for DrHack
-USE YOMLUN_IFSAUX, ONLY : NULDRHACK
+USE YOMLUN_FAUX, ONLY : NULDRHACK
 !</DrHack>
 
 IMPLICIT NONE
 LOGICAL,INTENT(INOUT)       :: LDHOOK
 CHARACTER(LEN=*),INTENT(IN) :: CDNAME,CDFILENAME
 INTEGER(KIND=JPIM),INTENT(IN) :: KCASE,KSIZEINFO
-REAL(KIND=JPRB),INTENT(INOUT) :: PKEY
+REAL(KIND=JPRD),INTENT(INOUT) :: PKEY
 #ifdef RS6K
 INTEGER(KIND=JPIM) :: INEWMASK, IOLDMASK, UMASK
 #endif
@@ -31,7 +40,7 @@ INTEGER*8 :: GETMAXMEM
 INTEGER*8 GETMAXLOC
 LOGICAL :: LLFINDSUMB=.FALSE.
 REAL(KIND=JPRD) :: ZCLOCK
-REAL(KIND=JPRB) :: ZDIFF
+REAL(KIND=JPRD) :: ZDIFF
 CHARACTER(LEN=7) CLSTR
 
 INTEGER*8 ILOC         ! For monitoring thread stack usage
@@ -223,7 +232,7 @@ IF( LDETAILED_STATS .AND. LLFINDSUMB )THEN
     IF( LAST_KSWITCH==1 .OR. LAST_KSWITCH==2 )THEN
       CALL USER_CLOCK(PELAPSED_TIME=ZCLOCK)
       ZDIFF=ZCLOCK-TIME_LAST_CALL
-      IF( ZDIFF > 0.1_JPRB )THEN
+      IF( ZDIFF > 0.1_JPRD )THEN
         IF( KCASE == 0 )THEN
           CLSTR='ENTERED'
         ELSE
@@ -245,7 +254,7 @@ SUBROUTINE DR_HACK(ROUTINE,START,DRHACKUNIT)
 ! Different implementation of this have been tested, but this one, even if it is
 ! not elegant at all, is almost fast.... 
 
-USE PARKIND1  ,ONLY : JPIM
+USE PARKIND_FAUX  ,ONLY : JPIM
 IMPLICIT NONE
 CHARACTER(LEN=*),INTENT(IN) :: ROUTINE
 INTEGER(KIND=JPIM),INTENT(IN) :: START

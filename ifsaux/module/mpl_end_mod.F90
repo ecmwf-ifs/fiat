@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 MODULE MPL_END_MOD
 
 !**** MPL_END - Terminates the message passing environment
@@ -17,7 +26,7 @@ MODULE MPL_END_MOD
 
 !        Input optional arguments :
 !        -------------------------
-!           none
+!           LDMEMINFO -  print memory info (default True)
 
 !        Output required arguments :
 !        -------------------------
@@ -25,8 +34,8 @@ MODULE MPL_END_MOD
 
 !        Output optional arguments :
 !        -------------------------
-!           KERROR   -  return error code.     If not supplied, 
-!                       MPL_END aborts when an error is detected.
+!           KERROR    -  return error code.     If not supplied, 
+!                        MPL_END aborts when an error is detected.
 !     Author.
 !     -------
 !        D.Dent, M.Hamrud     ECMWF
@@ -38,7 +47,7 @@ MODULE MPL_END_MOD
 
 !     ------------------------------------------------------------------
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB
+USE PARKIND_FAUX  ,ONLY : JPIM
 
 USE MPL_DATA_MODULE
 USE MPL_MESSAGE_MOD

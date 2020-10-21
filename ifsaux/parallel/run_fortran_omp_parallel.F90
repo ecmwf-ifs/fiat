@@ -1,5 +1,14 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 subroutine run_fortran_omp_parallel_ipfstr(NTIDS, FUNC, CDSTR)
-use parkind1, only : JPIM
+use PARKIND_FAUX, only : JPIM
 implicit none
 INTEGER(KIND=JPIM), INTENT(IN) :: NTIDS
 EXTERNAL :: FUNC
@@ -10,7 +19,7 @@ CALL FUNC(CDSTR)
 end subroutine run_fortran_omp_parallel_ipfstr
 
 subroutine run_fortran_omp_parallel_ipfipipipdpstr(NTIDS, FUNC, KTIDS, TARGET_OMPTID, TARGET_SIG, START_TIME, CDSTR)
-use parkind1, only : JPIM, JPRD
+use PARKIND_FAUX, only : JPIM, JPRD
 implicit none
 INTEGER(KIND=JPIM), INTENT(IN) :: NTIDS, KTIDS, TARGET_OMPTID, TARGET_SIG
 REAL(KIND=JPRD), INTENT(IN) :: START_TIME
@@ -22,7 +31,7 @@ CALL FUNC(KTIDS, TARGET_OMPTID, TARGET_SIG, START_TIME, CDSTR)
 end subroutine run_fortran_omp_parallel_ipfipipipdpstr
 
 subroutine get_openmp(kopenmp)
-use parkind1, only : JPIM
+use PARKIND_FAUX, only : JPIM
 implicit none
 INTEGER(KIND=JPIM), INTENT(out) :: kopenmp
 #ifdef _OPENMP

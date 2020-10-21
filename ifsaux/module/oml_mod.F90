@@ -1,9 +1,18 @@
+! (C) Copyright 2005- ECMWF.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
 MODULE OML_MOD
 
 !-- the following system specific omp_lib-module is not always available (e.g. pgf90)
 !! use omp_lib
 
-USE PARKIND1  ,ONLY : JPIM, JPIB
+USE PARKIND_FAUX  ,ONLY : JPIM, JPIB
 
 !**SS/18-Feb-2005
 !--Dr.Hook references removed, because these locks may also be
@@ -249,7 +258,7 @@ ENDIF
 END SUBROUTINE OML_INCR_EVENT
 
 SUBROUTINE OML_INCR_COUNTER(K,KMAX)
-USE YOMLUN_IFSAUX, ONLY : NULOUT
+USE YOMLUN_FAUX, ONLY : NULOUT
 INTEGER(KIND=JPIM),INTENT(INOUT) :: K
 INTEGER(KIND=JPIM),INTENT(IN) :: KMAX
 ! Increment by 1

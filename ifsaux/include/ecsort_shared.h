@@ -1,3 +1,13 @@
+/*
+ * (C) Copyright 2005- ECMWF.
+ * 
+ * This software is licensed under the terms of the Apache Licence Version 2.0
+ * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+ * In applying this licence, ECMWF does not waive the privileges and immunities
+ * granted to it by virtue of its status as an intergovernmental organisation
+ * nor does it submit to any jurisdiction.
+ */
+
 !*** ecsort_shared.h ***
 
 #if INT_VERSION == 4
@@ -101,7 +111,7 @@ DATA_TYPE          , allocatable :: aa(:,:)
 INTEGER(KIND=JPIM) :: imethod, irev, idummy, index_adj
 logical :: LLfast, LLdescending, LLomp_okay, LLinit
 INTEGER(KIND=JPIM) :: ITID, ichunk, iret, inumt
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPRD) :: ZHOOK_HANDLE
 
 IF (LHOOK) CALL DR_HOOK(KEYSORT_1D_DRHOOKSTR,0,ZHOOK_HANDLE)
 
@@ -230,11 +240,11 @@ DATA_TYPE         , allocatable :: data(:)
 INTEGER(KIND=JPIM), allocatable :: ikeys(:), ista(:), ichunk(:), irank(:)
 logical LLinit, LLdescending, LLtrans, LLomp_okay, LLadjusted, LLdebug, LLomp_prefix
 character(len=1) clenv
-REAL(KIND=JPRB) :: ZHOOK_HANDLE, ZHOOK_SUBHANDLE
-REAL(KIND=JPRB) :: ZHOOK_SUBHANDLE0
-REAL(KIND=JPRB) :: ZHOOK_SUBHANDLE1
-REAL(KIND=JPRB) :: ZHOOK_SUBHANDLE2
-REAL(KIND=JPRB) :: ZHOOK_SUBHANDLE3
+REAL(KIND=JPRD) :: ZHOOK_HANDLE, ZHOOK_SUBHANDLE
+REAL(KIND=JPRD) :: ZHOOK_SUBHANDLE0
+REAL(KIND=JPRD) :: ZHOOK_SUBHANDLE1
+REAL(KIND=JPRD) :: ZHOOK_SUBHANDLE2
+REAL(KIND=JPRD) :: ZHOOK_SUBHANDLE3
 INTEGER(KIND=JPIM) :: ITID
 
 IF (LHOOK) CALL DR_HOOK(KEYSORT_2D_DRHOOKSTR,0,ZHOOK_HANDLE)
@@ -615,7 +625,7 @@ INTEGER(KIND=JPIM), intent(out) :: rc
 INTEGER(KIND=JPIM), intent(inout) :: index(:)
 INTEGER(KIND=JPIM) :: i,j,right,left,idx
 DATA_TYPE :: tmp
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPRD) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK(HEAPSORT_DRHOOKSTR,0,ZHOOK_HANDLE)
 rc = 0
 if (n <= 0 .or. size(a) <= 0) goto 99

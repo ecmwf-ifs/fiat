@@ -1,3 +1,13 @@
+/*
+ * (C) Copyright 2005- ECMWF.
+ * 
+ * This software is licensed under the terms of the Apache Licence Version 2.0
+ * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+ * In applying this licence, ECMWF does not waive the privileges and immunities
+ * granted to it by virtue of its status as an intergovernmental organisation
+ * nor does it submit to any jurisdiction.
+ */
+
 
 /* env.c */
 
@@ -18,7 +28,14 @@
 #include <limits.h>
 #include <errno.h>
 #include <time.h>
-#include "privpub.h"
+
+#include "raise.h"
+
+#undef RNDUP_DIV
+#define RNDUP_DIV(i,n) (( (i) + (n) - 1 ) / (n))
+
+#undef RNDUP
+#define RNDUP(i,n) ( RNDUP_DIV(i,n) * (n))
 
 #define EC_HOST_NAME_MAX 512
 
