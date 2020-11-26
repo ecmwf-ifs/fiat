@@ -668,16 +668,18 @@ static void set_killer_timer(const int *ntids, const int *target_omptid,
 }
 #endif
 
-#if !defined(NCALLSTACK)
-#ifdef PARKIND_FAUX_SINGLE
+#ifndef DR_HOOK_NCALLSTACK
+/* This compile definition serves as default which can still be overwritten using environment variable with same name */
+#ifdef DR_HOOK_MULTI_PRECISION_HANDLES
+#define DR_HOOK_NCALLSTACK 64
 /* > 0 : USE call stack approach : needed for single precision version */
-#define NCALLSTACK 64
 #else
+#define DR_HOOK_NCALLSTACK 0
 /* == 0 : do NOT use call stack approach : usually for double precision version */
-#define NCALLSTACK  0
 #endif
 #endif
-static int cstklen = NCALLSTACK;
+
+static int cstklen = DR_HOOK_NCALLSTACK;
 
 #define HASHSIZE(n) ((unsigned int)1<<(n))
 #define HASHMASK(n) (HASHSIZE(n)-1)
@@ -2625,7 +2627,7 @@ process_options()
   env = getenv("DR_HOOK_NCALLSTACK");
   if (env) {
     int value = atoi(env);
-    if (value < 1) value = NCALLSTACK;
+    if (value < 1) value = DR_HOOK_NCALLSTACK;
     cstklen = value;
   }
   OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_NCALLSTACK=%d\n",pfx,TIMESTR(tid),FFL,cstklen);
