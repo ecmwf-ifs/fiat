@@ -17,6 +17,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include "intercept_alloc.h"
+
 #include "drhook.h"
 extern int drhook_memtrace;
 #include "raise.h"
@@ -59,9 +60,25 @@ static ll_t maxloc = 0;    /* For stackcheck */
 static ll_t begloc = 0;    /* For stackcheck */
 static int heapcheck = 0;  /* Fro heapcheck */
 
-extern int get_thread_id_(void);   /* ***Note: Returns YOMOML-value [1..max_threads] */
-extern int get_proc_id_(void);  
-extern int get_max_threads_(void);
+static int get_proc_id() {
+  extern int cmpl_myrank_();
+  return cmpl_myrank_();
+}
+
+static int get_thread_id() {
+  extern void coml_my_thread_(int*);
+  int tid;
+  coml_my_thread_(&tid);
+  return tid;
+}
+
+static int get_max_threads() {
+  extern void coml_get_max_threads_(int*);
+  int num_threads;
+  coml_get_max_threads_(&num_threads);
+  return num_threads;
+}
+
 extern ll_t getstk_();
 extern ll_t gethwm_();
 #ifdef RS6K
@@ -279,7 +296,7 @@ profile_heap_get(ll_t val[],
   int j, it, nt;
   if (nval < 0) nval = 0;
   if (nval > NPROFILE+1) nval = NPROFILE+1;
-  nt = get_max_threads_();
+  nt = get_max_threads();
   for (j=0; j<nval; j++) {
     free_hits[j] = 0;
     malloc_hits[j] = 0;
@@ -347,7 +364,7 @@ void EC_free(void *vptr)
 	}
       }
     }
-    it=get_thread_id_()-1;
+    it=get_thread_id()-1;
     true_bytes = -TRUE_BYTES(adjsize);
 #if !defined(NODISCLAIM)
     if (it == 0) { /* Do on OpenMP thread#1 only */
@@ -398,7 +415,7 @@ void *EC_malloc(ll_t size)
   thesize = adjsize;
 #endif
   true_bytes = TRUE_BYTES(adjsize);
-  it=get_thread_id_()-1;
+  it=get_thread_id()-1;
   if (TIMES == 1) {
     DRHOOK_START(dummy);
     DRHOOK_END(0);
@@ -467,8 +484,8 @@ void *EC_malloc(ll_t size)
         }
       }
       if(heapcheck == 1) {
-        it=get_thread_id_();
-        ip=get_proc_id_();
+        it=get_thread_id();
+        ip=get_proc_id();
         if (it == 1 && ip == 1 ) {
           if (begloc == 0) begloc=(ll_t)p;
           q=(ll_t)p+true_bytes;
@@ -540,10 +557,10 @@ ll_t
 getcurheap()
 {
 #if defined(CLSZ_OPT)
-  int it = get_thread_id_();
+  int it = get_thread_id();
   ll_t curvalue = clsz_opt[it-1].curalloca;
   if (it == 1) { /* Only thread#1 sums up */
-    int i, nt = get_max_threads_();
+    int i, nt = get_max_threads();
     if (drhook_memtrace) pthread_mutex_lock(&getcurheap_lock);
     for (i=1; i<nt; i++) {
       curvalue += clsz_opt[i].curalloca;
@@ -566,7 +583,7 @@ ll_t
 getcurheap_thread(const int *thread_id)
 {
 #if defined(CLSZ_OPT)
-  int it = (thread_id && (*thread_id > 0)) ? *thread_id : get_thread_id_();
+  int it = (thread_id && (*thread_id > 0)) ? *thread_id : get_thread_id();
   return clsz_opt[--it].curalloca;
 #else
   return getcurheap();
@@ -580,7 +597,7 @@ getmaxcurheap()
 {
 #if defined(CLSZ_OPT)
   ll_t maxcurheap_local=0;
-  int it, nt = get_max_threads_();
+  int it, nt = get_max_threads();
   if (drhook_memtrace) pthread_mutex_lock(&getcurheap_lock);
   for (it=0; it<nt; it++) {
     maxcurheap_local += clsz_opt[it].maxcurheapa;
@@ -599,7 +616,7 @@ ll_t
 getmaxcurheap_thread(const int *thread_id) /* ***Note: YOMOML thread id */
 {
 #if defined(CLSZ_OPT)
-  int it = (thread_id && (*thread_id > 0)) ? *thread_id : get_thread_id_();
+  int it = (thread_id && (*thread_id > 0)) ? *thread_id : get_thread_id();
   return  clsz_opt[--it].maxcurheapa;
 #else
   return 0;

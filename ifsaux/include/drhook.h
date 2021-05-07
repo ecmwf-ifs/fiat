@@ -63,27 +63,6 @@ extern int drhook_lhook;
 #ifndef O_LOCK_DONE
 #define O_LOCK_DONE
 
-/* OpenMP/ODB lock type */
-/* Keep consistent with "odb/include/privpub.h" */
-/* Be ALSO consistent with OML_LOCK_KIND in ifsaux/module/oml_mod.F90 */
-
-typedef long long int o_lock_t; /* i.e. 64-bit integer */
-
-#define INIT_LOCKID_WITH_NAME(mylock, lockname) \
-  coml_init_lockid_with_name_(mylock, lockname, strlen(lockname))
-
-extern void coml_set_debug_(const int *konoff, int *kret);
-extern void coml_init_lock_();
-extern void coml_init_lockid_(o_lock_t *mylock);
-extern void coml_init_lockid_with_name_(o_lock_t *mylock, const char *name, int name_len);
-extern void coml_set_lock_();
-extern void coml_set_lockid_(o_lock_t *mylock);
-extern void coml_unset_lock_();
-extern void coml_unset_lockid_(o_lock_t *mylock);
-extern void coml_test_lock_(int *is_set);
-extern void coml_test_lockid_(int *is_set, o_lock_t *mylock);
-extern void coml_in_parallel_(int *is_parallel_region);
-
 #endif
 
 /* drhook.c external interfaces */

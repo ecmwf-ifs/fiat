@@ -10,8 +10,10 @@
 
 /* loc()-function */
 
-unsigned long long int
+#include <stdint.h>
+
+intptr_t
 loc_addr_(const char *p)
 {
-  return (unsigned long long int)(p - (const char *)0);
+  return (intptr_t)(p - (const char *)0);
 }

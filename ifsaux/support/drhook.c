@@ -97,6 +97,68 @@ static char *TimeStr(char *s, int slen);
 
 int drhook_memtrace = 0; /* set to 1, if opt_memprof or opt_timeline ; used in getcurheap.c to lock stuff */
 
+/* OpenMP/ODB lock type */
+/* Keep consistent with "odb/include/privpub.h" */
+/* Be ALSO consistent with OML_LOCK_KIND in ifsaux/module/oml_mod.F90 */
+
+typedef long long int o_lock_t; /* i.e. 64-bit integer */
+
+extern void coml_set_debug_(const int *konoff, int *kret);
+extern void coml_init_lock_();
+extern void coml_init_lockid_(o_lock_t *mylock);
+extern void coml_init_lockid_with_name_(o_lock_t *mylock, const char *name, int name_len);
+extern void coml_set_lock_();
+extern void coml_set_lockid_(o_lock_t *mylock);
+extern void coml_unset_lock_();
+extern void coml_unset_lockid_(o_lock_t *mylock);
+extern void coml_test_lock_(int *is_set);
+extern void coml_test_lockid_(int *is_set, o_lock_t *mylock);
+extern void coml_in_parallel_(int *is_parallel_region);
+
+static o_lock_t DRHOOK_lock = 0;
+
+static int drhook_omp_get_thread_num() {
+  // Equivalent to omp_get_thread_num() + 1
+  int tid;
+  coml_my_thread_(&tid);
+  return tid;
+}
+
+static int drhook_omp_get_num_threads() {
+  // Equivalent to omp_get_num_threads() --> currently active threads (!= max_threads)
+  int _num_threads;
+  coml_get_num_threads_(&_num_threads);
+  return _num_threads;
+}
+
+static int drhook_omp_get_max_threads() {
+  // Equivalent to omp_get_max_threads()
+  int _max_threads;
+  coml_get_max_threads_(&_max_threads);
+  return _max_threads;
+}
+
+static int drhook_omp_test_lock() {
+  int is_set = 0; // false
+  coml_test_lockid_(&is_set, &DRHOOK_lock);
+  return is_set;
+}
+
+static void drhook_omp_set_lock() {
+  coml_set_lockid_(&DRHOOK_lock);
+}
+
+static void drhook_omp_unset_lock() {
+  coml_unset_lockid_(&DRHOOK_lock);
+}
+
+static void drhook_omp_init_lock() {
+  char lockname[] = "drhook.c:DRHOOK_lock";
+  coml_init_lockid_with_name_(&DRHOOK_lock, lockname, strlen(lockname));
+}
+
+
+
 #if !defined(CACHELINESIZE)
 #if defined(LEVEL1_DCACHE_LINESIZE)
 #define CACHELINESIZE LEVEL1_DCACHE_LINESIZE
@@ -120,8 +182,6 @@ static int numthreads = 0;
 static int myproc = 1;
 static int nproc = -1;
 static int max_threads = 1;
-
-extern int get_thread_id_();
 
 typedef struct drhook_prefix_t {
   char s[3840];
@@ -178,7 +238,7 @@ static void trapfpe(int silent)
   /* Enable some exceptions. At startup all exceptions are masked. */
 #if 1
   /* New coding -- honours DR_HOOK_TRAPFPE_{INVALID,DIVBYZERO,OVERLOW} set to 1 (or 0) */
-  int tid = get_thread_id_();
+  int tid = drhook_omp_get_thread_num();
   int enable = 0;
   int disable = 0;
   int dummy;
@@ -545,7 +605,6 @@ typedef struct drhook_watch_t {
 
 /*** static (local) variables ***/
 
-static o_lock_t DRHOOK_lock = 0;
 static pid_t pid = -1;
 static drhook_key_t      **keydata  = NULL;
 static drhook_calltree_t **calltree = NULL;
@@ -567,6 +626,7 @@ static drhook_key_t **curkeyptr = NULL; /* pointers to current keyptr (per threa
 static drhook_watch_t *watch = NULL;
 static drhook_watch_t *last_watch = NULL;
 static int watch_count = 0; /* No. of *active* watch points */
+
 
 #ifndef SYS_gettid
 #define SYS_gettid __NR_gettid
@@ -596,7 +656,7 @@ void gettid_c(int *tid) { gettid_c_(tid); }
 
 static void set_ec_drhook_label(const char *hostname, int hlen)
 {
-  int tid = get_thread_id_();
+  int tid = drhook_omp_get_thread_num();
   int j = tid - 1;
   int slen = sizeof(ec_drhook[j].s);
   pid_t unixtid = gettid();
@@ -623,7 +683,7 @@ static void set_killer_timer(const int *ntids, const int *target_omptid,
 {
   static volatile sig_atomic_t TimedKill = 0;
   if (ntids && target_omptid && target_sig && start_time && p) {
-    int tid = get_thread_id_();
+    int tid = drhook_omp_get_thread_num();
     if (*target_omptid == -1 || *target_omptid == tid) {
       char *pfx = PREFIX(tid);
       timer_t timerid = { 0 };
@@ -817,7 +877,7 @@ static int set_default_handler(int sig, int unlimited_corefile, int verbose)
     sigaction(sig, &sa, NULL);
     if (unlimited_corefile) rc = set_unlimited_corefile(&hardlimit); /* unconditionally */
     if (verbose) {
-      int tid = get_thread_id_();
+      int tid = drhook_omp_get_thread_num();
       char *pfx = PREFIX(tid);
       char buf[128] = "";
       if (unlimited_corefile && rc == 0) snprintf(buf,sizeof(buf)," -- hardlimit for core file is now %llu (0x%llx)", hardlimit, hardlimit);
@@ -1004,7 +1064,9 @@ TimeStr(char *s, int slen)
 const char *drhook_TIMESTR(int tid)
 {
   static const char fixed[] = "";
-  if (tid <= 0) coml_my_thread_(&tid);
+  if (tid <= 0) {
+    tid = drhook_omp_get_thread_num();
+  }
   {
     char *s = TIMESTR(tid);
     return strlen(s) > 0 ? (const char *)s : fixed;
@@ -1014,7 +1076,9 @@ const char *drhook_TIMESTR(int tid)
 const char *drhook_PREFIX(int tid)
 {
   static const char fixed[] = "";
-  if (tid <= 0) coml_my_thread_(&tid);
+  if (tid <= 0) {
+    tid = drhook_omp_get_thread_num();
+  }
   {
     char *s = PREFIX(tid);
     return strlen(s) > 0 ? (const char *)s : fixed;
@@ -1319,7 +1383,7 @@ static void trapfpe_treatment(int sig, int silent);
     sigaction(x,&sl->new,&sl->old);\
     trapfpe_treatment(x,silent);   \
     if (!silent && myproc == 1) {\
-      int tid = get_thread_id_(); \
+      int tid = drhook_omp_get_thread_num(); \
       char *pfx = PREFIX(tid); \
       fprintf(stderr,\
 	      "%s %s [%s@%s:%d] DR_HOOK also catches signal#%d : New handler '%s' installed at %p (old at %p)\n", \
@@ -1334,7 +1398,7 @@ catch_signals(int silent)
 {
   char *env = getenv("DR_HOOK_CATCH_SIGNALS");
   if (!silent && myproc == 1) {
-    int tid = get_thread_id_();
+    int tid = drhook_omp_get_thread_num();
     char *pfx = PREFIX(tid);
     fprintf(stderr,
 	    "%s %s [%s@%s:%d] DR_HOOK_CATCH_SIGNALS=%s\n",
@@ -1370,7 +1434,7 @@ trapfpe_treatment(int sig, int silent)
 {
   if (sig == SIGFPE) {
 #if defined(__GNUC__) && !defined(NO_TRAPFPE)
-    int tid = get_thread_id_();
+    int tid = drhook_omp_get_thread_num();
     char *pfx = PREFIX(tid);
     if (drhook_trapfpe) {
       if (!silent && myproc == 1) {
@@ -1402,7 +1466,7 @@ trapfpe_treatment(int sig, int silent)
 void
 trapfpe_slave_threads_(const int *silent)
 {
-  int tid = get_thread_id_();
+  int tid = drhook_omp_get_thread_num();
   if (tid > 1) { // slave threads
     if (drhook_trapfpe_master_init) trapfpe_treatment(SIGFPE, *silent);
   }
@@ -1422,7 +1486,7 @@ restore_default_signals(int silent)
 {
   char *env = getenv("DR_HOOK_RESTORE_DEFAULT_SIGNALS");
   if (!silent && myproc == 1) {
-    int tid = get_thread_id_();
+    int tid = drhook_omp_get_thread_num();
     char *pfx = PREFIX(tid);
     fprintf(stderr,
 	    "%s %s [%s@%s:%d] DR_HOOK_RESTORE_DEFAULT_SIGNALS=%s\n",
@@ -1471,7 +1535,7 @@ ignore_signals(int silent)
 {
   char *env = getenv("DR_HOOK_IGNORE_SIGNALS");
   if (!silent && myproc == 1) {
-    int tid = get_thread_id_();
+    int tid = drhook_omp_get_thread_num();
     char *pfx = PREFIX(tid);
     fprintf(stderr,
 	    "%s %s [%s@%s:%d] DR_HOOK_IGNORE_SIGNALS=%s\n",
@@ -1479,7 +1543,7 @@ ignore_signals(int silent)
 	    env ? env : "<undef>");
   }
   if (env) {
-    int tid = get_thread_id_();
+    int tid = drhook_omp_get_thread_num();
     char *pfx = PREFIX(tid);
     const char delim[] = ", \t/";
     char *p, *s = strdup_drhook(env);
@@ -1522,12 +1586,11 @@ ignore_signals(int silent)
 static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 {
   static int who = 0; /* Current owner of the lock, if > 0 */
-  int is_set = 0;
-  int it = get_thread_id_(); 
+  int is_set = drhook_omp_test_lock();
+  int it = drhook_omp_get_thread_num(); 
   drhook_sig_t *sl = &siglist[sig];
   char *pfx = PREFIX(it);
 
-  coml_test_lockid_(&is_set, &DRHOOK_lock);
   if (is_set && who == it) {
     fprintf(stderr,"%s %s [%s@%s:%d] Received (another) signal#%d (%s)\n",
 	    pfx,TIMESTR(it),FFL,
@@ -1537,7 +1600,9 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 	    it);
     return;
   }
-  if (!is_set) coml_set_lockid_(&DRHOOK_lock);
+  if (!is_set) {
+    drhook_omp_set_lock();
+  }
   who = it;
   fprintf(stderr,"%s %s [%s@%s:%d] Received signal#%d(%s) : sigcontextptr=%p\n",
 	  pfx,TIMESTR(it),FFL,
@@ -1545,7 +1610,7 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
   LinuxTraceBack(pfx,TIMESTR(it),sigcontextptr);
   /* LinuxTraceBack(pfx,TIMESTR(tid),NULL); */
   who = 0;
-  coml_unset_lockid_(&DRHOOK_lock);
+  drhook_omp_unset_lock();
 }
 #endif
 
@@ -1565,7 +1630,7 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
       sl->ignore_atexit = ignore_flag;					\
       trapfpe_treatment(x,silent);					\
       if (!silent && myproc == 1) {					\
-	int tid = get_thread_id_();					\
+	int tid = drhook_omp_get_thread_num();					\
 	char *pfx = PREFIX(tid);					\
 	const char fmt[] = "%s %s [%s@%s:%d] New signal handler '%s' for signal#%d (%s) at %p (old at %p)\n"; \
 	fprintf(stderr,fmt,						\
@@ -1597,7 +1662,7 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 
 #if 0
     {									\
-      int tid = get_thread_id_();					\
+      int tid = drhook_omp_get_thread_num();					\
       char *pfx = PREFIX(tid);						\
       const char fmt[] = "%s %s [%s@%s:%d] Harakiri signal handler '%s' for signal#%d (%s) installed at %p (old at %p)\n"; \
       fprintf(stderr,fmt,						\
@@ -1656,7 +1721,7 @@ signal_gencore(int sig SIG_EXTRA_ARGS)
       signal(SIGABRT, SIG_DFL);
       { /* Enable unlimited cores (up to hard-limit) and call abort() --> generates core dump */
 	if (set_unlimited_corefile(NULL) == 0) {
-	  int tid = get_thread_id_();
+	  int tid = drhook_omp_get_thread_num();
 	  char *pfx = PREFIX(tid);
 	  fprintf(stderr,
 		  "%s %s [%s@%s:%d] Received signal#%d and now calling abort() ...\n",
@@ -1706,7 +1771,7 @@ signal_harakiri(int sig SIG_EXTRA_ARGS)
   time_t tp;
   int idummy;
   int fd = fileno(stderr);
-  int tid = get_thread_id_();
+  int tid = drhook_omp_get_thread_num();
   int nsigs = TIDNSIGS(tid);
   char *pfx = PREFIX(tid);
   char buf[128];
@@ -1762,7 +1827,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 
   unixtid = gettid();
 
-  tid = get_thread_id_();
+  tid = drhook_omp_get_thread_num();
   pfx = PREFIX(tid);
 
   if (signals_set && sig >= 1 && sig <= NSIG) {
@@ -1793,7 +1858,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     
     /* if (sig != SIGTERM) signal(SIGTERM, SIG_DFL); */  /* Let the default SIGTERM to occur */
     
-    coml_get_max_threads_(&max_threads);
+    max_threads = drhook_omp_get_max_threads();
     if (nsigs == 1) {
       /*---- First call to signal handler: call alarm(drhook_harakiri_timeout), tracebacks,  exit ------*/
       
@@ -2263,8 +2328,7 @@ signal_drhook_init(int enforce)
     int slen;
     char hostname[EC_HOST_NAME_MAX];
     char *pdot;
-    int ntids = 1;
-    coml_get_max_threads_(&ntids);
+    int ntids = drhook_omp_get_max_threads();
     numthreads = ntids;
     ec_drhook = calloc_drhook(ntids, sizeof(*ec_drhook));
     slen = sizeof(ec_drhook[0].s);
@@ -2277,10 +2341,10 @@ signal_drhook_init(int enforce)
     }
 #if 1
     {
-      extern void run_fortran_omp_parallel_ipfstr_(const int *, 
+      extern void drhook_run_omp_parallel_ipfstr_(const int *, 
 						   void (*func)(const char *, int),
-						   const char *, int);
-      run_fortran_omp_parallel_ipfstr_(&ntids,set_ec_drhook_label,hostname,strlen(hostname));
+						   const char *, /*hidden*/ int);
+      drhook_run_omp_parallel_ipfstr_(&ntids,set_ec_drhook_label,hostname,strlen(hostname));
     }
 #else
 #pragma omp parallel num_threads(ntids)
@@ -2299,7 +2363,7 @@ signal_drhook_init(int enforce)
     env = getenv("ATP_IGNORE_SIGTERM");
     if (env) atp_ignore_sigterm = atoi(env);
     if (!silent && myproc == 1) {
-      int tid = get_thread_id_();
+      int tid = drhook_omp_get_thread_num();
       char *pfx = PREFIX(tid);
       fprintf(stderr,"%s %s [%s@%s:%d] ATP_ENABLED=%d\n",pfx,TIMESTR(tid),FFL,atp_enabled);
       fprintf(stderr,"%s %s [%s@%s:%d] ATP_MAX_CORES=%d\n",pfx,TIMESTR(tid),FFL,atp_max_cores);
@@ -2479,7 +2543,7 @@ process_options()
   static int processed = 0;
   if (processed) return;
 
-  tid = get_thread_id_();
+  tid = drhook_omp_get_thread_num();
 
   env = getenv("DR_HOOK_SHOW_PROCESS_OPTIONS");
   ienv = env ? atoi(env) : 1;
@@ -3238,7 +3302,7 @@ init_drhook(int ntids)
 	int konoff = env ? atoi(env) : 0;
 	int kret = 0;
 	if (konoff == 1) coml_set_debug_(&konoff, &kret);
-	INIT_LOCKID_WITH_NAME(&DRHOOK_lock,"drhook.c:DRHOOK_lock");
+  drhook_omp_init_lock();
 	if (kret != 0) {
 	  konoff = 0;
 	  coml_set_debug_(&konoff, &kret);
@@ -3588,7 +3652,7 @@ check_watch(const char *label,
   if (watch) {
     int print_traceback = 1;
     drhook_watch_t *p = watch;
-    coml_set_lockid_(&DRHOOK_lock);
+    drhook_omp_set_lock();
     while (p) {
       if (p->active) {
 	unsigned int crc32 = 0;
@@ -3602,7 +3666,7 @@ check_watch(const char *label,
 	  calc_crc = 1;
 	}
 	if (changed) {
-	  int tid = get_thread_id_();
+	  int tid = drhook_omp_get_thread_num();
 	  char *pfx = PREFIX(tid);
 	  if (!calc_crc) crc32_(p->ptr, &p->nbytes, &crc32);
 	  fprintf(stderr,
@@ -3618,7 +3682,7 @@ check_watch(const char *label,
 	    print_traceback = 0;
 	  }
 	  if (allow_abort && p->abort_if_changed) {
-	    coml_unset_lockid_(&DRHOOK_lock); /* An important unlocking on Linux; otherwise hangs (until time-out) */
+	    drhook_omp_unset_lock(); /* An important unlocking on Linux; otherwise hangs (until time-out) */
 	    RAISE(SIGABRT);
 	  }
 #if 0
@@ -3631,7 +3695,7 @@ check_watch(const char *label,
       }
       p = p->next;
     } /* while (p) */
-    coml_unset_lockid_(&DRHOOK_lock);
+    drhook_omp_unset_lock();
   }
 }
 
@@ -3739,11 +3803,11 @@ c_drhook_watch_(const int *onoff,
 		/* Hidden length */
 		,int array_name_len)
 {
-  int tid = get_thread_id_();
+  int tid = drhook_omp_get_thread_num();
   drhook_watch_t *p = NULL;
   if (!drhook_lhook) return; 
 
-  coml_set_lockid_(&DRHOOK_lock);
+  drhook_omp_set_lock();
 
   /* check whether this array_ptr is already registered, but maybe inactive */
   p = watch;
@@ -3795,7 +3859,7 @@ c_drhook_watch_(const int *onoff,
     if (*print_traceback_when_set) LinuxTraceBack(pfx,TIMESTR(p->tid),NULL);
   }
 
-  coml_unset_lockid_(&DRHOOK_lock);
+  drhook_omp_unset_lock();
 }
 
 /*=== c_drhook_start_ ===*/
@@ -3848,8 +3912,8 @@ c_drhook_start_(const char *name,
     (void) callstack(*thread_id, key, u.keyptr);
   }
   ITSELF_1;
-  if (opt_calltrace) {      
-    coml_set_lockid_(&DRHOOK_lock);
+  if (opt_calltrace) {   
+    drhook_omp_set_lock();
     {
       const int ftnunitno = 0; /* stderr */
       const int print_option = 2; /* calling tree */
@@ -3857,7 +3921,7 @@ c_drhook_start_(const char *name,
       c_drhook_print_(&ftnunitno, thread_id, &print_option, &level);
       /* fprintf(stderr,"%d#%d> %*.*s [%llu]\n",myproc,*thread_id,name_len,name_len,name,u.ull); */
     }
-    coml_unset_lockid_(&DRHOOK_lock);
+    drhook_omp_unset_lock();
   }
   if (timeline) {
     int tid = *thread_id;
@@ -3879,7 +3943,7 @@ c_drhook_start_(const char *name,
 	if (ABS(inc_MB) < opt_timeline_MB) bigjump = 0;
       }
       if (mod == 0 || bigjump) {
-	coml_set_lockid_(&DRHOOK_lock);
+	drhook_omp_set_lock();
 	{
 	  int ftnunitno = opt_timeline_unitno;
 	  const int print_option = 5; /* calling "tree" with just the current entry */
@@ -3890,7 +3954,7 @@ c_drhook_start_(const char *name,
 	  tl->last_vmpeak_MB = vmpeak;
 	  c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
 	}
-	coml_unset_lockid_(&DRHOOK_lock);
+	drhook_omp_unset_lock();
       }
     } /* if (opt_timeline_thread <= 0 || tid <= opt_timeline_thread) */
   }
@@ -3921,9 +3985,9 @@ c_drhook_end_(const char *name,
   }
   /*
   if (opt_calltrace) {
-    coml_set_lockid_(&DRHOOK_lock);
+    drhook_omp_set_lock();
     fprintf(stderr,"%d#%d< %*.*s [%llu]\n",myproc,*thread_id,name_len,name_len,name,u.ull);
-    coml_unset_lockid_(&DRHOOK_lock);
+    drhook_omp_unset_lock();
   }
   */
   if (name_len > 0 && opt_funcexit == *thread_id) {
@@ -3950,7 +4014,7 @@ c_drhook_end_(const char *name,
 	if (ABS(inc_MB) < opt_timeline_MB) bigjump = 0;
       }
       if (mod == 0 || bigjump) {
-	coml_set_lockid_(&DRHOOK_lock);
+	drhook_omp_set_lock();
 	{
 	  int ftnunitno = opt_timeline_unitno;
 	  const int print_option = -5; /* calling "tree" with just the current entry */
@@ -3961,7 +4025,7 @@ c_drhook_end_(const char *name,
 	  tl->last_vmpeak_MB = vmpeak;
 	  c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
 	}
-	coml_unset_lockid_(&DRHOOK_lock);
+	drhook_omp_unset_lock();
       }
     } /* if (opt_timeline_thread <= 0 || tid <= opt_timeline_thread) */
   }
@@ -3980,7 +4044,7 @@ c_drhook_memcounter_(const int *thread_id,
 		     long long int *keyptr_addr)
 {
   int tid = (thread_id && (*thread_id >= 1) && (*thread_id <= numthreads))
-    ? *thread_id : get_thread_id_();
+    ? *thread_id : drhook_omp_get_thread_num();
   int has_timeline = (timeline && size) ? opt_timeline : 0;
   if (has_timeline) {
     if (opt_timeline_thread <= 1 || tid <= opt_timeline_thread) {
@@ -4050,7 +4114,7 @@ c_drhook_memcounter_(const int *thread_id,
     double rss = (double)(getrss_()/1048576.0); /* in MBytes */
     double stack = (double)(getstk_()/1048576.0); /* in MBytes */
     double vmpeak = (double)(getvmpeak_()/1048576.0); /* in MBytes */
-    coml_set_lockid_(&DRHOOK_lock);
+    drhook_omp_set_lock();
     {
       int ftnunitno = opt_timeline_unitno;
       double size_MB = (double)((*size)/1048576.0); /* In MBytes */
@@ -4063,7 +4127,7 @@ c_drhook_memcounter_(const int *thread_id,
       tl->last_vmpeak_MB = vmpeak;
       c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
     }
-    coml_unset_lockid_(&DRHOOK_lock);
+    drhook_omp_unset_lock();
   } /* if (has_timeline) */
 }
 
@@ -4242,8 +4306,8 @@ c_drhook_print_(const int *ftnunitno,
 {
   static int first_time = 0;
   int tid = (thread_id && (*thread_id >= 1) && (*thread_id <= numthreads))
-    ? *thread_id : get_thread_id_();
-  int mytid = get_thread_id_();
+    ? *thread_id : drhook_omp_get_thread_num();
+  int mytid = drhook_omp_get_thread_num();
   char *pfx = PREFIX(tid);
   if (ftnunitno && keydata && calltree) {
     char line[4096];
@@ -4421,8 +4485,7 @@ c_drhook_print_(const int *ftnunitno,
 	    }
 	    s += strlen(s);
 	    {
-	      int current_numth = 0;
-	      coml_get_num_threads_(&current_numth);
+	      int current_numth = drhook_omp_get_num_threads();
 	      sprintf(s,"[#%d]",current_numth);
 	      s += strlen(s);
 	    }
@@ -5097,7 +5160,7 @@ Dr_Hook(const char *name, int option, double *handle,
   }
   if (value == 0) return; /* Immediate return if OFF */
   if (value != 0) {
-    int tid = get_thread_id_();
+    int tid = drhook_omp_get_thread_num();
     if (option == 0) {
       c_drhook_start_(name, &tid, handle, 
 		      filename, &sizeinfo,
@@ -5815,8 +5878,7 @@ static void set_timed_kill()
       double start_time;
       int nelems = sscanf(p,"%d:%d:%d:%lf",
 			  &target_myproc, &target_omptid, &target_sig, &start_time);
-      int ntids = 1;
-      coml_get_max_threads_(&ntids);
+      int ntids = drhook_omp_get_max_threads();
       if (nelems == 4 && 
 	  (target_myproc == myproc || target_myproc == -1) &&
 	  (target_omptid == -1 || (target_omptid >= 1 && target_omptid <= ntids)) &&
