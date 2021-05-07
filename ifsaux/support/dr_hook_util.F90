@@ -51,7 +51,7 @@ DATA JHEAP/0/
 !useful variable for DrHack
 LOGICAL,SAVE :: LL_DRHACK=.FALSE. !set to .TRUE. if MPIRANK=0 and Env variable DR_HACK=1
 
-#include "user_clock.h"
+#include "user_clock.intfb.h"
 
 !
 ! Florian Suzat (METEO-FRANCE) Sept 2017 : add drHack functionality

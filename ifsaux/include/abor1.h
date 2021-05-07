@@ -8,24 +8,15 @@
  * nor does it submit to any jurisdiction.
  */
 
-#ifndef _RAISE_H_
-#define _RAISE_H_
+#ifndef _ABOR1_H_
+#define _ABOR1_H_
 
-/* raise.h */
+/* abor1.h */
 
-#include <stdio.h>
-#include <string.h>
-#include <signal.h>
-#include <unistd.h>
+void abor1fl(const char* filename, const int linenum, const char* s);
+void abor1(const char* s);
 
-#include "abor1.h"
+#define ABOR1(txt)   abor1( (txt) ) 
+#define ABOR1FL(txt) abor1fl( __FILE__, __LINE__, (txt) ) 
 
-#define RAISE(x) { \
-  if ((x) == SIGABRT) { \
-    ABOR1FL("*** Fatal error; aborting (SIGABRT) ..."); \
-    _exit(1); /* Should never end up here */ \
-  } \
-  else raise(x); \
-}
-
-#endif /* _RAISE_H_ */
+#endif /* _ABOR1_H_ */

@@ -29,13 +29,12 @@
 
 */
 
-#include "intercept_alloc.h"
+#if defined(INTERCEPT_ALLOC) && defined(NECSX)
 
-#if defined(INTERCEPT_ALLOC)
-#if defined(NECSX)
-
-#include "raise.h"
 #include <stdlib.h>
+
+#include "intercept_alloc.h"
+#include "raise.h"
 
 typedef long long int ll_t;
 typedef unsigned long long int u_ll_t;
@@ -83,19 +82,6 @@ extern void necsx_trbk_fl_(const char *msg, const char *filename, int *lineno,
 			   int msglen, int filenamelen); /* from ../utilities/gentrbk.F90 */
 #define ERROR_MSG(msg) { \
   int lineno = __LINE__; necsx_trbk_fl_(msg, __FILE__, &lineno, strlen(msg), sizeof(__FILE__)-1); }
-
-#else
-#undef INTERCEPT_ALLOC
-#endif
-#endif /* defined(INTERCEPT_ALLOC) */
-
-#if !defined(INTERCEPT_ALLOC)
-
-/* Other than NEC SX machines or when -DINTERCEPT_ALLOC was NOT supplied */
-
-void ec_envredo_() { }
-
-#else /* is indeed defined(INTERCEPT_ALLOC) */
 
 /* NEC SX with -DINTERCEPT_ALLOC */
 
@@ -393,6 +379,4 @@ void f_deallcl(ll_t arg1, desc_t *d, ll_t *stat)
   if (stat) *stat = istat;
 }
 
-#endif /* #if !defined(INTERCEPT_ALLOC) ... #else ... */
-
-void ec_envredo() { ec_envredo_(); }
+#endif

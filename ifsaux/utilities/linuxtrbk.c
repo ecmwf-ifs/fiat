@@ -29,7 +29,7 @@
 #include <signal.h>
 #include <alloca.h>
 #include <math.h>
-#include "cargs.h"
+#include "ec_args.h"
 #include "drhook.h"
 
 #ifdef CRAYXT
@@ -263,7 +263,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
   ucontext_t ctx;
 #endif
   static int recur = 0;
-  const char *a_out = ec_GetArgs(0);
+  const char *a_out = ec_argv()[0];
 #if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(__NEC__)
   if (!sigcontextptr) {
       sigcontextptr = (getcontext(&ctx) == 0) ? &ctx : NULL;
@@ -488,7 +488,7 @@ void gdb_trbk_()
        strequ(gdb,"TRUE"))) {
     char gdbcmd[65536];
     pid_t pid = getpid();
-    const char *a_out = ec_GetArgs(0);
+    const char *a_out = ec_argv()[0];
     fprintf(stderr,
 	    "[gdb_trbk] : Invoking %s ...\n",
 	    TOSTR(GNUDEBUGGER));
@@ -521,7 +521,7 @@ void dbx_trbk_()
        strequ(dbx,"true") || 
        strequ(dbx,"TRUE"))) {
     pid_t pid = getpid();
-    const char *a_out = ec_GetArgs(0);
+    const char *a_out = ec_argv()[0];
     char dbxcmd[65536];
 #if defined(SUN4)
     const char *qopt = " -q";
@@ -563,7 +563,7 @@ static void InitBFD()
 {
 #ifdef BFDLIB
   if (!abfd) {
-    const char *a_out = ec_GetArgs(0);
+    const char *a_out = ec_argv()[0];
  
     bfd_init();
  

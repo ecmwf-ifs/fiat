@@ -429,7 +429,7 @@ xmain(int argc, char *argv[])
 
 
 	opterr = 0;
-#if ! defined(__alpha) && !defined(LINUX) && !defined(_AIX43) && !defined(linux)
+#if ! defined(__alpha) && !defined(LINUX) && !defined(_AIX43) && !defined(linux) && !defined(__APPLE__)
 	if ( setlabel(exec_name) !=0 )
 		err_quit("setlabel error");
 #endif

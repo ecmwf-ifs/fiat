@@ -150,18 +150,6 @@ ec_getenv(const char *s,
 }
 
 
-#ifdef __NEC__
-void
-getenv_(const char *s,
-	char *value,
-	/* Hidden arguments */
-	int slen,
-	const int valuelen)
-{
-  ec_getenv_(s, value, slen, valuelen);
-}
-#endif
-
 void
 ec_putenv_(const char *s,
 	   /* Hidden argument */
@@ -275,12 +263,6 @@ ec_sleep(const int *nsec)
   return ec_sleep_(nsec);
 }
 
-#ifdef __NEC__
-void sleep_(const int *nsec) { (void)ec_sleep_(nsec); }
-
-void flush_(const int *io) { } /* temporary fix */
-#endif
-
 /* Microsecond-sleep, by S.Saarinen, 25-jan-2008 */
 
 void  /* Global, C-callable, too */
@@ -333,9 +315,6 @@ void ec_gethostname(char a[],
   ec_gethostname_(a,alen);
 }
 
-#ifdef __NEC__
-int hostnm_(char a[], int alen) { ec_gethostname_(a,alen); return 0; }
-#endif
 
 /* For checking runtime affinities (not setting them, though) */
 

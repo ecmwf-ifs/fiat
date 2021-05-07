@@ -8,9 +8,7 @@
  * nor does it submit to any jurisdiction.
  */
 
-/* cargs.h */
-
-/* prototypes for ifsaux/support/cargs.c */
+/* ec_cargs.h */
 
 /* Author: Sami Saarinen, ECMWF, 27-Apr-2006 */
 

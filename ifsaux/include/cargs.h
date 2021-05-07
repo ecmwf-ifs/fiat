@@ -54,14 +54,6 @@ void putarg_info (const int *argc, const char *cterm
 		  /* Hidden argument */
 		  , int cterm_len);
 
-/* From ifsaux/support/cmpl_binding.F90 */
-
-void cmpl_getarg_(const int *argno, char *arg
-		  /* Hidden argument */
-		  , const int arg_len);
-
-int cmpl_iargc_(); 
-
 #if defined(__cplusplus)
 }
 #endif

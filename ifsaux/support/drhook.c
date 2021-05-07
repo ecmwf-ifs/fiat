@@ -422,7 +422,7 @@ static double my_inv_irtc_rate = 0;
 
 /* #define RAISE(x) { int tmp = x; c_drhook_raise_(&tmp); } */
 #include "raise.h"
-#include "cargs.h"
+#include "ec_args.h"
 
 extern void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr);
 
@@ -3711,7 +3711,7 @@ c_drhook_init_(const char *progname,
        from program that has a C-main program, thus Fortran getarg
        may return a blank string */
 
-    const char *arg0 = ec_GetArgs(0);
+    const char *arg0 = ec_argv()[0];
     if (arg0) {
       const char *pc = arg0;
       progname_len = strlen(pc);
