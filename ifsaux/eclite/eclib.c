@@ -8,12 +8,28 @@
  * nor does it submit to any jurisdiction.
  */
 
+#include "julian.h"
+
 /*******************************
- *  Prototypes
- *******************************/ 
+ *  Declarations 
+ *******************************/
 
+#define    CD2DATE  cd2date_
+#define    YD2DATE  yd2date_
+#define    IDATE2CD idate2cd_
+#define    IDATE2YD idate2yd_
+#define    ICD2YMD  icd2ymd_
+#define    IYMD2CD  iymd2cd_
 
-/* ECLIB routines */
+#define    DAYDIFF  daydiff_
+#define    HOURDIFF hourdiff_
+#define    MINDIFF  mindiff_
+#define    SECDIFF  secdiff_
+
+#define    DAYINCR  dayincr_
+#define    HOURINCR hourincr_
+#define    MININCR  minincr_
+#define    SECINCR  secincr_
 
 void     CD2DATE(const _int32_t *const icd, _int32_t *const iy, _int32_t *const im, _int32_t *const id, _int32_t *const iret);
 void     YD2DATE(const _int32_t *const iyd, const _int32_t *const iy, _int32_t *const im, _int32_t *const id, _int32_t *const iret);
@@ -34,11 +50,12 @@ void     MININCR(const _int32_t *const year, const _int32_t *const month, const 
 void     SECINCR(const _int32_t *const year, const _int32_t *const month, const _int32_t *const day, const _int32_t *const hour, const _int32_t *const min, const _int32_t *const sec, const _int32_t *const seconds,_int32_t *const new_year, _int32_t *const new_month, _int32_t *const new_day, _int32_t *const new_hour, _int32_t *const new_min, _int32_t *const new_sec,  _int32_t *const iret);
 
 
+void     secdiff(const _int32_t *const year1, const _int32_t *const month1, const _int32_t *const day1, const _int32_t *const hour1, const _int32_t *const min1, const _int32_t *const sec1, const _int32_t *const year2, const _int32_t *const month2, const _int32_t *const day2, const _int32_t *const hour2, const _int32_t *const min2, const _int32_t *const sec2, _int32_t *const seconds, _int32_t *const iret);
+void     secincr(const _int32_t *const year, const _int32_t *const month, const _int32_t *const day, const _int32_t *const hour, const _int32_t *const min, const _int32_t *const sec, const _int32_t *const seconds,_int32_t *const new_year, _int32_t *const new_month, _int32_t *const new_day, _int32_t *const new_hour, _int32_t *const new_min, _int32_t *const new_sec,  _int32_t *const iret);
 
 /*******************************
- *  Functions
+ *  Definitions
  *******************************/
-
 
 void     
 DAYDIFF(const _int32_t *const year1, const _int32_t *const month1, const _int32_t *const day1, const _int32_t *const year2, const _int32_t *const month2, const _int32_t *const day2, _int32_t *const days, _int32_t *const iret)
@@ -566,3 +583,12 @@ IYMD2CD(const _int32_t *const iymd, _int32_t *const iret)
 
 	       
 } /* IYMD2CD */
+
+
+void secdiff(const _int32_t *const year1, const _int32_t *const month1, const _int32_t *const day1, const _int32_t *const hour1, const _int32_t *const min1, const _int32_t *const sec1, const _int32_t *const year2, const _int32_t *const month2, const _int32_t *const day2, const _int32_t *const hour2, const _int32_t *const min2, const _int32_t *const sec2, _int32_t *const seconds, _int32_t *const iret) {
+    SECDIFF(year1,month1,day1,hour1,min1,sec1,year2,month2,day2,hour2,min2,sec2,seconds,iret);
+}
+
+void secincr(const _int32_t *const year, const _int32_t *const month, const _int32_t *const day, const _int32_t *const hour, const _int32_t *const min, const _int32_t *const sec, const _int32_t *const seconds,_int32_t *const new_year, _int32_t *const new_month, _int32_t *const new_day, _int32_t *const new_hour, _int32_t *const new_min, _int32_t *const new_sec,  _int32_t *const iret) {
+    SECINCR(year,month,day,hour,min,sec,seconds,new_year,new_month,new_day,new_hour,new_min,new_sec,iret);
+}
