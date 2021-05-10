@@ -11,6 +11,8 @@
 /* fnec.c */
 
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
 #ifdef __NEC__
 void exit_(const int *exit_code) {
@@ -39,6 +41,25 @@ int hostnm_(char a[], int alen) {
 	extern void ec_gethostname(char a[],  /* Hidden argument */ int alen);
 	ec_gethostname(a,alen);
 	return 0;
+}
+
+void system_(const char *name, /* Hidden arguments */ int length) {
+  char string[4096];
+  int return_code = 0;
+
+  strncpy(string, name, length);
+  while(length && string[length-1] == ' ')length --;
+  string[length]=0;
+
+  return_code = system(string);
+  if ( return_code != 0 ) {
+    if ( errno != 0 )
+      return_code = -errno;
+    else
+      return_code = -return_code;
+  }
+
+  return(return_code);
 }
 
 #endif
