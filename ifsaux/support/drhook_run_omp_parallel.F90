@@ -26,8 +26,6 @@ CALL FUNC(CDSTR)
 !$OMP END PARALLEL
 end subroutine drhook_run_omp_parallel_ipfstr
 
-! Currently not used...
-#if 0
 subroutine drhook_run_omp_parallel_ipfipipipdpstr(NTIDS, FUNC, KTIDS, TARGET_OMPTID, TARGET_SIG, START_TIME, CDSTR)
 use, intrinsic :: iso_c_binding, only : c_char, c_int, c_double
 implicit none
@@ -39,4 +37,3 @@ EXTERNAL :: FUNC
 CALL FUNC(KTIDS, TARGET_OMPTID, TARGET_SIG, START_TIME, CDSTR)
 !$OMP END PARALLEL
 end subroutine drhook_run_omp_parallel_ipfipipipdpstr
-#endif

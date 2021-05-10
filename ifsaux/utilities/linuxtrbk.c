@@ -77,9 +77,9 @@ static void InitBFD();
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#if defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(CRAYXT) && !defined(__NEC__)
+#if defined(LINUX) && !defined(CYGWIN) && !defined(__APPLE__) && !defined(__NEC__)
 #include <execinfo.h>
-#elif defined(DARWIN)
+#elif defined(__APPLE__)
 #define _XOPEN_SOURCE
 #include <errno.h>
 #include <limits.h>
@@ -90,7 +90,7 @@ static void InitBFD();
 //#define __USE_GNU
 //#define _XOPEN_SOURCE
 
-#if !defined(CYGWIN) && !defined(DARWIN)
+#if !defined(CYGWIN) && !defined(__APPLE__)
 #include <ucontext.h>
 #endif
 
@@ -259,12 +259,12 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
   int sigcontextptr_given = sigcontextptr ? 1 : 0;
   extern void gdb_trbk_();
   extern void dbx_trbk_();
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(__APPLE__)
   ucontext_t ctx;
 #endif
   static int recur = 0;
   const char *a_out = ec_argv()[0];
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(__NEC__)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(__APPLE__) && !defined(__NEC__)
   if (!sigcontextptr) {
       sigcontextptr = (getcontext(&ctx) == 0) ? &ctx : NULL;
   }
@@ -284,7 +284,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     }
   }
 
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(DARWIN) && !defined(__NEC__)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(__APPLE__) && !defined(__NEC__)
   //fflush(NULL);
 
   if (sigcontextptr) {

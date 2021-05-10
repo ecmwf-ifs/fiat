@@ -318,7 +318,7 @@ void ec_gethostname(char a[],
 
 /* For checking runtime affinities (not setting them, though) */
 
-#if defined(LINUX) && !defined(DARWIN) && !defined(__NEC__)
+#if defined(LINUX) && !defined(__APPLE__) && !defined(__NEC__)
 #include <sched.h>
 int sched_getcpu(void);
 #define getcpu() sched_getcpu()
@@ -366,7 +366,7 @@ double mpi_wtime_()
 #endif
 
 static pid_t gettid() {
-#if defined(DARWIN)
+#if defined(__APPLE__)
   uint64_t tid64;
   pthread_threadid_np(NULL, &tid64);
   pid_t tid = (pid_t)tid64;
