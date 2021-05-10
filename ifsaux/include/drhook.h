@@ -43,26 +43,9 @@ static int backtrace(void **buffer, int size) { return 0; }
 #endif
 #include <sys/file.h>
 
-//#ifdef _OPENMP
-//#include <omp.h>
-//#endif
-
-#ifdef RS6K
-#include <fptrap.h>
-#endif
-
-#ifdef VPP
-#include <ucontext.h>
-#endif
-
 int drhook_lhook = 1;
 #else
 extern int drhook_lhook;
-#endif
-
-#ifndef O_LOCK_DONE
-#define O_LOCK_DONE
-
 #endif
 
 /* drhook.c external interfaces */
@@ -152,12 +135,6 @@ extern void ec_meminfo_(const int *KU, const char *CDSTRING,
 			const int *KCOMM, const int *KBARR, 
 			const int *KIOTASK, const int *KCALL,
 			int len_CDSTRING); /* see ec_meminfo.F90 */
-
-
-/* see comp_binding.F90 */
-extern void coml_get_max_threads_(int *numthreads);
-extern void coml_get_num_threads_(int *numthreads);
-extern void coml_my_thread_(int *mytid);
 
 /* see drhook.c */
 extern const char *drhook_TIMESTR(int tid);
