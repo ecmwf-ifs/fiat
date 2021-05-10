@@ -25,12 +25,6 @@ LOGICAL,INTENT(INOUT)       :: LDHOOK
 CHARACTER(LEN=*),INTENT(IN) :: CDNAME,CDFILENAME
 INTEGER(KIND=JPIM),INTENT(IN) :: KCASE,KSIZEINFO
 REAL(KIND=JPRD),INTENT(INOUT) :: PKEY
-#ifdef RS6K
-INTEGER(KIND=JPIM) :: INEWMASK, IOLDMASK, UMASK
-#endif
-#ifdef CRAYXT
-INTEGER(KIND=JPIM) :: IRET, SETVBUF3F
-#endif
 LOGICAL,SAVE :: LL_FIRST_TIME = .TRUE.
 CHARACTER(LEN=512) :: CLENV
 INTEGER(KIND=JPIM) INUMTIDS, IMYTID
@@ -110,9 +104,6 @@ IMYTID = OML_MY_THREAD()
 INUMTIDS = OML_MAX_THREADS()
 IF (LL_FIRST_TIME) THEN
   LL_FIRST_TIME = .FALSE.
-#ifdef CRAYXT
-  IRET = SETVBUF3F(0, 1, 0) ! Set unit#0 into line-buffering mode to avoid messy output
-#endif
   CALL OML_INIT()
   CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK_NOT_MPI',CLENV)
   IF (CLENV == ' ' .OR. CLENV == '0' .OR. &
@@ -206,9 +197,6 @@ IF (KCASE == 0) THEN
     IF(GETMAXMEM .GT. MAXMEM) THEN
       MAXMEM = GETMAXMEM
       WRITE(0,*) "HEAPCHECK Max heap at beg of routine =",MAXMEM," ",CDNAME
-#ifdef RS6K
-      IF(JHEAP == 2) CALL XL__TRBK()
-#endif
     ENDIF
   ENDIF
 !JFH------------ End ---------------------------------------------
@@ -219,9 +207,6 @@ ELSE IF (KCASE == 1) THEN
     IF(GETMAXMEM .GT. MAXMEM) THEN
       MAXMEM = GETMAXMEM
       WRITE(0,*) "HEAPCHECK Max heap at end of routine =",MAXMEM," ",CDNAME
-#ifdef RS6K
-      IF(JHEAP == 2) CALL XL__TRBK()
-#endif
     ENDIF
   ENDIF
 !JFH------------ End ---------------------------------------------

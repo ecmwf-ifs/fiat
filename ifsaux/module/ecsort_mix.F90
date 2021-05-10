@@ -7,9 +7,6 @@
 ! nor does it submit to any jurisdiction.
 !
 
-#ifdef RS6K
-@PROCESS NOCHECK
-#endif
 MODULE ECSORT_MIX
 USE PARKIND_FAUX   , ONLY : JPIM     ,JPIB,    JPRM    ,JPRD
 USE YOMHOOK    , ONLY : LHOOK, DR_HOOK, JPHOOK
