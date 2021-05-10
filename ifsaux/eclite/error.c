@@ -13,8 +13,6 @@
 #include <stdarg.h>		/* ANSI C header file */
 #include <signal.h>
 
-/* #include <pfmt.h> */
-
 #include "myhdr.h"
 
 static void	err_doit(int, const char *, va_list);
@@ -100,15 +98,6 @@ err_quit(const char *fmt, ...)
 
 /* Print a message and return to caller.
  * Caller specifies "errnoflag". */
-
-/*
-static void
-myerr_doit(int errnoflag, const char *fmt, va_list ap)
-{
-	pfmt(stderr, MM_STD, fmt, ap);
-
-}
-*/
 
 static void
 err_doit(int errnoflag, const char *fmt, va_list ap)

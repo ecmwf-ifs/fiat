@@ -13,26 +13,32 @@
 #include <stdlib.h>
 
 #ifdef __NEC__
-void exit_(const int *exit_code) { exit(exit_code ? *exit_code : 0 ); }
-#endif
-
-#ifdef __NEC__
-void getenv_(const char *s, char *value,
-	/* Hidden arguments */
-	int slen,
-	const int valuelen)
-{
-  ec_getenv_(s, value, slen, valuelen);
+void exit_(const int *exit_code) {
+  exit(exit_code ? *exit_code : 0 );
 }
-#endif
 
-#ifdef __NEC__
-void sleep_(const int *nsec) { (void)ec_sleep_(nsec); }
+void getenv_(const char *s, char *value,
+             /* Hidden arguments */
+             int slen,
+             const int valuelen)
+{
+  extern void ec_getenv(const char *s, char *value, /* Hidden arguments */ int slen, const int valuelen);
+  ec_getenv(s, value, slen, valuelen);
+}
 
-void flush_(const int *io) { } /* temporary fix */
-#endif
+void sleep_(const int *nsec) {
+	extern unsigned int ec_sleep(const int *nsec);
+	(void)ec_sleep(nsec);
+}
 
+void flush_(const int *io) {
+	/* temporary fix */
+}
 
-#ifdef __NEC__
-int hostnm_(char a[], int alen) { ec_gethostname_(a,alen); return 0; }
+int hostnm_(char a[], int alen) {
+	extern void ec_gethostname(char a[],  /* Hidden argument */ int alen);
+	ec_gethostname(a,alen);
+	return 0;
+}
+
 #endif

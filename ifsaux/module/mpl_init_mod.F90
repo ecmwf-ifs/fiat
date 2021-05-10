@@ -223,8 +223,6 @@ IF (LLINFO) THEN
    ENDIF
 ENDIF
 
-#ifndef NECSX
-
 !-- Propagate environment variables & argument lists
 !   Here we have to be careful and use MPI_BCAST directly (not MPL_BROADCAST) since
 !   1) MPL_BUFFER_METHOD has not been called
@@ -257,13 +255,11 @@ IF (MPL_NUMPROC > 1 .AND. LLENV) THEN
       ENDIF
     ENDIF
   ENDDO
-  !-- Redo some env. variables (see ../utilities/fnecsx.c)
+  !-- Redo some env. variables
   CALL EC_ENVREDO()
   !-- Propagate argument list (all under the bonnet using MPL_ARG_MOD-module)
   INUM = MPL_IARGC()
 ENDIF
-
-#endif
 
 CALL OML_INIT()
 IMAX_THREADS = OML_MAX_THREADS()
