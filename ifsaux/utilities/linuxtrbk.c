@@ -63,7 +63,7 @@ typedef struct {
 static int ResolveViaBFD(void *address, BFD_t *b, const char *str);
 static void InitBFD();
 
-#if (defined(LINUX) || defined(SUN4)) && !defined(XT3) && !defined(XD1) 
+#if defined(LINUX) || defined(__APPLE) || defined(SUN4)
 
 #ifndef LINELEN
 #define LINELEN 1024
@@ -77,7 +77,7 @@ static void InitBFD();
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#if defined(LINUX) && !defined(CYGWIN) && !defined(__APPLE__) && !defined(__NEC__)
+#if defined(LINUX) && !defined(CYGWIN) && !defined(__NEC__)
 #include <execinfo.h>
 #elif defined(__APPLE__)
 #define _XOPEN_SOURCE
@@ -259,12 +259,12 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
   int sigcontextptr_given = sigcontextptr ? 1 : 0;
   extern void gdb_trbk_();
   extern void dbx_trbk_();
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(__APPLE__)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN)
   ucontext_t ctx;
 #endif
   static int recur = 0;
   const char *a_out = ec_argv()[0];
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(__APPLE__) && !defined(__NEC__)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(__NEC__)
   if (!sigcontextptr) {
       sigcontextptr = (getcontext(&ctx) == 0) ? &ctx : NULL;
   }
@@ -284,7 +284,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     }
   }
 
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(__APPLE__) && !defined(__NEC__)
+#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(__NEC__)
   //fflush(NULL);
 
   if (sigcontextptr) {

@@ -8,7 +8,7 @@
  * nor does it submit to any jurisdiction.
  */
 
-#if defined(LINUX) && !defined(__APPLE__) && !defined(_CRAYC) && !defined(ECMWF)
+#if defined(LINUX) && !defined(_CRAYC) && !defined(ECMWF)
 
 #define _GNU_SOURCE
 

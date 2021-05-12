@@ -318,7 +318,7 @@ void ec_gethostname(char a[],
 
 /* For checking runtime affinities (not setting them, though) */
 
-#if defined(LINUX) && !defined(__APPLE__) && !defined(__NEC__)
+#if defined(LINUX) && !defined(__NEC__)
 #include <sched.h>
 int sched_getcpu(void);
 #define getcpu() sched_getcpu()

@@ -47,7 +47,7 @@ MYTHREAD=1
 !  CALL TRACEBACKQQ(MESSAGE, USER_EXIT_CODE=-1)
 #endif
 #endif
-#ifdef LINUX
+#if defined(LINUX) || defined(__APPLE__)
   WRITE(0,*) "Process ",MYPROC," thread ",MYTHREAD, &
  &           " calling linux_trbk from intel_trbk()"
   CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c

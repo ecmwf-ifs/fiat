@@ -158,15 +158,11 @@ static int drhook_trapfpe_invalid = 1;
 static int drhook_trapfpe_divbyzero = 1;
 static int drhook_trapfpe_overflow = 1;
 
-#if defined(LINUX) && !defined(CYGWIN)
+#if defined(LINUX) || defined(__APPLE__) && !defined(CYGWIN)
 
 #if defined(__GNUC__) && !defined(NO_TRAPFPE)
 
-#if defined(CYGWIN)
-#include <mingw/fenv.h>
-#else
 #include <fenv.h>
-#endif
 
 extern int feenableexcept(int excepts);
 extern int fedisableexcept(int excepts);
@@ -244,9 +240,9 @@ static void untrapfpe(int silent)
 
 #endif /* defined(__GNUC__) */
 
-#endif /* defined(LINUX) */
+#endif /* defined(LINUX) || defined(__APPLE__) */
 
-#if (!defined(LINUX) || defined(CYGWIN) || defined(NO_TRAPFPE)) && defined(__GNUC__)
+#if (!(defined(LINUX) || defined(__APPLE__)) || defined(CYGWIN) || defined(NO_TRAPFPE)) && defined(__GNUC__)
 /* For example Solaris with gcc */
 #define trapfpe(x)
 #define untrapfpe(x)
@@ -1362,7 +1358,7 @@ ignore_signals(int silent)
 
 /*--- gdb__sigdump ---*/
 
-#if (defined(LINUX) || defined(SUN4)) && !defined(_CRAYC)
+#if (defined(LINUX) || defined(__APPLE__) || defined(SUN4)) && !defined(_CRAYC)
 static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 {
   static int who = 0; /* Current owner of the lock, if > 0 */
@@ -1880,7 +1876,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       spin(MIN(5,tid));
 
       if (sig != SIGABRT && sig != SIGTERM) {
-#if (defined(LINUX) || defined(SUN4))
+#if (defined(LINUX) || defined(__APPLE__) || defined(SUN4))
         LinuxTraceBack(pfx,TIMESTR(tid),NULL);
 #endif
         

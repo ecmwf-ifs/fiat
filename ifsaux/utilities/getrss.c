@@ -18,7 +18,7 @@ typedef  long long int  ll_t;
 
 #define getrss getrss_
 
-#if defined(LINUX)
+#if defined(LINUX) || defined(__APPLE__)
 static ll_t basesize = -1;
 static size_t pagesize = 4096;
 ll_t getrss()
