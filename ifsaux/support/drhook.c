@@ -1358,7 +1358,7 @@ ignore_signals(int silent)
 
 /*--- gdb__sigdump ---*/
 
-#if (defined(LINUX) || defined(__APPLE__) || defined(SUN4)) && !defined(_CRAYC)
+#if (defined(LINUX) || defined(__APPLE__)) && !defined(_CRAYC)
 static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 {
   static int who = 0; /* Current owner of the lock, if > 0 */
@@ -1876,7 +1876,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       spin(MIN(5,tid));
 
       if (sig != SIGABRT && sig != SIGTERM) {
-#if (defined(LINUX) || defined(__APPLE__) || defined(SUN4))
+#if (defined(LINUX) || defined(__APPLE__))
         LinuxTraceBack(pfx,TIMESTR(tid),NULL);
 #endif
         

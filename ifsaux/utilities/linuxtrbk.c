@@ -32,17 +32,8 @@
 #include "ec_args.h"
 #include "drhook.h"
 
-#ifdef CRAYXT
-/* Cray XT3/XT4 with catamount microkernel */
-#define system(cmd) (-1)
-#endif
-
 #define PRETOSTR(x) #x
 #define TOSTR(x) PRETOSTR(x)
-
-#if defined(SUN4) && !defined(PSTACKTRACE)
-#define PSTACKTRACE /bin/pstack
-#endif
 
 #define strequ(s1,s2)     ((void *)s1 && (void *)s2 && strcmp(s1,s2) == 0)
 #define strnequ(s1,s2,n)  ((void *)s1 && (void *)s2 && memcmp(s1,s2,n) == 0)
@@ -63,7 +54,7 @@ typedef struct {
 static int ResolveViaBFD(void *address, BFD_t *b, const char *str);
 static void InitBFD();
 
-#if defined(LINUX) || defined(__APPLE) || defined(SUN4)
+#if defined(LINUX) || defined(__APPLE__)
 
 #ifndef LINELEN
 #define LINELEN 1024
@@ -432,17 +423,6 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 
   if (!sigcontextptr_given) goto finish;
 
-#if defined(PSTACKTRACE)
-  /* This is normally available on Sun/Solaris ("SUN4") platforms */
-  if (access(TOSTR(PSTACKTRACE),X_OK) == 0) {
-    char cmd[sizeof(TOSTR(PSTACKTRACE)) + 20];
-    snprintf(cmd,sizeof(cmd),"%s %d", TOSTR(PSTACKTRACE), pid);
-    fflush(NULL);
-    { int idummy = system(cmd); }
-    fflush(NULL);
-  }
-#endif /* defined(PSTACKTRACE) */
-
   gdb_trbk_();
   dbx_trbk_();
 
@@ -523,11 +503,7 @@ void dbx_trbk_()
     pid_t pid = getpid();
     const char *a_out = ec_argv()[0];
     char dbxcmd[65536];
-#if defined(SUN4)
-    const char *qopt = " -q";
-#else
     const char *qopt = "";
-#endif
     fprintf(stderr,
 	    "[dbx_trbk] : Invoking %s ...\n",
 	    TOSTR(DBXDEBUGGER));
