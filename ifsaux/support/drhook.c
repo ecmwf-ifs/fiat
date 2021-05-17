@@ -39,6 +39,7 @@
 
 #include "drhook.h"
 #include "cas.h"
+#include "oml.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -53,70 +54,45 @@ static char *TimeStr(char *s, int slen);
 
 int drhook_memtrace = 0; /* set to 1, if opt_memprof or opt_timeline ; used in getcurheap.c to lock stuff */
 
-/* OpenMP/ODB lock type */
-/* Keep consistent with "odb/include/privpub.h" */
-/* Be ALSO consistent with OML_LOCK_KIND in ifsaux/module/oml_mod.F90 */
-
-typedef long long int oml_lock_t; /* i.e. 64-bit integer */
-
-extern void coml_get_max_threads_(int *numthreads);
-extern void coml_get_num_threads_(int *numthreads);
-extern void coml_my_thread_(int *mytid);
-extern void coml_set_debug_(const int *konoff, int *kret);
-extern void coml_init_lock_();
-extern void coml_init_lockid_(oml_lock_t *mylock);
-extern void coml_init_lockid_with_name_(oml_lock_t *mylock, const char *name, int name_len);
-extern void coml_set_lock_();
-extern void coml_set_lockid_(oml_lock_t *mylock);
-extern void coml_unset_lock_();
-extern void coml_unset_lockid_(oml_lock_t *mylock);
-extern void coml_test_lock_(int *is_set);
-extern void coml_test_lockid_(int *is_set, oml_lock_t *mylock);
-extern void coml_in_parallel_(int *is_parallel_region);
-
 static oml_lock_t DRHOOK_lock = 0;
 
 static int drhook_omp_get_thread_num() {
   // Equivalent to omp_get_thread_num() + 1
-  int tid;
-  coml_my_thread_(&tid);
-  return tid;
+  return oml_my_thread();
 }
 
 static int drhook_omp_get_num_threads() {
   // Equivalent to omp_get_num_threads() --> currently active threads (!= max_threads)
-  int _num_threads;
-  coml_get_num_threads_(&_num_threads);
-  return _num_threads;
+  return oml_get_num_threads();
 }
 
 static int drhook_omp_get_max_threads() {
   // Equivalent to omp_get_max_threads()
-  int _max_threads;
-  coml_get_max_threads_(&_max_threads);
-  return _max_threads;
+  return oml_get_max_threads();
 }
 
 static int drhook_omp_test_lock() {
-  int is_set = 0; // false
-  coml_test_lockid_(&is_set, &DRHOOK_lock);
-  return is_set;
+  return oml_test_lockid(&DRHOOK_lock);
 }
 
 static void drhook_omp_set_lock() {
-  coml_set_lockid_(&DRHOOK_lock);
+  oml_set_lockid(&DRHOOK_lock);
 }
 
 static void drhook_omp_unset_lock() {
-  coml_unset_lockid_(&DRHOOK_lock);
+  oml_unset_lockid(&DRHOOK_lock);
 }
 
 static void drhook_omp_init_lock() {
-  char lockname[] = "drhook.c:DRHOOK_lock";
-  coml_init_lockid_with_name_(&DRHOOK_lock, lockname, strlen(lockname));
+  char *env = getenv("DR_HOOK_SHOW_LOCK"); /* export DR_HOOK_SHOW_LOCK=1 to show the lock-info */
+  int konoff = env ? atoi(env) : 0;
+  int saved_state = oml_get_debug();
+  if (konoff == 1) {
+    oml_set_debug(konoff);
+  }
+  oml_init_lockid_with_name(&DRHOOK_lock, "drhook.c:DRHOOK_lock");
+  oml_set_debug(saved_state);
 } 
-
-
 
 #if !defined(CACHELINESIZE)
 #if defined(LEVEL1_DCACHE_LINESIZE)
@@ -2959,17 +2935,7 @@ init_drhook(int ntids)
         (void) getpag_();
       }
       start_stamp = timestamp();
-      {
-        char *env = getenv("DR_HOOK_SHOW_LOCK"); /* export DR_HOOK_SHOW_LOCK=1 to show the lock-info */
-        int konoff = env ? atoi(env) : 0;
-        int kret = 0;
-        if (konoff == 1) coml_set_debug_(&konoff, &kret);
-  drhook_omp_init_lock();
-        if (kret != 0) {
-          konoff = 0;
-          coml_set_debug_(&konoff, &kret);
-        }
-      }
+      drhook_omp_init_lock();
       ec_set_umask_();
       pid = getpid();
       signal_drhook_init(1); /* myproc gets set .. if not earlier */
