@@ -15,6 +15,7 @@ USE MPL_ARG_MOD, ONLY : MPL_GETARG
 USE YOMGSTATS, ONLY : LAST_KNUM,LAST_KSWITCH,LDETAILED_STATS,MYPROC_STATS, &
                       NHOOK_MESSAGES,TIME_LAST_CALL
 USE YOMHOOKSTACK, ONLY : LL_THREAD_FIRST,ISAVE,IMAXSTACK,CSTACK   ! For monitoring thread stack usage
+USE EC_ARGS_MOD, ONLY : EC_ARGS, EC_ARGC, EC_ARGV
 !<DrHack> 
 USE MPL_MYRANK_MOD,ONLY : MPL_MYRANK ! useful for DrHack
 USE YOMLUN_FAUX, ONLY : NULDRHACK
@@ -122,7 +123,17 @@ IF (LL_FIRST_TIME) THEN
   IF (LLMPI) THEN
     CALL MPL_GETARG(0, CLENV)  ! Get executable name & also propagate args
   ELSE
-    CALL GET_COMMAND_ARGUMENT(0, CLENV)
+    IF( EC_ARGC() == 0 ) THEN
+      CALL EC_ARGS()
+      ! --> This only works if the "main" is a Fortran program.
+      !     If called from C, you need to call "ec_args(argc,argv);" with the "main" args before dr_hook
+      !     It is optional though
+    ENDIF
+    IF( EC_ARGC() > 0 ) THEN
+      CLENV = EC_ARGV(0)
+    ELSE
+      CALL GET_COMMAND_ARGUMENT(0, CLENV)
+    ENDIF
   ENDIF
   IF (.NOT.LDHOOK) RETURN
   
