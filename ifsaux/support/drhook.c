@@ -43,6 +43,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #ifdef __USE_GNU
 #include <dlfcn.h>
@@ -312,6 +313,7 @@ typedef struct drhook_timeline_t {
 
 static drhook_timeline_t *timeline = NULL;
 
+
 #define DRHOOK_STRBUF 1000
 
 #ifndef SA_SIGINFO
@@ -358,9 +360,26 @@ extern double util_walltime_();
 #define WALLTIME() util_walltime_()
 #define CPUTIME() util_cputime_()
 
-/* #define RAISE(x) { int tmp = x; c_drhook_raise_(&tmp); } */
-#include "raise.h"
+#include "abor1.h"
 #include "ec_args.h"
+
+static drhook_abort_t drhook_abort_funptr = NULL;
+void drhook_set_abort( drhook_abort_t abort_funptr ) {
+  drhook_abort_funptr = abort_funptr;
+}
+void drhook_abort( const char* file, int line, const char* txt ) {
+  if( drhook_abort_funptr ) {
+    drhook_abort_funptr( file, line, txt );
+  }
+  else {
+    abor1fl( file, line, txt );
+  }
+  _exit(1); // should not be here
+}
+#define DRHOOK_ABORT() do { \
+  drhook_abort( __FILE__, __LINE__, "*** Fatal error; drhook_abort ..." ); \
+} while(0)
+
 
 extern void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr);
 
@@ -743,7 +762,7 @@ malloc_drhook(size_t size)
     fprintf(stderr,
             "***Error in malloc_drhook(): Unable to allocate space for %lld bytes\n", 
             (long long int)size1);
-    RAISE(SIGABRT);
+    DRHOOK_ABORT();
   }
   return p;
 }
@@ -827,7 +846,7 @@ static drhook_key_t *callstack(int tid, void *key, drhook_key_t *keyptr)
               "Call stack index %u still out of range [0,%u). Aborting ...\n",
               pfx,TIMESTR(tid),FFL,
               idx,c->maxdepth);
-      RAISE(SIGABRT);
+      DRHOOK_ABORT();
     }
     c->keyptr[idx] = keyptr;
     *Index = idx;
@@ -841,7 +860,7 @@ static drhook_key_t *callstack(int tid, void *key, drhook_key_t *keyptr)
               "Invalid index to call stack %u : out of range [0,%u). Expecting the exact value of %u\n",
               pfx,TIMESTR(tid),FFL,
               idx,c->maxdepth,*Index);
-      RAISE(SIGABRT);
+      DRHOOK_ABORT();
     }
     keyptr = c->keyptr[idx];
   }
@@ -1618,6 +1637,8 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 
       if (nfirst) {
         /* Enjoy some output (only from the first guy that came in) */
+        fprintf(stderr,
+                "[EC_DRHOOK:hostname:myproc:omptid:pid:unixtid] [YYYYMMDD:HHMMSS:epoch:walltime] [function@file:lineno]\n");
         long long int hwm = gethwm_();
         long long int rss = getmaxrss_();
         long long int maxstack = getmaxstk_();
@@ -2028,31 +2049,10 @@ signal_drhook_init(int enforce)
     if (gethostname(hostname,sizeof(hostname)) != 0) strcpy(hostname,"unknown");
     pdot = strchr(hostname,'.');
     if (pdot) *pdot = '\0'; // cut short from "." char e.g. hostname.fmi.fi becomes just "hostname"
-    if (myproc == 1) {
-      fprintf(stderr,"[EC_DRHOOK:hostname:myproc:omptid:pid:unixtid] [YYYYMMDD:HHMMSS:epoch:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",ntids);
-    }
     extern void drhook_run_omp_parallel_ipfstr_(const int *, 
                                                 void (*func)(const char *, int),
                                                 const char *, /*hidden*/ int);
     drhook_run_omp_parallel_ipfstr_(&ntids,set_ec_drhook_label,hostname,strlen(hostname));
-  }
-  env = getenv("ATP_ENABLED");
-  atp_enabled = (env && *env == '1') ? 1 : 0;
-  if (atp_enabled) {
-    env = getenv("ATP_MAX_CORES");
-    if (env) atp_max_cores = atoi(env);
-    env = getenv("ATP_MAX_ANALYSIS_TIME");
-    if (env) atp_max_analysis_time = atoi(env);
-    env = getenv("ATP_IGNORE_SIGTERM");
-    if (env) atp_ignore_sigterm = atoi(env);
-    if (!silent && myproc == 1) {
-      int tid = drhook_omp_get_thread_num();
-      char *pfx = PREFIX(tid);
-      fprintf(stderr,"%s %s [%s@%s:%d] ATP_ENABLED=%d\n",pfx,TIMESTR(tid),FFL,atp_enabled);
-      fprintf(stderr,"%s %s [%s@%s:%d] ATP_MAX_CORES=%d\n",pfx,TIMESTR(tid),FFL,atp_max_cores);
-      fprintf(stderr,"%s %s [%s@%s:%d] ATP_MAX_ANALYSIS_TIME=%d\n",pfx,TIMESTR(tid),FFL,atp_max_analysis_time);
-      fprintf(stderr,"%s %s [%s@%s:%d] ATP_IGNORE_SIGTERM=%d\n",pfx,TIMESTR(tid),FFL,atp_ignore_sigterm);
-    }
   }
   process_options();
   for (j=1; j<=NSIG; j++) { /* Initialize */
@@ -2192,7 +2192,7 @@ random_memstat(int tid, int enforce)
                 maxstk,threshold,
                 opt_trace_stack,ompstk,
                 maxhwm,vmpeak);
-        RAISE(SIGABRT);
+        DRHOOK_ABORT();
       }
     }
   }
@@ -2225,12 +2225,33 @@ process_options()
 
   tid = drhook_omp_get_thread_num();
 
+  int silent = 0;
+  env = getenv("DR_HOOK_SILENT");
+  silent = env ? atoi(env) : silent;
+
   env = getenv("DR_HOOK_SHOW_PROCESS_OPTIONS");
-  ienv = env ? atoi(env) : 1;
+  ienv = env ? atoi(env) : silent ? 0 : 1;
   if (ienv == -1 || ienv == myproc) fp = stderr;
   if (fp) pfx = PREFIX(tid);
 
+  if(fp) fprintf(fp,"[EC_DRHOOK:hostname:myproc:omptid:pid:unixtid] [YYYYMMDD:HHMMSS:epoch:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",drhook_omp_get_max_threads());
+
   OPTPRINT(fp,"%s %s [%s@%s:%d] fp = %p\n",pfx,TIMESTR(tid),FFL,fp);
+
+  env = getenv("ATP_ENABLED");
+  atp_enabled = env ? atoi(env) : 0;
+  if (atp_enabled) {
+    env = getenv("ATP_MAX_CORES");
+    if (env) atp_max_cores = atoi(env);
+    env = getenv("ATP_MAX_ANALYSIS_TIME");
+    if (env) atp_max_analysis_time = atoi(env);
+    env = getenv("ATP_IGNORE_SIGTERM");
+    if (env) atp_ignore_sigterm = atoi(env);
+    OPTPRINT(fp,"%s %s [%s@%s:%d] ATP_ENABLED=%d\n",pfx,TIMESTR(tid),FFL,atp_enabled);
+    OPTPRINT(fp,"%s %s [%s@%s:%d] ATP_MAX_CORES=%d\n",pfx,TIMESTR(tid),FFL,atp_max_cores);
+    OPTPRINT(fp,"%s %s [%s@%s:%d] ATP_MAX_ANALYSIS_TIME=%d\n",pfx,TIMESTR(tid),FFL,atp_max_analysis_time);
+    OPTPRINT(fp,"%s %s [%s@%s:%d] ATP_IGNORE_SIGTERM=%d\n",pfx,TIMESTR(tid),FFL,atp_ignore_sigterm);
+  }
 
   env = getenv("DR_HOOK_ALLOW_COREDUMP");
   if (env) {
@@ -2882,7 +2903,7 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
             "%s %s [%s@%s:%d] [signal#%d(%s)]: Aborting...\n",
             pfx,TIMESTR(tid),FFL,
             sig,sl_name);
-    RAISE(SIGABRT);
+    DRHOOK_ABORT();
   }
   else if (tid >= 1 && tid <= numthreads) {
     double delta_wall = 0;
@@ -3298,7 +3319,7 @@ check_watch(const char *label,
           }
           if (allow_abort && p->abort_if_changed) {
             drhook_omp_unset_lock(); /* An important unlocking on Linux; otherwise hangs (until time-out) */
-            RAISE(SIGABRT);
+            DRHOOK_ABORT();
           }
 #if 0
           p->active = 0; /* No more these messages for this array */
@@ -3353,7 +3374,7 @@ c_drhook_getenv_(const char *s,
   char *p = malloc_drhook(slen+1);
   if (!p) {
     fprintf(stderr,"c_drhook_getenv_(): Unable to allocate %d bytes of memory\n", slen+1);
-    RAISE(SIGABRT);
+    DRHOOK_ABORT();
   }
   memcpy(p,s,slen); 
   p[slen]='\0';

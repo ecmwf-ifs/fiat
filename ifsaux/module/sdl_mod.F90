@@ -76,7 +76,7 @@ ENDIF
   WRITE(0,*)'SDL_TRACEBACK: Calling GDB_TRBK, THRD = ',ITID
   CALL GDB_TRBK() ! See ifsaux/utilities/linuxtrbk.c
   WRITE(0,*)'SDL_TRACEBACK: Done GDB_TRBK, THRD = ',ITID
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(__APPLE__)
   WRITE(0,*)'SDL_TRACEBACK: Calling LINUX_TRBK, THRD = ',ITID
   CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
   WRITE(0,*)'SDL_TRACEBACK: Done LINUX_TRBK, THRD = ',ITID
@@ -121,11 +121,6 @@ INTEGER(KIND=JPIM) :: IRETURN_CODE,IERROR
 CHARACTER(LEN=80) :: CLJOBID
 CHARACTER(LEN=80) :: CLTRBK
 
-#ifdef VPP
-
-CALL VPP_ABORT()
-
-#else
 #if defined(__INTEL_COMPILER)
 ! Intel compiler seems to hang in MPI_ABORT -- on all but the failing task(s)
 ! ... when linux trbk is used. REK
@@ -143,8 +138,6 @@ ENDIF
 IRETURN_CODE=SIGABRT
 !CALL MPI_ABORT(KCOMM,IRETURN_CODE,IERROR)
 CALL MPI_ABORT(MPI_COMM_WORLD,IRETURN_CODE,IERROR) ! Tracked by the supervisor/process-damager (manager) -- KCOMM /= MPI_COMM_WORLD may hang as sub-communicator
-
-#endif
 
 CALL EC_RAISE(SIGABRT) ! In case ever ends up here
 STOP 'SDL_DISABORT'

@@ -182,6 +182,10 @@ Dr_Hook(const char *name, int option, double *handle,
 
 #define DRHOOK_END(sizeinfo) DRHOOK_END_RECUR(sizeinfo,0) 
 
+typedef void (*drhook_abort_t)(const char* file, int line, const char* text);
+void drhook_set_abort( drhook_abort_t );
+void drhook_abort( const char* file, int line, const char* txt );
+
 /* Fortran routines */
 
 extern void
