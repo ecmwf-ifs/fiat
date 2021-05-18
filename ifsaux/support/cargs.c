@@ -63,9 +63,9 @@ static const char *get_a_out()
      char symlink[NAME_MAX], real_exe[NAME_MAX];
      snprintf(symlink, NAME_MAX, "/proc/%d/exe", getpid());
      if ((len = readlink(symlink, real_exe, NAME_MAX)) > 0)  {
-        a_out = malloc((len+1)*sizeof(*a_out));
+	a_out = malloc((len+1)*sizeof(*a_out));
         strncpy(a_out, real_exe, len);
-        a_out[len] = '\0';
+	a_out[len] = '\0';
      }
   }
 #endif
@@ -111,7 +111,10 @@ static const char *get_a_out()
   return a_out;
 }
 
-  
+void ec_args(int argc, char* argv[]) {
+  ec_PutArgs(argc, argv);
+}
+
 void ec_PutArgs(int argc, char *argv[])
 {
   if (numargs == -1 && !args) {

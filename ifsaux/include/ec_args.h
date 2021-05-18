@@ -17,7 +17,7 @@ extern "C" {
 #endif
 
 /* The following two as in C-main : "int main(int argc, char *argv[])" */
-
+void ec_args(int argc, char* argv[]);
 int ec_argc(void);
 char **ec_argv(void);
 
