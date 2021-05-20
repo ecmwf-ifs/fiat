@@ -372,7 +372,7 @@ void drhook_abort( const char* file, int line, const char* txt ) {
     drhook_abort_funptr( file, line, txt );
   }
   else {
-    abor1fl( file, line, txt );
+    abor1( file, line, txt );
   }
   _exit(1); // should not be here
 }

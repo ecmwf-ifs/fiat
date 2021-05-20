@@ -22,7 +22,7 @@
 
 #define RAISE(x) { \
   if ((x) == SIGABRT) { \
-    ABOR1FL("*** Fatal error; aborting (SIGABRT) ..."); \
+    ABOR1("*** Fatal error; aborting (SIGABRT) ..."); \
     _exit(1); /* Should never end up here */ \
   } \
   else raise(x); \

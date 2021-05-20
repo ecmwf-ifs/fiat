@@ -13,10 +13,8 @@
 
 /* abor1.h */
 
-void abor1fl(const char* filename, const int linenum, const char* s);
-void abor1(const char* s);
+void abor1(const char* filename, const int linenum, const char* s);
 
-#define ABOR1(txt)   abor1( (txt) ) 
-#define ABOR1FL(txt) abor1fl( __FILE__, __LINE__, (txt) ) 
+#define ABOR1(txt) abor1( __FILE__, __LINE__, (txt) ) 
 
 #endif /* _ABOR1_H_ */

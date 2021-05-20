@@ -11,20 +11,18 @@
 #include <string.h>
 #include <unistd.h>
 
-extern void abor1fl_(const char *filename, const int *linenum, 
-		     const char *s, 
-		     int filenamelen, int slen);
+extern void abor1fl_(const char *filename, const int *linenum, const char *s, 
+                     int filenamelen, int slen);
 extern void abor1_(const char *s, int slen);
 
-void abor1fl(const char* filename, const int linenum, const char* s) {
-  s ? abor1fl_(filename, &linenum,  s, strlen(filename), strlen(s))
-    : abor1fl_(filename, &linenum, "", strlen(filename), 0);
+void abor1(const char* filename, const int linenum, const char* s) {
+  if( filename ) {
+    s ? abor1fl_( filename, &linenum,  s, strlen(filename), strlen(s) )
+      : abor1fl_( filename, &linenum, "", strlen(filename), 0 );
+  }
+  else {
+    s ? abor1_( s, strlen(s) )
+      : abor1_( "", 0 );
+  }
   _exit(1); /* Should never end up here */
 }
-
-void abor1(const char* s) {
-  s ? abor1_(s, strlen(s))
-    : abor1_("", 0 );
-  _exit(1); /* Should never end up here */
-}
-
