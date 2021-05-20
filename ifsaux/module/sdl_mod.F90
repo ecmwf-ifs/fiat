@@ -107,15 +107,11 @@ STOP 'SDL_SRLABORT'
 
 END SUBROUTINE SDL_SRLABORT
 !-----------------------------------------------------------------------------
-SUBROUTINE SDL_DISABORT(KCOMM)
+SUBROUTINE SDL_DISABORT()
 
 ! Purpose :
 ! -------
 !   To abort in distributed environment
-
-!   KCOMM : communicator
-
-INTEGER(KIND=JPIM), INTENT(IN) :: KCOMM
 
 INTEGER(KIND=JPIM) :: IRETURN_CODE,IERROR
 CHARACTER(LEN=80) :: CLJOBID
@@ -124,19 +120,18 @@ CHARACTER(LEN=80) :: CLTRBK
 #if defined(__INTEL_COMPILER)
 ! Intel compiler seems to hang in MPI_ABORT -- on all but the failing task(s)
 ! ... when linux trbk is used. REK
-CALL GET_ENVIRONMENT_VARIABLE("EC_LINUX_TRBK",CLTRBK)
-IF (CLTRBK=='1') THEN
 IF (LHOOK) THEN
-  CALL GET_ENVIRONMENT_VARIABLE("SLURM_JOBID",CLJOBID)
-  IF (CLJOBID /= ' ') THEN
-    CALL SYSTEM("set -x; sleep 10; scancel --signal=TERM "//trim(CLJOBID)//" &")
+  CALL GET_ENVIRONMENT_VARIABLE("EC_LINUX_TRBK",CLTRBK)
+  IF (CLTRBK=='1') THEN
+    CALL GET_ENVIRONMENT_VARIABLE("SLURM_JOBID",CLJOBID)
+    IF (CLJOBID /= ' ') THEN
+      CALL SYSTEM("set -x; sleep 10; scancel --signal=TERM "//trim(CLJOBID)//" &")
+    ENDIF
   ENDIF
-ENDIF
 ENDIF
 #endif
 
 IRETURN_CODE=SIGABRT
-!CALL MPI_ABORT(KCOMM,IRETURN_CODE,IERROR)
 CALL MPI_ABORT(MPI_COMM_WORLD,IRETURN_CODE,IERROR) ! Tracked by the supervisor/process-damager (manager) -- KCOMM /= MPI_COMM_WORLD may hang as sub-communicator
 
 CALL EC_RAISE(SIGABRT) ! In case ever ends up here
