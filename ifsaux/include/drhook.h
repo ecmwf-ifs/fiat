@@ -186,6 +186,9 @@ typedef void (*drhook_abort_t)(const char* file, int line, const char* text);
 void drhook_set_abort( drhook_abort_t );
 void drhook_abort( const char* file, int line, const char* txt );
 
+void drhook_calltree();
+
+
 /* Fortran routines */
 
 extern void

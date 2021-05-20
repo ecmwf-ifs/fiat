@@ -4860,3 +4860,13 @@ static void set_timed_kill()
   }
 }
 #endif
+
+void drhook_calltree() {
+  if( drhook_lhook ) {
+    int ftnunitno = 0;
+    int tid = 0;
+    int print_option = 2;
+    int level = 99;
+    c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
+  }
+}
