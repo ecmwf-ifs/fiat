@@ -37,8 +37,7 @@ MYTHREAD=OMP_GET_THREAD_NUM() + 1
 MYTHREAD=1
 #endif
 
-#ifndef BOM
-  WRITE(MESSAGE,'(A,I4,A,I2,A)') &
+WRITE(MESSAGE,'(A,I4,A,I2,A)') &
   &           "Process ",MYPROC," thread ",MYTHREAD, &
   &           " calling tracebackqq from intel_trbk()"
 #ifdef __INTEL_COMPILER
@@ -46,11 +45,8 @@ MYTHREAD=1
 ! on leap42 ifort version 18.1
 !  CALL TRACEBACKQQ(MESSAGE, USER_EXIT_CODE=-1)
 #endif
-#endif
-#if defined(LINUX) || defined(__APPLE__)
-  WRITE(0,*) "Process ",MYPROC," thread ",MYTHREAD, &
+WRITE(0,*) "Process ",MYPROC," thread ",MYTHREAD, &
  &           " calling linux_trbk from intel_trbk()"
-  CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
-#endif
+CALL LINUX_TRBK() ! See linuxtrbk.c
 DONE_TRACEBACK=.TRUE.
 END SUBROUTINE INTEL_TRBK
