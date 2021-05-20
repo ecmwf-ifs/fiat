@@ -54,11 +54,8 @@ typedef struct {
 static int ResolveViaBFD(void *address, BFD_t *b, const char *str);
 static void InitBFD();
 
-#if defined(LINUX) || defined(__APPLE__)
-
 #ifndef LINELEN
 #define LINELEN 1024
-#endif
 
 #define FFL __FUNCTION__,__FILE__,__LINE__
 
@@ -68,20 +65,13 @@ static void InitBFD();
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#if defined(LINUX) && !defined(CYGWIN) && !defined(__NEC__)
-#include <execinfo.h>
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
+// define _XOPEN_SOURCE to enable deprecated use of ucontext.h
 #define _XOPEN_SOURCE
-#include <errno.h>
-#include <limits.h>
-#undef HANDLE
-#define HANDLE pthread_t *
 #endif
 
-//#define __USE_GNU
-//#define _XOPEN_SOURCE
-
-#if !defined(CYGWIN) && !defined(__APPLE__)
+#if !defined(CYGWIN) && !defined(__NEC__)
+#include <execinfo.h>
 #include <ucontext.h>
 #endif
 
@@ -100,6 +90,10 @@ static const int has_bfd = 1;
 #else
 static const int has_bfd = 0;
 #endif
+
+void gdb_trbk(); // defined below
+void dbx_trbk(); // defined below
+void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr); // defined below
 
 #if 0
 /* 
@@ -202,24 +196,24 @@ static void SetMasterThreadsStackSizeBeforeMain()
     
     if (ignore) {
       fprintf(stderr,
-	      "[%s] [%s@%s:%d] : Master thread's stack size = %llu bytes [setrlimit() was not called]\n",
-	      prefix,FFL,
-	      (unsigned long long int)StackSize);
+          "[%s] [%s@%s:%d] : Master thread's stack size = %llu bytes [setrlimit() was not called]\n",
+          prefix,FFL,
+          (unsigned long long int)StackSize);
     }
     else if (envstksz) {
       fprintf(stderr,
-	      "[%s] [%s@%s:%d] : Master thread's stack size = %llu bytes, (export STACKSIZE=%lld bytes)\n",
-	      prefix,FFL,
-	      (unsigned long long int)StackSize,
-	      value);
+          "[%s] [%s@%s:%d] : Master thread's stack size = %llu bytes, (export STACKSIZE=%lld bytes)\n",
+          prefix,FFL,
+          (unsigned long long int)StackSize,
+          value);
     }
     else if (envompstksz) {
       fprintf(stderr,
-	      "[%s] [%s@%s:%d] : Master thread's stack size = %llu bytes, (export OMP_STACKSIZE=%lld bytes for slave thread, STACKMULT = %d)\n",
-	      prefix,FFL,
-	      (unsigned long long int)StackSize,
-	      value,
-	      StackMult);
+          "[%s] [%s@%s:%d] : Master thread's stack size = %llu bytes, (export OMP_STACKSIZE=%lld bytes for slave thread, STACKMULT = %d)\n",
+          prefix,FFL,
+          (unsigned long long int)StackSize,
+          value,
+          StackMult);
     }
   }
 }
@@ -237,45 +231,75 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
   if (!sigcontextptr) sigcontextptr = __builtin_frame_address(0);
   __builtin_traceback(sigcontextptr);
 #else
-  extern void gdb_trbk_();
-  gdb_trbk_();
+  gdb_trbk();
 #endif
+}
+#elif defined(CYGWIN)
+void
+LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
+{
+  const char *pfx = prefix  ? prefix  : drhook_PREFIX(0);
+  const char *ts  = timestr ? timestr : drhook_TIMESTR(0);
+  int sigcontextptr_given = sigcontextptr ? 1 : 0;
+  static int recur = 0;
+  const char *a_out = ec_argv()[0];
+  fprintf(stderr,"%s %s [LinuxTraceBack] Backtrace(s) for program '%s' : sigcontextptr=%p\n", 
+      pfx,ts,a_out ? a_out : "/dev/null", sigcontextptr);
+
+  if (++recur > 1) {
+    fprintf(stderr,
+        "%s %s [LinuxTraceBack] I don't handle recursive calls very well (recursion level = %d)\n",
+        pfx,ts,recur);
+    if (recur > 10) {
+      fprintf(stderr,"%s %s [LinuxTraceBack] Recursion too deep. Exiting immediately with _exit(%d)\n",
+          pfx,ts,recur);
+      fflush(NULL);
+      _exit(recur); /* Exit immediately */
+    }
+  }
+  if (!sigcontextptr_given) goto finish;
+
+  gdb_trbk();
+  dbx_trbk();
+
+ finish:
+  fprintf(stderr,"%s %s [%s@%s:%d] End of backtrace(s)\n",pfx,ts,FFL);
+  recur--;
 }
 #else
 void
 LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 {
-  const char *pfx = prefix ? prefix : drhook_PREFIX(0);
-  const char *ts  = timestr ? timestr : drhook_TIMESTR(0);
   int sigcontextptr_given = sigcontextptr ? 1 : 0;
-  extern void gdb_trbk_();
-  extern void dbx_trbk_();
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN)
-  ucontext_t ctx;
-#endif
   static int recur = 0;
-  const char *a_out = ec_argv()[0];
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(__NEC__)
+#if defined(__GNUC__)
+  ucontext_t ctx;
   if (!sigcontextptr) {
       sigcontextptr = (getcontext(&ctx) == 0) ? &ctx : NULL;
   }
 #endif
-  fprintf(stderr,"%s %s [%s@%s:%d] Backtrace(s) for program '%s' : sigcontextptr=%p\n", 
-	  pfx,ts,FFL,a_out ? a_out : "/dev/null", sigcontextptr);
+  const char *pfx   = prefix  ? prefix  : drhook_PREFIX(0);
+  const char *ts    = timestr ? timestr : drhook_TIMESTR(0);
+  const char *a_out = ec_argv()[0];
+  const char *s1    = strlen(pfx) ? " " : "";
+  const char *s2    = strlen(ts)  ? " " : ""; 
+ 
+  fprintf(stderr,"%s%s%s%s[LinuxTraceBack] Backtrace(s) for program '%s' : sigcontextptr=%p\n", 
+      pfx,s1,ts,s2,a_out ? a_out : "/dev/null", sigcontextptr);
 
   if (++recur > 1) {
     fprintf(stderr,
-	    "%s %s [%s@%s:%d] I don't handle recursive calls very well (recursion level = %d)\n",
-	    pfx,ts,FFL,recur);
+        "%s%s%s%s[LinuxTraceBack] I don't handle recursive calls very well (recursion level = %d)\n",
+        pfx,s1,ts,s2,recur);
     if (recur > 10) {
-      fprintf(stderr,"%s %s [%s@%s:%d] Recursion too deep. Exiting immediately with _exit(%d)\n",
-	      pfx,ts,FFL,recur);
+      fprintf(stderr,"%s%s%s%s[LinuxTraceBack] Recursion too deep. Exiting immediately with _exit(%d)\n",
+          pfx,s1,ts,s2,recur);
       fflush(NULL);
       _exit(recur); /* Exit immediately */
     }
   }
 
-#if defined(__GNUC__) && defined(LINUX) && !defined(CYGWIN) && !defined(__NEC__)
+#if defined(__GNUC__)
   //fflush(NULL);
 
   if (sigcontextptr) {
@@ -301,116 +325,115 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 #endif
     }
     strings = backtrace_symbols(trace, trace_size);
-    fprintf(stderr,"%s %s [%s@%s:%d] Backtrace (size = %d) with %s\n",
-	    pfx,ts,FFL,trace_size,
-	    addr2linecmd ? "addr2line-cmd" : has_bfd ? "BFD-method" : "plain hex-dump");
+    fprintf(stderr,"%s%s%s%s[LinuxTraceBack] Backtrace (size = %d) with %s\n",
+        pfx,s1,ts,s2,trace_size,
+        addr2linecmd ? "addr2line-cmd" : has_bfd ? "BFD-method" : "plain hex-dump");
     if (strings && trace_size > 0) {
       int i;
       FILE *fp = NULL;
       if (addr2linecmd) {
-	/* Use ADDR2LINE to obtain source file & line numbers for each trace-address */
-	//snprintf(addr2linecmd, len_addr2linecmd, "%s -fs -e '%s'", TOSTR(ADDR2LINE), a_out);
-	strcpy(addr2linecmd,TOSTR(ADDR2LINE));
-	strcat(addr2linecmd," -fs -e '");
-	strcat(addr2linecmd,a_out);
-	strcat(addr2linecmd,"'");
-	for (i = 0; i < trace_size; i++) {
-	  char s[30];
-	  if (trace[i])
-	    snprintf(s,sizeof(s)," %p",trace[i]);
-	  else
-	    snprintf(s,sizeof(s)," 0x0");
-	  strcat(addr2linecmd,s);
-	}
-	if (getenv("LD_PRELOAD")) {
-	  static char ld_preload[] = "LD_PRELOAD=";
-	  putenv(ld_preload);
-	}
-	fprintf(stderr,"%s %s [%s@%s:%d] %s\n",
-		pfx,ts,FFL,addr2linecmd);
-	fp = popen(addr2linecmd,"r");
-	/* free(addr2linecmd); */
+    /* Use ADDR2LINE to obtain source file & line numbers for each trace-address */
+    //snprintf(addr2linecmd, len_addr2linecmd, "%s -fs -e '%s'", TOSTR(ADDR2LINE), a_out);
+    strcpy(addr2linecmd,TOSTR(ADDR2LINE));
+    strcat(addr2linecmd," -fs -e '");
+    strcat(addr2linecmd,a_out);
+    strcat(addr2linecmd,"'");
+    for (i = 0; i < trace_size; i++) {
+      char s[30];
+      if (trace[i])
+        snprintf(s,sizeof(s)," %p",trace[i]);
+      else
+        snprintf(s,sizeof(s)," 0x0");
+      strcat(addr2linecmd,s);
+    }
+    if (getenv("LD_PRELOAD")) {
+      static char ld_preload[] = "LD_PRELOAD=";
+      putenv(ld_preload);
+    }
+    fprintf(stderr,"%s%s%s%s[LinuxTraceBack] %s\n",
+        pfx,s1,ts,s2,addr2linecmd);
+    fp = popen(addr2linecmd,"r");
+    /* free(addr2linecmd); */
       }
       if (fp) {
-	int ndigits = (trace_size > 0) ? 1 + (int)log10(trace_size) : 0;
-	extern char *cxxdemangle(const char *mangled_name, int *status); // cxxdemangle.cc (C++ code) : returned string must be free'd
-	for (i = 0; i < trace_size; i++) {
-	  int ok = 0;
-	  char func[LINELEN];
-	  if (!feof(fp) && fgets(func, LINELEN, fp)) {
-	    char line[LINELEN];
-	    if (!feof(fp) && fgets(line, LINELEN, fp)) {
-	      char *cxxfunc = NULL;
-	      char *nl = strchr(func,'\n');
-	      char *leftB, *plus;
-	      const char *last_slash = linuxtrbk_fullpath_on ? NULL : strrchr(strings[i],'/');
-	      if (last_slash) last_slash++; else last_slash = strings[i];
-	      if (nl) *nl = '\0';
-	      cxxfunc = cxxdemangle(func,NULL);
-	      nl = strchr(line,'\n');
-	      if (nl) *nl = '\0';
-	      leftB = strchr(last_slash,'(');
-	      plus = strrchr(last_slash,'+');
-	      if (leftB && plus && (int)(plus-leftB) > 1) {
-		int istat = 0;
-		char *cxx = NULL;
-		char *therest = plus + 1;
-		*plus = '\0';
-		cxx = cxxdemangle(leftB + 1,&istat);
-		if (cxx) *leftB = '\0';
-		fprintf(stderr, "%s %s [%s@%s:%d] [%*.*d]: %s%s%s+%s : %s%s at %s\n", 
-			pfx, ts, FFL, ndigits, ndigits, i,
-			last_slash,
-			cxx ? "(" : "",
-			cxx ? cxx : "",
-			therest,
-			cxxfunc ? cxxfunc : func, 
-			cxxfunc ? "" : "()",
-			line);
-		if (cxx) free(cxx);
-	      }
-	      else {
-		fprintf(stderr, "%s %s [%s@%s:%d] [%*.*d]: %s : %s%s at %s\n", 
-			pfx, ts, FFL, ndigits, ndigits, i, 
-			last_slash, 
-			cxxfunc ? cxxfunc : func, 
-			cxxfunc ? "" : "()",
-			line);
-	      }
-	      if (cxxfunc) free(cxxfunc);
-	      ok = 1;
-	    }
-	  }
-	  if (!ok) {
-	    char *cxx = cxxdemangle(strings[i],NULL);
-	    fprintf(stderr, "%s %s [%s@%s:%d] [%*.*d]: %s\n", 
-		    pfx, ts, FFL, ndigits, ndigits, i, 
-		    cxx ? cxx : strings[i]);
-	    if (cxx) free(cxx);
-	  }
-	} /* for (i = 0; i < trace_size; i++) */
-	fflush(stderr);
-	pclose(fp);
+    int ndigits = (trace_size > 0) ? 1 + (int)log10(trace_size) : 0;
+    extern char *cxxdemangle(const char *mangled_name, int *status); // cxxdemangle.cc (C++ code) : returned string must be free'd
+    for (i = 0; i < trace_size; i++) {
+      int ok = 0;
+      char func[LINELEN];
+      if (!feof(fp) && fgets(func, LINELEN, fp)) {
+        char line[LINELEN];
+        if (!feof(fp) && fgets(line, LINELEN, fp)) {
+          char *cxxfunc = NULL;
+          char *nl = strchr(func,'\n');
+          char *leftB, *plus;
+          const char *last_slash = linuxtrbk_fullpath_on ? NULL : strrchr(strings[i],'/');
+          if (last_slash) last_slash++; else last_slash = strings[i];
+          if (nl) *nl = '\0';
+          cxxfunc = cxxdemangle(func,NULL);
+          nl = strchr(line,'\n');
+          if (nl) *nl = '\0';
+          leftB = strchr(last_slash,'(');
+          plus = strrchr(last_slash,'+');
+          if (leftB && plus && (int)(plus-leftB) > 1) {
+        int istat = 0;
+        char *cxx = NULL;
+        char *therest = plus + 1;
+        *plus = '\0';
+        cxx = cxxdemangle(leftB + 1,&istat);
+        if (cxx) *leftB = '\0';
+        fprintf(stderr, "%s%s%s%s[LinuxTraceBack] [%*.*d]: %s%s%s+%s : %s%s at %s\n", 
+            pfx,s1,ts,s2, ndigits, ndigits, i,
+            last_slash,
+            cxx ? "(" : "",
+            cxx ? cxx : "",
+            therest,
+            cxxfunc ? cxxfunc : func, 
+            cxxfunc ? "" : "()",
+            line);
+        if (cxx) free(cxx);
+          }
+          else {
+        fprintf(stderr, "%s%s%s%s[LinuxTraceBack] [%*.*d]: %s : %s%s at %s\n", 
+            pfx,s1,ts,s2, ndigits, ndigits, i, 
+            last_slash, 
+            cxxfunc ? cxxfunc : func, 
+            cxxfunc ? "" : "()",
+            line);
+          }
+          if (cxxfunc) free(cxxfunc);
+          ok = 1;
+        }
+      }
+      if (!ok) {
+        char *cxx = cxxdemangle(strings[i],NULL);
+        fprintf(stderr, "%s%s%s%s[LinuxTraceBack] [%*.*d]: %s\n", 
+            pfx,s1,ts,s2, ndigits, ndigits, i, 
+            cxx ? cxx : strings[i]);
+        if (cxx) free(cxx);
+      }
+    } /* for (i = 0; i < trace_size; i++) */
+    fflush(stderr);
+    pclose(fp);
       } /* if (fp) */
       else {
-	int rc;
-	InitBFD();
-	for (i = 0 ; i < trace_size; ++i) {
-	  BFD_t b;
-	  const char *last_slash = linuxtrbk_fullpath_on ? NULL : strrchr(strings[i],'/');
-	  if (last_slash) last_slash++; else last_slash = strings[i];
-	  rc = ResolveViaBFD(trace[i], &b, last_slash);
-	  if (rc == 0) {
-	    fprintf(stderr,"%s %s [%s@%s:%d] [%d]: %s : %s() at %s:%u\n",
-		    pfx,ts,FFL,i,
-		    last_slash,b.func,b.file,b.lineno);
-	  }
-	  else {
-	    fprintf(stderr,"%s %s [%s@%s:%d] [%d]: %s : %p\n",
-		    pfx,ts,FFL,i,
-		    last_slash,trace[i]);
-	  }
-	}
+            int ndigits = (trace_size > 0) ? 1 + (int)log10(trace_size) : 0;
+    InitBFD();
+    for (i = 0 ; i < trace_size; ++i) {
+      BFD_t b;
+      const char *last_slash = linuxtrbk_fullpath_on ? NULL : strrchr(strings[i],'/');
+      if (last_slash) last_slash++; else last_slash = strings[i];
+      if (ResolveViaBFD(trace[i], &b, last_slash) == 0 /*success*/) {
+        fprintf(stderr,"%s%s%s%s[LinuxTraceBack] [%*.*d]: %s : %s() at %s:%u\n",
+            pfx,s1,ts,s2,ndigits,ndigits,i,
+            last_slash,b.func,b.file,b.lineno);
+      }
+      else {
+        fprintf(stderr,"%s%s%s%s[LinuxTraceBack] [%*.*d]: %s : %p\n",
+            pfx,s1,ts,s2,ndigits,ndigits,i,
+            last_slash,trace[i]);
+      }
+    }
       }
     }
     else {
@@ -423,11 +446,11 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 
   if (!sigcontextptr_given) goto finish;
 
-  gdb_trbk_();
-  dbx_trbk_();
+  gdb_trbk();
+  dbx_trbk();
 
  finish:
-  fprintf(stderr,"%s %s [%s@%s:%d] End of backtrace(s)\n",pfx,ts,FFL);
+  fprintf(stderr,"%s%s%s%s[LinuxTraceBack] End of backtrace(s)\n",pfx,s1,ts,s2);
   recur--;
 }
 #endif
@@ -470,11 +493,11 @@ void gdb_trbk_()
     pid_t pid = getpid();
     const char *a_out = ec_argv()[0];
     fprintf(stderr,
-	    "[gdb_trbk] : Invoking %s ...\n",
-	    TOSTR(GNUDEBUGGER));
+        "[gdb_trbk] : Invoking %s ...\n",
+        TOSTR(GNUDEBUGGER));
     snprintf(gdbcmd,sizeof(gdbcmd),
-	     "set +eux; %s -batch -n -q -ex 'thread apply all bt' %s %ld < /dev/null",
-	     TOSTR(GNUDEBUGGER), a_out, (long int)pid);
+         "set +eux; %s -batch -n -q -ex 'thread apply all bt' %s %ld < /dev/null",
+         TOSTR(GNUDEBUGGER), a_out, (long int)pid);
     
     /* fprintf(stderr,"%s\n",gdbcmd); */
     fflush(NULL);
@@ -505,19 +528,19 @@ void dbx_trbk_()
     char dbxcmd[65536];
     const char *qopt = "";
     fprintf(stderr,
-	    "[dbx_trbk] : Invoking %s ...\n",
-	    TOSTR(DBXDEBUGGER));
+        "[dbx_trbk] : Invoking %s ...\n",
+        TOSTR(DBXDEBUGGER));
     if (a_out && (access(a_out,X_OK|R_OK) == 0)) {
       snprintf(dbxcmd,sizeof(dbxcmd),
-	       "set +e; /bin/echo 'where; quit; '"
-	       " | %s%s %s %d ",
-	       TOSTR(DBXDEBUGGER), qopt, a_out, pid);
+           "set +e; /bin/echo 'where; quit; '"
+           " | %s%s %s %d ",
+           TOSTR(DBXDEBUGGER), qopt, a_out, pid);
     }
     else {
       snprintf(dbxcmd,sizeof(dbxcmd),
-	       "set +e; /bin/echo 'where; quit; '"
-	       " | %s%s - %d ",
-	       TOSTR(DBXDEBUGGER), qopt, pid);
+           "set +e; /bin/echo 'where; quit; '"
+           " | %s%s - %d ",
+           TOSTR(DBXDEBUGGER), qopt, pid);
     }
     
     /* fprintf(stderr,"%s\n",dbxcmd); */
@@ -570,31 +593,31 @@ static int ResolveViaBFD(void *address, BFD_t *b, const char *str)
     if (offset > 0) {
       memset(b,0x0,sizeof(*b));
       if (bfd_find_nearest_line(abfd, text, syms, offset, &b->file, &b->func, &b->lineno) && b->file && b->func) {
-	const char *last_slash = strrchr(b->file,'/');
-	if (last_slash) b->file = last_slash + 1;
-	rc = 0;
+    const char *last_slash = strrchr(b->file,'/');
+    if (last_slash) b->file = last_slash + 1;
+    rc = 0;
       }
       else if (str) {
-	static const char qmarks[] = "??";
-	if (!b->func) {
-	  static char *s = NULL; // Not thread safe
-	  char *loc_lbr;
-	  if (s) free(s);
-	  s = strdup(str);
-	  loc_lbr = strchr(s,'(');
-	  if (loc_lbr) {
-	    char *loc_add = NULL;
-	    *loc_lbr++ = 0;
-	    loc_add = strchr(loc_lbr,'+');
-	    if (loc_add) *loc_add = 0;
-	    b->func = loc_lbr;
-	  }
-	  else {
-	    b->func = qmarks;
-	  }
-	}
-	if (!b->file) b->file = qmarks;
-	rc = 0;
+    static const char qmarks[] = "??";
+    if (!b->func) {
+      static char *s = NULL; // Not thread safe
+      char *loc_lbr;
+      if (s) free(s);
+      s = strdup(str);
+      loc_lbr = strchr(s,'(');
+      if (loc_lbr) {
+        char *loc_add = NULL;
+        *loc_lbr++ = 0;
+        loc_add = strchr(loc_lbr,'+');
+        if (loc_add) *loc_add = 0;
+        b->func = loc_lbr;
+      }
+      else {
+        b->func = qmarks;
+      }
+    }
+    if (!b->file) b->file = qmarks;
+    rc = 0;
       } /* if (bfd_find_nearest_line(...)) else if (str) ... */
     }
   }
