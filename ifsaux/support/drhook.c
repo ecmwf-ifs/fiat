@@ -382,6 +382,7 @@ void drhook_abort( const char* file, int line, const char* txt ) {
 
 
 extern void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr);
+extern void intel_trbk_();
 
 /*** typedefs ***/
 

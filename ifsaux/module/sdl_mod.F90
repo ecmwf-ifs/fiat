@@ -21,9 +21,8 @@ MODULE SDL_MOD
 !   26-Apr-2006 S.T.Saarinen  Dr.Hook trace, calls to EC_RAISE, Intel/ifort traceback
 
 USE PARKIND_FAUX  ,ONLY : JPIM
-USE YOMHOOK   ,ONLY : LHOOK ,DR_HOOK
 USE OML_MOD   ,ONLY : OML_MY_THREAD
-USE MPL_MPIF  ,ONLY : MPI_COMM_WORLD
+USE MPL_MPIF
 IMPLICIT NONE
 
 SAVE
@@ -46,55 +45,50 @@ SUBROUTINE SDL_TRACEBACK(KTID)
 !   KTID : thread 
 
 INTEGER(KIND=JPIM), INTENT(IN), OPTIONAL :: KTID
-INTEGER(KIND=JPIM) ITID, IPRINT_OPTION, ILEVEL
+
+INTEGER(KIND=JPIM) ITID
 CHARACTER(LEN=80) :: CLTRBK
+INTEGER(KIND=JPIM) :: IERROR,IPROC
+LOGICAL :: LMPI_INITIALIZED
+
+IPROC=1
+CALL MPI_INITIALIZED(LMPI_INITIALIZED,IERROR) ! always thread safe, see standard !
+IF( LMPI_INITIALIZED ) THEN
+  CALL MPI_COMM_RANK(MPI_COMM_WORLD,IPROC,IERROR) ! always thread safe, see standard !
+  IPROC = IPROC+1 ! 1-based in IFS context
+ENDIF
+
 IF (PRESENT(KTID)) THEN
   ITID = KTID
 ELSE
   ITID = OML_MY_THREAD()
 ENDIF
-IF (LHOOK) THEN
-  IPRINT_OPTION = 2
-  ILEVEL = 0
-  CALL C_DRHOOK_PRINT(0, ITID, IPRINT_OPTION, ILEVEL) ! from drhook.c
-ENDIF
-#if defined(__INTEL_COMPILER)
 
-  CALL GET_ENVIRONMENT_VARIABLE("EC_LINUX_TRBK",CLTRBK)
-  IF (CLTRBK=='1') THEN
-    WRITE(0,*)'SDL_TRACEBACK: Calling LINUX_TRBK, THRD = ',ITID
-    CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
-    WRITE(0,*)'SDL_TRACEBACK: Done LINUX_TRBK, THRD = ',ITID
-  ELSE
-    WRITE(0,*)'SDL_TRACEBACK: Calling INTEL_TRBK, THRD = ',ITID
-    CALL INTEL_TRBK() ! See ifsaux/utilities/gentrbk.F90
-    WRITE(0,*)'SDL_TRACEBACK: Done INTEL_TRBK, THRD = ',ITID
-  ENDIF
-#elif defined(__NEC__)
-  ! A traceback using gdb-debugger, if available AND 
-  ! activated via 'export GDBDEBUGGER=1'
-  WRITE(0,*)'SDL_TRACEBACK: Calling GDB_TRBK, THRD = ',ITID
-  CALL GDB_TRBK() ! See ifsaux/utilities/linuxtrbk.c
-  WRITE(0,*)'SDL_TRACEBACK: Done GDB_TRBK, THRD = ',ITID
-#elif defined(LINUX) || defined(__APPLE__)
-  WRITE(0,*)'SDL_TRACEBACK: Calling LINUX_TRBK, THRD = ',ITID
-  CALL LINUX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
-  WRITE(0,*)'SDL_TRACEBACK: Done LINUX_TRBK, THRD = ',ITID
+WRITE(0,'(A,I0,A,I0,A)') 'SDL_TRACEBACK [PROC=',IPROC,',THRD=',ITID,'] ...'
+CALL DRHOOK_TRBK()
+#if defined(__INTEL_COMPILER)
+CALL INTEL_TRBK()  ! runs LINUX_TRBK as well inside with environment EC_LINUX_TRBK=1 -- See gentrbk.F90
 #else
-  WRITE(0,*)'SDL_TRACEBACK: No proper traceback implemented.'
-  ! A traceback using dbx-debugger, if available AND 
-  ! activated via 'export DBXDEBUGGER=1'
-  WRITE(0,*)'SDL_TRACEBACK: Calling DBX_TRBK, THRD = ',ITID
-  CALL DBX_TRBK() ! See ifsaux/utilities/linuxtrbk.c
-  WRITE(0,*)'SDL_TRACEBACK: Done DBX_TRBK, THRD = ',ITID
-  ! A traceback using gdb-debugger, if available AND 
-  ! activated via 'export GDBDEBUGGER=1'
-  WRITE(0,*)'SDL_TRACEBACK: Calling GDB_TRBK, THRD = ',ITID
-  CALL GDB_TRBK() ! See ifsaux/utilities/linuxtrbk.c
-  WRITE(0,*)'SDL_TRACEBACK: Done GDB_TRBK, THRD = ',ITID
+CALL LINUX_TRBK()
+CALL GDB_TRBK()    ! needs environment GNUDEBUGGER=1 -- See linuxtrbk.c
+CALL DBX_TRBK()    ! needs environment GNUDEBUGGER=1 -- See linuxtrbk.c
 #endif
+WRITE(0,'(A,I0,A,I0,A)') 'SDL_TRACEBACK [PROC=',IPROC,',THRD=',ITID,'] ... DONE'
+
+CONTAINS
+
+SUBROUTINE DRHOOK_TRBK()
+  USE YOMHOOK   ,ONLY : LHOOK
+  INTEGER(KIND=JPIM) IPRINT_OPTION, ILEVEL
+  IF (LHOOK) THEN
+    IPRINT_OPTION = 2
+    ILEVEL = 0
+    CALL C_DRHOOK_PRINT(0, ITID, IPRINT_OPTION, ILEVEL) ! from drhook.c
+  ENDIF
+END SUBROUTINE
 
 END SUBROUTINE SDL_TRACEBACK
+
 !-----------------------------------------------------------------------------
 SUBROUTINE SDL_SRLABORT
 
@@ -112,6 +106,8 @@ SUBROUTINE SDL_DISABORT()
 ! Purpose :
 ! -------
 !   To abort in distributed environment
+
+USE YOMHOOK, ONLY : LHOOK
 
 INTEGER(KIND=JPIM) :: IRETURN_CODE,IERROR
 CHARACTER(LEN=80) :: CLJOBID
