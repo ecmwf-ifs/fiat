@@ -12,9 +12,17 @@
 #define _ABOR1_H_
 
 /* abor1.h */
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 void abor1(const char* filename, const int linenum, const char* s);
+
+void set_abor1_exception_handler();
 
 #define ABOR1(txt) abor1( __FILE__, __LINE__, (txt) ) 
 
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 #endif /* _ABOR1_H_ */

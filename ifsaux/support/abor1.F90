@@ -7,83 +7,89 @@
 ! nor does it submit to any jurisdiction.
 !
 
-SUBROUTINE ABOR1(CDTEXT)
+SUBROUTINE ABOR1FL(CDFILE, KLINENUM, CDTEXT)
+  !! Abort that prints file, line, and message
+  !! Tracebacks will be printed if possible
+  !! All processes will be terminated in parallel MPI context
 
 USE PARKIND_FAUX  ,ONLY : JPIM
-USE YOMLUN_FAUX, ONLY : NULOUT,NULERR
-USE MPL_MODULE, ONLY : MPL_ABORT, MPL_RANK, MPL_NUMPROC
-USE SDL_MOD, ONLY : SDL_TRACEBACK, SDL_SRLABORT
+USE YOMLUN_FAUX   ,ONLY : NULOUT, NULERR
+USE MPL_MODULE    ,ONLY : MPL_ABORT
+USE OML_MOD       ,ONLY : OML_MY_THREAD
 #ifdef NAG
-USE F90_UNIX_IO, ONLY: FLUSH
+USE F90_UNIX_IO   ,ONLY: FLUSH
 #endif
-
 IMPLICIT NONE
 
-CHARACTER(LEN=*), INTENT(IN) :: CDTEXT
-INTEGER(KIND=JPIM) :: ILEN
+CHARACTER(LEN=*),   INTENT(IN) :: CDFILE
+INTEGER(KIND=JPIM), INTENT(IN) :: KLINENUM
+CHARACTER(LEN=*),   INTENT(IN) :: CDTEXT
 
-ILEN=LEN(CDTEXT)
-IF (NULOUT >= 0) WRITE(NULOUT,'(1X,A)') 'ABOR1 CALLED'
-
-IF(ILEN <= 512) THEN
-  IF (NULOUT >= 0) WRITE(NULOUT,'(1X,A)') CDTEXT
-  IF (NULERR >= 0) WRITE(NULERR,'(1X,A,1X,I3,1X,A)') 'ABORT! ',MPL_RANK,CDTEXT
+IF (LEN(CDFILE) > 0 .AND. KLINENUM > 0) THEN
+  IF (NULOUT >= 0 .AND. NULOUT /= 6 .AND. NULOUT /= NULERR) THEN
+    WRITE(NULOUT,'(A,I0,A,I0,A,A,A,I0,A,A)') 'ABOR1     [PROC=',MYPROC(),',THRD=',OML_MY_THREAD(),'] from [',CDFILE,' +',KLINENUM,'] : ', CDTEXT
+  ENDIF
+  IF (NULERR >= 0) THEN
+    WRITE(NULERR,'(A,I0,A,I0,A,A,A,I0,A,A)') 'ABOR1     [PROC=',MYPROC(),',THRD=',OML_MY_THREAD(),'] from [',CDFILE,' +',KLINENUM,'] : ', CDTEXT
+  ENDIF
 ELSE
-  IF (NULERR >= 0) WRITE(NULERR,'(1X,A,1X,I3,1X,A)') 'ABORT! ',MPL_RANK,&
-   & 'ABOR1 CALLED WITHOUT TEXT STRING'  
+  IF (NULOUT >= 0 .AND. NULOUT /= 6 .AND. NULOUT /= NULERR) THEN
+    WRITE(NULOUT,'(A,I0,A,I0,A,A)') 'ABOR1     [PROC=',MYPROC(),',THRD=',OML_MY_THREAD(),'] : ', CDTEXT
+  ENDIF
+  IF (NULERR >= 0 ) THEN
+    WRITE(NULERR,'(A,I0,A,I0,A,A)') 'ABOR1     [PROC=',MYPROC(),',THRD=',OML_MY_THREAD(),'] : ', CDTEXT
+  ENDIF
 ENDIF
 
 IF (NULOUT >= 0) THEN
   CALL FLUSH(NULOUT)
   IF (NULOUT /= 0 .AND. NULOUT /= 6) CLOSE(NULOUT)
 ENDIF
-
-CALL BREXIT(CDTEXT)
-
-END SUBROUTINE ABOR1
-
-SUBROUTINE BREXIT(CDTEXT)
-USE MPL_MODULE, ONLY : MPL_ABORT, MPL_NUMPROC
-USE SDL_MOD, ONLY : SDL_TRACEBACK, SDL_SRLABORT
-CHARACTER(LEN=*), INTENT(IN) :: CDTEXT
-! Added Arpege/Ifs collaboration for 01-Apr-2019
-! Brexit means Brexit !
-IF (MPL_NUMPROC > 1) THEN
-  IF(LEN(CDTEXT) <= 512) THEN
-    CALL MPL_ABORT(CDTEXT)
-  ELSE
-    CALL MPL_ABORT
-  ENDIF
-ELSE
-  CALL SDL_TRACEBACK
-  CALL FLUSH(0)
-  CALL SDL_SRLABORT
-ENDIF
-END SUBROUTINE BREXIT
-
-SUBROUTINE ABOR1FL(CDFILE, KLINENUM, CDTEXT)
-USE PARKIND_FAUX  ,ONLY : JPIM
-USE YOMLUN_FAUX, ONLY : NULOUT,NULERR
-#ifdef NAG
-USE F90_UNIX_IO, ONLY: FLUSH
-#endif
-IMPLICIT NONE
-CHARACTER(LEN=*), INTENT(IN) :: CDFILE,CDTEXT
-INTEGER(KIND=JPIM), INTENT(IN) :: KLINENUM
-IF (LEN(CDFILE) > 0 .AND. KLINENUM > 0 .AND. NULERR >= 0) THEN
- 1000 FORMAT(1X,A,A,":",I6.6)
-  WRITE(NULERR,1000) 'ABOR1FL HAS BEEN CALLED AT ',CDFILE,KLINENUM
+IF (NULERR >= 0) THEN
   CALL FLUSH(NULERR)
 ENDIF
-CALL ABOR1(CDTEXT)
+
+IF(LEN(CDTEXT) <= 512) THEN
+  CALL MPL_ABORT(CDTEXT)
+ELSE
+  CALL MPL_ABORT
+ENDIF
+
+CONTAINS
+
+FUNCTION MYPROC() RESULT(IPROC)
+  USE MPL_MPIF
+  IMPLICIT NONE
+  INTEGER(KIND=JPIM) :: IERROR,IPROC
+  LOGICAL :: LMPI_INITIALIZED
+  IPROC = 1
+  CALL MPI_INITIALIZED(LMPI_INITIALIZED,IERROR) ! always thread safe, see standard !
+  IF( LMPI_INITIALIZED ) THEN
+    CALL MPI_COMM_RANK(MPI_COMM_WORLD,IPROC,IERROR) ! always thread safe, see standard !
+    IPROC = IPROC+1 ! 1-based in IFS context
+  ENDIF
+END FUNCTION
+
 END SUBROUTINE ABOR1FL
+
+
+SUBROUTINE ABOR1(CDTEXT)
+  !! Abort that prints message without file and line number
+  !! Delegates to ABOR1FL
+  !! Tracebacks will be printed if possible
+  !! All processes will be terminated in parallel MPI context
+
+IMPLICIT NONE
+CHARACTER(LEN=*), INTENT(IN) :: CDTEXT
+CALL ABOR1FL("",0,CDTEXT)
+END SUBROUTINE ABOR1
 
 
 SUBROUTINE ABOR1_EXCEPTION_HANDLER()
   !! This routine, when registered as the fckit exception handler, will be called
   !! whenever any C++ exception is thrown. The exception is intercepted and can
   !! be inquired through the variable FCKIT_EXCEPTION.
-  !! The exception can then also be thrown by:
+  !! An exception can also be thrown within Fortran:
   !!    CALL FCKIT_EXCEPTION%ABORT("I have my reasons")
 
 #ifdef WITH_FCKIT
@@ -95,5 +101,22 @@ ELSE
 ENDIF
 #else
 CALL ABOR1( "An unknown exception is handled via ABOR1_EXCEPTION_HANDLER. Compile faux with fckit to get a better error message" )
+#endif
+END SUBROUTINE
+
+SUBROUTINE SET_ABOR1_EXCEPTION_HANDLER() BIND(C,NAME="set_abor1_exception_handler")
+  !! This routine registers ABOR1 as the C++ exception handler, will be called
+  !! whenever any C++ exception is thrown and not caught.
+  !! The exception is intercepted and can be inquired through
+  !! the variable FCKIT_EXCEPTION.
+  !! An exception can also be thrown within Fortran:
+  !!    CALL FCKIT_EXCEPTION%ABORT("I have my reasons")
+
+#ifdef WITH_FCKIT
+USE FCKIT_MODULE, ONLY : FCKIT_EXCEPTION, FCKIT_EXCEPTION_HANDLER
+EXTERNAL :: ABOR1_EXCEPTION_HANDLER
+PROCEDURE(FCKIT_EXCEPTION_HANDLER), POINTER :: FUNPTR
+FUNPTR => ABOR1_EXCEPTION_HANDLER
+CALL FCKIT_EXCEPTION%SET_HANDLER( FUNPTR )
 #endif
 END SUBROUTINE
