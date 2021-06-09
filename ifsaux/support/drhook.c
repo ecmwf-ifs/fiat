@@ -127,7 +127,7 @@ static int timestr_len = 0;
 #define PREFIX(tid) (ec_drhook && tid >= 1 && tid <= numthreads) ? ec_drhook[tid-1].s : ""
 #define TIDNSIGS(tid) (ec_drhook && tid >= 1 && tid <= numthreads) ? ec_drhook[tid-1].nsigs : -1
 #define TIMESTR(tid) (timestr_len > 0 && ec_drhook && tid >= 1 && tid <= numthreads) ? TimeStr(ec_drhook[tid-1].timestr,timestr_len) : ""
-#define FFL __FUNCTION__,__FILE__,__LINE__
+#define FFL __FUNCTION__,"drhook.c",__LINE__
 
 static int drhook_trapfpe_master_init = 0;
 static int drhook_trapfpe = 1;
@@ -914,7 +914,7 @@ TimeStr(char *s, int slen)
     char buf[64];
     time(&tp);
     strftime(buf, sizeof(buf), "%Y%m%d:%H%M%S", localtime(&tp));
-    snprintf(s,slen,"[%s:%lld:%.3f]",buf,(long long int)tp,WALLTIME());
+    snprintf(s,slen,"[%s:%.3f]",buf,WALLTIME());
   }
   return s;
 }
@@ -1302,48 +1302,50 @@ restore_default_signals(int silent)
 /*--- ignore_signals ---*/
 
 static void
+ignore_signal(int sig, int silent) {
+  if (sig >= 1 && sig <= NSIG) {
+    drhook_sig_t *sl = &siglist[sig];
+    sl->active = -1;
+    if (!silent && myproc == 1) {
+      int tid = drhook_omp_get_thread_num();
+      char *pfx = PREFIX(tid);
+      fprintf(stderr,
+            "%s %s [%s@%s:%d]   DR_HOOK ignores signal#%d (%s)\n", 
+            pfx,TIMESTR(tid),FFL,
+            sig,strsignal(sig));
+    }
+  }
+}
+
+
+static void
 ignore_signals(int silent)
 {
   char *env = getenv("DR_HOOK_IGNORE_SIGNALS");
+  
   if (!silent && myproc == 1) {
     int tid = drhook_omp_get_thread_num();
     char *pfx = PREFIX(tid);
     fprintf(stderr,
-            "%s %s [%s@%s:%d] DR_HOOK_IGNORE_SIGNALS=%s\n",
+            "%s %s [%s@%s:%d]  DR_HOOK_IGNORE_SIGNALS=%s\n",
             pfx,TIMESTR(tid),FFL,
             env ? env : "<undef>");
   }
   if (env) {
-    int tid = drhook_omp_get_thread_num();
-    char *pfx = PREFIX(tid);
     const char delim[] = ", \t/";
     char *p, *s = strdup_drhook(env);
     p = strtok(s,delim);
     while (p) {
       int sig = atoi(p);
-      if (sig >= 1 && sig <= NSIG) {
-        drhook_sig_t *sl = &siglist[sig];
-        if (!silent && myproc == 1) {
-          fprintf(stderr,
-                  "%s %s [%s@%s:%d] DR_HOOK ignores signal#%d altogether\n", 
-                  pfx,TIMESTR(tid),FFL,
-                  sig);
-        }
-        sl->active = -1;
-      }
-      else if (sig == -1) { /* Switches off ALL signals from DR_HOOK */
+      if( sig == -1 ) { /* Switches off ALL signals from DR_HOOK */
         int j;
         for (j=1; j<=NSIG; j++) {
-          drhook_sig_t *sl = &siglist[j];
-          if (!silent && myproc == 1) {
-            fprintf(stderr,
-                    "%s %s [%s@%s:%d] DR_HOOK ignores signal#%d altogether\n", 
-                    pfx,TIMESTR(tid),FFL,
-                    j);
-          }
-          sl->active = -1;
-        } /* for (j=1; j<=NSIG; j++) */
+          ignore_signal(j,silent);
+        }
         break;
+      }
+      else {
+        ignore_signal(sig,silent);
       }
       p = strtok(NULL,delim);
     }
@@ -1638,7 +1640,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       if (nfirst) {
         /* Enjoy some output (only from the first guy that came in) */
         fprintf(stderr,
-                "[EC_DRHOOK:hostname:myproc:omptid:pid:unixtid] [YYYYMMDD:HHMMSS:epoch:walltime] [function@file:lineno]\n");
+                "[EC_DRHOOK:hostname:myproc:omptid:pid:unixtid] [YYYYMMDD:HHMMSS:walltime] [function@file:lineno]\n");
         long long int hwm = gethwm_();
         long long int rss = getmaxrss_();
         long long int maxstack = getmaxstk_();
@@ -2234,7 +2236,7 @@ process_options()
   if (ienv == -1 || ienv == myproc) fp = stderr;
   if (fp) pfx = PREFIX(tid);
 
-  if(fp) fprintf(fp,"[EC_DRHOOK:hostname:myproc:omptid:pid:unixtid] [YYYYMMDD:HHMMSS:epoch:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",drhook_omp_get_max_threads());
+  if(fp) fprintf(fp,"[EC_DRHOOK:hostname:myproc:omptid:pid:unixtid] [YYYYMMDD:HHMMSS:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",drhook_omp_get_max_threads());
 
   OPTPRINT(fp,"%s %s [%s@%s:%d] fp = %p\n",pfx,TIMESTR(tid),FFL,fp);
 
@@ -4003,8 +4005,8 @@ c_drhook_print_(const int *ftnunitno,
         long long int maxstack = getmaxstk_()/1048576;
         long long int vmpeak = getvmpeak_()/1048576;
         snprintf(line,sizeof(line),
-                 "%s %s [%s@%s:%d] %lld MB (maxheap), %lld MB (maxrss), %lld MB (maxstack), %lld MB (vmpeak)",
-                 pfx,TIMESTR(tid),FFL,
+                 "%s %s [DrHookCallTree] DR_HOOK call tree : %lld MB (maxheap), %lld MB (maxrss), %lld MB (maxstack), %lld MB (vmpeak)",
+                 pfx,TIMESTR(tid),
                  hwm,rss,maxstack,vmpeak);
         DrHookPrint(*ftnunitno, line);
       }
@@ -4053,8 +4055,8 @@ c_drhook_print_(const int *ftnunitno,
           }
           if (*print_option == 2 || 
               (is_timeline && tid > 1 && tid <= opt_timeline_thread))  {
-            sprintf(s,"%s %s [%s@%s:%d] %s%c ",
-                    pfx,TIMESTR(tid),FFL,
+            sprintf(s,"%s %s [DrHookCallTree] %s%c ",
+                    pfx,TIMESTR(tid),
                     is_timeline ? "tl:" : "",
                     kind);
           }
@@ -4076,6 +4078,7 @@ c_drhook_print_(const int *ftnunitno,
             }
             sprintf(s,"%s ",keyptr->name);
             s += strlen(s);
+
           }
           if (is_timeline) {
             double wall = WALLTIME();
