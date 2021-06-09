@@ -7,16 +7,13 @@
 ! nor does it submit to any jurisdiction.
 !
 
-SUBROUTINE CDRHOOKINIT(KRET)
-!-- Makes sure Dr.Hook gets properly initialized from C-main program, too
-USE PARKIND_FAUX  ,ONLY  : JPIM, JPRD
-USE YOMHOOK   ,ONLY  : LHOOK, DR_HOOK_INIT
-IMPLICIT NONE
-INTEGER(KIND=JPIM), INTENT(OUT) :: KRET
-CALL DR_HOOK_INIT()
-IF (LHOOK) THEN
-  KRET = 1 ! Dr.Hook is ON
-ELSE
-  KRET = 0 ! Dr.Hook is OFF
-ENDIF
-END SUBROUTINE CDRHOOKINIT
+SUBROUTINE DR_HOOK_END()
+  ! Make sure DrHook output is produced before MPI_Finalize (in case it fails)
+  IMPLICIT NONE
+  EXTERNAL :: c_drhook_prof
+  LOGICAL,SAVE :: LL_FIRST_TIME = .TRUE.
+  IF( .NOT. LL_FIRST_TIME ) THEN
+    LL_FIRST_TIME = .FALSE.
+    CALL c_drhook_prof()
+  ENDIF
+END SUBROUTINE

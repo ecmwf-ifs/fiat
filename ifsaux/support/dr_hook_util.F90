@@ -8,46 +8,95 @@
 !
 
 SUBROUTINE DR_HOOK_UTIL(LDHOOK,CDNAME,KCASE,PKEY,CDFILENAME,KSIZEINFO)
-USE PARKIND_FAUX  ,ONLY : JPIM     ,JPRD
-USE OML_MOD,ONLY : OML_MAX_THREADS,OML_MY_THREAD,OML_INIT
-USE MPL_INIT_MOD, ONLY : MPL_INIT
-USE MPL_ARG_MOD, ONLY : MPL_GETARG
-USE YOMGSTATS, ONLY : LAST_KNUM,LAST_KSWITCH,LDETAILED_STATS,MYPROC_STATS, &
-                      NHOOK_MESSAGES,TIME_LAST_CALL
-USE YOMHOOKSTACK, ONLY : LL_THREAD_FIRST,ISAVE,IMAXSTACK,CSTACK   ! For monitoring thread stack usage
-USE EC_ARGS_MOD, ONLY : EC_ARGS, EC_ARGC, EC_ARGV
-!<DrHack> 
-USE MPL_MYRANK_MOD,ONLY : MPL_MYRANK ! useful for DrHack
-USE YOMLUN_FAUX, ONLY : NULDRHACK
-!</DrHack>
+USE PARKIND_FAUX  ,ONLY : JPIM,JPRD
+USE OML_MOD       ,ONLY : OML_MY_THREAD
+USE YOMHOOK       ,ONLY : LHOOK
 
 IMPLICIT NONE
-LOGICAL,INTENT(INOUT)       :: LDHOOK
-CHARACTER(LEN=*),INTENT(IN) :: CDNAME,CDFILENAME
+
+! Arguments
+LOGICAL,INTENT(INOUT)         :: LDHOOK
+CHARACTER(LEN=*),INTENT(IN)   :: CDNAME,CDFILENAME
 INTEGER(KIND=JPIM),INTENT(IN) :: KCASE,KSIZEINFO
 REAL(KIND=JPRD),INTENT(INOUT) :: PKEY
-LOGICAL,SAVE :: LL_FIRST_TIME = .TRUE.
-CHARACTER(LEN=512) :: CLENV
-INTEGER(KIND=JPIM) INUMTIDS, IMYTID
-LOGICAL :: LLMPI
-INTEGER*8 :: MAXMEM=0
-INTEGER*8 :: GETMAXMEM
-INTEGER*8 GETMAXLOC
-LOGICAL :: LLFINDSUMB=.FALSE.
-REAL(KIND=JPRD) :: ZCLOCK
-REAL(KIND=JPRD) :: ZDIFF
-CHARACTER(LEN=7) CLSTR
 
-INTEGER*8 ILOC         ! For monitoring thread stack usage
-CHARACTER(LEN=3) CHEAP ! For monitoring heap usage
-INTEGER          JHEAP ! For monitoring heap usage
-DATA JHEAP/0/
+! Persistent variables, setup at first call
+LOGICAL,SAVE :: LL_INIT       = .FALSE.
+LOGICAL,SAVE :: LL_DRHACK     = .FALSE. ! Will be set to .TRUE. if envvar DR_HACK=1
+LOGICAL,SAVE :: LL_STACKCHECK = .FALSE. ! Will be set to .TRUE. if envvar DR_HOOK_STACKCHECK=1
+LOGICAL,SAVE :: LL_HEAPCHECK  = .FALSE. ! Will be set to .TRUE. if envvar DR_HOOK_HEAPCHECK=1
 
-!useful variable for DrHack
-LOGICAL,SAVE :: LL_DRHACK=.FALSE. !set to .TRUE. if MPIRANK=0 and Env variable DR_HACK=1
+! Local variables
+INTEGER(KIND=JPIM) :: IMYTID
+INTEGER(KIND=8)    :: MAXMEM=0 ! For comparing memory between HEAPCHECK_START and HEAPCHECK_END
 
+#include "dr_hook_init.intfb.h"
 #include "user_clock.intfb.h"
 
+IF (.NOT.LDHOOK) RETURN
+
+IMYTID = OML_MY_THREAD()
+
+IF (.NOT.LL_INIT) THEN
+  LL_INIT = .TRUE.
+  CALL DR_HOOK_INIT()
+  IF(.NOT.LHOOK) RETURN ! LHOOK is set to .TRUE. within DR_HOOK_INIT() only when envvar DR_HOOK=1
+
+  CALL DR_HACK_INIT()
+  CALL STACKCHECK_INIT()
+  CALL HEAPCHECK_INIT()
+ENDIF ! .NOT.LL_INIT
+
+IF (LL_STACKCHECK) CALL STACKCHECK()
+
+IF (KCASE == 0) THEN
+  CALL C_DRHOOK_START(CDNAME, IMYTID, PKEY, CDFILENAME, KSIZEINFO)
+  IF(LL_HEAPCHECK) CALL HEAPCHECK_START()
+ELSE IF (KCASE == 1) THEN
+  IF(LL_HEAPCHECK) CALL HEAPCHECK_END()
+  CALL C_DRHOOK_END  (CDNAME, IMYTID, PKEY, CDFILENAME, KSIZEINFO)
+ENDIF
+
+IF (LL_DRHACK) THEN 
+  CALL DR_HACK(CDNAME,KCASE)
+ENDIF
+
+CALL GSTATS_FINDSUMB() ! currently only dead code within
+
+!-------------------- END SUBROUTINE DR_HOOK_UTIL -----------------
+
+CONTAINS
+
+FUNCTION MYPROC()
+  USE MPL_DATA_MODULE ,ONLY : MPL_NUMPROC
+  USE MPL_MYRANK_MOD  ,ONLY : MPL_MYRANK
+  INTEGER(KIND=JPIM) :: MYPROC
+  IF( MPL_NUMPROC > 0 ) THEN
+    MYPROC = MPL_MYRANK()
+  ELSE
+    MYPROC = 1
+  ENDIF
+END FUNCTION MYPROC
+
+SUBROUTINE DR_HACK_INIT()
+  USE MPL_DATA_MODULE ,ONLY : MPL_NUMPROC
+  USE MPL_MYRANK_MOD  ,ONLY : MPL_MYRANK
+  USE YOMLUN_FAUX     ,ONLY : NULDRHACK
+  IMPLICIT NONE
+  CHARACTER(LEN=512) :: CLENV
+  CALL GET_ENVIRONMENT_VARIABLE('DR_HACK',CLENV)
+  IF( CLENV == 'yes'  .OR. CLENV == 'YES'  .OR. &
+    & CLENV == 'true' .OR. CLENV == 'TRUE' .OR. &
+    & CLENV == 'on'   .OR. CLENV == 'ON'   .OR. &
+    & CLENV == '1' ) THEN
+    IF( MYPROC() == 1 ) THEN
+      LL_DRHACK=.TRUE.
+      OPEN (UNIT = NULDRHACK, file = "drhack.txt",position="append",action="write")
+    ENDIF
+  ENDIF
+END SUBROUTINE DR_HACK_INIT
+
+SUBROUTINE DR_HACK(ROUTINE,START)
 !
 ! Florian Suzat (METEO-FRANCE) Sept 2017 : add drHack functionality
 !
@@ -98,50 +147,112 @@ LOGICAL,SAVE :: LL_DRHACK=.FALSE. !set to .TRUE. if MPIRANK=0 and Env variable D
 ! Hope this help...
 
 ! -----------------------------------------------------------------
+! Different implementation of this have been tested, but this one, even if it is
+! not elegant at all, is almost fast.... 
 
-IF (.NOT.LDHOOK) RETURN
+USE PARKIND_FAUX  ,ONLY : JPIM
+USE YOMLUN_FAUX   ,ONLY : NULDRHACK
+IMPLICIT NONE
+CHARACTER(LEN=*),INTENT(IN) :: ROUTINE
+INTEGER(KIND=JPIM),INTENT(IN) :: START
+INTEGER(KIND=JPIM) :: i
+CHARACTER(LEN(ROUTINE)) :: ROUTINE_CLEAN
 
-IMYTID = OML_MY_THREAD()
-INUMTIDS = OML_MAX_THREADS()
-IF (LL_FIRST_TIME) THEN
-  LL_FIRST_TIME = .FALSE.
-  CALL OML_INIT()
-  CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK_NOT_MPI',CLENV)
-  IF (CLENV == ' ' .OR. CLENV == '0' .OR. &
-    & CLENV == 'false' .OR. CLENV == 'FALSE') THEN
-    LLMPI=.TRUE.
-    CALL MPL_INIT(LDINFO=.FALSE.) ! Do not produce any output
-  ELSE
-    LLMPI=.FALSE.
+! replace some special character
+DO i = 1,LEN(ROUTINE)
+  SELECT CASE (ROUTINE(i:i))
+  CASE ("<")
+    ROUTINE_CLEAN (i:i)="_"
+  CASE (">")
+    ROUTINE_CLEAN (i:i)="_"
+  CASE (":")
+    ROUTINE_CLEAN (i:i)="_"
+  CASE (" ")
+    ROUTINE_CLEAN (i:i)="_"
+  CASE DEFAULT
+    ROUTINE_CLEAN (i:i)=ROUTINE(i:i)
+  END SELECT
+END DO
+
+IF (START==0) THEN
+  WRITE(NULDRHACK,*) '<',ROUTINE_CLEAN,'>'
+ELSE
+  WRITE(NULDRHACK,*) '</',ROUTINE_CLEAN,'>'
+  !CLOSE FILE IF LAST ROUTINE
+  IF (ROUTINE_CLEAN .eq. 'MODEL_MOD_MODEL_DELETE') THEN
+    CLOSE (NULDRHACK)
   ENDIF
-  CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK',CLENV)
-  IF (CLENV == ' ' .OR. CLENV == '0' .OR. &
-    & CLENV == 'false' .OR. CLENV == 'FALSE') THEN
-    LDHOOK = .FALSE.
-    CALL C_DRHOOK_SET_LHOOK(0)
+ENDIF
+END SUBROUTINE DR_HACK
+
+SUBROUTINE HEAPCHECK_INIT()
+IMPLICIT NONE
+CHARACTER(LEN=4)  :: CHEAP
+!JFH---Initialisation to monitor heap usage-----------------------
+CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK_HEAPCHECK',CHEAP)
+IF( CHEAP == 'yes'  .OR. CHEAP == 'YES'  .OR. &
+  & CHEAP == 'true' .OR. CHEAP == 'TRUE' .OR. &
+  & CHEAP == 'on'   .OR. CHEAP == 'ON'   .OR. &
+  & CHEAP == '1' ) THEN
+  LL_HEAPCHECK = .TRUE.
+  IF(IMYTID == 1) THEN
+    CALL SETHEAPCHECK()
   ENDIF
-  IF (LLMPI) THEN
-    CALL MPL_GETARG(0, CLENV)  ! Get executable name & also propagate args
-  ELSE
-    IF( EC_ARGC() == 0 ) THEN
-      CALL EC_ARGS()
-      ! --> This only works if the "main" is a Fortran program.
-      !     If called from C, you need to call "ec_args(argc,argv);" with the "main" args before dr_hook
-      !     It is optional though
+ENDIF
+!JFH------------ End ---------------------------------------------
+END SUBROUTINE HEAPCHECK_INIT
+
+SUBROUTINE HEAPCHECK_START()
+!JFH---Code to monitor heap usage -------------------------
+USE YOMLUN_FAUX ,ONLY : NULERR
+IMPLICIT NONE 
+INTEGER*8 :: GETMAXLOC
+INTEGER*8 :: GETMAXMEM
+IF(IMYTID == 1) THEN
+  IF( MYPROC() == 1) THEN
+    GETMAXMEM=GETMAXLOC()
+    IF(GETMAXMEM .GT. MAXMEM) THEN
+      MAXMEM = GETMAXMEM
+      WRITE(NULERR,*) "HEAPCHECK Max heap at beg of routine =",MAXMEM," ",CDNAME
     ENDIF
-    IF( EC_ARGC() > 0 ) THEN
-      CLENV = EC_ARGV(0)
-    ELSE
-      CALL GET_COMMAND_ARGUMENT(0, CLENV)
+  ENDIF
+ENDIF
+!JFH------------ End ---------------------------------------------
+END SUBROUTINE HEAPCHECK_START
+
+SUBROUTINE HEAPCHECK_END()
+!JFH---Code to monitor heap usage -------------------------
+USE YOMLUN_FAUX ,ONLY : NULERR
+IMPLICIT NONE
+INTEGER(KIND=8) :: GETMAXLOC
+INTEGER(KIND=8) :: GETMAXMEM
+IF(IMYTID == 1) THEN
+  IF( MYPROC() == 1) THEN
+    GETMAXMEM=GETMAXLOC()
+    IF(GETMAXMEM .GT. MAXMEM) THEN
+      MAXMEM = GETMAXMEM
+      WRITE(NULERR,*) "HEAPCHECK Max heap at end of routine =",MAXMEM," ",CDNAME
     ENDIF
   ENDIF
-  IF (.NOT.LDHOOK) RETURN
-  
-  CALL C_DRHOOK_INIT(CLENV, INUMTIDS)
+ENDIF
+!JFH------------ End ---------------------------------------------
+END SUBROUTINE HEAPCHECK_END
 
-!JFH---Initialisation to monitor stack usage by threads-------------
+SUBROUTINE STACKCHECK_INIT()
+  USE YOMHOOKSTACK  ,ONLY : LL_THREAD_FIRST,ISAVE,IMAXSTACK,CSTACK   ! For monitoring thread stack usage
+  USE OML_MOD       ,ONLY : OML_MAX_THREADS
+  IMPLICIT NONE
+  INTEGER(KIND=JPIM) :: INUMTIDS
+
+  INUMTIDS = OML_MAX_THREADS()
+
+  !JFH---Initialisation to monitor stack usage by threads-------------
   CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK_STACKCHECK',CSTACK)
-  IF (CSTACK == 'yes' .OR. CSTACK == 'YES' ) THEN
+  IF ( CSTACK == 'yes'  .OR. CSTACK == 'YES'  .OR. &
+     & CSTACK == 'true' .OR. CSTACK == 'TRUE' .OR. &
+     & CSTACK == 'on'   .OR. CSTACK == 'ON'   .OR. &
+     & CSTACK == '1' ) THEN
+    LL_STACKCHECK = .TRUE.
     IF(IMYTID == 1 ) THEN
       ALLOCATE(LL_THREAD_FIRST(INUMTIDS))
       ALLOCATE(ISAVE(INUMTIDS))
@@ -152,85 +263,50 @@ IF (LL_FIRST_TIME) THEN
     ENDIF
   ENDIF
 !JFH------------ End ---------------------------------------------
-!JFH---Initialisation to monitor heap usage-----------------------
-  JHEAP=0
-  CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK_HEAPCHECK',CHEAP)
-  IF (CHEAP == 'yes' .OR. CHEAP == 'YES' ) JHEAP=1
-  IF (CHEAP == 'trb' .OR. CHEAP == 'TRB' ) JHEAP=2
-  IF(IMYTID == 1) THEN
-    IF(JHEAP>0) THEN
-!     write(0,*) "HEAPCHECK=",CHEAP,JHEAP
-      CALL SETHEAPCHECK()
-    ENDIF
-  ENDIF
-!JFH------------ End ---------------------------------------------
+END SUBROUTINE STACKCHECK_INIT
 
-  !DrHack initialisation
-  CALL GET_ENVIRONMENT_VARIABLE('DR_HACK',CLENV)
-  IF (CLENV == '1') THEN
-    IF(LLMPI) THEN
-      IF(MPL_MYRANK() == 1) THEN
-        LL_DRHACK=.TRUE.
-      ENDIF
-    ELSE
-      LL_DRHACK=.TRUE.
-    ENDIF
-  ENDIF
-  IF(LL_DRHACK) THEN
-    OPEN(UNIT = NULDRHACK, file = "drhack.txt",position="append",action="write")
-  ENDIF
 
-ENDIF ! LL_FIRST_TIME
-
+SUBROUTINE STACKCHECK()
 !JFH---Code to monitor stack usage by threads---------------------
 #ifndef NAG
-IF (CSTACK == 'yes' .or. CSTACK == 'YES' ) THEN
-  IF(IMYTID > 1) THEN
-    IF(LL_THREAD_FIRST(IMYTID))THEN 
-      LL_THREAD_FIRST(IMYTID)=.FALSE.
-      ISAVE(IMYTID)=LOC(LLMPI)
-    ENDIF
-    ILOC=LOC(LLMPI)
-    IF(ISAVE(IMYTID)-ILOC > IMAXSTACK(IMYTID)) THEN
-      IMAXSTACK(IMYTID)=ISAVE(IMYTID)-ILOC
-      WRITE(0,'(A,I3,A,I12,2X,A)')"STACKCHECK Max stack usage by thread",imytid," =",IMAXSTACK(IMYTID),CDNAME
-    ENDIF
+USE YOMHOOKSTACK ,ONLY : LL_THREAD_FIRST,ISAVE,IMAXSTACK
+USE YOMLUN_FAUX  ,ONLY : NULERR
+IMPLICIT NONE
+INTEGER(KIND=8) :: ILOC  ! For monitoring thread stack usage
+IF(IMYTID > 1) THEN
+  IF(LL_THREAD_FIRST(IMYTID))THEN 
+    LL_THREAD_FIRST(IMYTID)=.FALSE.
+    ISAVE(IMYTID)=LOC(ILOC)
+  ENDIF
+  
+  ILOC=LOC(ILOC)
+
+  IF(ISAVE(IMYTID)-ILOC > IMAXSTACK(IMYTID)) THEN
+    IMAXSTACK(IMYTID)=ISAVE(IMYTID)-ILOC
+    WRITE(NULERR,'(A,I3,A,I12,2X,A)')"STACKCHECK Max stack usage by thread",IMYTID," =",IMAXSTACK(IMYTID),CDNAME
   ENDIF
 ENDIF
 #endif
 !JFH------------ End ---------------------------------------------
-
-IF (KCASE == 0) THEN
-  CALL C_DRHOOK_START(CDNAME, IMYTID, PKEY, CDFILENAME, KSIZEINFO)
-!JFH---Code to monitor heap usage -------------------------
-  IF(IMYTID == 1 .AND. MYPROC_STATS == 1 .AND. JHEAP>0) THEN
-    GETMAXMEM=GETMAXLOC()
-    IF(GETMAXMEM .GT. MAXMEM) THEN
-      MAXMEM = GETMAXMEM
-      WRITE(0,*) "HEAPCHECK Max heap at beg of routine =",MAXMEM," ",CDNAME
-    ENDIF
-  ENDIF
-!JFH------------ End ---------------------------------------------
-ELSE IF (KCASE == 1) THEN
-!JFH---Code to monitor heap usage -------------------------
-  IF(IMYTID == 1 .AND. MYPROC_STATS == 1 .AND. JHEAP>0) THEN
-    GETMAXMEM=GETMAXLOC()
-    IF(GETMAXMEM .GT. MAXMEM) THEN
-      MAXMEM = GETMAXMEM
-      WRITE(0,*) "HEAPCHECK Max heap at end of routine =",MAXMEM," ",CDNAME
-    ENDIF
-  ENDIF
-!JFH------------ End ---------------------------------------------
-  CALL C_DRHOOK_END  (CDNAME, IMYTID, PKEY, CDFILENAME, KSIZEINFO)
-ENDIF
-! calling the drHackFunction
-IF (LL_DRHACK) THEN 
-  CALL DR_HACK(CDNAME,KCASE,NULDRHACK)
-ENDIF
+END SUBROUTINE STACKCHECK
 
 
-
+SUBROUTINE GSTATS_FINDSUMB()
 !GM---Code to find gstats SUMB time-------------------------------
+!!!! Willem Deconinck - June 2021:
+!!!!     Note following code was dead as LLFINDSUMB = .FALSE. hardcoded.
+!!!!     From gstats.F90 documentation: LLFINDSUMB - when set is used detect gstat counter problems.
+!!!!     If agreed, this could be removed altogether, and remove dependency of dr_hook on gstats
+!!!!     Now removed from compilation with #if 0
+#if 0
+USE YOMGSTATS, ONLY : LAST_KNUM,LAST_KSWITCH,LDETAILED_STATS,MYPROC_STATS, &
+                      NHOOK_MESSAGES,TIME_LAST_CALL
+IMPLICIT NONE
+LOGICAL, PARAMETER :: LLFINDSUMB=.FALSE.
+REAL(KIND=JPRD) :: ZCLOCK
+REAL(KIND=JPRD) :: ZDIFF
+CHARACTER(LEN=7) CLSTR
+
 IF( LDETAILED_STATS .AND. LLFINDSUMB )THEN
   IF( IMYTID==1 .AND. LAST_KNUM>=500 .AND. MYPROC_STATS <= 2 )THEN
     IF( LAST_KSWITCH==1 .OR. LAST_KSWITCH==2 )THEN
@@ -250,49 +326,9 @@ IF( LDETAILED_STATS .AND. LLFINDSUMB )THEN
     ENDIF
   ENDIF
 ENDIF
-!GM------------ End ---------------------------------------------
+#endif
+!GM------------ End --------------------------------------------- 
+END SUBROUTINE GSTATS_FINDSUMB
 
 END SUBROUTINE DR_HOOK_UTIL
-
-SUBROUTINE DR_HACK(ROUTINE,START,DRHACKUNIT)
-! Different implementation of this have been tested, but this one, even if it is
-! not elegant at all, is almost fast.... 
-
-USE PARKIND_FAUX  ,ONLY : JPIM
-IMPLICIT NONE
-CHARACTER(LEN=*),INTENT(IN) :: ROUTINE
-INTEGER(KIND=JPIM),INTENT(IN) :: START
-INTEGER(KIND=JPIM),INTENT(IN) :: DRHACKUNIT
-INTEGER(KIND=JPIM) :: i
-CHARACTER(LEN(ROUTINE)) :: ROUTINE_CLEAN
-
-! replace some special character
-DO i = 1,LEN(ROUTINE)
- SELECT CASE (ROUTINE(i:i))
-  CASE ("<")
-   ROUTINE_CLEAN (i:i)="_"
-  CASE (">")
-   ROUTINE_CLEAN (i:i)="_"
-  CASE (":")
-   ROUTINE_CLEAN (i:i)="_"
-  CASE (" ")
-   ROUTINE_CLEAN (i:i)="_"
-  CASE DEFAULT
-   ROUTINE_CLEAN (i:i)=ROUTINE(i:i)
- END SELECT
-END DO
-
-
-IF (START==0) THEN
- WRITE(DRHACKUNIT,*) '<',ROUTINE_CLEAN,'>'
-ELSE
- WRITE(DRHACKUNIT,*) '</',ROUTINE_CLEAN,'>'
- !CLOSE FILE IF LAST ROUTINE
- IF (ROUTINE_CLEAN .eq. 'MODEL_MOD_MODEL_DELETE') THEN
-   CLOSE (DRHACKUNIT)
- ENDIF
-ENDIF
-
-END SUBROUTINE DR_HACK
-
 

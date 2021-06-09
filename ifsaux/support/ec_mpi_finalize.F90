@@ -20,6 +20,7 @@ INTEGER(KIND=JPIM) :: IERR, ICOMM
 INTEGER(KIND=JPIM) :: NCOMM_MEMINFO
 COMMON /cmn_meminfo/ NCOMM_MEMINFO
 #include "ec_meminfo.intfb.h"
+#include "dr_hook_end.intfb.h"
 KERROR = 0
 IF (LDCALLFINITO) THEN !*** common MPI_Finalize()
   CALL MPI_INITIALIZED(LLINIT,IERR)
@@ -32,8 +33,10 @@ IF (LDCALLFINITO) THEN !*** common MPI_Finalize()
       ELSE
         ICOMM = MPI_COMM_WORLD
       ENDIF
+
       IF( LDMEMINFO ) CALL EC_MEMINFO(-1,"ec_mpi_finalize:"//caller,ICOMM,KBARR=1,KIOTASK=-1,KCALL=1)
-      CALL c_drhook_prof() ! ifsaux/support/drhook.c : Make sure DrHook output is produced before MPI_Finalize (in case it fails)
+
+      CALL DR_HOOK_END() ! Make sure DrHook output is produced before MPI_Finalize (in case it fails)
       CALL MPI_BARRIER(ICOMM,IERR)
       IF (LLNOTMPIWORLD) THEN
         ! CALL MPI_COMM_FREE(NCOMM_MEMINFO,IERR)

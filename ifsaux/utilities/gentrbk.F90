@@ -20,6 +20,7 @@ USE MPL_DATA_MODULE, ONLY : MPL_RANK
 CHARACTER*80 MESSAGE
 LOGICAL :: DONE_TRACEBACK = .FALSE.
 INTEGER :: MYPROC,MYTHREAD
+CHARACTER(LEN=512) :: CLTRBK
 
 #ifdef _OPENMP
 INTEGER,EXTERNAL :: OMP_GET_THREAD_NUM
@@ -44,9 +45,14 @@ WRITE(MESSAGE,'(A,I4,A,I2,A)') &
 ! Commented out, as TRACEBACKQQ is strangely missing from IFCORE module
 ! on leap42 ifort version 18.1
 !  CALL TRACEBACKQQ(MESSAGE, USER_EXIT_CODE=-1)
+CALL GET_ENVIRONMENT_VARIABLE("EC_LINUX_TRBK",CLTRBK)
+#else
+  CLTRBK = '1'
 #endif
-WRITE(0,*) "Process ",MYPROC," thread ",MYTHREAD, &
- &           " calling linux_trbk from intel_trbk()"
-CALL LINUX_TRBK() ! See linuxtrbk.c
+IF( CLTRBK == '1' ) THEN
+  WRITE(0,*) "Process ",MYPROC," thread ",MYTHREAD, &
+    &        " calling linux_trbk from intel_trbk()"
+  CALL LINUX_TRBK() ! See linuxtrbk.c
+ENDIF
 DONE_TRACEBACK=.TRUE.
 END SUBROUTINE INTEL_TRBK

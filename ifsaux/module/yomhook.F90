@@ -29,6 +29,8 @@ LOGICAL :: LHOOK=.TRUE.
 
 #include "dr_hook_util.h"
 #include "dr_hook_util_multi.h"
+#include "dr_hook_init.intfb.h"
+#include "dr_hook_end.intfb.h"
 
 INTERFACE DR_HOOK  
 ! We want compile time mapping of DR_HOOK-arguments and not
