@@ -43,7 +43,7 @@ extern char **environ; /* Global Unix var */
 static int numenv = 0;
 
 void
-ec_numenv_(int *n)
+ec_numenv_bind_c(int *n)
 { /* Returns the number of environment variables currently active */
   int j=0;
   if (environ) {
@@ -53,38 +53,8 @@ ec_numenv_(int *n)
   numenv = j; /* Not thread-safe */
 }
 
-
 void
-ec_numenv(int *n)
-{
-  ec_numenv_(n);
-}
-
-
-void
-ec_overwrite_env_(int *do_overwrite)
-{
-  if (do_overwrite) {
-    char *env = getenv("EC_OVERWRITE_ENV");
-    if (env) {
-      *do_overwrite = atoi(env);
-    }
-    else {
-      *do_overwrite = 0;
-    }
-  }
-}
-
-
-void
-ec_overwrite_env(int *do_overwrite)
-{
-  ec_overwrite_env_(do_overwrite);
-}
-
-
-void
-ec_strenv_(const int *i,
+ec_environ_bind_c(const int *i,
 	   char *value,
 	   /* Hidden arguments */
 	   const int valuelen)
@@ -104,17 +74,7 @@ ec_strenv_(const int *i,
 
 
 void
-ec_strenv(const int *i,
-	  char *value,
-	  /* Hidden arguments */
-	  const int valuelen)
-{
-  ec_strenv_(i, value, valuelen);
-}
-
-
-void
-ec_getenv_(const char *s,
+ec_getenv_bind_c(const char *s,
 	   char *value,
 	   /* Hidden arguments */
 	   int slen,
@@ -138,20 +98,8 @@ ec_getenv_(const char *s,
   free(p);
 }
 
-
 void
-ec_getenv(const char *s,
-	  char *value,
-	  /* Hidden arguments */
-	  int slen,
-	  const int valuelen)
-{
-  ec_getenv_(s, value, slen, valuelen);
-}
-
-
-void
-ec_putenv_(const char *s,
+ec_putenv_overwrite_bind_c(const char *s,
 	   /* Hidden argument */
 	   int slen)
 {
@@ -172,18 +120,8 @@ ec_putenv_(const char *s,
   }
 }
 
-
 void
-ec_putenv(const char *s,
-	  /* Hidden argument */
-	  int slen)
-{
-  ec_putenv_(s,slen);
-}
-
-
-void
-ec_putenv_nooverwrite_(const char *s,
+ec_putenv_nooverwrite_bind_c(const char *s,
 		       /* Hidden argument */
 		       int slen)
 {
@@ -219,16 +157,6 @@ ec_putenv_nooverwrite_(const char *s,
     /* Cannot free(p); , since putenv() uses this memory area for good ;-( */
   }
 }
-
-
-void
-ec_putenv_nooverwrite(const char *s,
-		      /* Hidden argument */
-		      int slen)
-{
-  ec_putenv_nooverwrite_(s,slen);
-}
-
 
 /*--- sleep_by_spinning ---*/
 

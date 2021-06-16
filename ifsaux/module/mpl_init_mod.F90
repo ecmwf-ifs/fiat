@@ -70,6 +70,7 @@ USE MPL_BUFFER_METHOD_MOD
 USE MPL_TOUR_TABLE_MOD
 USE MPL_LOCOMM_CREATE_MOD
 USE MPL_ARG_MOD
+USE EC_ENV_MOD, ONLY : EC_PUTENV, EC_NUMENV, EC_ENVIRON
 
 IMPLICIT NONE
 
@@ -235,26 +236,25 @@ IF (MPL_NUMPROC > 1 .AND. LLENV) THEN
   INUM(1) = 0 ! The number of environment variables
   INUM(2) = 0 ! Do not (=0) or do (=1) overwrite if particular environment variable already exists (0 = default)
   IF (MPL_RANK == 1) THEN ! Master proc inquires
-    CALL EC_NUMENV(INUM(1))        ! ../support/env.c
-    CALL EC_OVERWRITE_ENV(INUM(2)) ! ../support/env.c
+    INUM(1) = EC_NUMENV()
+    CALL GET_ENVIRONMENT_VARIABLE("EC_OVERWRITE_ENV",CLENV)
+    IF( CLENV == '1' ) INUM(2) = 1
   ENDIF
   ! The following broadcast does not use "mailbox" nor attached buffer, both potentially yet to be allocated
   CALL MPI_BCAST(INUM(1),2,INT(MPI_INTEGER),IROOT,MPL_COMM,IERROR)
   ICOUNT = LEN(CLENV)
   DO IP=1,INUM(1)
-    IF (MPL_RANK == 1) CALL EC_STRENV(IP,CLENV)
+    IF (MPL_RANK == 1) CALL EC_ENVIRON(IP,CLENV)
     ! The following broadcast does not use "mailbox" nor attached buffer, both potentially yet to be allocated
     CALL MPI_BCAST(CLENV,ICOUNT,INT(MPI_BYTE),IROOT,MPL_COMM,IERROR)
     IF (MPL_RANK > 1) THEN
       IF (INUM(2) == 1) THEN
-        CALL EC_PUTENV(CLENV) ! ../support/env.c ; Unconditionally overwrite, even if already exists
+        CALL EC_PUTENV(CLENV,OVERWRITE=.TRUE.) ! ../support/env.c ; Unconditionally overwrite, even if already exists
       ELSE
-        CALL EC_PUTENV_NOOVERWRITE(CLENV) ! ../support/env.c ; Do not overwrite, if exists
+        CALL EC_PUTENV(CLENV,OVERWRITE=.FALSE.) ! ../support/env.c ; Do not overwrite, if exists
       ENDIF
     ENDIF
   ENDDO
-  !-- Redo some env. variables
-  CALL EC_ENVREDO()
   !-- Propagate argument list (all under the bonnet using MPL_ARG_MOD-module)
   INUM = MPL_IARGC()
 ENDIF

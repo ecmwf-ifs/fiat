@@ -15,38 +15,7 @@
 #define GNUC_BTRACE 128
 #endif
 
-#ifdef _DRHOOK_C_
-
-#if defined(__GNUC__)
-#define _GNU_SOURCE
-#endif
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <signal.h>
-#include <errno.h>
-#include <time.h>
-#include <math.h>
-#include <sys/syscall.h>
-#include <sys/types.h>
-#include <pthread.h>
-#include <limits.h>
-#ifdef __NEC__
-static int backtrace(void **buffer, int size) { return 0; }
-#else
-#include <execinfo.h>
-#endif
-#include <sys/file.h>
-
-int drhook_lhook = 1;
-#else
 extern int drhook_lhook;
-#endif
 
 /* drhook.c external interfaces */
 
@@ -147,6 +116,9 @@ extern const char *drhook_PREFIX(int tid);
 #define _DRHOOK_CONCAT_1( a, b ) _DRHOOK_CONCAT_2( a, b )
 #define _DRHOOK_CONCAT_2( a, b ) a##b
 
+void drhook_init(int argc, char* argv[]);
+
+int drhook_active();
 
 extern void
 Dr_Hook(const char *name, int option, double *handle, 

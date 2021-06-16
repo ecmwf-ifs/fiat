@@ -37,6 +37,7 @@ CONTAINS
 
 !-----------------------------------------------------------------------------
 SUBROUTINE SDL_TRACEBACK(KTID)
+USE YOMHOOK, ONLY:  DR_HOOK_CALLTREE
 
 ! Purpose :
 ! -------
@@ -65,27 +66,15 @@ ELSE
 ENDIF
 
 WRITE(0,'(A,I0,A,I0,A)') 'SDL_TRACEBACK [PROC=',IPROC,',THRD=',ITID,'] ...'
-CALL DRHOOK_TRBK()
+CALL DR_HOOK_CALLTREE(ITID)
 #if defined(__INTEL_COMPILER)
 CALL INTEL_TRBK()  ! runs LINUX_TRBK as well inside with environment EC_LINUX_TRBK=1 -- See gentrbk.F90
 #else
 CALL LINUX_TRBK()
 CALL GDB_TRBK()    ! needs environment GNUDEBUGGER=1 -- See linuxtrbk.c
-CALL DBX_TRBK()    ! needs environment GNUDEBUGGER=1 -- See linuxtrbk.c
+CALL DBX_TRBK()    ! needs environment DBXDEBUGGER=1 -- See linuxtrbk.c
 #endif
 WRITE(0,'(A,I0,A,I0,A)') 'SDL_TRACEBACK [PROC=',IPROC,',THRD=',ITID,'] ... DONE'
-
-CONTAINS
-
-SUBROUTINE DRHOOK_TRBK()
-  USE YOMHOOK   ,ONLY : LHOOK
-  INTEGER(KIND=JPIM) IPRINT_OPTION, ILEVEL
-  IF (LHOOK) THEN
-    IPRINT_OPTION = 2
-    ILEVEL = 0
-    CALL C_DRHOOK_PRINT(0, ITID, IPRINT_OPTION, ILEVEL) ! from drhook.c
-  ENDIF
-END SUBROUTINE
 
 END SUBROUTINE SDL_TRACEBACK
 

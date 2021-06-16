@@ -30,8 +30,7 @@ SUBROUTINE DR_HOOK_INIT()
        & CLENV == 'false' .OR. CLENV == 'FALSE' .OR. &
        & CLENV == 'off'   .OR. CLENV == 'OFF' .OR. &
        & CLENV == 'no'    .OR. CLENV == 'NO' ) THEN
-      CALL C_DRHOOK_SET_LHOOK(0)
-      LHOOK = .FALSE.
+       LHOOK = .FALSE.
     ENDIF
     CALL OML_INIT()
 

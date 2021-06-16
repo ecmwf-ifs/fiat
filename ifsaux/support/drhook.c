@@ -37,6 +37,31 @@
 
 /* === This doesn't handle recursive calls correctly (yet) === */
 
+#if defined(__GNUC__)
+#define _GNU_SOURCE
+#endif
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <signal.h>
+#include <errno.h>
+#include <time.h>
+#include <math.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <pthread.h>
+#include <limits.h>
+#ifdef __NEC__
+static int backtrace(void **buffer, int size) { return 0; }
+#else
+#include <execinfo.h>
+#endif
+#include <sys/file.h>
 #include "drhook.h"
 #include "cas.h"
 #include "oml.h"
@@ -49,11 +74,11 @@
 #include <dlfcn.h>
 #endif
 
+int drhook_lhook = 1;
+
 static void set_timed_kill();
 static void process_options();
 static char *TimeStr(char *s, int slen);
-
-int drhook_memtrace = 0; /* set to 1, if opt_memprof or opt_timeline ; used in getcurheap.c to lock stuff */
 
 static oml_lock_t DRHOOK_lock = 0;
 
@@ -2003,22 +2028,6 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
   cas_unlock(&thing);
 }
 
-void
-c_drhook_set_mpi_()
-{
-  dr_hook_procinfo_(&myproc, &nproc);
-}
-
-void
-c_drhook_not_mpi_()
-{
-  /* Emulates in a one call : export DR_HOOK_NOT_MPI=1" */
-  /* To have a desired effect, call BEFORE the very first call to DR_HOOK */
-  static char s[] = "DR_HOOK_NOT_MPI=1"; /* note: must be static */
-  putenv(s);
-}
-
-
 /*--- signal_drhook_init ---*/
 
 static void 
@@ -2204,15 +2213,6 @@ random_memstat(int tid, int enforce)
 /*--- process_options ---*/
 
 static void do_prof();
-
-void /* Fortran callable */
-c_drhook_process_options_(const int *lhook, const int *Myproc, const int *Nproc)
-{
-    c_drhook_set_lhook_(lhook);
-    if (Myproc) myproc = *Myproc;
-    if (Nproc)  nproc  = *Nproc;
-    process_options();
-}
 
 #define OPTPRINT(fp,...) if (fp) fprintf(fp,__VA_ARGS__)
 
@@ -2584,7 +2584,6 @@ process_options()
       }
       else if (strequ(p,"MEMPROF")) {
         opt_memprof = 1;
-        drhook_memtrace = 1;
         opt_gethwm = opt_getstk = opt_getrss = 1;
         opt_getpag = 1;
         opt_calls = 1;
@@ -3008,7 +3007,6 @@ init_drhook(int ntids)
           (opt_timeline == myproc || opt_timeline == -1)) {
         timeline = calloc_drhook(ntids, sizeof(*timeline));
       }
-      if (timeline) drhook_memtrace = 1;
       if (timeline) {
         /* The first timeline-call */
         const int ftnunitno = opt_timeline_unitno;
@@ -4735,27 +4733,24 @@ Dr_Hook(const char *name, int option, double *handle,
         int name_len, int filename_len)
 {
   static int first_time = 1;
-  static int value = 1; /* ON by default */
   if (first_time) { /* Not thread safe */
-    extern void *cdrhookinit_(int *value); /* from ifsaux/support/cdrhookinit.F90 */
-    cdrhookinit_(&value);
+    drhook_init(0,NULL);
     first_time = 0;
   }
-  if (value == 0) return; /* Immediate return if OFF */
-  if (value != 0) {
-    int tid = drhook_omp_get_thread_num();
-    if (option == 0) {
-      c_drhook_start_(name, &tid, handle, 
-                      filename, &sizeinfo,
-                      name_len > 0 ? name_len : strlen(name),
-                      filename_len > 0 ? filename_len : strlen(filename));
-    }
-    else if (option == 1) {
-      c_drhook_end_(name, &tid, handle, 
+  if (drhook_lhook == 0) return; /* Immediate return if OFF */
+
+  int tid = drhook_omp_get_thread_num();
+  if (option == 0) {
+    c_drhook_start_(name, &tid, handle, 
                     filename, &sizeinfo,
                     name_len > 0 ? name_len : strlen(name),
                     filename_len > 0 ? filename_len : strlen(filename));
-    }
+  }
+  else if (option == 1) {
+    c_drhook_end_(name, &tid, handle, 
+                  filename, &sizeinfo,
+                  name_len > 0 ? name_len : strlen(name),
+                  filename_len > 0 ? filename_len : strlen(filename));
   }
 }
 
@@ -4872,5 +4867,29 @@ void drhook_calltree() {
     int print_option = 2;
     int level = 99;
     c_drhook_print_(&ftnunitno, &tid, &print_option, &level);
+  }
+}
+
+int drhook_active() {
+  return drhook_lhook;
+}
+
+void drhook_init(int argc, char* argv[]) {
+  // Initialization workflow here:
+  // drhook_init(argc,argv)      --  sets up command-line args
+  //   cdrhookinit_              --  C-Interface to Fortran "DR_HOOK_INIT"
+  //     dr_hook_init_           --  Initialises DR_HOOK from Fortran
+  //       c_drhook_init_        --  Fortran interface to init_drhook
+  //         init_drhook         --  [sets drhook_lhook=1]
+
+  extern void *cdrhookinit_(int *lhook); /* from ifsaux/support/cdrhookinit.F90 */
+
+  static int first_time = 1;
+  if (first_time) { /* Not thread safe */
+    if( argc ) {
+      ec_args(argc, argv);
+    }
+    cdrhookinit_(&drhook_lhook);
+    first_time = 0;
   }
 }
