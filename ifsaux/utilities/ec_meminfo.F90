@@ -11,6 +11,7 @@ SUBROUTINE EC_MEMINFO(KU,CDSTRING,KCOMM,KBARR,KIOTASK,KCALL)
 
 USE PARKIND_FAUX, ONLY : JPIM, JPIB, JPRD
 USE MPL_MPIF
+USE EC_ARGS_MOD, ONLY : EC_ARGV
 
 IMPLICIT NONE
 
@@ -146,8 +147,8 @@ IF (LLFIRST_TIME) THEN ! The *very* first time
    !-- Neither of these two may stop working when linking with C++ (like in OOPS) ...
    ! CALL GETARG(0,PROGRAM)
    ! CALL GET_COMMAND_ARGUMENT(0,PROGRAM)
-   !... so using the old saviour from ifsaux/support/cargs.c:
-   CALL GETARG_C(0,PROGRAM)
+   !... so using ec_args_mod:
+   PROGRAM = EC_ARGV(0)
 
    CALL GET_ENVIRONMENT_VARIABLE("HUGETLB_DEFAULT_PAGE_SIZE",VAL)
    I=INDEX(VAL,"M")

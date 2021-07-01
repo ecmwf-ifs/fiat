@@ -33,7 +33,7 @@ module ec_args_mod
 !             character(len=:), allocatable :: name
 !             call ec_args()
 !             num_args = ec_argc()
-!             name     = ec_argv(1)
+!             name     = ec_argv(0)
 !         end program  
 !
 !     Author.
