@@ -163,20 +163,20 @@ IF (LL_FIRST_TIME) THEN
   ENDIF
 !JFH------------ End ---------------------------------------------
 
- !DrHack initialisation
- CALL GET_ENVIRONMENT_VARIABLE('DR_HACK',CLENV)
- IF (CLENV == '1') THEN
-  IF( LLMPI ) THEN
-    IF( MPL_MYRANK() == 1 ) THEN
+  !DrHack initialisation
+  CALL GET_ENVIRONMENT_VARIABLE('DR_HACK',CLENV)
+  IF (CLENV == '1') THEN
+    IF(LLMPI) THEN
+      IF(MPL_MYRANK() == 1) THEN
+        LL_DRHACK=.TRUE.
+      ENDIF
+    ELSE
       LL_DRHACK=.TRUE.
     ENDIF
-  ELSE
-    LL_DRHACK=.TRUE.
   ENDIF
- ENDIF
- IF( LL_DRHACK ) THEN
-  OPEN (UNIT = NULDRHACK, file = "drhack.txt",position="append",action="write")
- ENDIF
+  IF(LL_DRHACK) THEN
+    OPEN(UNIT = NULDRHACK, file = "drhack.txt",position="append",action="write")
+  ENDIF
 
 ENDIF ! LL_FIRST_TIME
 
