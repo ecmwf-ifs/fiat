@@ -32,27 +32,10 @@ PUBLIC :: cd2date, yd2date, idate2cd, idate2yd, icd2ymd, iymd2cd
 PUBLIC :: daydiff, hourdiff, mindiff, secdiff
 PUBLIC :: hourincr, minincr, secincr
 
+! ISO-C-BINDING C-interfaces
 INTERFACE
 
-#if 0
-! C prototypes
-void     cd2date(const int32_t *const icd, int32_t *const iy, int32_t *const im, int32_t *const id, int32_t *const iret);
-void     yd2date(const int32_t *const iyd, const int32_t *const iy, int32_t *const im, int32_t *const id, int32_t *const iret);
-int32_t  idate2cd(const int32_t *const iy, const int32_t *const im, const int32_t *const id, int32_t *const iret);
-int32_t  idate2yd(const int32_t *const iy, const int32_t *const im, const int32_t *const id, int32_t *const iret);
-int32_t  icd2ymd(const int32_t *const icd, int32_t *const iret);
-int32_t  iymd2cd(const int32_t *const iymd, int32_t *const iret);
-
-void     daydiff(const int32_t *const year1, const int32_t *const month1, const int32_t *const day1, const int32_t *const year2, const int32_t *const month2, const int32_t *const day2, int32_t *const days, int32_t *const iret);
-void     hourdiff(const int32_t *const year1, const int32_t *const month1, const int32_t *const day1, const int32_t *const hour1, const int32_t *const year2, const int32_t *const month2, const int32_t *const day2, const int32_t *const hour2, int32_t *const hours, int32_t *const iret);
-void     mindiff(const int32_t *const year1, const int32_t *const month1, const int32_t *const day1, const int32_t *const hour1, const int32_t *const min1, const int32_t *const year2, const int32_t *const month2, const int32_t *const day2, const int32_t *const hour2, const int32_t *const min2, int32_t *const minutes, int32_t *const iret);
-void     secdiff(const int32_t *const year1, const int32_t *const month1, const int32_t *const day1, const int32_t *const hour1, const int32_t *const min1, const int32_t *const sec1, const int32_t *const year2, const int32_t *const month2, const int32_t *const day2, const int32_t *const hour2, const int32_t *const min2, const int32_t *const sec2, int32_t *const seconds, int32_t *const iret);
-
-void     hourincr(const int32_t *const year, const int32_t *const month, const int32_t *const day, const int32_t *const hour, const int32_t *const hours,int32_t *const new_year, int32_t *const new_month, int32_t *const new_day, int32_t *const new_hour, int32_t *const iret);
-void     minincr(const int32_t *const year, const int32_t *const month, const int32_t *const day, const int32_t *const hour, const int32_t *const min, const int32_t *const minutes,int32_t *const new_year, int32_t *const new_month, int32_t *const new_day, int32_t *const new_hour, int32_t *const new_min,  int32_t *const iret);
-void     secincr(const int32_t *const year, const int32_t *const month, const int32_t *const day, const int32_t *const hour, const int32_t *const min, const int32_t *const sec, const int32_t *const seconds,int32_t *const new_year, int32_t *const new_month, int32_t *const new_day, int32_t *const new_hour, int32_t *const new_min, int32_t *const new_sec,  int32_t *const iret);
-#endif
-
+    ! void cd2date(const int32_t *const icd, int32_t *const iy, int32_t *const im, int32_t *const id, int32_t *const iret);
     subroutine cd2date( &
       & cd, &
       & year, month, day, &
@@ -64,6 +47,7 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
       integer(c_int32_t), intent(out) :: iret
     end subroutine
 
+    ! void yd2date(const int32_t *const iyd, const int32_t *const iy, int32_t *const im, int32_t *const id, int32_t *const iret);
     subroutine yd2date( &
       & yearday, year, &
       & month, day, &
@@ -75,6 +59,7 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
       integer(c_int32_t), intent(out) :: iret
     end subroutine
 
+    ! int32_t idate2cd(const int32_t *const iy, const int32_t *const im, const int32_t *const id, int32_t *const iret);
     function idate2cd( &
       & year, month, day, &
       & iret) &
@@ -85,6 +70,7 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
       integer(c_int32_t), intent(out) :: iret
     end function
 
+    ! int32_t idate2yd(const int32_t *const iy, const int32_t *const im, const int32_t *const id, int32_t *const iret);
     function idate2yd( &
       & year, month, day, &
       & iret) &
@@ -95,6 +81,7 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
       integer(c_int32_t), intent(out) :: iret
     end function
 
+    ! int32_t icd2ymd(const int32_t *const icd, int32_t *const iret);
     function icd2ymd( &
       & cd, &
       & iret) &
@@ -105,6 +92,7 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
       integer(c_int32_t), intent(out) :: iret
     end function
 
+    ! int32_t  iymd2cd(const int32_t *const iymd, int32_t *const iret);
     function iymd2cd( &
       & ymd, &
       & iret) &
@@ -115,6 +103,9 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
       integer(c_int32_t), intent(out) :: iret
     end function
 
+    ! void daydiff(const int32_t *const year1, const int32_t *const month1, const int32_t *const day1,
+    !              const int32_t *const year2, const int32_t *const month2, const int32_t *const day2,
+    !              int32_t *const days, int32_t *const iret);
     subroutine daydiff( &
       & year1, month1, day1, &
       & year2, month2, day2, &
@@ -127,6 +118,9 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
       integer(c_int32_t), intent(out) :: days, iret
     end subroutine
 
+    ! void hourdiff(const int32_t *const year1, const int32_t *const month1, const int32_t *const day1, const int32_t *const hour1,
+    !               const int32_t *const year2, const int32_t *const month2, const int32_t *const day2, const int32_t *const hour2,
+    !               int32_t *const hours, int32_t *const iret);
     subroutine hourdiff( &
       & year1, month1, day1, hour1, &
       & year2, month2, day2, hour2, &
@@ -139,6 +133,11 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
       integer(c_int32_t), intent(out) :: hours, iret
     end subroutine
 
+    ! void mindiff(const int32_t *const year1, const int32_t *const month1, const int32_t *const day1,
+    !              const int32_t *const hour1, const int32_t *const min1,
+    !              const int32_t *const year2, const int32_t *const month2, const int32_t *const day2,
+    !              const int32_t *const hour2, const int32_t *const min2,
+    !              int32_t *const minutes, int32_t *const iret);
     subroutine mindiff( &
         & year1, month1, day1, hour1, min1, &
         & year2, month2, day2, hour2, min2, &
@@ -151,6 +150,11 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
         integer(c_int32_t), intent(out) :: minutes, iret
     end subroutine
 
+    ! void secdiff(const int32_t *const year1, const int32_t *const month1, const int32_t *const day1, const int32_t *const hour1,
+    !              const int32_t *const min1, const int32_t *const sec1,
+    !              const int32_t *const year2, const int32_t *const month2, const int32_t *const day2, const int32_t *const hour2,
+    !              const int32_t *const min2, const int32_t *const sec2,
+    !              int32_t *const seconds, int32_t *const iret);
     subroutine secdiff( &
         & year1, month1, day1, hour1, min1, sec1, &
         & year2, month2, day2, hour2, min2, sec2, &
@@ -163,6 +167,10 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
         integer(c_int32_t), intent(out) :: seconds, iret
     end subroutine
 
+    ! void hourincr(const int32_t *const year, const int32_t *const month, const int32_t *const day, const int32_t *const hour,
+    !               const int32_t *const hours,
+    !               int32_t *const new_year, int32_t *const new_month, int32_t *const new_day, int32_t *const new_hour,
+    !               int32_t *const iret);
     subroutine hourincr( &
       & year, month, day, hour, &
       & hours, &
@@ -174,6 +182,10 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
       integer(c_int32_t), intent(out) :: new_year, new_month, new_day, new_hour, iret
     end subroutine
 
+    ! void minincr(const int32_t *const year, const int32_t *const month, const int32_t *const day, const int32_t *const hour,
+    !              const int32_t *const min,
+    !              const int32_t *const minutes,int32_t *const new_year, int32_t *const new_month, int32_t *const new_day,
+    !              int32_t *const new_hour, int32_t *const new_min,  int32_t *const iret);
     subroutine minincr( &
       & year, month, day, hour, min, &
       & minutes, &
@@ -185,6 +197,10 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
       integer(c_int32_t), intent(out) :: new_year, new_month, new_day, new_hour, new_min, iret
     end subroutine
 
+    ! void secincr(const int32_t *const year, const int32_t *const month, const int32_t *const day, const int32_t *const hour,
+    !              const int32_t *const min, const int32_t *const sec, const int32_t *const seconds,
+    !              int32_t *const new_year, int32_t *const new_month, int32_t *const new_day, int32_t *const new_hour,
+    !              int32_t *const new_min, int32_t *const new_sec,  int32_t *const iret);
     subroutine secincr( &
         & year, month, day, hour, min, sec, &
         & seconds, &
@@ -196,7 +212,7 @@ void     secincr(const int32_t *const year, const int32_t *const month, const in
         integer(c_int32_t), intent(out) :: new_year, new_month, new_day, new_hour, new_min, new_sec, iret
     end subroutine
 
-end interface
+END INTERFACE
 
 CONTAINS
 
