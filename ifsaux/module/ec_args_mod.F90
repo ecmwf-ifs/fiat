@@ -86,9 +86,9 @@ end function
 subroutine ec_args()
   use, intrinsic :: iso_c_binding
   implicit none
-  integer(c_int), parameter :: max_args = 16
-  integer(c_int), save :: argc
-  type(c_ptr), save :: argv(max_args)
+  integer(c_int), parameter :: max_args = 64
+  integer(c_int) :: argc
+  type(c_ptr) :: argv(max_args)
   if( ec_argc() == 0 ) then
     call read_command_line(argc,argv)
     call ec_args_bindc(argc,argv)
