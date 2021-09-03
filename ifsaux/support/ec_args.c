@@ -14,6 +14,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <limits.h>
+#if defined(LINUX)
+#include <linux/limits.h>
+#endif
 #ifdef __APPLE__
 #include <libproc.h>
 #include <errno.h>
