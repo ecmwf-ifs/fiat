@@ -8,24 +8,12 @@
  * nor does it submit to any jurisdiction.
  */
 
-#ifndef _RAISE_H_
-#define _RAISE_H_
+/* ec_exit.c */
 
-/* raise.h */
+#include <stdlib.h>
+#include <stdarg.h>
 
-#include <stdio.h>
-#include <string.h>
-#include <signal.h>
-#include <unistd.h>
+/* CALL ec_exit(iexit_code) */
 
-#include "abor1.h"
+void ec_exit_(const int *exit_code) { exit(exit_code ? *exit_code : 0); }
 
-#define RAISE(x) { \
-  if ((x) == SIGABRT) { \
-    ABOR1("*** Fatal error; aborting (SIGABRT) ..."); \
-    _exit(1); /* Should never end up here */ \
-  } \
-  else raise(x); \
-}
-
-#endif /* _RAISE_H_ */

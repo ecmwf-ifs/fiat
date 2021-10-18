@@ -14,6 +14,8 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "drhook.h"
+
 extern void abor1_(const char msg[], int msglen);
 
 #pragma weak abor1_
@@ -56,6 +58,7 @@ void tabort_()
   static volatile sig_atomic_t irecur = 0;
   if (++irecur == 1) {
 #if 1
+    drhook_calltree();
     LinuxTraceBack(NULL,NULL,NULL);
     cmpi_abort_(&rc); // see ifsaux/parallel/cmpl_binding.F90 : calls MPI_ABORT with MPI_COMM_WORLD
 #else

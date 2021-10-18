@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <signal.h>
-#include "intercept_alloc.h"
 #include "raise.h"
 
 /* rsort64_() : 64-bit Fortran-callable RADIX-sort */
@@ -41,26 +40,8 @@ typedef unsigned int            Uint32;
 typedef unsigned long long int  Uint64;
 typedef unsigned char           Uchar;
 
-#ifdef __uxppx__
-#ifndef VPP
-#define VPP
-#endif
-#endif
-
-#ifdef VPP
-#pragma global noalias
-#pragma global novrec
-#elif defined(NECSX)
-#pragma cdir options -pvctl,nodep
-#endif
-
-#if defined(VPP) || defined(NECSX)
-/* .. or any vector machine */
-static int SpeedUp = 0;
-#else
 /* scalar prozezzorz */
 static int SpeedUp = 1;
-#endif
 
 #define SORT_R64  2
 #define SORT_I64  4
@@ -71,12 +52,12 @@ typedef long long int ll_t;
 #define  ALLOC(x,size)    \
  { ll_t bytes = (ll_t)sizeof(*x) * (size); \
    bytes = (bytes < 1) ? 1 : bytes; \
-   x = THEmalloc(bytes); \
+   x = malloc(bytes); \
    if (!x) { fprintf(stderr, \
 		     "malloc() of %s (%lld bytes) failed in file=%s, line=%d\n", \
 		     #x, bytes, __FILE__, __LINE__); RAISE(SIGABRT); } }
 
-#define FREE(x)           if (x) { THEfree(x); x = NULL; }
+#define FREE(x)           if (x) { free(x); x = NULL; }
 
 #define BITSUM(x) bitsum[x] += ((item >> x) & 1ull)
 

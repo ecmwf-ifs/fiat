@@ -15,76 +15,7 @@
 #define GNUC_BTRACE 128
 #endif
 
-#ifdef _DRHOOK_C_
-
-#if defined(__GNUC__)
-#define _GNU_SOURCE
-#endif
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <signal.h>
-#include <errno.h>
-#include <time.h>
-#include <math.h>
-#include <sys/syscall.h>
-#include <sys/types.h>
-#include <pthread.h>
-#include <limits.h>
-#ifdef __NEC__
-static int backtrace(void **buffer, int size) { return 0; }
-#else
-#include <execinfo.h>
-#endif
-#include <sys/file.h>
-
-//#ifdef _OPENMP
-//#include <omp.h>
-//#endif
-
-#ifdef RS6K
-#include <fptrap.h>
-#endif
-
-#ifdef VPP
-#include <ucontext.h>
-#endif
-
-int drhook_lhook = 1;
-#else
 extern int drhook_lhook;
-#endif
-
-#ifndef O_LOCK_DONE
-#define O_LOCK_DONE
-
-/* OpenMP/ODB lock type */
-/* Keep consistent with "odb/include/privpub.h" */
-/* Be ALSO consistent with OML_LOCK_KIND in ifsaux/module/oml_mod.F90 */
-
-typedef long long int o_lock_t; /* i.e. 64-bit integer */
-
-#define INIT_LOCKID_WITH_NAME(mylock, lockname) \
-  coml_init_lockid_with_name_(mylock, lockname, strlen(lockname))
-
-extern void coml_set_debug_(const int *konoff, int *kret);
-extern void coml_init_lock_();
-extern void coml_init_lockid_(o_lock_t *mylock);
-extern void coml_init_lockid_with_name_(o_lock_t *mylock, const char *name, int name_len);
-extern void coml_set_lock_();
-extern void coml_set_lockid_(o_lock_t *mylock);
-extern void coml_unset_lock_();
-extern void coml_unset_lockid_(o_lock_t *mylock);
-extern void coml_test_lock_(int *is_set);
-extern void coml_test_lockid_(int *is_set, o_lock_t *mylock);
-extern void coml_in_parallel_(int *is_parallel_region);
-
-#endif
 
 /* drhook.c external interfaces */
 
@@ -174,17 +105,20 @@ extern void ec_meminfo_(const int *KU, const char *CDSTRING,
 			const int *KIOTASK, const int *KCALL,
 			int len_CDSTRING); /* see ec_meminfo.F90 */
 
-
-/* see comp_binding.F90 */
-extern void coml_get_max_threads_(int *numthreads);
-extern void coml_get_num_threads_(int *numthreads);
-extern void coml_my_thread_(int *mytid);
-
 /* see drhook.c */
 extern const char *drhook_TIMESTR(int tid);
 extern const char *drhook_PREFIX(int tid);
 
 /**** C-interface to Dr.Hook ****/
+#define _DRHOOK_ARGN(_1, _2, _3, _4, _5, N, ...) N
+#define _DRHOOK_NARGS(...) _DRHOOK_ARGN(dummy, ##__VA_ARGS__, 4, 3, 2, 1, 0)
+#define _DRHOOK_CONCAT( a, b ) _DRHOOK_CONCAT_1( a, b )
+#define _DRHOOK_CONCAT_1( a, b ) _DRHOOK_CONCAT_2( a, b )
+#define _DRHOOK_CONCAT_2( a, b ) a##b
+
+void drhook_init(int argc, char* argv[]);
+
+int drhook_active();
 
 extern void
 Dr_Hook(const char *name, int option, double *handle, 
@@ -201,7 +135,6 @@ Dr_Hook(const char *name, int option, double *handle,
                                       drhook_filename, 0, \
                                       drhook_name_len, drhook_filename_len); {
 
-#define DRHOOK_START(name) DRHOOK_START_RECUR(name,0)
 
 #define DRHOOK_START_BY_STRING_RECUR(name, recur) \
   static const char *drhook_name = name; \
@@ -224,7 +157,24 @@ Dr_Hook(const char *name, int option, double *handle,
 
 #define DRHOOK_END_RECUR(sizeinfo,recur) ; } DRHOOK_RETURN_RECUR(sizeinfo,recur)
 
-#define DRHOOK_END(sizeinfo) DRHOOK_END_RECUR(sizeinfo,0) 
+#define DRHOOK_END_DEFAULT()          DRHOOK_END_RECUR(0,0)
+#define DRHOOK_END_SIZEINFO(sizeinfo) DRHOOK_END_RECUR(sizeinfo,0)
+
+#define DRHOOK_END( ... ) _DRHOOK_CONCAT( _DRHOOK_END_, _DRHOOK_NARGS(__VA_ARGS__) )( __VA_ARGS__ )
+// With 0 args --> DRHOOK_END_DEFAULT()
+// With 1 arg  --> DRHOOK_END_SIZEINFO(sizeinfo)
+#define _DRHOOK_END_0    DRHOOK_END_DEFAULT
+#define _DRHOOK_END_1    DRHOOK_END_SIZEINFO
+
+#define DRHOOK_START(name) DRHOOK_START_RECUR(name,0)
+
+
+typedef void (*drhook_abort_t)(const char* file, int line, const char* text);
+void drhook_set_abort( drhook_abort_t );
+void drhook_abort( const char* file, int line, const char* txt );
+
+void drhook_calltree();
+
 
 /* Fortran routines */
 

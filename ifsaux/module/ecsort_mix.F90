@@ -7,9 +7,6 @@
 ! nor does it submit to any jurisdiction.
 !
 
-#ifdef RS6K
-@PROCESS NOCHECK
-#endif
 MODULE ECSORT_MIX
 USE PARKIND_FAUX   , ONLY : JPIM     ,JPIB,    JPRM    ,JPRD
 USE YOMHOOK    , ONLY : LHOOK, DR_HOOK, JPHOOK
@@ -78,13 +75,8 @@ CHARACTER(LEN=12), PARAMETER :: METHOD_NAME(MIN_METHOD:MAX_METHOD) = &
 !   Vector machines should choose radixsort_method, others quicksort_method (oh, sorry, countingsort_method!)
 !
 !   Note: Occasionally radixsort_method may be faster on non-vector machines, too
-#if defined(VPP) || defined(NECSX)
-INTEGER(KIND=JPIM) :: DEFAULT_METHOD = RADIXSORT_METHOD
-INTEGER(KIND=JPIM) :: CURRENT_METHOD(NTHRDS) = RADIXSORT_METHOD
-#else
 INTEGER(KIND=JPIM) :: DEFAULT_METHOD = COUNTINGSORT_METHOD
 INTEGER(KIND=JPIM) :: CURRENT_METHOD(NTHRDS) = COUNTINGSORT_METHOD
-#endif
 
 !-- A threshold length after which OpenMP in sorting, merging, copying may kick in.
 !   Override with EC_SORTING_NOMP. Detected while initializing/calling SORTING_METHOD

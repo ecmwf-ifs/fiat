@@ -70,6 +70,7 @@ USE MPL_BUFFER_METHOD_MOD
 USE MPL_TOUR_TABLE_MOD
 USE MPL_LOCOMM_CREATE_MOD
 USE MPL_ARG_MOD
+USE EC_ENV_MOD, ONLY : EC_PUTENV, EC_NUMENV, EC_ENVIRON
 
 IMPLICIT NONE
 
@@ -104,7 +105,7 @@ LOGICAL            :: LLENV
 CHARACTER(LEN=12)  :: CL_MBX_SIZE
 CHARACTER(LEN=12)  :: CL_ARCH
 CHARACTER(LEN=12)  :: CL_TASKSPERNODE
-CHARACTER(LEN=1024) :: CLENV
+CHARACTER(LEN=1024):: CLENV
 CHARACTER(LEN=20)  :: CL_METHOD,CL_HOST
 CHARACTER(LEN=1)   :: CL_SET
 
@@ -167,9 +168,9 @@ CALL MPI_Comm_rank(MPI_COMM_WORLD, IME, IERROR)
 
 ! Print out thread safety etc. messages -- must use MPI_Comm_rank since MPL not initialized just yet
 IF (IME == 0 .AND. LLINFO ) THEN
-   WRITE(MPL_UNIT,'(1X,A,4(1X,I0),1(1X,L1))') &
-        & 'MPL_INIT: IREQUIRED, MPI_THREAD_MULTIPLE, MPI_THREAD_SINGLE, IPROVIDED, LTHSAFEMPI =',&
-        &            IREQUIRED, MPI_THREAD_MULTIPLE, MPI_THREAD_SINGLE, IPROVIDED, LTHSAFEMPI
+   WRITE(MPL_UNIT,'(4(A,I0),1(A,L1))') &
+        & 'MPL_INIT : MPI_THREAD_MULTIPLE=',MPI_THREAD_MULTIPLE,' , MPI_THREAD_SINGLE=',MPI_THREAD_SINGLE,&
+        &         ' , IREQUIRED=',IREQUIRED,' , IPROVIDED=',IPROVIDED,' , LTHSAFEMPI=',LTHSAFEMPI
 ENDIF
 
   LINITMPI_VIA_MPL = .TRUE.
@@ -215,15 +216,11 @@ LLINFO = LLINFO .AND. (MPL_RANK <= 1)
 
 IF (LLINFO) THEN
    IF(LMPLUSERCOMM) THEN
-      WRITE(MPL_UNIT,'(A)')'MPL_INIT : LMPLUSERCOMM used'
-      WRITE(MPL_UNIT,'(A,I0)')'Communicator : ',MPL_COMM
+      WRITE(MPL_UNIT,'(2(A,I0))')'MPL_INIT : MPL_COMM=',MPL_COMM, ' (non-default) , MPL_NUMPROC=',MPL_NUMPROC
    ELSE
-      WRITE(MPL_UNIT,'(A)')'MPL_INIT : LMPLUSERCOMM not used'
-      WRITE(MPL_UNIT,'(A,I0)')'Communicator : ',MPL_COMM
+      WRITE(MPL_UNIT,'(2(A,I0))')'MPL_INIT : MPL_COMM=',MPL_COMM, ' (default) , MPL_NUMPROC=',MPL_NUMPROC
    ENDIF
 ENDIF
-
-#ifndef NECSX
 
 !-- Propagate environment variables & argument lists
 !   Here we have to be careful and use MPI_BCAST directly (not MPL_BROADCAST) since
@@ -239,31 +236,28 @@ IF (MPL_NUMPROC > 1 .AND. LLENV) THEN
   INUM(1) = 0 ! The number of environment variables
   INUM(2) = 0 ! Do not (=0) or do (=1) overwrite if particular environment variable already exists (0 = default)
   IF (MPL_RANK == 1) THEN ! Master proc inquires
-    CALL EC_NUMENV(INUM(1))        ! ../support/env.c
-    CALL EC_OVERWRITE_ENV(INUM(2)) ! ../support/env.c
+    INUM(1) = EC_NUMENV()
+    CALL GET_ENVIRONMENT_VARIABLE("EC_OVERWRITE_ENV",CLENV)
+    IF( CLENV == '1' ) INUM(2) = 1
   ENDIF
   ! The following broadcast does not use "mailbox" nor attached buffer, both potentially yet to be allocated
   CALL MPI_BCAST(INUM(1),2,INT(MPI_INTEGER),IROOT,MPL_COMM,IERROR)
   ICOUNT = LEN(CLENV)
   DO IP=1,INUM(1)
-    IF (MPL_RANK == 1) CALL EC_STRENV(IP,CLENV)
+    IF (MPL_RANK == 1) CALL EC_ENVIRON(IP,CLENV)
     ! The following broadcast does not use "mailbox" nor attached buffer, both potentially yet to be allocated
     CALL MPI_BCAST(CLENV,ICOUNT,INT(MPI_BYTE),IROOT,MPL_COMM,IERROR)
     IF (MPL_RANK > 1) THEN
       IF (INUM(2) == 1) THEN
-        CALL EC_PUTENV(CLENV) ! ../support/env.c ; Unconditionally overwrite, even if already exists
+        CALL EC_PUTENV(CLENV,OVERWRITE=.TRUE.) ! ../support/env.c ; Unconditionally overwrite, even if already exists
       ELSE
-        CALL EC_PUTENV_NOOVERWRITE(CLENV) ! ../support/env.c ; Do not overwrite, if exists
+        CALL EC_PUTENV(CLENV,OVERWRITE=.FALSE.) ! ../support/env.c ; Do not overwrite, if exists
       ENDIF
     ENDIF
   ENDDO
-  !-- Redo some env. variables (see ../utilities/fnecsx.c)
-  CALL EC_ENVREDO()
   !-- Propagate argument list (all under the bonnet using MPL_ARG_MOD-module)
   INUM = MPL_IARGC()
 ENDIF
-
-#endif
 
 CALL OML_INIT()
 IMAX_THREADS = OML_MAX_THREADS()
@@ -295,13 +289,12 @@ IF (CL_MBX_SIZE /= ' ') THEN
   READ(CL_MBX_SIZE,*) MPL_MBX_SIZE
 ENDIF
 IF (CL_METHOD == 'JP_BLOCKING_STANDARD' ) THEN
-  IF (LLINFO) WRITE(MPL_UNIT,'(A)')'MPL_INIT : MPL_METHOD=JP_BLOCKING_STANDARD'
+  IF (LLINFO) WRITE(MPL_UNIT,'(A,I0)')'MPL_INIT : MPL_METHOD=JP_BLOCKING_STANDARD , MPL_MBX_SIZE=',MPL_MBX_SIZE
 ELSE
-  IF (LLINFO) WRITE(MPL_UNIT,'(A)')'MPL_INIT : MPL_METHOD=JP_BLOCKING_BUFFERED'
+  IF (LLINFO) WRITE(MPL_UNIT,'(A,I0)')'MPL_INIT : MPL_METHOD=JP_BLOCKING_BUFFERED , MPL_MBX_SIZE=',MPL_MBX_SIZE
 ENDIF
-!IF (LLINFO) WRITE(MPL_UNIT,'(A,I0)')'MPL_INIT : MAILBOX SIZE=',MPL_MBX_SIZE
 
-CALL MPL_BUFFER_METHOD(KMP_TYPE=MPL_METHOD,KMBX_SIZE=MPL_MBX_SIZE,LDINFO=LLINFO)
+CALL MPL_BUFFER_METHOD(KMP_TYPE=MPL_METHOD,KMBX_SIZE=MPL_MBX_SIZE,LDINFO=.FALSE.)
 LUSEHLMPI = .TRUE.
 
 CALL MPI_COMM_RANK (MPI_COMM_WORLD, IWORLD_RANK, IERROR)
@@ -333,7 +326,7 @@ IF (CL_TASKSPERNODE(1:1) == ' ' ) THEN
       MPL_NCPU_PER_NODE=32
    ELSE
       MPL_NCPU_PER_NODE=1
-      IF(LLINFO) WRITE(MPL_UNIT,'(A)')'MPL_INIT CAUTION: MPL_NCPU_PER_NODE=1'
+      IF(LLINFO) WRITE(MPL_UNIT,'(A)')'MPL_INIT : MPL_NCPU_PER_NODE = 1 (CAUTION: could not be inferred from hostname!)'
    ENDIF
 ELSE
    READ(CL_TASKSPERNODE,*) MPL_NCPU_PER_NODE  
@@ -341,6 +334,7 @@ ENDIF
 MPL_MAX_TASK_PER_NODE=MAX(1, MPL_NCPU_PER_NODE/IMAX_THREADS)
 LFULLNODES=MOD(MPL_NUMPROC,MPL_MAX_TASK_PER_NODE) == 0
 MPL_NNODES=(MPL_NUMPROC-1)/MPL_MAX_TASK_PER_NODE+1
+
 ALLOCATE(MPL_TASK_PER_NODE(MPL_NNODES))
 ALLOCATE(MPL_NODE(MPL_NUMPROC))
 ALLOCATE(MPL_NODE_TASKS(MPL_NNODES,MPL_MAX_TASK_PER_NODE))

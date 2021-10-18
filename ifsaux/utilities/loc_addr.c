@@ -8,24 +8,12 @@
  * nor does it submit to any jurisdiction.
  */
 
-#ifndef _RAISE_H_
-#define _RAISE_H_
+/* loc()-function */
 
-/* raise.h */
+#include <stdint.h>
 
-#include <stdio.h>
-#include <string.h>
-#include <signal.h>
-#include <unistd.h>
-
-#include "abor1.h"
-
-#define RAISE(x) { \
-  if ((x) == SIGABRT) { \
-    ABOR1("*** Fatal error; aborting (SIGABRT) ..."); \
-    _exit(1); /* Should never end up here */ \
-  } \
-  else raise(x); \
+intptr_t
+loc_addr_(const char *p)
+{
+  return (intptr_t)(p - (const char *)0);
 }
-
-#endif /* _RAISE_H_ */

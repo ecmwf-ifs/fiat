@@ -7,9 +7,6 @@
 ! nor does it submit to any jurisdiction.
 !
 
-#ifdef RS6K
-@PROCESS NOCHECK
-#endif
 MODULE MPL_GATHERV_MOD
 
 !**** MPL_GATHERV Gather data to specific processor

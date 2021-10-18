@@ -7,9 +7,6 @@
 ! nor does it submit to any jurisdiction.
 !
 
-#ifdef RS6K
-@PROCESS NOCHECK
-#endif
 MODULE MPL_ALLGATHERV_MOD
 
 !**** MPL_ALLGATHERV Send data to all processes

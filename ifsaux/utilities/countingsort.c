@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <signal.h>
-#include "intercept_alloc.h"
 #include "raise.h"
 
 /* ec_countingsort_() : Fortran-callable counting-sort */
@@ -59,7 +58,7 @@ typedef unsigned long long int u_ll_t;
 #define  ALLOC(x,size)    \
  { ll_t bytes = (ll_t)sizeof(*x) * (size); \
    bytes = (bytes < 1) ? 1 : bytes; \
-   x = THEmalloc(bytes); \
+   x = malloc(bytes); \
    if (!x) { fprintf(stderr, \
                      "malloc() of %s (%lld bytes) failed in file=%s, line=%d\n", \
                      #x, bytes, __FILE__, __LINE__); RAISE(SIGABRT); } }
@@ -67,13 +66,13 @@ typedef unsigned long long int u_ll_t;
 #define  CALLOC(x,size)    \
  { ll_t sz = (ll_t)(size); \
    sz = (sz < 1) ? 1 : sz; \
-   x = THEcalloc(sz, sizeof(*x)); \
+   x = calloc(sz, sizeof(*x)); \
    if (!x) { ll_t bytes = (ll_t)sizeof(*x) * (sz); \
              fprintf(stderr, \
                      "calloc() of %s (%lld bytes) failed in file=%s, line=%d\n", \
                      #x, bytes, __FILE__, __LINE__); RAISE(SIGABRT); } }
 
-#define FREE(x)           if (x) { THEfree(x); x = NULL; }
+#define FREE(x)           if (x) { free(x); x = NULL; }
 
 #ifdef DEBUG
 #define AZZERT(cond) if (cond) ABOR1("Azzertion failed: "#cond)

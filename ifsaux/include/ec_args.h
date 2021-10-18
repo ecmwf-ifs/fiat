@@ -8,20 +8,38 @@
  * nor does it submit to any jurisdiction.
  */
 
-/* cargs.h */
-
-/* prototypes for ifsaux/support/cargs.c */
-
-/* Author: Sami Saarinen, ECMWF, 27-Apr-2006 */
+/* ec_args.h 
+ *
+ * Contains routines to store and retrieve command-line arguments as presented via C-main: "int main(int argc, char* argv[])"
+ * A Fortran interface is available in ec_args_mod.F90
+ * The `ec_args(...)` routine should be called as early as possible
+ * 
+ * Author:   Sami Saarinen, ECMWF, 27-Apr-2006
+ * Modified: Willem Deconinck, ECMWF, 1-Jul-2021
+ * 
+ * An example C program:
+ *
+ *      #include "ec_args.h"  
+ *      int main( int argc, char* argv[] ) {
+ *          ec_args(argc,argv);
+ *          int num_args     = ec_argc();
+ *          const char* name = ec_argv()[0];
+ *      }
+ * 
+ */
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-/* The following two as in C-main : "int main(int argc, char *argv[])" */
+/* Register command-line arguments as presented by C-main : "int main(int argc, char** argv)" */
+void ec_args(int argc, char* argv[]);
 
+/* Return number of arguments, including the program-name, as presented by C-main */
 int ec_argc(void);
-char **ec_argv(void);
+
+/* Return arguments (0-terminated), as presented by C-main */ 
+const char* const* ec_argv(void);
 
 #if defined(__cplusplus)
 }

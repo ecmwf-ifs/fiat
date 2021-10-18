@@ -7,11 +7,13 @@
 ! nor does it submit to any jurisdiction.
 !
 
-FUNCTION GET_THREAD_ID() RESULT(TID)
-USE PARKIND_FAUX  ,ONLY : JPIM
-USE OML_MOD, ONLY : OML_MY_THREAD
-IMPLICIT NONE
-INTEGER(KIND=JPIM) :: TID
-TID = 1
-!$ tid = OML_MY_THREAD()
-END FUNCTION GET_THREAD_ID
+subroutine get_openmp(kopenmp)
+use PARKIND_FAUX, only : JPIM
+implicit none
+INTEGER(KIND=JPIM), INTENT(out) :: kopenmp
+#ifdef _OPENMP
+kopenmp = _OPENMP
+#else
+kopenmp = 0
+#endif
+end subroutine get_openmp

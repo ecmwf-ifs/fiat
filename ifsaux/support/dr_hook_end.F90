@@ -7,12 +7,13 @@
 ! nor does it submit to any jurisdiction.
 !
 
-FUNCTION GET_PROC_ID() RESULT(PID)
-
-USE PARKIND_FAUX  ,ONLY : JPIM
-USE MPL_MODULE, ONLY : MPL_RANK
-IMPLICIT NONE
-INTEGER(KIND=JPIM) :: PID
-PID = MPL_RANK
-
-END FUNCTION GET_PROC_ID
+SUBROUTINE DR_HOOK_END()
+  ! Make sure DrHook output is produced before MPI_Finalize (in case it fails)
+  IMPLICIT NONE
+  EXTERNAL :: c_drhook_prof
+  LOGICAL,SAVE :: LL_FIRST_TIME = .TRUE.
+  IF( .NOT. LL_FIRST_TIME ) THEN
+    LL_FIRST_TIME = .FALSE.
+    CALL c_drhook_prof()
+  ENDIF
+END SUBROUTINE

@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2005- ECMWF.
+ * (C) Copyright 2021- ECMWF.
  * 
  * This software is licensed under the terms of the Apache Licence Version 2.0
  * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -8,14 +8,7 @@
  * nor does it submit to any jurisdiction.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-#define getpag getpag_
-
-long long int getpag()
-{
-  return 0L;
-}
-
+INTERFACE
+SUBROUTINE DR_HOOK_END
+END SUBROUTINE DR_HOOK_END
+END INTERFACE

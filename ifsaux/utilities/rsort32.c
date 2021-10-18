@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <signal.h>
-#include "intercept_alloc.h"
 #include "raise.h"
 
 /* rsort32_() : 32-bit Fortran-callable RADIX-sort */
@@ -53,26 +52,8 @@
 typedef unsigned int  Uint32;
 typedef unsigned char Uchar;
 
-#ifdef __uxppx__
-#ifndef VPP
-#define VPP
-#endif
-#endif
-
-#ifdef VPP
-#pragma global noalias
-#pragma global novrec
-#elif defined(NECSX)
-#pragma cdir options -pvctl,nodep
-#endif
-
-#if defined(VPP) || defined(NECSX)
-/* .. or any vector machine */
-static int SpeedUp = 0;
-#else
 /* scalar prozezzorz */
 static int SpeedUp = 1;
-#endif
 
 #define SORT_UINT 0
 #define SORT_INT  1
@@ -86,12 +67,12 @@ typedef long long int ll_t;
 #define  ALLOC(x,size)    \
  { ll_t bytes = (ll_t)sizeof(*x) * (size); \
    bytes = (bytes < 1) ? 1 : bytes; \
-   x = THEmalloc(bytes); \
+   x = malloc(bytes); \
    if (!x) { fprintf(stderr, \
 		     "malloc() of %s (%lld bytes) failed in file=%s, line=%d\n", \
 		     #x, bytes, __FILE__, __LINE__); RAISE(SIGABRT); } }
 
-#define FREE(x)           if (x) { THEfree(x); x = NULL; }
+#define FREE(x)           if (x) { free(x); x = NULL; }
 
 #define BITSUM(x) bitsum[x] += ((item >> x) & 1U)
 
@@ -187,9 +168,6 @@ rsort32_(const    int *Mode,
 
   if (method == SORT_R32) {
     j = addr;
-#ifdef NECSX
-#pragma cdir nodep
-#endif
     for (i=0; i<n; i++) {
       Uint32 mask = CVMGM(MASKALL32, SIGNBIT32, Data[j]);
       data[i] = Data[j] ^ mask;
@@ -208,9 +186,6 @@ rsort32_(const    int *Mode,
     /* Least significant word */
     j  = addr + lsw;
     jj = addr + msw;
-#ifdef NECSX
-#pragma cdir nodep
-#endif
     for (i=0; i<n; i++) {
       Uint32 mask = CVMGM(MASKALL32, ZEROALL32, Data[jj]);
       data[i] = Data[j] ^ mask;
@@ -224,9 +199,6 @@ rsort32_(const    int *Mode,
 
     /* Most significant word */
     jj = addr + msw;
-#ifdef NECSX
-#pragma cdir nodep
-#endif
     for (i=0; i<n; i++) {
       Uint32 mask = CVMGM(MASKALL32, SIGNBIT32, Data[jj]);
       data[i] = Data[jj] ^ mask;
@@ -273,9 +245,6 @@ rsort32_(const    int *Mode,
   }
   else if (inc > 1) {
     j = addr;
-#ifdef NECSX
-#pragma cdir nodep
-#endif
     for (i=0; i<n; i++) {
       data[i] = Data[j];
       j += inc;
@@ -328,24 +297,15 @@ rsort32_(const    int *Mode,
       
       if (SpeedUp == 0) {
 	int k = 0;
-#ifdef NECSX
-#pragma cdir nodep
-#endif
 	for (i=0; i<n; i++) /* Gather zero bits */
 	  if ( (data[i1[i]-index_adj] & mask) ==    0 ) i2[k++] = i1[i];
 	
-#ifdef NECSX
-#pragma cdir nodep
-#endif
 	for (i=0; i<n; i++) /* Gather one bits */
 	  if ( (data[i1[i]-index_adj] & mask) == mask ) i2[k++] = i1[i];
       }
       else
       {
 	int k1 = 0, k2 = n-sum;
-#ifdef NECSX
-#pragma cdir nodep
-#endif
 	for (i=0; i<n; i++) { /* Gather zero & one bits in a single sweep */
 	  Uint32 value = data[i1[i]-index_adj] & mask;
 	  i2[value == 0 ? k1++ : k2++] = i1[i];
@@ -363,10 +323,7 @@ rsort32_(const    int *Mode,
   }
 
   if (copytmp) {
-#ifdef NECSX
-#pragma cdir nodep
-#endif
-	for (i=0; i<n; i++) index[i] = tmp[i];
+    for (i=0; i<n; i++) index[i] = tmp[i];
   }
 
   FREE(tmp);
@@ -383,40 +340,6 @@ rsort32_(const    int *Mode,
   *retc = rc;
 }
 
-
-void 
-rsort32_ibm_(const    int *Mode,
-	     const    int *N,
-	     const    int *Inc,
-	     const    int *Start_addr,
-	           Uint32  Data[],
-	              int  index[],
-	     const    int *Index_adj,
-	              int *retc)
-{
-#ifdef RS6K
-  int mode = *Mode;
-  int method = mode%10;
-  int index_adj = *Index_adj;
-
-  if (method == SORT_INT && index_adj == 1) { /* 32-bit ints ; Fortran-arrays */
-    jisort_( N, Inc, Start_addr, Data, index ); /* from jsort.F in ifsaux */
-    *retc = *N;
-  }
-  else if (method == SORT_R64 && index_adj == 1) { /* 64-bit reals ; Fortran-arrays */
-    jdsort_( N, Inc, Start_addr, Data, index ); /* from jsort.F in ifsaux */
-    *retc = *N;
-  }
-  else { /* Any other type => revert to the generic rsort32 */
-    rsort32_(Mode, N, Inc, Start_addr, Data, index, Index_adj, retc);
-  }
-#else
-  /* Any other machine than IBM/RS6000 => revert to the generic rsort32 */
-  rsort32_(Mode, N, Inc, Start_addr, Data, index, Index_adj, retc);
-#endif
-}
-
-
 static 
 void (*default_rsort32_func)(const    int *Mode,
 			     const    int *N,
@@ -426,11 +349,7 @@ void (*default_rsort32_func)(const    int *Mode,
 			              int  index[],
 			     const    int *Index_adj,
 			              int *retc) =
-#ifdef RS6K
-     rsort32_ibm_
-#else
      rsort32_
-#endif
 ;
 
 void 

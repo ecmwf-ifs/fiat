@@ -8,24 +8,17 @@
  * nor does it submit to any jurisdiction.
  */
 
-#ifndef _RAISE_H_
-#define _RAISE_H_
-
-/* raise.h */
+/* ec_raise.c */
 
 #include <stdio.h>
-#include <string.h>
+#include <stdlib.h>
 #include <signal.h>
-#include <unistd.h>
+#include <stdarg.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
-#include "abor1.h"
+/* CALL ec_raise(6) == CALL abort() */
 
-#define RAISE(x) { \
-  if ((x) == SIGABRT) { \
-    ABOR1("*** Fatal error; aborting (SIGABRT) ..."); \
-    _exit(1); /* Should never end up here */ \
-  } \
-  else raise(x); \
-}
+void ec_raise_(const int *sig) { raise(*sig); }
+void ec_raise(const int *sig) { ec_raise_(sig); }
 
-#endif /* _RAISE_H_ */
