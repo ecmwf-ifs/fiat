@@ -20,7 +20,7 @@ MODULE SDL_MOD
 !   11-Apr-2005 R. El Khatib  *METEO-FRANCE*
 !   26-Apr-2006 S.T.Saarinen  Dr.Hook trace, calls to EC_RAISE, Intel/ifort traceback
 
-USE PARKIND_FAUX  ,ONLY : JPIM
+USE EC_PARKIND  ,ONLY : JPIM
 USE OML_MOD   ,ONLY : OML_MY_THREAD
 USE MPL_MPIF
 IMPLICIT NONE

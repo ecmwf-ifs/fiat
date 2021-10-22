@@ -24,7 +24,7 @@
 
 #include "ec_args.h"
 
-#define EC_MAX_ARGS 128
+#define EC_MAX_ARGS 512
 
 typedef struct {
   char *name;

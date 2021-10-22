@@ -61,7 +61,7 @@ MODULE MPL_ALLREDUCE_MOD
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX , ONLY : JPRD, JPIM, JPRM, JPIB
+USE EC_PARKIND , ONLY : JPRD, JPIM, JPRM, JPIB
 USE OML_MOD   ,ONLY : OML_MY_THREAD
 
 USE MPL_MPIF

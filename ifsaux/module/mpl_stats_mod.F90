@@ -53,7 +53,7 @@ SUBROUTINE MPL_STATSINIT
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPIM
+USE EC_PARKIND  ,ONLY : JPIM
 
 USE YOMMPLSTATS
 
@@ -124,7 +124,7 @@ SUBROUTINE MPL_STATSON(SENDNUM,SENDBYTES,RECVNUM,RECVBYTES)
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPRD, JPIM
+USE EC_PARKIND  ,ONLY : JPRD, JPIM
 
 USE YOMMPLSTATS
 
@@ -189,7 +189,7 @@ SUBROUTINE MPL_STATSREAD(SENDNUM,SENDBYTES,RECVNUM,RECVBYTES)
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPRD, JPIM
+USE EC_PARKIND  ,ONLY : JPRD, JPIM
 
 USE YOMMPLSTATS
 
@@ -250,7 +250,7 @@ SUBROUTINE MPL_SENDSTATS(ICOUNT,ITYPE)
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPIM
+USE EC_PARKIND  ,ONLY : JPIM
 
 USE MPL_DATA_MODULE
 USE MPL_MESSAGE_MOD
@@ -315,7 +315,7 @@ SUBROUTINE MPL_RECVSTATS(ICOUNT,ITYPE)
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPIM
+USE EC_PARKIND  ,ONLY : JPIM
 
 USE MPL_DATA_MODULE
 USE MPL_MESSAGE_MOD

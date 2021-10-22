@@ -7,25 +7,23 @@
 ! nor does it submit to any jurisdiction.
 !
 
-MODULE PARKIND_FAUX
-!
-!     *** Define usual kinds for strong typing ***
-!
+MODULE DR_HOOK_STACKCHECK_MOD
+
+! Used by dr_hook_util to monitor thread stack usage 
+
+USE EC_PARKIND  ,ONLY : JPIB
+
 IMPLICIT NONE
+
 SAVE
-!
-!     Integer Kinds
-!     -------------
-!
-INTEGER, PARAMETER :: JPIM = SELECTED_INT_KIND(9)
-INTEGER, PARAMETER :: JPIB = SELECTED_INT_KIND(12)
 
-!
-!     Real Kinds
-!     ----------
-!
-INTEGER, PARAMETER :: JPRM = SELECTED_REAL_KIND(6,37)
-INTEGER, PARAMETER :: JPRD = SELECTED_REAL_KIND(13,300)
+PRIVATE :: JPIB
 
+PUBLIC
 
-END MODULE PARKIND_FAUX
+INTEGER(KIND=JPIB), ALLOCATABLE :: ISAVE(:) 
+INTEGER(KIND=JPIB), ALLOCATABLE :: IMAXSTACK(:) 
+LOGICAL,            ALLOCATABLE :: LL_THREAD_FIRST(:)
+
+END MODULE DR_HOOK_STACKCHECK_MOD
+

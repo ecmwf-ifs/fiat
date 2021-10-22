@@ -8,7 +8,7 @@
 !
 
 subroutine get_openmp(kopenmp)
-use PARKIND_FAUX, only : JPIM
+use EC_PARKIND, only : JPIM
 implicit none
 INTEGER(KIND=JPIM), INTENT(out) :: kopenmp
 #ifdef _OPENMP

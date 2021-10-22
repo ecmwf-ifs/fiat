@@ -25,7 +25,7 @@ MODULE BYTES_IO_MOD
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX , ONLY : JPRD, JPIM, JPIB, JPRM
+USE EC_PARKIND , ONLY : JPRD, JPIM, JPIB, JPRM
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE MPL_MODULE, ONLY : MPL_ABORT
 

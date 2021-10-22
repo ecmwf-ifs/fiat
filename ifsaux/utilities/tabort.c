@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "drhook.h"
+#include "mpl.h"
 
 extern void abor1_(const char msg[], int msglen);
 
@@ -48,7 +49,7 @@ void _brexit(int errcode)
 
 // Forward declarations
 void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr);
-void cmpi_abort_(int *rc);
+void fortran_mpi_abort(int rc);
 
 void tabort_()
 {
@@ -60,7 +61,7 @@ void tabort_()
 #if 1
     drhook_calltree();
     LinuxTraceBack(NULL,NULL,NULL);
-    cmpi_abort_(&rc); // see ifsaux/parallel/cmpl_binding.F90 : calls MPI_ABORT with MPI_COMM_WORLD
+    fortran_mpi_abort(rc); // see ifsaux/parallel/cmpl_binding.F90 : calls MPI_ABORT with MPI_COMM_WORLD
 #else
     ret = raise(sig); /* We get better DrHook & LinuxTrbk's with this than abort() aka SIGABRT */
     // abort(); -- essentially raise(SIGABRT) but with messier output (and may bypass DrHook)

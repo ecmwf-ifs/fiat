@@ -61,7 +61,7 @@ SUBROUTINE GSTATS(KNUM,KSWITCH)
 !      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPRD, JPIM ,JPIB
+USE EC_PARKIND  ,ONLY : JPRD, JPIM ,JPIB
 USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 
 USE YOMGSTATS  

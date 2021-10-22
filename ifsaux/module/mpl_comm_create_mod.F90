@@ -42,7 +42,7 @@ MODULE MPL_COMM_CREATE_MOD
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPIM
+USE EC_PARKIND  ,ONLY : JPIM
 USE OML_MOD   ,ONLY : OML_MY_THREAD
 
 USE MPL_MPIF

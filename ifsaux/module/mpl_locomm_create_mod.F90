@@ -45,7 +45,7 @@ MODULE MPL_LOCOMM_CREATE_MOD
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPIM
+USE EC_PARKIND  ,ONLY : JPIM
 
 USE MPL_MPIF
 USE MPL_DATA_MODULE

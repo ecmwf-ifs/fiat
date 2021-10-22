@@ -8,12 +8,20 @@
  * nor does it submit to any jurisdiction.
  */
 
-INTERFACE
-SUBROUTINE EC_MPI_FINALIZE(KERROR,LDCALLFINITO,LDMEMINFO,CALLER)
-USE EC_PARKIND, ONLY : JPIM
-INTEGER(KIND=JPIM), INTENT(OUT) :: KERROR
-LOGICAL, INTENT(IN) :: LDCALLFINITO
-LOGICAL, INTENT(IN) :: LDMEMINFO
-CHARACTER(LEN=*), INTENT(IN) :: CALLER
-END SUBROUTINE EC_MPI_FINALIZE
-END INTERFACE
+/* mpl.h */
+#ifndef _MPL_H_
+#define _MPL_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int  mpl_init();
+int  mpl_end();
+int  mpl_myrank(); // Note return value is 1-based as opposed to MPI_Rank which is 0-based
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
+#endif /* _MPL_H_ */

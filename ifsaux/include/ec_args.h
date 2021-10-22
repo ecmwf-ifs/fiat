@@ -28,6 +28,9 @@
  * 
  */
 
+#ifndef _EC_ARGS_H_
+#define _EC_ARGS_H_
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -42,5 +45,7 @@ int ec_argc(void);
 const char* const* ec_argv(void);
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
+
+#endif /* _EC_ARGS_H_ */

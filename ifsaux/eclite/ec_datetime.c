@@ -13,7 +13,7 @@
 
 - Originally this file was part of eclib
 - Then was ifsaux/eclite/julian.h
-- Now part of faux
+- Now part of fiat
 */
 
 #define EC_DATETIME_C

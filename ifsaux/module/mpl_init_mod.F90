@@ -61,7 +61,7 @@ MODULE MPL_INIT_MOD
 !        P. Towers     3-Jul-2014 Add call to ec_cray_meminfo
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPIM
+USE EC_PARKIND  ,ONLY : JPIM
 USE OML_MOD, ONLY : OML_INIT, OML_MAX_THREADS
 USE MPL_MPIF
 USE MPL_DATA_MODULE

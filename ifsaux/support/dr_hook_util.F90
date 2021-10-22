@@ -8,9 +8,10 @@
 !
 
 SUBROUTINE DR_HOOK_UTIL(LDHOOK,CDNAME,KCASE,PKEY,CDFILENAME,KSIZEINFO)
-USE PARKIND_FAUX  ,ONLY : JPIM,JPRD
-USE OML_MOD       ,ONLY : OML_MY_THREAD
-USE YOMHOOK       ,ONLY : LHOOK
+USE EC_PARKIND , ONLY : JPIM, JPRD
+USE OML_MOD    , ONLY : OML_MY_THREAD
+USE YOMHOOK    , ONLY : LHOOK
+USE DR_HACK_MOD, ONLY : LL_DRHACK, DR_HACK_INIT, DR_HACK
 
 IMPLICIT NONE
 
@@ -22,7 +23,6 @@ REAL(KIND=JPRD),INTENT(INOUT) :: PKEY
 
 ! Persistent variables, setup at first call
 LOGICAL,SAVE :: LL_INIT       = .FALSE.
-LOGICAL,SAVE :: LL_DRHACK     = .FALSE. ! Will be set to .TRUE. if envvar DR_HACK=1
 LOGICAL,SAVE :: LL_STACKCHECK = .FALSE. ! Will be set to .TRUE. if envvar DR_HOOK_STACKCHECK=1
 LOGICAL,SAVE :: LL_HEAPCHECK  = .FALSE. ! Will be set to .TRUE. if envvar DR_HOOK_HEAPCHECK=1
 
@@ -31,7 +31,6 @@ INTEGER(KIND=JPIM) :: IMYTID
 INTEGER(KIND=8)    :: MAXMEM=0 ! For comparing memory between HEAPCHECK_START and HEAPCHECK_END
 
 #include "dr_hook_init.intfb.h"
-#include "user_clock.intfb.h"
 
 IF (.NOT.LDHOOK) RETURN
 
@@ -78,112 +77,6 @@ FUNCTION MYPROC()
   ENDIF
 END FUNCTION MYPROC
 
-SUBROUTINE DR_HACK_INIT()
-  USE MPL_DATA_MODULE ,ONLY : MPL_NUMPROC
-  USE MPL_MYRANK_MOD  ,ONLY : MPL_MYRANK
-  USE YOMLUN_FAUX     ,ONLY : NULDRHACK
-  IMPLICIT NONE
-  CHARACTER(LEN=512) :: CLENV
-  CALL GET_ENVIRONMENT_VARIABLE('DR_HACK',CLENV)
-  IF( CLENV == 'yes'  .OR. CLENV == 'YES'  .OR. &
-    & CLENV == 'true' .OR. CLENV == 'TRUE' .OR. &
-    & CLENV == 'on'   .OR. CLENV == 'ON'   .OR. &
-    & CLENV == '1' ) THEN
-    LL_DRHACK=.TRUE.
-    IF( MYPROC() == 1 ) THEN
-      OPEN (UNIT = NULDRHACK, file = "drhack.txt",position="append",action="write")
-    ENDIF
-  ENDIF
-END SUBROUTINE DR_HACK_INIT
-
-SUBROUTINE DR_HACK(ROUTINE,START)
-!
-! Florian Suzat (METEO-FRANCE) Sept 2017 : add drHack functionality
-!
-! drHack documentation:
-! ----------------------------------
-! ARPIFS has become a huge and complicated program. Debugging it can be very
-! painful especially for newbies. Documenting it is also is a huge and tedious
-! job.
-! The idea behind “drHack” is basically to hack drHook: using the calls 
-! "IF (LHOOK) CALL DR_HOOK('XXX',I,ZHOOK_HANDLE)" 
-! (where XXX is the name of a routine, and I is 0 at the beginning of the
-! routine and 1 at
-! the end) in order to build a big XML file describing the ARPIFS calling tree.
-! At initialization, if both environmental variables DR_HOOK and DR_HACK are set
-! equal to 1, 
-! then the hack is activated, otherwise everything works as usual.
-
-! IMPORTANT: for the moment, it does not work with openmp
-! (need to run with openmp=1) 
-
-! When active, we first open a file drhack.txt.
-! Every time the program enters a routine, we append <ROUTINE_NAME> to the
-! file, and every time the routine is left, we append </ROUTINE_NAME> (mind the
-! “/” extra character).
-! Then, at the end of the run, the (big!) file drhack.txt contains the calling
-! tree of the MPI processor number 0 as an XML file:
-! <MASTER>
-! <STACK_MIX_INIT_STACK>
-! <STACK_MIX_GETSTACKUSAGEX>
-! </STACK_MIX_GETSTACKUSAGEX>
-! </STACK_MIX_INIT_STACK>
-! <CNT0>
-! <GEOMETRY_MOD_GEOMETRY_SET>
-! </GEOMETRY_MOD_GEOMETRY_SET>
-! ....
-! 
-! The resulting files are not usable as is (because they are too big). But with
-! a few
-! lines of python, it is easy to produce a condensed version of the drhack.txt
-! file
-! (if you want an example script, you may ask florian.suzat@meteo.fr).
-! Then, with html and javascript, these condensed files are read and a
-! dynamic collapsible search tree is built.
-! Illustrations of such pages can be seen at http://intra.cnrm.meteo.fr/drhack/ 
-! (only from the MeteoFrance network... If you want an export, mail
-! florian.suzat@meteo.fr)
-
-! Hope this help...
-
-! -----------------------------------------------------------------
-! Different implementation of this have been tested, but this one, even if it is
-! not elegant at all, is almost fast.... 
-
-USE PARKIND_FAUX  ,ONLY : JPIM
-USE YOMLUN_FAUX   ,ONLY : NULDRHACK
-IMPLICIT NONE
-CHARACTER(LEN=*),INTENT(IN) :: ROUTINE
-INTEGER(KIND=JPIM),INTENT(IN) :: START
-INTEGER(KIND=JPIM) :: i
-CHARACTER(LEN(ROUTINE)) :: ROUTINE_CLEAN
-
-! replace some special character
-DO i = 1,LEN(ROUTINE)
-  SELECT CASE (ROUTINE(i:i))
-  CASE ("<")
-    ROUTINE_CLEAN (i:i)="_"
-  CASE (">")
-    ROUTINE_CLEAN (i:i)="_"
-  CASE (":")
-    ROUTINE_CLEAN (i:i)="_"
-  CASE (" ")
-    ROUTINE_CLEAN (i:i)="_"
-  CASE DEFAULT
-    ROUTINE_CLEAN (i:i)=ROUTINE(i:i)
-  END SELECT
-END DO
-
-IF (START==0) THEN
-  WRITE(NULDRHACK,*) '<',ROUTINE_CLEAN,'>'
-ELSE
-  WRITE(NULDRHACK,*) '</',ROUTINE_CLEAN,'>'
-  !CLOSE FILE IF LAST ROUTINE
-  IF (ROUTINE_CLEAN .eq. 'MODEL_MOD_MODEL_DELETE') THEN
-    CLOSE (NULDRHACK)
-  ENDIF
-ENDIF
-END SUBROUTINE DR_HACK
 
 SUBROUTINE HEAPCHECK_INIT()
 IMPLICIT NONE
@@ -204,10 +97,10 @@ END SUBROUTINE HEAPCHECK_INIT
 
 SUBROUTINE HEAPCHECK_START()
 !JFH---Code to monitor heap usage -------------------------
-USE YOMLUN_FAUX ,ONLY : NULERR
+USE EC_LUN ,ONLY : NULERR
 IMPLICIT NONE 
-INTEGER*8 :: GETMAXLOC
-INTEGER*8 :: GETMAXMEM
+INTEGER(KIND=8) :: GETMAXLOC
+INTEGER(KIND=8) :: GETMAXMEM
 IF(IMYTID == 1) THEN
   IF( MYPROC() == 1) THEN
     GETMAXMEM=GETMAXLOC()
@@ -222,7 +115,7 @@ END SUBROUTINE HEAPCHECK_START
 
 SUBROUTINE HEAPCHECK_END()
 !JFH---Code to monitor heap usage -------------------------
-USE YOMLUN_FAUX ,ONLY : NULERR
+USE EC_LUN ,ONLY : NULERR
 IMPLICIT NONE
 INTEGER(KIND=8) :: GETMAXLOC
 INTEGER(KIND=8) :: GETMAXMEM
@@ -239,12 +132,11 @@ ENDIF
 END SUBROUTINE HEAPCHECK_END
 
 SUBROUTINE STACKCHECK_INIT()
-  USE YOMHOOKSTACK  ,ONLY : LL_THREAD_FIRST,ISAVE,IMAXSTACK,CSTACK   ! For monitoring thread stack usage
+  USE DR_HOOK_STACKCHECK_MOD ,ONLY : LL_THREAD_FIRST,ISAVE,IMAXSTACK   ! For monitoring thread stack usage
   USE OML_MOD       ,ONLY : OML_MAX_THREADS
   IMPLICIT NONE
   INTEGER(KIND=JPIM) :: INUMTIDS
-
-  INUMTIDS = OML_MAX_THREADS()
+  CHARACTER(LEN=4)   :: CSTACK
 
   !JFH---Initialisation to monitor stack usage by threads-------------
   CALL GET_ENVIRONMENT_VARIABLE('DR_HOOK_STACKCHECK',CSTACK)
@@ -254,6 +146,7 @@ SUBROUTINE STACKCHECK_INIT()
      & CSTACK == '1' ) THEN
     LL_STACKCHECK = .TRUE.
     IF(IMYTID == 1 ) THEN
+      INUMTIDS = OML_MAX_THREADS()
       ALLOCATE(LL_THREAD_FIRST(INUMTIDS))
       ALLOCATE(ISAVE(INUMTIDS))
       ALLOCATE(IMAXSTACK(INUMTIDS))
@@ -269,8 +162,8 @@ END SUBROUTINE STACKCHECK_INIT
 SUBROUTINE STACKCHECK()
 !JFH---Code to monitor stack usage by threads---------------------
 #ifndef NAG
-USE YOMHOOKSTACK ,ONLY : LL_THREAD_FIRST,ISAVE,IMAXSTACK
-USE YOMLUN_FAUX  ,ONLY : NULERR
+USE DR_HOOK_STACKCHECK_MOD ,ONLY : LL_THREAD_FIRST,ISAVE,IMAXSTACK
+USE EC_LUN  ,ONLY : NULERR
 IMPLICIT NONE
 INTEGER(KIND=8) :: ILOC  ! For monitoring thread stack usage
 IF(IMYTID > 1) THEN

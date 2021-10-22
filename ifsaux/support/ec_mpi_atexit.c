@@ -17,6 +17,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "mpl.h"
+
 /* A routine to be called at the very end in case MPI wasn't finalized */
 /* Registered *only* by MPL_INIT */
 /* Disable this feature via : export EC_MPI_ATEXIT=0 */
@@ -33,10 +35,8 @@ void ec_mpi_atexit_(void)
       atexit(ec_mpi_atexit_);
     }
     else if (callnum == 2) {
-      /* action : finish MPI via F90 cmpl_end (in cmpl_binding.F90) */
-      extern void cmpl_end_(int *);
-      int ierr = 0;
-      cmpl_end_(&ierr);
+      /* action : finish MPI via F90 mpl_end (in mpl_bindc.F90) */
+      mpl_end();
     }
   }
 }

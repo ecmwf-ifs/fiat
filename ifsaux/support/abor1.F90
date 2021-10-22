@@ -12,8 +12,8 @@ SUBROUTINE ABOR1FL(CDFILE, KLINENUM, CDTEXT)
   !! Tracebacks will be printed if possible
   !! All processes will be terminated in parallel MPI context
 
-USE PARKIND_FAUX  ,ONLY : JPIM
-USE YOMLUN_FAUX   ,ONLY : NULOUT, NULERR
+USE EC_PARKIND  ,ONLY : JPIM
+USE EC_LUN   ,ONLY : NULOUT, NULERR
 USE MPL_MODULE    ,ONLY : MPL_ABORT
 USE OML_MOD       ,ONLY : OML_MY_THREAD
 #ifdef NAG
@@ -100,7 +100,7 @@ ELSE
   CALL ABOR1( FCKIT_EXCEPTION%WHAT() )
 ENDIF
 #else
-CALL ABOR1( "An unknown exception is handled via ABOR1_EXCEPTION_HANDLER. Compile faux with fckit to get a better error message" )
+CALL ABOR1( "An unknown exception is handled via ABOR1_EXCEPTION_HANDLER. Compile fiat with fckit to get a better error message" )
 #endif
 END SUBROUTINE
 

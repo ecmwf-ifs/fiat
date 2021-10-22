@@ -54,7 +54,7 @@ SUBROUTINE GSTATS_PRINT(KULOUT,PAVEAVE,KLEN)
 !        F. Vana  05-Mar-2015  Support for single precision
 !        G. Mozdzynski 18-Aug-2015 Avoid confusion, procs are tasks
 !     ------------------------------------------------------------------
-USE PARKIND_FAUX  ,ONLY : JPRD, JPIM
+USE EC_PARKIND  ,ONLY : JPRD, JPIM
 
 USE YOMGSTATS
 USE MPL_MODULE

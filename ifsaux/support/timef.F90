@@ -35,7 +35,7 @@
       FUNCTION TIMEF()
 !ss: Uses util_walltime_() from DrHook -- 
 !    Should now have higher precision (avoiding negative accum. wall-time in ifs.stat (see opdis.F90))
-      USE PARKIND_FAUX, ONLY : JPIM, JPRD
+      USE EC_PARKIND, ONLY : JPIM, JPRD
       IMPLICIT NONE
       REAL(KIND=JPRD)           :: TIMEF
       REAL(KIND=JPRD)           :: ZTIMEF

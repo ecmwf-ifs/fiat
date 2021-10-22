@@ -11,6 +11,10 @@
 #ifndef _DRHOOK_H_
 #define _DRHOOK_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef GNUC_BTRACE
 #define GNUC_BTRACE 128
 #endif
@@ -186,6 +190,10 @@ dr_hook_prt_(const int *ftnunitno,
 
 extern void
 dr_hook_procinfo_(int *myproc, int *nproc);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif  /* _DRHOOK_H_ */
 

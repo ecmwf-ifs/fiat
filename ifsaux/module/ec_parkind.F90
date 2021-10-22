@@ -7,25 +7,25 @@
 ! nor does it submit to any jurisdiction.
 !
 
-MODULE YOMHOOKSTACK
-
-! Used by dr_hook_util to monitor thread stack usage 
-! Need "export STACKCHECK=yes"
-
-USE PARKIND_FAUX  ,ONLY : JPIB
-
+MODULE EC_PARKIND
+!
+!     *** Define usual kinds for strong typing ***
+!
 IMPLICIT NONE
-
 SAVE
+!
+!     Integer Kinds
+!     -------------
+!
+INTEGER, PARAMETER :: JPIM = SELECTED_INT_KIND(9)
+INTEGER, PARAMETER :: JPIB = SELECTED_INT_KIND(12)
 
-PRIVATE :: JPIB
+!
+!     Real Kinds
+!     ----------
+!
+INTEGER, PARAMETER :: JPRM = SELECTED_REAL_KIND(6,37)
+INTEGER, PARAMETER :: JPRD = SELECTED_REAL_KIND(13,300)
 
-PUBLIC
 
-INTEGER(KIND=JPIB), ALLOCATABLE :: ISAVE(:) 
-INTEGER(KIND=JPIB), ALLOCATABLE :: IMAXSTACK(:) 
-LOGICAL,   ALLOCATABLE :: LL_THREAD_FIRST(:)
-CHARACTER(LEN=3)       :: CSTACK
-
-END MODULE YOMHOOKSTACK
-
+END MODULE EC_PARKIND

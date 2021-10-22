@@ -50,7 +50,7 @@ MODULE MPL_WAITANY_MOD
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPIM ,JPRM, JPIB
+USE EC_PARKIND  ,ONLY : JPIM ,JPRM, JPIB
 
 USE MPL_MPIF
 USE MPL_DATA_MODULE

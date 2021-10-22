@@ -7,9 +7,9 @@
 ! nor does it submit to any jurisdiction.
 !
 
-MODULE YOMLUN_FAUX
+MODULE EC_LUN
 
-USE PARKIND_FAUX  ,ONLY : JPIM
+USE EC_PARKIND  ,ONLY : JPIM
 
 IMPLICIT NONE
 
@@ -25,11 +25,8 @@ PUBLIC
 !     NULOUT :   output unit
 !     NULERR :   unit number for comparison with reference run
 
-!     NULDRHACK : output unit for drHack pseudo xml file (see
-!     dr_hook_util.F90)
 INTEGER(KIND=JPIM) :: NULOUT = 6
 INTEGER(KIND=JPIM) :: NULERR = 0
-INTEGER(KIND=JPIM) :: NULDRHACK = 999
 
 !     ------------------------------------------------------------------
-END MODULE YOMLUN_FAUX
+END MODULE EC_LUN

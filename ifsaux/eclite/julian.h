@@ -15,7 +15,7 @@ Modified by Willem Deconinck to be more portable using standard integers.
 
 - Originally this file was part of eclib
 - Then was ifsaux/eclite/julian.h
-- Now part of faux
+- Now part of fiat
 */
 
 #ifndef EC_DATETIME_C

@@ -63,7 +63,7 @@ MODULE MPL_CLOSE_MOD
 !        R. EL Khatib 24-May-2011 Change ifdef MPI2 into ifndef MPI1
 !     -----------------------------------------------------------------
 !
-USE PARKIND_FAUX  ,ONLY : JPIM
+USE EC_PARKIND  ,ONLY : JPIM
 
 USE MPL_DATA_MODULE
 USE MPL_MESSAGE_MOD

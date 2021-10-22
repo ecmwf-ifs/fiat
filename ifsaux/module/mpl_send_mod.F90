@@ -62,7 +62,7 @@ MODULE MPL_SEND_MOD
 !      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX , ONLY : JPRD, JPIM, JPIB, JPRM
+USE EC_PARKIND , ONLY : JPRD, JPIM, JPIB, JPRM
 USE OML_MOD   ,ONLY : OML_MY_THREAD
 
 USE MPL_MPIF

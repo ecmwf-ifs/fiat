@@ -53,7 +53,7 @@ SUBROUTINE GSTATS_SETUP( KPROC,KMYPROC,KPRCIDS,&
 !                             rather than LBARRIER_STATS
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPIM     ,JPRD
+USE EC_PARKIND  ,ONLY : JPIM     ,JPRD
 
 USE YOMGSTATS
 USE MPL_STATS_MOD

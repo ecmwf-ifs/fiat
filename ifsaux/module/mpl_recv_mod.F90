@@ -62,7 +62,7 @@ MODULE MPL_RECV_MOD
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX , ONLY : JPRD, JPIB, JPIM, JPRM
+USE EC_PARKIND , ONLY : JPRD, JPIB, JPIM, JPRM
 USE OML_MOD   ,ONLY : OML_MY_THREAD
 
 USE MPL_MPIF

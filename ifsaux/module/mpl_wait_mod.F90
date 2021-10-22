@@ -61,7 +61,7 @@ MODULE MPL_WAIT_MOD
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPRD, JPIM, JPRM, JPIB
+USE EC_PARKIND  ,ONLY : JPRD, JPIM, JPRM, JPIB
 
 USE MPL_MPIF
 USE MPL_DATA_MODULE

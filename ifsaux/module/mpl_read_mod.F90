@@ -69,7 +69,7 @@ MODULE MPL_READ_MOD
 !        R. EL Khatib 24-May-2011 Change ifdef MPI2 into ifndef MPI1
 !     -----------------------------------------------------------------
 !
-USE PARKIND_FAUX  ,ONLY : JPIM, JPRM
+USE EC_PARKIND  ,ONLY : JPIM, JPRM
 
 USE MPL_MPIF
 USE MPL_DATA_MODULE

@@ -50,6 +50,10 @@ implicit none
 private
 public :: ec_argc, ec_argv, ec_args
 
+#define MAX_ARG_LEN 1024
+#define EC_MAX_ARGS 512
+ !! Matches value in ec_args.c
+
 interface
     function ec_argc() bind(C,name="ec_argc") result(argc)
       use, intrinsic :: iso_c_binding, only : c_int
@@ -71,7 +75,6 @@ contains
 function ec_argv(iarg) result(argv)
     use, intrinsic :: iso_c_binding
     implicit none
-    integer(c_int), parameter :: MAX_ARG_LEN = 1024
     character(len=:), allocatable :: argv
     integer(c_int), intent(in) :: iarg
     integer(c_int) :: argc
@@ -86,9 +89,8 @@ end function
 subroutine ec_args()
   use, intrinsic :: iso_c_binding
   implicit none
-  integer(c_int), parameter :: max_args = 64
   integer(c_int) :: argc
-  type(c_ptr) :: argv(max_args)
+  type(c_ptr) :: argv(EC_MAX_ARGS)
   if( ec_argc() == 0 ) then
     call read_command_line(argc,argv)
     call ec_args_bindc(argc,argv)
@@ -124,12 +126,12 @@ subroutine read_command_line(argc,argv)
   ! (copied from fckit)
   use, intrinsic :: iso_c_binding
   implicit none
-  integer(c_int), parameter :: cmd_max_len = 1024
+  integer(c_int), parameter :: CMD_MAX_LEN = MAX_ARG_LEN * EC_MAX_ARGS
   integer(c_int) :: argc
   type(c_ptr) :: argv(:)
-  character(kind=c_char,len=1), save, target :: args(cmd_max_len)
-  character(kind=c_char,len=cmd_max_len), save, target :: cmd
-  character(kind=c_char,len=cmd_max_len) :: arg
+  character(kind=c_char,len=1), save, target :: args(CMD_MAX_LEN)
+  character(kind=c_char,len=CMD_MAX_LEN), save, target :: cmd
+  character(kind=c_char,len=CMD_MAX_LEN) :: arg
   integer(c_int) :: iarg, arglen, pos, ich, argpos
   call get_command(cmd)
   do ich=1,len(cmd)

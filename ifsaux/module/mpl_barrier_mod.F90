@@ -50,7 +50,7 @@ MODULE MPL_BARRIER_MOD
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPIM
+USE EC_PARKIND  ,ONLY : JPIM
 USE OML_MOD   ,ONLY : OML_MY_THREAD
 USE MPL_DATA_MODULE
 USE MPL_MESSAGE_MOD

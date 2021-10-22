@@ -66,7 +66,7 @@ MODULE MPL_ALLGATHERV_MOD
 
 !     ------------------------------------------------------------------
 
-USE PARKIND_FAUX  ,ONLY : JPRD, JPIM ,JPRM
+USE EC_PARKIND  ,ONLY : JPRD, JPIM ,JPRM
 USE OML_MOD   ,ONLY : OML_MY_THREAD
 
 USE MPL_MPIF
