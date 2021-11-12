@@ -1236,7 +1236,7 @@ trapfpe_treatment(int sig, int silent)
     if (drhook_trapfpe) {
       if (!silent && myproc == 1) {
         fprintf(stderr,
-                "%s %s [%s@%s:%d] DR_HOOK enables SIGFPE-related floating point trapping since DRHOOK_TRAPFPE=%d\n",
+                "%s %s [%s@%s:%d] DR_HOOK enables SIGFPE-related floating point trapping since DR_HOOK_TRAPFPE=%d\n",
                 pfx,TIMESTR(tid),FFL,
                 drhook_trapfpe);
       }
@@ -1245,7 +1245,7 @@ trapfpe_treatment(int sig, int silent)
     else {
       if (!silent && myproc == 1) {
         fprintf(stderr,
-                "%s %s [%s@%s:%d] DR_HOOK turns SIGFPE-related floating point trapping off since DRHOOK_TRAPFPE=%d\n",
+                "%s %s [%s@%s:%d] DR_HOOK turns SIGFPE-related floating point trapping off since DR_HOOK_TRAPFPE=%d\n",
                 pfx,TIMESTR(tid),FFL,
                 drhook_trapfpe);
       }
