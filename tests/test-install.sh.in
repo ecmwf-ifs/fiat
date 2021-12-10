@@ -38,7 +38,7 @@ else
   echo "fiat_ROOT=$fiat_ROOT"
 fi
 
-export ecbuild_DIR=@ecbuild_MACROS_DIR@/../lib/cmake/ecbuild
+export ecbuild_DIR=@ecbuild_DIR@
 
 # Build
 mkdir -p $BUILD && cd $BUILD
