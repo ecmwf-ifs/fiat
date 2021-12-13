@@ -192,13 +192,28 @@ static void trapfpe(int silent)
   int tid = drhook_omp_get_thread_num();
   int enable = 0;
   int disable = 0;
-  int dummy;
   int rc_enable = 0;
   int rc_disable = 0;
-  int excepts_before, excepts_after;
-  dummy = drhook_trapfpe_invalid ? (enable |= FE_INVALID) : (disable |= FE_INVALID);
-  dummy = drhook_trapfpe_divbyzero ? (enable |= FE_DIVBYZERO) : (disable |= FE_DIVBYZERO);
-  dummy = drhook_trapfpe_overflow ? (enable |= FE_OVERFLOW) : (disable |= FE_OVERFLOW);
+  int excepts_before = 0;
+  int excepts_after = 0;
+  if( drhook_trapfpe_invalid ) {
+    enable |= FE_INVALID;
+  }
+  else {
+    disable |= FE_INVALID;
+  }
+  if( drhook_trapfpe_divbyzero ) {
+    enable |= FE_DIVBYZERO;
+  }
+  else {
+    disable |= FE_DIVBYZERO;
+  }
+  if( drhook_trapfpe_overflow ) {
+    enable |= FE_OVERFLOW;
+  }
+  else {
+    disable |= FE_OVERFLOW;
+  }
   if (!silent && myproc == 1) {
     excepts_before = fegetexcept();
   }
@@ -1544,7 +1559,6 @@ signal_harakiri(int sig SIG_EXTRA_ARGS)
   /* The following output should be malloc-free */
 
   time_t tp;
-  int idummy;
   int fd = fileno(stderr);
   int tid = drhook_omp_get_thread_num();
   int nsigs = TIDNSIGS(tid);
@@ -1569,7 +1583,7 @@ signal_harakiri(int sig SIG_EXTRA_ARGS)
   strcat(s,", nsigs = ");
   strcat(s,safe_llitoa(nsigs,buf,sizeof(buf)));
 
-  idummy = write(fd,s,strlen(s));
+  write(fd,s,strlen(s));
 
 #if 0
   batch_kill_();
@@ -1931,7 +1945,9 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
           /* Restore the default, core-file creating action to these "ATP" recognized signals */
           switch (sig) {
           case SIGTERM:
-            if (atp_ignore_sigterm) break; /* SIGSEGV not reset to SIG_DFL as ATP now ignores SIGTERM */
+            if (atp_ignore_sigterm)
+              break; /* SIGSEGV not reset to SIG_DFL as ATP now ignores SIGTERM */
+            FIAT_PP_FALLTHROUGH;
             /* Fall thru (see man atp on Cray) */
           case SIGINT: /* Also, see ifssig.c : used as a RESTART signal, confusingly enough */
           case SIGFPE:
@@ -2047,13 +2063,13 @@ signal_drhook_init(int enforce)
     return; /* Never initialize signals via DrHook (dangerous, but sometimes necessary) */
   }
   if (!ec_drhook) {
-    int slen;
+    //int slen;
     char hostname[EC_HOST_NAME_MAX];
     char *pdot;
     int ntids = drhook_omp_get_max_threads();
     numthreads = ntids;
     ec_drhook = calloc_drhook(ntids, sizeof(*ec_drhook));
-    slen = sizeof(ec_drhook[0].s);
+    //slen = sizeof(ec_drhook[0].s);
     timestr_len = sizeof(ec_drhook[0].timestr);
     if (gethostname(hostname,sizeof(hostname)) != 0) strcpy(hostname,"unknown");
     pdot = strchr(hostname,'.');
@@ -3944,7 +3960,7 @@ c_drhook_print_(const int *ftnunitno,
   int mytid = drhook_omp_get_thread_num();
   char *pfx = PREFIX(tid);
   if (ftnunitno && keydata && calltree) {
-    char line[4096];
+    char line[8192];
     int abs_print_option = ABS(*print_option);
     int j;
 
@@ -4242,8 +4258,8 @@ c_drhook_print_(const int *ftnunitno,
       } /* for (t=0; t<numthreads; t++) */
 
       do {
-        double mflop_rate = 0;
-        double mip_rate = 0;
+        // double mflop_rate = 0; /* unused */
+        // double mip_rate = 0; /* unused */
         int numroutines = 0;
         int cluster;
         double *maxval = calloc_drhook(nprof+1, sizeof(*maxval)); /* make sure at least 1 element */
@@ -4381,7 +4397,7 @@ c_drhook_print_(const int *ftnunitno,
           fprintf(stderr,"\tInstrumentation started : %s\n",start_stamp ? start_stamp : "N/A");
           fprintf(stderr,"\tInstrumentation   ended : %s\n",end_stamp ? end_stamp : "N/A");
           fprintf(stderr,"\tInstrumentation overhead: %.2f%%\n",max_overhead_pc);
-    fprintf(stderr,
+          fprintf(stderr,
                     "\t%s-time is %.2f sec on proc#%d (%d procs, %d threads)\n",
                     opt_wallprof ? "Wall" : "Total CPU", tottime, myproc,
                     nproc, numthreads);
@@ -4391,8 +4407,6 @@ c_drhook_print_(const int *ftnunitno,
 
         for (t=0; t<numthreads; t++) {
           double tmp = 100.0*(tot[t]/tottime);
-    mflop_rate = 0;
-    mip_rate = 0;
           fprintf(    fp,"\tThread#%d: %11.2f sec (%.2f%%)",t+1,tot[t],tmp);
           fprintf(    fp,"\n");
           if (myproc == 1) {
@@ -4740,14 +4754,14 @@ Dr_Hook(const char *name, int option, double *handle,
   if (option == 0) {
     c_drhook_start_(name, &tid, handle, 
                     filename, &sizeinfo,
-                    name_len > 0 ? name_len : strlen(name),
-                    filename_len > 0 ? filename_len : strlen(filename));
+                    name_len > 0 ? name_len : (int)strlen(name),
+                    filename_len > 0 ? filename_len : (int)strlen(filename));
   }
   else if (option == 1) {
     c_drhook_end_(name, &tid, handle, 
                   filename, &sizeinfo,
-                  name_len > 0 ? name_len : strlen(name),
-                  filename_len > 0 ? filename_len : strlen(filename));
+                  name_len > 0 ? name_len : (int)strlen(name),
+                  filename_len > 0 ? filename_len : (int)strlen(filename));
   }
 }
 

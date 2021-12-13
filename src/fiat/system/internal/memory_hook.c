@@ -51,14 +51,14 @@ void * __wrap_malloc (size_t size, const void *caller)
   if ((c = posix_memalign (&ptr, _align, size)) != 0)
     {
       ptr = NULL; 
-      printf (" c = %d, EINVAL = %d, ENOMEM = %d, align = %d, size = %d\n", 
-                c,      EINVAL,      ENOMEM,      align,      size);
+      printf (" c = %d, EINVAL = %d, ENOMEM = %d, align = %ld, size = %ld\n",
+                c,      EINVAL,      ENOMEM,      align,       size);
     }
 
   if ((init != NULL) && (ptr != NULL))
     {
       unsigned char * c;
-      int i;
+      size_t i;
       for (i = 0, c = ptr; i < size; i++)
         c[i] = init[i%sizeof_init];
     }

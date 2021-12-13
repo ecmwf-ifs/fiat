@@ -11,6 +11,14 @@
 #ifndef FIAT_PREPROCESSOR_H
 #define FIAT_PREPROCESSOR_H
 
+
+#if __GNUC__ >= 7
+#define FIAT_PP_FALLTHROUGH __attribute__((fallthrough))
+#else
+#define FIAT_PP_FALLTHROUGH
+#endif
+
+
 #define FIAT_PP_CAT_(v1, v2) v1 ## v2
 #define FIAT_PP_CAT(v1, v2) FIAT_PP_CAT_(v1, v2)
 

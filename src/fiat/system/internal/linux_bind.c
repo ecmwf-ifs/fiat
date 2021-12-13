@@ -28,7 +28,7 @@ static char * getcpumask (char *buffer, size_t size)
 {
   cpu_set_t mask;
   unsigned int ncpu;
-  int icpu;
+  unsigned int icpu;
   
   ncpu = sysconf (_SC_NPROCESSORS_CONF);
   
