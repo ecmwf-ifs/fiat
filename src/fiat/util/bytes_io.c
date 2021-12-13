@@ -321,7 +321,7 @@ char namebuff[NAMEBUFFLEN+1], modebuff[MODEBUFFLEN+1];
       if( debugLevel == NULL )
         debugSet = DEBUGOFF;              /* off */
       else {
-        int loop;
+        size_t loop;
         for( loop = 0; loop < strlen(debugLevel) ; loop++ ) {
           if( ! isdigit(debugLevel[loop]) ) {
             printf("Invalid number string in BYTES_IO_DEBUG: %s\n", debugLevel);
@@ -488,7 +488,7 @@ char namebuff[NAMEBUFFLEN+1], modebuff[MODEBUFFLEN+1];
       if( envSize == NULL )
         size = SIZE;             /* default */
       else {
-        int loop;
+        size_t loop;
         for( loop = 0; loop < strlen(envSize) ; loop++ ) {
           if( ! isdigit(envSize[loop]) ) {
             printf("Invalid number string in BYTES_IO_BUFSIZE: %s\n", envSize);

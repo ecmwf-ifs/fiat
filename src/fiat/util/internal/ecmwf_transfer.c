@@ -22,7 +22,7 @@ ecmwf_transfer_(void *out, const int *Len_out,
 		/* Possible hidden argument (not referred) */
 		, int Sta_lin)
 {
-  size_t len = *Len_out;
+  int len = *Len_out;
   if (*Len_in < len) len = *Len_in;
   if (len > 0) memcpy(out,in,len);
 }

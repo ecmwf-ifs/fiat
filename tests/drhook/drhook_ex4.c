@@ -15,7 +15,6 @@
 #include <ctype.h>
 
 #include "drhook.h"
-#include "ec_args.h"
 
 static int trig_sigfpe = 0;
 
@@ -28,7 +27,6 @@ double mysin(double x)
 {
   DRHOOK_START(mysin);
   {
-    double pi = 4*atan(1);
     double div = 180;
     static int jcnt = 0;
     if (trig_sigfpe && (++jcnt%15000 == 0)) {

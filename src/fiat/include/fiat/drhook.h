@@ -11,6 +11,8 @@
 #ifndef _DRHOOK_H_
 #define _DRHOOK_H_
 
+#include "preprocessor.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -114,11 +116,6 @@ extern const char *drhook_TIMESTR(int tid);
 extern const char *drhook_PREFIX(int tid);
 
 /**** C-interface to Dr.Hook ****/
-#define _DRHOOK_ARGN(_1, _2, _3, _4, _5, N, ...) N
-#define _DRHOOK_NARGS(...) _DRHOOK_ARGN(dummy, ##__VA_ARGS__, 4, 3, 2, 1, 0)
-#define _DRHOOK_CONCAT( a, b ) _DRHOOK_CONCAT_1( a, b )
-#define _DRHOOK_CONCAT_1( a, b ) _DRHOOK_CONCAT_2( a, b )
-#define _DRHOOK_CONCAT_2( a, b ) a##b
 
 void drhook_init(int argc, char* argv[]);
 
@@ -164,7 +161,7 @@ Dr_Hook(const char *name, int option, double *handle,
 #define DRHOOK_END_DEFAULT()          DRHOOK_END_RECUR(0,0)
 #define DRHOOK_END_SIZEINFO(sizeinfo) DRHOOK_END_RECUR(sizeinfo,0)
 
-#define DRHOOK_END( ... ) _DRHOOK_CONCAT( _DRHOOK_END_, _DRHOOK_NARGS(__VA_ARGS__) )( __VA_ARGS__ )
+#define DRHOOK_END( ... ) FIAT_PP_CAT( _DRHOOK_END_, FIAT_PP_VARIADIC_SIZE(__VA_ARGS__) )( __VA_ARGS__ )
 // With 0 args --> DRHOOK_END_DEFAULT()
 // With 1 arg  --> DRHOOK_END_SIZEINFO(sizeinfo)
 #define _DRHOOK_END_0    DRHOOK_END_DEFAULT

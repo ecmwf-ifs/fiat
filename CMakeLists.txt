@@ -13,10 +13,13 @@ project( fiat LANGUAGES Fortran C CXX )
 include( fiat_macros )
 ecbuild_enable_fortran( REQUIRED NO_MODULE_DIRECTORY )
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED TRUE)
 
-### Dependencies
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+
+### Options
 
 ecbuild_add_option( FEATURE OMP
                     DESCRIPTION "support for OpenMP shared memory parallelism"
@@ -34,10 +37,15 @@ ecbuild_add_option( FEATURE DR_HOOK_MULTI_PRECISION_HANDLES
                     DESCRIPTION "[DEPRECATED] Support single precision handles for DR_HOOK"
                     DEFAULT OFF )
 
+ecbuild_add_option( FEATURE WARNINGS
+                    DEFAULT ON
+                    DESCRIPTION "Add warnings to compiler" )
+
 ecbuild_find_package( NAME Realtime QUIET )
 
 ### Sources
 
+include( fiat_compiler_warnings )
 add_subdirectory(src)
 add_subdirectory(share)
 

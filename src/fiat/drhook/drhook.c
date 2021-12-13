@@ -97,9 +97,12 @@ static int drhook_omp_get_max_threads() {
   return oml_get_max_threads();
 }
 
+#if 0
+// unused
 static int drhook_omp_test_lock() {
   return oml_test_lockid(&DRHOOK_lock);
 }
+#endif
 
 static void drhook_omp_set_lock() {
   oml_set_lockid(&DRHOOK_lock);
@@ -582,15 +585,7 @@ static void set_ec_drhook_label(const char *hostname, int hlen)
 #define SECS(x) ((int)(x))
 #define NSECS(x) ((int)(1000000000 * ((x) - SECS(x))))
 
-#ifndef __timer_t_defined
-static void set_killer_timer(const int *ntids, const int *target_omptid, 
-                             const int *target_sig, const double *start_time,
-                             const char *p, int lenp)
-{
-  // Definition of timer_t, timer_create, timer_set
-  //   is a POSIX extention, not available on e.g. Darwin
-}
-#else
+#ifdef __timer_t_defined
 static void set_killer_timer(const int *ntids, const int *target_omptid, 
                              const int *target_sig, const double *start_time,
                              const char *p, int lenp)
@@ -1185,7 +1180,7 @@ static void trapfpe_treatment(int sig, int silent);
       fprintf(stderr,\
               "%s %s [%s@%s:%d] DR_HOOK also catches signal#%d : New handler '%s' installed at %p (old at %p)\n", \
               pfx,TIMESTR(tid),FFL,                                        \
-              x, "signal_drhook", sl->new.sa_handler, sl->old.sa_handler); \
+              x, "signal_drhook", (void *) sl->new.sa_handler, (void *)sl->old.sa_handler); \
     }\
   }\
 }
@@ -1380,7 +1375,8 @@ ignore_signals(int silent)
 }
 
 /*--- gdb__sigdump ---*/
-
+// Unused function, disable compilation
+#if 0 
 #if (defined(LINUX) || defined(__APPLE__)) && !defined(_CRAYC)
 static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
 {
@@ -1412,6 +1408,7 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
   drhook_omp_unset_lock();
 }
 #endif
+#endif
 
 /*--- signal_drhook ---*/
 
@@ -1436,8 +1433,8 @@ static void gdb__sigdump(int sig SIG_EXTRA_ARGS)
                 pfx,TIMESTR(tid),FFL,                                        \
                 #handler_name,                                                \
                 x, sl->name,                                                \
-                sl->new.sa_handler,                                        \
-                preserve_old ? sl->old.sa_handler : NULL);                \
+                (void*) sl->new.sa_handler,                                        \
+                preserve_old ? (void*) sl->old.sa_handler : NULL);                \
       }                                                        \
     }                                                \
 }
@@ -1586,7 +1583,7 @@ static void
 signal_drhook(int sig SIG_EXTRA_ARGS)
 {
   volatile int nfirst = drhook_use_lockfile ? 0 : 1;
-  int nsigs;
+  int nsigs = 0;
   int trace_size;
   int tid;
   pid_t unixtid;
@@ -1649,7 +1646,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
             if (fd >= 0) {
               int rc_lock = flock(fd, LOCK_EX | LOCK_NB);
               if (rc_lock == 0) {
-                size_t count = sizeof(myproc);
+                ssize_t count = sizeof(myproc);
                 ssize_t sz = write(fd,&myproc,count);
                 if (sz == count) nfirst = 1;
                 //rc_lock = flock(fd, LOCK_UN);
@@ -1964,7 +1961,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
         fprintf(stderr,
                 "%s %s [%s@%s:%d] Calling previous signal handler at %p for signal#%d, nsigs = %d\n",
                 pfx,TIMESTR(tid),FFL,
-                u.func1args,sig,nsigs); 
+                (void*) u.func1args,sig,nsigs); 
 
         time(&t1);
         u.func3args(sig SIG_PASS_EXTRA_ARGS); /* This could now be the ATP */
@@ -1975,7 +1972,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
                 "%s %s [%s@%s:%d] Returned from previous signal handler"
                 " (at %p, signal#%d, time taken = %ds), nsigs = %d\n",
                 pfx,TIMESTR(tid),FFL,
-                u.func1args,sig,tdiff,nsigs); 
+                (void*) u.func1args,sig,tdiff,nsigs); 
 
         if (atp_enabled && restored && atp_max_cores > 0) {
           /* Assuming it was indeed ATP, then lets spin a bit to allow other cores be dumped */
@@ -2010,7 +2007,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
                 "can't call previous signal handler (for signal#%d) in the chain at %p, nsigs = %d\n",
                 pfx,TIMESTR(tid),FFL,
                 opt_propagate_signals,sig,
-                sl->old.sa_handler,nsigs);
+                (void*) sl->old.sa_handler,nsigs);
       }
     }
   }
@@ -2239,7 +2236,7 @@ process_options()
 
   if(fp) fprintf(fp,"[EC_DRHOOK:hostname:myproc:omptid:pid:unixtid] [YYYYMMDD:HHMMSS:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",drhook_omp_get_max_threads());
 
-  OPTPRINT(fp,"%s %s [%s@%s:%d] fp = %p\n",pfx,TIMESTR(tid),FFL,fp);
+  OPTPRINT(fp,"%s %s [%s@%s:%d] fp = %p\n",pfx,TIMESTR(tid),FFL,(void*)fp);
 
   env = getenv("ATP_ENABLED");
   atp_enabled = env ? atoi(env) : 0;
@@ -2868,7 +2865,7 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
               "%s %s [%s@%s:%d] [signal#%d(%s)]: Expecting the key-pointer=%p"
               " and treeptr->active-flag = 1\n",
               pfx,TIMESTR(tid),FFL,
-              sig,sl_name,u.keyptr);
+              sig,sl_name,(void*)u.keyptr);
       fprintf(stderr,
               "%s %s [%s@%s:%d] [signal#%d(%s)]: A probable routine missing the closing"
               " DR_HOOK-call is '%s' [hash=%u]\n",
@@ -2882,7 +2879,7 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
               "%s %s [%s@%s:%d] [signal#%d(%s)]: Got a key-pointer=%p"
               " and treeptr->active-flag = %d\n",
               pfx,TIMESTR(tid),FFL,
-              sig,sl_name,u.keyptr,treeptr->active);
+              sig,sl_name,(void*)u.keyptr,treeptr->active);
       fprintf(stderr,
               "%s %s [%s@%s:%d] [signal#%d(%s)]: This key-pointer maybe associated with"
               " the routine '%s' [hash=%u]\n",
@@ -2897,7 +2894,7 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
               " it maybe associated with the routine '%s' [hash=%u]\n",
               pfx,TIMESTR(tid),FFL,
               sig,sl_name,
-              u.keyptr,
+              (void*) u.keyptr,
               (u.keyptr && u.keyptr->name) ? u.keyptr->name : NIL, hash);
     }
     free_drhook(s);
@@ -3311,7 +3308,7 @@ check_watch(const char *label,
                   " -- %s %.*s : new crc32=%u\n",
                   pfx,TIMESTR(tid),FFL,
                   p->abort_if_changed ? "Error" : "Warning",
-                  p->name, p->ptr, p->nbytes, p->nvals,
+                  p->name, (void*) p->ptr, p->nbytes, p->nvals,
                   label, name_len, name, crc32);
           print_watch(0, p->printkey, p->ptr, p->nvals);
           if (print_traceback) {
@@ -3489,7 +3486,7 @@ c_drhook_watch_(const int *onoff,
     char *text = malloc_drhook(textlen * sizeof(*text));
     snprintf(text,textlen,
              "%s ***Warning: Set watch point '%s' at %p (%d bytes [%d values]) : crc32=%u",
-             pfx, p->name, p->ptr, p->nbytes, p->nvals, p->crc32);
+             pfx, p->name, (void*) p->ptr, p->nbytes, p->nvals, p->crc32);
     dr_hook_prt_(&ftnunitno, text, strlen(text));
     print_watch(ftnunitno, p->printkey, p->ptr, p->nvals);
     free_drhook(text);
@@ -3964,7 +3961,7 @@ c_drhook_print_(const int *ftnunitno,
   /* end of Mod  */
 
     if (*print_option == 1) { /* raw call counts */
-      for (j=0; j<hashsize; j++) {
+      for (j=0; j<(int)(hashsize); j++) {
         int nestlevel = 0;
         drhook_key_t *keyptr = &keydata[tid-1][j];
         while (keyptr) {
@@ -4173,7 +4170,7 @@ c_drhook_print_(const int *ftnunitno,
       tot = calloc_drhook(numthreads, sizeof(*tot));
 
       for (t=0; t<numthreads; t++) {
-        for (j=0; j<hashsize; j++) {
+        for (j=0; j<(int)(hashsize); j++) {
           drhook_key_t *keyptr = &keydata[t][j];
           while (keyptr) {
             if (keyptr->name && (keyptr->status == 0 || signal_handler_called)) {
@@ -4210,7 +4207,7 @@ c_drhook_print_(const int *ftnunitno,
       p = prof = calloc_drhook(nprof + 1, sizeof(*prof)); /* Make sure there is at least one entry */
 
       for (t=0; t<numthreads; t++) {
-        for (j=0; j<hashsize; j++) {
+        for (j=0; j<(int)(hashsize); j++) {
           drhook_key_t *keyptr = &keydata[t][j];
           while (keyptr) {
             if (keyptr->name && (keyptr->status == 0 || signal_handler_called)) {
@@ -4482,7 +4479,7 @@ c_drhook_print_(const int *ftnunitno,
       maxseen_tot = calloc_drhook(numthreads, sizeof(*maxseen_tot));
 
       for (t=0; t<numthreads; t++) {
-        for (j=0; j<hashsize; j++) {
+        for (j=0; j<(int)(hashsize); j++) {
           drhook_key_t *keyptr = &keydata[t][j];
           while (keyptr) {
             if (keyptr->name && (keyptr->status == 0 || signal_handler_called)) {
@@ -4510,7 +4507,7 @@ c_drhook_print_(const int *ftnunitno,
       p = prof = calloc_drhook(nprof + 1, sizeof(*prof)); /* Make sure there is at least one entry */
 
       for (t=0; t<numthreads; t++) {
-        for (j=0; j<hashsize; j++) {
+        for (j=0; j<(int)(hashsize); j++) {
           drhook_key_t *keyptr = &keydata[t][j];
           while (keyptr) {
             if (keyptr->name && (keyptr->status == 0 || signal_handler_called)) {

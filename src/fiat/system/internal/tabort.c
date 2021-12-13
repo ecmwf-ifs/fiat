@@ -53,7 +53,7 @@ void fortran_mpi_abort(int rc);
 
 void tabort_()
 {
-  int ret = -1;
+  // int ret = -1;
   const int sig = SIGABRT;
   int rc = 128 + sig;
   static volatile sig_atomic_t irecur = 0;

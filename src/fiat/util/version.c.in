@@ -30,7 +30,7 @@ static char* __fiat_git_sha1 = 0;
 const char * fiat_git_sha1() { return "@fiat_GIT_SHA1@"; }
 const char * fiat_git_sha1_abbrev(unsigned int length)
 {
-  int N = strlen(fiat_git_sha1())-40+length;
+  size_t N = strlen(fiat_git_sha1())-40+length;
   N = min(strlen(fiat_git_sha1()),N);
   if( __fiat_git_sha1 ) free(__fiat_git_sha1);
   __fiat_git_sha1 = malloc( sizeof(char)*(N+1) );

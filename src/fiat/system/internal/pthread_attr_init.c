@@ -91,7 +91,7 @@ int pthread_attr_init(pthread_attr_t *attr)
   {
     char *env_gs = getenv("THREAD_GUARDSIZE");
     if (env_gs) {
-      int pgsize = getpagesize();
+      size_t pgsize = getpagesize();
       size_t guardsize = atoll(env_gs);
       if (strchr(env_gs,'G')) guardsize *= 1073741824; /* hence, in GiB */
       else if (strchr(env_gs,'M')) guardsize *= 1048576; /* hence, in MiB */
