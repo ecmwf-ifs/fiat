@@ -17,13 +17,13 @@ implicit none
 #include "abor1.intfb.h"
 
 interface
-   subroutine my_namepsace__function_1() bind(C)
+   subroutine my_namespace__function_1() bind(C)
    end subroutine
 end interface
 
 call test_init()
 if( fckit_mpi%rank() == fckit_mpi%size()-1 ) then
-    call my_namepsace__function_1()
+    call my_namespace__function_1()
 endif
 call test_end()
 

@@ -23,5 +23,5 @@ void function_1 () {
 } // namespace my_namespace
 
 extern "C" {
-    void my_namepsace__function_1() { my_namespace::function_1(); }
+    void my_namespace__function_1() { my_namespace::function_1(); }
 }
