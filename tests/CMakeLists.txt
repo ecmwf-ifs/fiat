@@ -21,7 +21,7 @@ endif()
 if( HAVE_FCKIT AND fckit_VERSION VERSION_GREATER_EQUAL 0.9.1 )
 ecbuild_add_executable(
   TARGET  fiat-test-abort-exception-handler
-  SOURCES test_abort_exception_handler.cc test_abort_exception_handler.F90
+  SOURCES test_abort_exception_handler.F90 test_abort_exception_handler.cc 
   LIBS    fiat fckit
   LINKER_LANGUAGE Fortran
   NOINSTALL)
