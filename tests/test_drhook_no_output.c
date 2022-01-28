@@ -10,8 +10,9 @@ void function_2 () {
 }
 
 void function_1 () {
+    int i;
     DRHOOK_START();
-    for( int i=0; i<2; ++i ) {
+    for( i=0; i<2; ++i ) {
         function_2();
     }
     DRHOOK_END();

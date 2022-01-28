@@ -50,8 +50,9 @@ void function_2 () {
 }
 
 void function_1 () {
+    int i;
     DRHOOK_START(function_1);
-    for( int i=0; i<5; ++i ) {
+    for( i=0; i<5; ++i ) {
         function_2();
     }
     DRHOOK_END();

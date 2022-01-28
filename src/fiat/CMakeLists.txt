@@ -115,7 +115,7 @@ install(
 
 fiat_target_fortran_module_directory(
   TARGET fiat
-  MODULE_DIRECTORY  ${PROJECT_BINARY_DIR}/module/fiat
+  MODULE_DIRECTORY  ${CMAKE_BINARY_DIR}/module/fiat
   INSTALL_DIRECTORY module/fiat
 )
 

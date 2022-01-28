@@ -1,3 +1,4 @@
+find_package( CMath )
 
 ecbuild_add_executable( TARGET drhook_ex1
   SOURCES drhook_ex1.F90 
@@ -16,7 +17,7 @@ ecbuild_add_executable( TARGET drhook_ex3
 
 ecbuild_add_executable( TARGET drhook_ex4
   SOURCES drhook_ex4.c
-  LIBS fiat
+  LIBS fiat ${CMATH_LIBRARIES}
   NOINSTALL )
 
 ecbuild_add_executable( TARGET drhook_ex5

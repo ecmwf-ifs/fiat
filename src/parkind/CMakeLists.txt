@@ -16,7 +16,7 @@ foreach( target parkind_sp parkind_dp )
 
   fiat_target_fortran_module_directory(
     TARGET            ${target}
-    MODULE_DIRECTORY  ${PROJECT_BINARY_DIR}/module/${target}
+    MODULE_DIRECTORY  ${CMAKE_BINARY_DIR}/module/${target}
     INSTALL_DIRECTORY module/${target}
   )
 

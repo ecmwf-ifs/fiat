@@ -139,10 +139,11 @@ static const char *get_a_out()
 }
 
 static void reset_argv() {
+  int i;
   if( c_argv == NULL ) {
     c_argv = calloc(EC_MAX_ARGS, sizeof(char*));
   }
-  for( int i=0; i<EC_MAX_ARGS; ++i ) {
+  for( i=0; i<EC_MAX_ARGS; ++i ) {
     c_argv[i] = NULL;
   }
 }
