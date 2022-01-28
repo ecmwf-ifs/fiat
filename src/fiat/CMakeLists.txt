@@ -16,15 +16,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
   list( APPEND FIAT_DEFINITIONS LINUX )
 endif()
 
-test_big_endian( _BIG_ENDIAN )
-
-if( _BIG_ENDIAN )
-	message( STATUS "System is big endian" )
-else()
-	message( STATUS "System is little endian" )
-  	list( APPEND FIAT_DEFINITIONS LITTLE_ENDIAN )
-endif()
-
 if( HAVE_DR_HOOK_MULTI_PRECISION_HANDLES )
    list( APPEND FIAT_DEFINITIONS DR_HOOK_MULTI_PRECISION_HANDLES )
 endif()
