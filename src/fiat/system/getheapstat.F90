@@ -31,9 +31,9 @@ INTEGER(KIND=JPIM), ALLOCATABLE :: ICOUNTS(:)
 CHARACTER(LEN=1) CLENV
 CHARACTER(LEN=80) CLTEXT(0:4)
 
-CALL GET_ENVIRONMENT_VARIABLE("EC_PROFILE_HEAP", CLENV) ! turn OFF by export EC_PROFILE_HEAP=0
+CALL GET_ENVIRONMENT_VARIABLE("EC_PROFILE_HEAP", CLENV) ! turn ON by export EC_PROFILE_HEAP=1
 
-IF (KOUT >= 0 .AND. CLENV /= '0') THEN
+IF (KOUT >= 0 .AND. CLENV == '1') THEN
   IMYPROC = MPL_MYRANK()
   INPROC  = MPL_NPROC()
 
@@ -67,17 +67,17 @@ IF (KOUT >= 0 .AND. CLENV /= '0') THEN
 
     IF (IMYPROC == 1) THEN
 !     Not more than 132 columns, please :-)
-      WRITE(KOUT,9000) TRIM(CLTEXT(II)),TRIM(CDLABEL), "Node", &
+      WRITE(KOUT,9000) TRIM(CLTEXT(II)),TRIM(CDLABEL), "Task", &
                      & (ILIMIT(I),I=1,MIN(JP_NPROFILE,9)), "Larger"
 9000  FORMAT(/,"Heap Utilization Profile (",A,"): ",A,&
             &/,126("="),&
-            &//,(A4,2X,9(:,2X,4X,"< 10^",I1),:,2X,A10))
+            &//,(1X,A4,2X,9(:,2X,4X,"< 10^",I1),:,2X,A10))
       WRITE(KOUT,9001)
-9001  FORMAT(4("="),2X,10(2X,10("="))/)
+9001  FORMAT(1X,4("="),2X,10(2X,10("="))/)
       IOFFSET = 0
       DO I=1,INPROC
         ICNT(:) = ZRECV(IOFFSET+1:IOFFSET+ISIZE)
-        WRITE(KOUT,'(i4,2x,(10(:,2x,i10)))') I,ICNT(:)
+        WRITE(KOUT,'(i5,2x,(10(:,2x,i10)))') I,ICNT(:)
         IOFFSET = IOFFSET + ISIZE
       ENDDO
     ENDIF

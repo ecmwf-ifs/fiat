@@ -12,9 +12,9 @@
 subroutine drhook_run_omp_parallel_ipfstr(NTIDS, FUNC, CDSTR)
 ! Usage:
 ! ------
-! void func( const char* string, int strlength ) { ... }
-! extern void drhook_run_omp_parallel_ipfstr_(const int *,  void (*func)(const char *, int),
-!                                             const char *, /*hidden*/ int);
+! void func( const char* string, long strlength ) { ... }
+! extern void drhook_run_omp_parallel_ipfstr_(const int *,  void (*func)(const char *, long),
+!                                             const char *, /*hidden*/ long);
 ! drhook_run_omp_parallel_ipfstr_(&ntids,func,string,strlen(string));
 use, intrinsic :: iso_c_binding, only : c_char, c_int
 implicit none

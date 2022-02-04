@@ -35,7 +35,7 @@ real(jphook) :: zhook_handle
 real(jphook) :: automatic_array(10,10)
 if (lhook) call dr_hook('function_3',0,zhook_handle)
 automatic_array = 2
-if( do_abort() .and. oml_my_thread() == oml_num_threads() .and. ( myproc == nproc ) ) then
+if( do_abort() .and. oml_my_thread() == oml_max_threads() .and. ( myproc == nproc ) ) then
     call abor1fl("test_drhook_fortran.F90",__LINE__,"problem in function_3")
 endif
 if (lhook) call dr_hook('function_3',1,zhook_handle)    

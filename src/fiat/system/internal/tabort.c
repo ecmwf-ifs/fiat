@@ -11,8 +11,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "drhook.h"
 #include "mpl.h"

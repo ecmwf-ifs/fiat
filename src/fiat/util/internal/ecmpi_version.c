@@ -40,9 +40,9 @@ void ecmpi_version_(int *version,
       char s[4096];
       (void) MPI_Get_library_version(s,&slen);
       if (slen > len_library_version) slen = len_library_version;
-      while (slen > 0 && s[slen-1] == '\n') slen--;
+      while (slen > 0 && (s[slen-1] == '\n' || s[slen-1] == '\0')) slen--;
       memset(library_version,' ',len_library_version);
-      memcpy(library_version,s,slen);
+      if (slen > 0) memcpy(library_version,s,slen);
     }
   }
   if (resultlen) *resultlen = slen;

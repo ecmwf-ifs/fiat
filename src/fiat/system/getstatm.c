@@ -26,10 +26,12 @@ int getstatm(struct statm *sm)
       dont_bother = 1;
       return -1;
     }
-    (void) fscanf(statfile, "%d %d %d %d %d %d %d", 
-		  &(sm->size), &(sm->resident),
-		  &(sm->shared), &(sm->trs), &(sm->drs), 
-		  &(sm->lrs), &(sm->dt));
+    {
+      int nelem = fscanf(statfile, "%d %d %d %d %d %d %d",
+                         &(sm->size), &(sm->resident),
+                         &(sm->shared), &(sm->trs), &(sm->drs),
+                         &(sm->lrs), &(sm->dt));
+    }
     fclose(statfile);
   }
   return 0;

@@ -25,9 +25,9 @@ REAL(KIND=JPRD), ALLOCATABLE :: ZSEND(:), ZRECV(:)
 INTEGER(KIND=JPIM), ALLOCATABLE :: ICOUNTS(:)
 CHARACTER(LEN=1) CLENV
 
-CALL GET_ENVIRONMENT_VARIABLE("EC_PROFILE_MEM", CLENV) ! turn OFF by export EC_PROFILE_MEM=0
+CALL GET_ENVIRONMENT_VARIABLE("EC_PROFILE_MEM", CLENV) ! turn ON by export EC_PROFILE_MEM=1
 
-IF (KOUT >= 0 .AND. CLENV /= '0') THEN
+IF (KOUT >= 0 .AND. CLENV == '1') THEN
   IMYPROC = MPL_MYRANK()
   INPROC  = MPL_NPROC()
 
@@ -52,12 +52,12 @@ IF (KOUT >= 0 .AND. CLENV /= '0') THEN
   IF (IMYPROC == 1) THEN
      WRITE(KOUT,9000) TRIM(CDLABEL)
 9000 FORMAT(/,"Memory Utilization Information (in bytes) : ",a,/,79("="),//,&
-         &  "Node   Max heapsize   Max resident   Current heap      Max stack   I/O-paging #",/,&
-         &  "====   ============   ============   ============   ============   ============",//)
+         &  " Task   Max heapsize   Max resident   Current heap      Max stack   I/O-paging #",/,&
+         &  " ====   ============   ============   ============   ============   ============",//)
      IOFFSET = 0
      DO I=1,INPROC
        IMEMVALS(:) = ZRECV(IOFFSET+1:IOFFSET+JP_MEMKEYS)
-       WRITE(KOUT,'(I4,5(3X,I12))') I,IMEMVALS(:)
+       WRITE(KOUT,'(I5,5(3X,I12))') I,IMEMVALS(:)
        IOFFSET = IOFFSET + JP_MEMKEYS
      ENDDO
      WRITE(KOUT,'(/,a,/)') 'End of Memory Utilization Information'

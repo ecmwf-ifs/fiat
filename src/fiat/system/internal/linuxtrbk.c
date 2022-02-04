@@ -17,9 +17,9 @@
 
 */
 
-#if defined(__GNUC__)
+//#if (defined(__GNUC__) || defined(__PGI))
 #define _GNU_SOURCE
-#endif
+//#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,7 +59,7 @@ static void InitBFD();
 
 #define FFL __FUNCTION__,__FILE__,__LINE__
 
-#if defined(__GNUC__)
+#if (defined(__GNUC__) || defined(__PGI))
 
 #include <pthread.h>
 #include <sys/time.h>
@@ -100,7 +100,7 @@ void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr
    This code section is disabled for now (by Sami Saarinen, ECMWF, 05-Oct-2016
    Does not (yet) work with GUARD region size changes done to ../support/env.c @ pthread_attr_init() override
 */
-#if defined(__GNUC__)
+#if (defined(__GNUC__) || defined(__PGI))
 #include <sys/syscall.h>
 #include <limits.h>
 
@@ -108,7 +108,7 @@ void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr
 #define SYS_gettid __NR_gettid
 #endif
 
-static pid_t gettid() {
+static pid_t GETtid() {
   pid_t tid = syscall(SYS_gettid);
   return tid;
 }
@@ -181,7 +181,7 @@ static void SetMasterThreadsStackSizeBeforeMain()
     pthread_attr_t Attributes;
     void *StackAddress;
     pid_t pid = getpid();
-    pid_t tid = gettid();
+    pid_t tid = GETtid();
     char hostname[HOST_NAME_MAX];
     char prefix[HOST_NAME_MAX + 256];
     if (gethostname(hostname,sizeof(hostname)) != 0) strcpy(hostname,"unknown");
@@ -272,7 +272,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
 {
   int sigcontextptr_given = sigcontextptr ? 1 : 0;
   static int recur = 0;
-#if defined(__GNUC__)
+#if (defined(__GNUC__) || defined(__PGI))
   ucontext_t ctx;
   if (!sigcontextptr) {
       sigcontextptr = (getcontext(&ctx) == 0) ? &ctx : NULL;
@@ -294,12 +294,12 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     if (recur > 10) {
       fprintf(stderr,"%s%s%s%s[LinuxTraceBack] Recursion too deep. Exiting immediately with _exit(%d)\n",
         pfx,s1,ts,s2,recur);
-      fflush(NULL);
+      //fflush(NULL);
       _exit(recur); /* Exit immediately */
     }
   }
 
-#if defined(__GNUC__)
+#if (defined(__GNUC__) || defined(__PGI))
   //fflush(NULL);
 
   if (sigcontextptr) {
@@ -314,7 +314,7 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     int trace_size = backtrace(trace, GNUC_BTRACE);
     char *addr2linecmd = (has_bfd || (access(TOSTR(ADDR2LINE),X_OK) != 0)) ? NULL : prealloc_addr2linecmd;
     char **strings = NULL;
-    if (trace_size > 0) {
+    if (trace_size > 1) {
       /* overwrite sigaction with caller's address */
 #ifdef __powerpc64__
       trace[1] = uc ? (void *) uc->uc_mcontext.regs->nip : NULL;   // Trick from PAPI_overflow() 
@@ -499,9 +499,9 @@ void gdb_trbk_()
        TOSTR(GNUDEBUGGER), a_out, (long int)pid);
     
     /* fprintf(stderr,"%s\n",gdbcmd); */
-    fflush(NULL);
+    //fflush(NULL);
     { int idummy = system(gdbcmd); }
-    fflush(NULL);
+    //fflush(NULL);
   }
 }
 
@@ -543,9 +543,9 @@ void dbx_trbk_()
     }
     
     /* fprintf(stderr,"%s\n",dbxcmd); */
-    fflush(NULL);
+    //fflush(NULL);
     { int idummy = system(dbxcmd); }
-    fflush(NULL);
+    //fflush(NULL);
   }
 }
 
