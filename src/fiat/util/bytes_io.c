@@ -240,6 +240,7 @@ KRET    =       -1      if there is an error in writing to the file
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <errno.h>
 
 #ifdef PTHREADS
 #include <pthread.h>
@@ -765,6 +766,64 @@ void c_bytes_io_write(int* unit,char* buffer,int* nbytes,int* iret) {
   c_bytes_io_write_(unit,buffer,nbytes,iret);
 }
 
+
+/*
+//------------------------------------------------------------------------
+//  BYTES_IO_FSYNC - fsync
+//------------------------------------------------------------------------
+*/
+void c_bytes_io_fsync(int fd, int* iret) {
+    // Same implementation of see eckit::fsync
+    *iret = fsync(fd);
+    while (*iret < 0 && errno == EINTR) {
+        *iret = fsync(fd);
+    }
+    return;
+}
+
+
+/*
+//------------------------------------------------------------------------
+//  BYTES_IO_FLUSH - flush + fsync
+//------------------------------------------------------------------------
+*/
+void c_bytes_io_flush_(int* unit, int* iret) {
+/*
+// Purpose:     Flushes file.
+*/
+    if( DEBUG )
+      printf("BYTES_IO_FLUSH: fptable slot = %d\n", *unit);
+
+    // Implementation matching eckit FileHandle
+
+    // flush
+    if( (*iret = fflush(CURRENT_FILE)) != 0) {
+      perror("bytes_io_flush: fflush failed");
+      return;
+    }
+
+    // fsync
+    c_bytes_io_fsync(fileno(CURRENT_FILE),iret);
+    while (*iret < 0 && errno == EINTR) {
+      c_bytes_io_fsync(fileno(CURRENT_FILE),iret);
+    }
+    if (*iret < 0) {
+      perror("bytes_io_flush: Cannot fsync");
+      return;
+    }
+
+    *iret = 0;
+    return;
+}
+
+void c_bytes_io_flush__(int* unit, int* iret) {
+  c_bytes_io_flush_(unit,iret);
+}
+
+void c_bytes_io_flush(int* unit, int* iret) {
+  c_bytes_io_flush_(unit,iret);
+}
+
 /*
 //------------------------------------------------------------------------
 //   BYTES_IO_CLOSE - close (from FORTRAN)
@@ -783,12 +842,30 @@ void c_bytes_io_close_(int* unit,int* iret) {
 //      0 = OK.
 //      otherwise = error in handling file.
 */
-    if( DEBUG )
+    *iret = 0;
+    if( DEBUG ) {
       printf("BYTES_IO_CLOSE: fptable slot = %d\n", *unit);
+    }
 
-    if( ( *iret = fclose(CURRENT_FILE) ) != 0 ) perror("bytes_io_close");
+    if( !CURRENT_FILE ) {
+      printf("WARNING: bytes_io_close: File (fptable slot = %d) was already closed.\n", *unit);
+      return;
+    }
+
+    // Flush before closing
+    c_bytes_io_flush(unit,iret);
+    if( *iret != 0 ) {
+      perror("bytes_io_close: could not flush");
+      return;
+    }
+
+    // Close
+    if( ( *iret = fclose(CURRENT_FILE) ) != 0 ) {
+      perror("bytes_io_close");
+      return;
+    }
+
     CURRENT_FILE = 0;
-
     return;
 }
 
@@ -798,27 +875,4 @@ void c_bytes_io_close__(int* unit,int* iret) {
 
 void c_bytes_io_close(int* unit,int* iret) {
   c_bytes_io_close_(unit,iret);
-}
-
-/*
-//------------------------------------------------------------------------
-//  BYTES_IO_FLUSH - flush (from FORTRAN)
-//------------------------------------------------------------------------
-*/
-void c_bytes_io_flush_(int * unit) {
-/*
-// Purpose:     Flushes file.
-*/
-    if( DEBUG )
-      printf("BYTES_IO_FLUSH: fptable slot = %d\n", *unit);
-
-    fflush(CURRENT_FILE);
-}
-
-void c_bytes_io_flush__(int * unit) {
-  c_bytes_io_flush_(unit);
-}
-
-void c_bytes_io_flush(int * unit) {
-  c_bytes_io_flush_(unit);
 }
