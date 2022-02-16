@@ -13,9 +13,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "drhook.h"
 #include "mpl.h"
+
+extern void ec_microsleep(int usecs); // from ec_env.c
 
 extern void abor1_(const char msg[], int msglen);
 
@@ -53,14 +58,29 @@ void fortran_mpi_abort(int rc);
 
 void tabort_()
 {
-  // int ret = -1;
   const int sig = SIGABRT;
   int rc = 128 + sig;
   static volatile sig_atomic_t irecur = 0;
-  if (++irecur == 1) {
+  if (++irecur == 1) { // only one thread per task ever gets in here
 #if 1
     drhook_calltree();
-    LinuxTraceBack(NULL,NULL,NULL);
+    {
+      // Only the fastest MPI task calls LinuxTraceBack -- avoids messy outputs
+      int nfirst = 0;
+      const char tabort_lockfile[] = "tabort_lock";
+      int fd = open(tabort_lockfile,O_CREAT|O_TRUNC|O_EXCL,S_IRUSR|S_IWUSR);
+      if (fd >= 0) {
+        close(fd);
+        nfirst = 1;
+      }
+      if (nfirst) {
+	LinuxTraceBack(NULL,NULL,NULL);
+      }
+      else {
+	const int usecs = 10 * 1000000; // micro-seconds
+	ec_sleep(usecs);
+      }
+    }
     fortran_mpi_abort(rc); // see ifsaux/parallel/cmpl_binding.F90 : calls MPI_ABORT with MPI_COMM_WORLD
 #else
     ret = raise(sig); /* We get better DrHook & LinuxTrbk's with this than abort() aka SIGABRT */
