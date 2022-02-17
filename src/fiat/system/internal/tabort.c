@@ -20,40 +20,13 @@
 #include "drhook.h"
 #include "mpl.h"
 
-extern void ec_microsleep(int usecs); // from ec_env.c
-
 extern void abor1_(const char msg[], int msglen);
 
 #pragma weak abor1_
 
-#if 0
-void batch_kill_()
-{
-#ifdef __INTEL_COMPILER
-  {
-    // Fixes (?) hangs Intel MPI
-    char *env = getenv("SLURM_JOBID");
-    if (env) {
-      static char cmd[128] = "set -x; sleep 10; scancel --signal=TERM ";
-      //static char cmd[128] = "set -x; sleep 10; scancel ";
-      strcat(cmd,env);
-      system(cmd);
-    }
-  }
-#endif
-}
-#endif
-
-#if 0
-void _brexit(int errcode)
-{
-  batch_kill_();
-  _exit(errcode);
-}
-#endif
-
 // Forward declarations
 void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr);
+void ec_microsleep(int usecs); // from ec_env.c
 void fortran_mpi_abort(int rc);
 
 void tabort_()
@@ -62,33 +35,23 @@ void tabort_()
   int rc = 128 + sig;
   static volatile sig_atomic_t irecur = 0;
   if (++irecur == 1) { // only one thread per task ever gets in here
-#if 1
-    drhook_calltree();
-    {
-      // Only the fastest MPI task calls LinuxTraceBack -- avoids messy outputs
-      int nfirst = 0;
-      const char tabort_lockfile[] = "tabort_lock";
-      int fd = open(tabort_lockfile,O_CREAT|O_TRUNC|O_EXCL,S_IRUSR|S_IWUSR);
-      if (fd >= 0) {
-        close(fd);
-        nfirst = 1;
-      }
-      if (nfirst) {
-	LinuxTraceBack(NULL,NULL,NULL);
-      }
-      else {
-	const int usecs = 10 * 1000000; // micro-seconds
-	ec_sleep(usecs);
-      }
+    // Only the fastest MPI task calls LinuxTraceBack -- avoids messy outputs
+    int nfirst = 0;
+    const char tabort_lockfile[] = "tabort_lock";
+    int fd = open(tabort_lockfile,O_CREAT|O_TRUNC|O_EXCL,S_IRUSR|S_IWUSR);
+    if (fd >= 0) {
+      close(fd);
+      nfirst = 1;
     }
-    fortran_mpi_abort(rc); // see ifsaux/parallel/cmpl_binding.F90 : calls MPI_ABORT with MPI_COMM_WORLD
-#else
-    ret = raise(sig); /* We get better DrHook & LinuxTrbk's with this than abort() aka SIGABRT */
-    // abort(); -- essentially raise(SIGABRT) but with messier output (and may bypass DrHook)
-    if (ret == 0) { // Means raise() was okay and tracebacks etc. DrHooks took place
-      exit(128 + sig);
+    if (nfirst) {
+      drhook_calltree();
+      LinuxTraceBack(NULL,NULL,NULL);
     }
-#endif
+    else {
+      const int usecs = 100 * 1000000; // 100M micro-seconds i.e. 100 secs
+      ec_sleep(usecs);
+    }
+    fortran_mpi_abort(rc); // calls MPI_ABORT with MPI_COMM_WORLD
   }
   // Still here ?? get the hell out of here ... now !!
   _exit(rc);
