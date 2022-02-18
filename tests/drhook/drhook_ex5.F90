@@ -24,7 +24,7 @@ do jpe=1,npes
       enddo
       call get_environment_variable('MPICH_ROOT',env)
       write(0,1002) mype, ': env MPICH_ROOT="'//trim(env)//'"'
-      call flush(0)
+      call ec_flush(0)
    endif
    call mpl_barrier()
 enddo

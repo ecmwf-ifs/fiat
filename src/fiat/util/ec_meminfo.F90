@@ -811,7 +811,7 @@ DO K=0,NPROC-1 ! Loop over the task as they have been added (see few lines earli
    WRITE(KUN,'(A,1X)') TRIM(CLBUF)
 ENDDO
 CALL PRT_EMPTY(KUN,1)
-CALL FLUSH(KUN)
+CALL EC_FLUSH(KUN)
 END SUBROUTINE RNSORT
 
 END SUBROUTINE EC_MEMINFO
