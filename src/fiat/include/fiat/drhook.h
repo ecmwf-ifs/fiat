@@ -118,9 +118,9 @@ extern const char *drhook_PREFIX(int tid);
 
 /**** C-interface to Dr.Hook ****/
 
-void drhook_init(int argc, char* argv[]);
+extern void drhook_init(int argc, char *argv[]);
 
-int drhook_active();
+extern int drhook_active( void );
 
 extern void
 Dr_Hook(const char *name, int option, double *handle, 
@@ -171,11 +171,11 @@ Dr_Hook(const char *name, int option, double *handle,
 #define DRHOOK_START(name) DRHOOK_START_RECUR(name,0)
 
 
-typedef void (*drhook_abort_t)(const char* file, int line, const char* text);
-void drhook_set_abort( drhook_abort_t );
-void drhook_abort( const char* file, int line, const char* txt );
+typedef void (*drhook_abort_t)(const char *file, int line, const char *text);
+extern void drhook_set_abort( drhook_abort_t );
+extern void drhook_abort( const char *file, int line, const char *txt );
 
-void drhook_calltree();
+extern void drhook_calltree( void );
 
 
 /* Fortran routines */
