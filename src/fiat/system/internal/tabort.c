@@ -25,16 +25,16 @@ extern void abor1_(const char msg[], int msglen);
 #pragma weak abor1_
 
 // Forward declarations
-void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr);
-void ec_microsleep(int usecs); // from ec_env.c
-void fortran_mpi_abort(int rc);
+extern void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr);
+extern void ec_microsleep(int usecs); // from ec_env.c
+extern void fortran_mpi_abort(int rc);
 
 void tabort_()
 {
   const int sig = SIGABRT;
   int rc = 128 + sig;
   static volatile sig_atomic_t irecur = 0;
-  if (++irecur == 1) { // only one thread per task ever gets in here
+  if (++irecur == 1) { // only one thread per task ever gets here
     // Only the fastest MPI task calls LinuxTraceBack -- avoids messy outputs
     int nfirst = 0;
     const char tabort_lockfile[] = "tabort_lock";
