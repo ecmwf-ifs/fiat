@@ -4395,10 +4395,14 @@ c_drhook_print_(const int *ftnunitno,
 	
         for (t=0; t<numthreads; t++) {
           double tmp = 100.0*(tot[t]/tottime);
-          fprintf(    fp,"\tThread#%d: %11.2f sec (%.2f%%)",t+1,tot[t],tmp);
-          fprintf(    fp,"\n");
+          fprintf(fp,"\tThread#%d: %11.2f sec (%.2f%%) -- Cycles:",t+1,tot[t],tmp);
+	  if (opt_cycles)    fprintf(fp," %lld",cycles[t]);
+          if (thread_cycles) fprintf(fp," (%lld)",thread_cycles[t]);
+          fprintf(fp,"\n");
           if (myproc == 1) {
-            fprintf(stderr,"\tThread#%d: %11.2f sec (%.2f%%)",t+1,tot[t],tmp);
+            fprintf(stderr,"\tThread#%d: %11.2f sec (%.2f%%) -- Cycles:",t+1,tot[t],tmp);
+	    if (opt_cycles)    fprintf(stderr," %lld",cycles[t]);
+	    if (thread_cycles) fprintf(stderr," (%lld)",thread_cycles[t]);
             fprintf(stderr,"\n");
           }
         }
