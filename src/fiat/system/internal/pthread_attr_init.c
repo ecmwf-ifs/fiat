@@ -8,10 +8,25 @@
  * nor does it submit to any jurisdiction.
  */
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__PGI)
 
 /* pthread_attr_init() interception to reset guard region size 
-   between thread stacks, by S.Saarinen, 30-sep-2016 */
+   between thread stacks, by S.Saarinen, 30-Sep-2016 */
+
+/* 
+   See : man pthread_attr_init
+
+   A custom pthread_attr_init() mainly to control the memory "gap" or protected "guard size" between slave threads 
+   Slave threads allocate memory from the heap -- only master thread allocates from (genuine) stack
+   Guard region is usually very small and it is possible that a slave thread may (accidentally) overwrite
+   to the adjacent slave threads memory arena. By setting the guard size big enough, usually a few MiB suffice,
+   then an overwrite could hit this protected memory area easier triggering usually a SIGSEGV.
+   The traceback that follows usually shows the code location and allows to fix the issue for good.
+
+   To set the guard size use : export EC_THREAD_GUARDSIZE=<value>[G|M|K]
+
+   Caveat: Some MPI drivers may not like this -- check especially the Mellanox HPC-X/OpenMPI
+*/
 
 #include <stdio.h>
 #include <string.h>
@@ -26,7 +41,6 @@
 #include <pthread.h>
 #include <dlfcn.h>
 #include <sys/types.h>
-#include <sys/syscall.h>
 
 #undef RNDUP_DIV
 #define RNDUP_DIV(i,n) (( (i) + (n) - 1 ) / (n))
@@ -40,42 +54,16 @@
 #define PTR_LIBC ((void*) -1L)
 #endif
 
-#ifndef SYS_gettid
-#define SYS_gettid __NR_gettid
-#endif
-
-static pid_t gettid() {
-#if defined(__APPLE__)
-  uint64_t tid64;
-  pthread_threadid_np(NULL, &tid64);
-  pid_t tid = (pid_t)tid64;
-#else
-  pid_t tid = syscall(SYS_gettid);
-#endif
-  return tid;
-}
-
-static int GetMe()
-{
-  int me = -1; /* MPI task id >= 0 && <= NPES - 1 */
-  /* Trying to figure out MPI task id since are potentially doing this *before* MPI_Init*() */
-  char *env_procid = getenv("ALPS_APP_PE");
-  if (!env_procid) env_procid = getenv("EC_FARM_ID");
-  if (!env_procid) env_procid = getenv("PMI_RANK");
-  if (!env_procid) env_procid = getenv("OMPI_COMM_WORLD_RANK");
-  if (env_procid) me = atoi(env_procid);
-  return me;
-}
-
 static int (*ptr_pthread_attr_init)(pthread_attr_t *attr) = NULL;
 int pthread_attr_init(pthread_attr_t *attr)
 {
   int rc;
   static int done = 0;
   FILE *fp = NULL;
-  int me = GetMe();
+  extern int ec_mpirank(), ec_gettid(); // ec_env.c
+  int me = ec_mpirank(); // Could be called before the MPI_Init*() or w/o presence of MPI (i.e. rank 0)
   pid_t pid = getpid();
-  pid_t tid = gettid();
+  pid_t tid = ec_gettid();
   int master = (pid == tid) ? 1 : 0;
   if (!ptr_pthread_attr_init) {
     ptr_pthread_attr_init = (int (*)(pthread_attr_t *a))dlsym(PTR_LIBC, "pthread_attr_init");
@@ -89,7 +77,8 @@ int pthread_attr_init(pthread_attr_t *attr)
   }
   rc = ptr_pthread_attr_init(attr);
   {
-    char *env_gs = getenv("THREAD_GUARDSIZE");
+    char *env_gs = getenv("EC_THREAD_GUARDSIZE");
+    if (!env_gs) env_gs = getenv("THREAD_GUARDSIZE"); // Compatibility
     if (env_gs) {
       size_t pgsize = getpagesize();
       size_t guardsize = atoll(env_gs);
@@ -97,20 +86,20 @@ int pthread_attr_init(pthread_attr_t *attr)
       else if (strchr(env_gs,'M')) guardsize *= 1048576; /* hence, in MiB */
       else if (strchr(env_gs,'K')) guardsize *= 1024; /* hence, in KiB */
       guardsize = RNDUP(guardsize,pgsize);
-      if (guardsize > pgsize) { /* Now we *do* bother */
+      if (guardsize > pgsize) { /* Now we *DO* bother */
         char *env_omp = getenv("OMP_STACKSIZE");
         size_t omp_stacksize = env_omp ? atoll(env_omp) : 0;
         size_t stacksize = 0;
         int iret = pthread_attr_getstacksize(attr,&stacksize);
-#if 0
+#if 1
         if (fp) fprintf(fp,
-          "[%s@%s:%d] [pid=%ld:tid=%ld]: Requesting guard region size "
-          "between thread stacks : %lld bytes (%s PAGESIZE = %d)\n",
-          __FUNCTION__,__FILE__,__LINE__,
-          (long int)pid,(long int)tid,
-          (long long int)guardsize,
-          (guardsize > pgsize) ? ">" : "<=",
-          pgsize);
+                        "[%s@%s:%d] [pid=%ld:tid=%ld]: Requesting guard region size "
+                        "between thread stacks : %lld bytes (%s PAGESIZE = %ld)\n",
+                        __FUNCTION__,__FILE__,__LINE__,
+                        (long int)pid,(long int)tid,
+                        (long long int)guardsize,
+                        (guardsize > pgsize) ? ">" : "<=",
+                        (long)pgsize);
 #endif
         if (env_omp) {
           if (strchr(env_omp,'G')) omp_stacksize *= 1073741824; /* hence, in GiB */
@@ -118,20 +107,20 @@ int pthread_attr_init(pthread_attr_t *attr)
           else if (strchr(env_omp,'K')) omp_stacksize *= 1024; /* hence, in KiB */
         }
         if (fp) fprintf(fp,
-          "[%s@%s:%d] [pid=%ld:tid=%ld]: Stack size(s) : %lld bytes (def), %lld bytes (OMP) : [iret=%d]\n",
-          __FUNCTION__,__FILE__,__LINE__,
-          (long int)pid,(long int)tid,
-          (long long int)stacksize,
-          (long long int)omp_stacksize,
-          iret);
+                        "[%s@%s:%d] [pid=%ld:tid=%ld]: Stack size(s) : %lld bytes (def), %lld bytes (OMP) : [iret=%d]\n",
+                        __FUNCTION__,__FILE__,__LINE__,
+                        (long int)pid,(long int)tid,
+                        (long long int)stacksize,
+                        (long long int)omp_stacksize,
+                        iret);
         if (iret == 0 && omp_stacksize > guardsize) {
           iret = pthread_attr_setguardsize(attr,guardsize);
           (void) pthread_attr_getguardsize(attr,&guardsize);
           if (fp) fprintf(fp,
-            "[%s@%s:%d] [pid=%ld:tid=%ld]: Guard region size now : %lld bytes : [iret=%d]\n",
-            __FUNCTION__,__FILE__,__LINE__,
-            (long int)pid,(long int)tid,
-	          (long long int)guardsize,iret);
+                          "[%s@%s:%d] [pid=%ld:tid=%ld]: Guard region size now : %lld bytes : [iret=%d]\n",
+                          __FUNCTION__,__FILE__,__LINE__,
+                          (long int)pid,(long int)tid,
+                          (long long int)guardsize,iret);
         }
       }
     }
@@ -140,24 +129,4 @@ int pthread_attr_init(pthread_attr_t *attr)
   return rc;
 }
 
-#if 0
-/* Opting out for now */
-static void MemInfoBeforeMain() __attribute__((constructor));
-static void MemInfoBeforeMain()
-{
-  static int done = 0;
-  int me = GetMe();
-  if (!done && me == 0) {
-    extern void meminfo_(const int *, const int *);
-    const int kout = 0;
-    const int kstep = -1;
-    pid_t pid = getpid();
-    pid_t tid = gettid();
-    int master = (pid == tid) ? 1 : 0;
-    if (me == 0 && master) meminfo_(&kout, &kstep); /* utilities/ec_meminfo.F90 */
-    done = 1;
-  }
-}
-#endif
-
-#endif /* defined(__GNUC__) */
+#endif /* defined(__GNUC__) || defined(__PGI) */
