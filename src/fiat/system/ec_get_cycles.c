@@ -9,6 +9,7 @@
  */
 
 #include "ec_get_cycles.h"
+#include "cas.h"
 
 // Borrowed from PAPI -- currently (27-Sep-2019/SS) just x86, Power & ARM versions
 // Fortran callable
@@ -52,8 +53,8 @@ long long int ec_get_cycles_()
     cas_lock(&mylock);
     if (multiplier == 1) {
       FILE *fp;
-      extern int sched_getcpu();
-      int cpuid = sched_getcpu();
+      extern int ec_coreid(); // from ec_env.c
+      int cpuid = ec_coreid();
       const char max_freq_file_fmt[] = "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq"; // in kHZ
       char file[PATH_MAX];
       snprintf(file,sizeof(file),max_freq_file_fmt,cpuid);

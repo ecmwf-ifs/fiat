@@ -37,3 +37,26 @@ EXTERNAL :: FUNC
 CALL FUNC(KTIDS, TARGET_OMPTID, TARGET_SIG, START_TIME, CDSTR)
 !$OMP END PARALLEL
 end subroutine drhook_run_omp_parallel_ipfipipipdpstr
+
+subroutine drhook_run_omp_parallel_get_cycles(NTIDS, NCYCLES)
+use, intrinsic :: iso_c_binding, only : c_int, c_long_long
+use ec_parkind, only : JPIM, JPIB
+implicit none
+INTEGER(KIND=C_INT), INTENT(IN) :: NTIDS
+INTEGER(KIND=C_LONG_LONG), INTENT(INOUT) :: NCYCLES(0:NTIDS-1)
+INTEGER(KIND=JPIM) :: IOMPTID
+INTEGER(KIND=JPIM) OMP_GET_THREAD_NUM
+INTEGER(KIND=C_LONG_LONG), EXTERNAL :: ec_get_cycles ! from ec_get_cycles.c
+INTEGER(KIND=C_LONG_LONG) :: ICYCLES
+#ifdef _OPENMP
+EXTERNAL OMP_GET_THREAD_NUM
+#else
+OMP_GET_THREAD_NUM() = 0
+#endif
+!-- Obtain per OpenMP-thread CPU-cycles increment since last call
+!$OMP PARALLEL NUM_THREADS(NTIDS) PRIVATE(IOMPTID,ICYCLES) SHARED(NCYCLES)
+IOMPTID = OMP_GET_THREAD_NUM()
+ICYCLES = ec_get_cycles()
+NCYCLES(IOMPTID) = ICYCLES - NCYCLES(IOMPTID)
+!$OMP END PARALLEL
+end subroutine drhook_run_omp_parallel_get_cycles

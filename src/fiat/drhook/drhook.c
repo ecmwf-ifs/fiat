@@ -2026,10 +2026,12 @@ signal_drhook_init(int enforce)
       if (pblank) *pblank = '\0';
     }
     hlen = strlen(hostname);
-    extern void drhook_run_omp_parallel_ipfstr_(const int *, 
-                                                void (*func)(const char *, long),
-                                                const char *, /*hidden*/ long);
-    drhook_run_omp_parallel_ipfstr_(&ntids,set_ec_drhook_label,hostname,hlen);
+    {
+      extern void drhook_run_omp_parallel_ipfstr_(const int *, 
+						  void (*func)(const char *, long),
+						  const char *, /*hidden*/ long);
+      drhook_run_omp_parallel_ipfstr_(&ntids,set_ec_drhook_label,hostname,hlen);
+    }
   }
   process_options();
   for (j=1; j<=NSIG; j++) { /* Initialize */
@@ -4379,6 +4381,18 @@ c_drhook_print_(const int *ftnunitno,
 
         free_drhook(end_stamp);
 
+       if (thread_cycles) {
+          int ntids = numthreads;
+	  if (ntids > 1) {
+	    extern void drhook_run_omp_parallel_get_cycles_(const int *, long long int *);
+	    drhook_run_omp_parallel_get_cycles_(&ntids,thread_cycles);
+	  }
+	  else {
+	    long long int cycles = ec_get_cycles_();
+	    thread_cycles[0] = cycles - thread_cycles[0];
+	  }
+        } // if (thread_cycles)
+	
         for (t=0; t<numthreads; t++) {
           double tmp = 100.0*(tot[t]/tottime);
           fprintf(    fp,"\tThread#%d: %11.2f sec (%.2f%%)",t+1,tot[t],tmp);
@@ -4826,10 +4840,10 @@ static void set_timed_kill()
           (target_omltid == -1 || (target_omltid >= 1 && target_omltid <= ntids)) &&
           (target_sig >= 1 && target_sig <= NSIG) &&
           start_time > 0) {
-	  extern void drhook_run_omp_parallel_ipfipipipdpstr_(const int *, 
-                 void (*func)(const int *, const int *, const int *, const double *, const char *, long),
-                              const int *, const int *, const int *, const double *, const char *, long);
           if (ntids > 1) {
+	    extern void drhook_run_omp_parallel_ipfipipipdpstr_(const int *, 
+			void (*func)(const int *, const int *, const int *, const double *, const char *, long),
+                        const int *, const int *, const int *, const double *, const char *, long);
             drhook_run_omp_parallel_ipfipipipdpstr_(&ntids,set_killer_timer,
                                                     &ntids,&target_omltid,&target_sig,&start_time,p,strlen(p));
           }
