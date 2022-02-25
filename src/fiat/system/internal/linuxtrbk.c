@@ -95,132 +95,6 @@ void gdb_trbk(); // defined below
 void dbx_trbk(); // defined below
 void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr); // defined below
 
-#if 0
-/* 
-   This code section is disabled for now (by Sami Saarinen, ECMWF, 05-Oct-2016
-   Does not (yet) work with GUARD region size changes done to ../support/env.c @ pthread_attr_init() override
-*/
-#if (defined(__GNUC__) || defined(__PGI))
-#include <sys/syscall.h>
-#include <limits.h>
-
-#ifndef SYS_gettid
-#define SYS_gettid __NR_gettid
-#endif
-
-static pid_t GETtid() {
-  pid_t tid = syscall(SYS_gettid);
-  return tid;
-}
-
-static void SetMasterThreadsStackSizeBeforeMain() __attribute__((constructor));
-
-static void SetMasterThreadsStackSizeBeforeMain()
-{
-  size_t StackSize = 0;
-  int StackMult = 1; /* Multiply slave stacksize by this number to get master stacksize; the default = 4 */
-  long long int value = 0;
-  char *env_ignore = getenv("IGNORE_STACKSIZE");
-  int ignore = 0;
-  int display = 0;
-  char *envstksz = getenv("STACKSIZE"); /* Master thread's stacksize -- according to Intel */
-  char *envompstksz = getenv("OMP_STACKSIZE"); /* slaves' stacksize, not master's. Master gets its default value from ulimit -s */
-  char *envmult = getenv("STACKMULT"); /* Becomes new StackMult, if defined and >= 1. Not used in case "envstksz" is defined. */
-
-  /* Trying to figure out MPI task id since are *before* MPI_Init*() */
-  int me = -1; /* MPI task id >= 0 && <= NPES - 1 */
-  char *env_procid = getenv("EC_FARM_ID");
-  if (!env_procid) env_procid = getenv("ALPS_APP_PE");
-  if (!env_procid) env_procid = getenv("PMI_RANK");
-  if (!env_procid) env_procid = getenv("OMPI_COMM_WORLD_RANK");
-
-  if (env_procid) {
-    me = atoi(env_procid);
-    if (me == 0) display = 1; /* To avoid lots of output */
-  }
-
-  if (env_ignore) ignore = atoi(env_ignore);
-  if (!envstksz && !envompstksz) ignore = 1;
-
-  if (envstksz || envompstksz) {
-    struct rlimit rlim;
-    char *s = envstksz ? strdup(envstksz) : strdup(envompstksz);
-    int slen = strlen(s);
-    char *last = s + slen - 1;
-    long long int mult = 1024;
-    if (*last == 'b' || *last == 'B') {
-      mult = 1;
-      *last = 0;
-    }
-    else if (*last == 'k' || *last == 'K') {
-      mult = 1024;
-      *last = 0;
-    }
-    else if (*last == 'm' || *last == 'M') {
-      mult = 1048576;
-      *last = 0;
-    }
-    else if (*last == 'g' || *last == 'G') {
-      mult = 1073741824;
-      *last = 0;
-    }
-    value = atoll(s) * mult;
-    free(s);
-    if (envmult) {
-      StackMult = atoi(envmult);
-      if (StackMult < 1) StackMult = 1;
-    }
-    if (envstksz) StackMult = 1;
-    if (getrlimit(RLIMIT_STACK, &rlim) == 0) {
-      rlim.rlim_cur = value * StackMult;
-      setrlimit(RLIMIT_STACK, &rlim);
-    }
-  }
-
-  if (display) {
-    pthread_attr_t Attributes;
-    void *StackAddress;
-    pid_t pid = getpid();
-    pid_t tid = GETtid();
-    char hostname[HOST_NAME_MAX];
-    char prefix[HOST_NAME_MAX + 256];
-    if (gethostname(hostname,sizeof(hostname)) != 0) strcpy(hostname,"unknown");
-
-    snprintf(prefix,sizeof(prefix),"%s:%d:%lld:%lld",hostname,me,(long long int)pid,(long long int)tid);
-
-    /* Get the pthread attributes using pthread-routines */
-    memset(&Attributes, 0x0, sizeof (Attributes)); /* An overkill */
-    pthread_getattr_np(pthread_self(), &Attributes);
-    pthread_attr_getstack(&Attributes, &StackAddress, &StackSize);
-    pthread_attr_destroy(&Attributes);
-    
-    if (ignore) {
-      fprintf(stderr,
-        "[%s] [%s@%s:%d] : Master thread's stack size = %llu bytes [setrlimit() was not called]\n",
-        prefix,FFL,
-        (unsigned long long int)StackSize);
-    }
-    else if (envstksz) {
-      fprintf(stderr,
-        "[%s] [%s@%s:%d] : Master thread's stack size = %llu bytes, (export STACKSIZE=%lld bytes)\n",
-        prefix,FFL,
-        (unsigned long long int)StackSize,
-        value);
-    }
-    else if (envompstksz) {
-      fprintf(stderr,
-        "[%s] [%s@%s:%d] : Master thread's stack size = %llu bytes, (export OMP_STACKSIZE=%lld bytes for slave thread, STACKMULT = %d)\n",
-        prefix,FFL,
-        (unsigned long long int)StackSize,
-        value,
-        StackMult);
-    }
-  }
-}
-#endif /* defined(__GNUC__) */
-/* End of disabled code section */
-#endif
-
 #ifdef __NEC__
 void
 LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
@@ -294,14 +168,11 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
     if (recur > 10) {
       fprintf(stderr,"%s%s%s%s[LinuxTraceBack] Recursion too deep. Exiting immediately with _exit(%d)\n",
         pfx,s1,ts,s2,recur);
-      //fflush(NULL);
       _exit(recur); /* Exit immediately */
     }
   }
 
 #if (defined(__GNUC__) || defined(__PGI))
-  //fflush(NULL);
-
   if (sigcontextptr) {
     /* To have a desired effect, 
        compile with -g (and maybe -O1 or greater to get some optimization)
@@ -499,9 +370,7 @@ void gdb_trbk_()
        TOSTR(GNUDEBUGGER), a_out, (long int)pid);
     
     /* fprintf(stderr,"%s\n",gdbcmd); */
-    //fflush(NULL);
     { int idummy = system(gdbcmd); }
-    //fflush(NULL);
   }
 }
 
@@ -543,9 +412,7 @@ void dbx_trbk_()
     }
     
     /* fprintf(stderr,"%s\n",dbxcmd); */
-    //fflush(NULL);
     { int idummy = system(dbxcmd); }
-    //fflush(NULL);
   }
 }
 
