@@ -31,6 +31,20 @@ extern void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcon
 extern void ec_microsleep(int usecs); // from ec_env.c
 extern void fortran_mpi_abort(int rc);
 
+static const char tabort_lockfile[] = "tabort_lock";
+
+void tabort_delete_lockfile() {
+  if (access(tabort_lockfile, F_OK) != -1) {
+    // File is found
+    remove(tabort_lockfile);
+  }
+}
+
+void tabort_delete_lockfile_() {
+  tabort_delete_lockfile();
+}
+
+
 void tabort_()
 {
   const int sig = SIGABRT;
@@ -39,7 +53,6 @@ void tabort_()
   if (++irecur == 1) { // only one thread per task ever gets here
     // Only the fastest MPI task calls LinuxTraceBack -- avoids messy outputs
     int nfirst = 0;
-    const char tabort_lockfile[] = "tabort_lock";
     int fd = open(tabort_lockfile,O_CREAT|O_TRUNC|O_EXCL,S_IRUSR|S_IWUSR);
     if (fd >= 0) {
       close(fd);
