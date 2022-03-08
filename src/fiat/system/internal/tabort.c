@@ -22,6 +22,8 @@
 
 extern void abor1_(const char msg[], int msglen);
 
+extern int ec_sleep(const int nsec);
+
 #pragma weak abor1_
 
 // Forward declarations
@@ -48,8 +50,8 @@ void tabort_()
       LinuxTraceBack(NULL,NULL,NULL);
     }
     else {
-      const int usecs = 100 * 1000000; // 100M micro-seconds i.e. 100 secs
-      ec_sleep(usecs);
+      const int nsecs = 100;
+      ec_sleep(nsecs);
     }
     fortran_mpi_abort(rc); // calls MPI_ABORT with MPI_COMM_WORLD
   }

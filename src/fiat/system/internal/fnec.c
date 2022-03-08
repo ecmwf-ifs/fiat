@@ -29,8 +29,8 @@ void getenv_(const char *s, char *value,
 }
 
 void sleep_(const int *nsec) {
-	extern unsigned int ec_sleep(const int *nsec);
-	(void)ec_sleep(nsec);
+	extern unsigned int ec_sleep(const int nsec);
+	(void)ec_sleep(*nsec);
 }
 
 void flush_(const int *io) {

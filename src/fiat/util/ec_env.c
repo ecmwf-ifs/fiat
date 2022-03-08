@@ -21,6 +21,10 @@
 #define _GNU_SOURCE
 //endif
 
+#if defined(__APPLE__)
+#include <pthread.h>
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -194,9 +198,9 @@ ec_sleep_(const int *nsec)
 }
 
 unsigned int
-ec_sleep(const int *nsec)
+ec_sleep(const int nsec)
 {
-  return ec_sleep_(nsec);
+  return ec_sleep_(&nsec);
 }
 
 /* Microsecond-sleep, by S.Saarinen, 25-Jan-2008 */
@@ -327,6 +331,16 @@ int ec_gettid_() { // Your Fortran did not recognize GETTID() ? Use then: mypid 
 int ec_gettid() { // C-callable
   return ec_gettid_();
 }
+
+#if defined(__APPLE__)
+  // These variables and functions are Linux specific
+  static int CPU_SETSIZE = 0;
+  typedef struct cpu_set_t cpu_set_t;
+  struct cpu_set_t {};
+  static int CPU_ISSET(int index, const cpu_set_t* cpu_set) { return 0; }
+  static void CPU_ZERO(cpu_set_t* cpu_set) {}
+  static int sched_getaffinity(pid_t pid, size_t size, cpu_set_t* cpu_set) { return 0; }
+#endif
 
 static char *cpuset_to_cstr(const cpu_set_t *cpuset, char str[], const int lenstr)
 {
