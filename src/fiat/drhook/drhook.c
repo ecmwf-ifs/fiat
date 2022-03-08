@@ -4389,7 +4389,7 @@ c_drhook_print_(const int *ftnunitno,
 	    drhook_run_omp_parallel_get_cycles_(&ntids,thread_cycles);
 	  }
 	  else {
-	    long long int cycles = ec_get_cycles_();
+	    long long int cycles = ec_get_cycles();
 	    thread_cycles[0] = cycles - thread_cycles[0];
 	  }
         } // if (thread_cycles)
