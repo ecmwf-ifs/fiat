@@ -46,8 +46,6 @@ subroutine test_init()
     endif
 
     call ec_setenv("DR_HOOK","1",overwrite=.false.)
-    call ec_setenv("DR_HOOK_HARAKIRI_TIMEOUT","10",overwrite=.false.)
-    call ec_setenv("DR_HOOK_USE_LOCKFILE","0",overwrite=.false.)
     call ec_setenv("DR_HOOK_SILENT","1",overwrite=.false.)
     call dr_hook_init()
     if (.not.lhook) then

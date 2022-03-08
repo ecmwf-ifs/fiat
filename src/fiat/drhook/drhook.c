@@ -287,7 +287,7 @@ static void untrapfpe(int silent)
 
 static int drhook_harakiri_timeout = drhook_harakiri_timeout_default;
 static int drhook_use_lockfile = 1;
-
+static const char drhook_lockfile[] = "drhook_lock";
 static int atp_enabled = 0; /* Cray ATP specific */
 static int atp_max_cores = 20; /* Cray ATP specific */
 static int atp_max_analysis_time = 300; /* Cray ATP specific */
@@ -1611,9 +1611,8 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
       /*---- First call to signal handler: call alarm(drhook_harakiri_timeout), tracebacks,  exit ------*/
       
       if (!nfirst) {
-        const char drhook_lockfile[] = "drhook_lock";
         // Correct coding  : one and only one task obtains exclusive creation mask -- others fire blanks!
-	int fd = open(drhook_lockfile,O_CREAT|O_WRONLY|O_TRUNC|O_EXCL,S_IRUSR|S_IWUSR);
+        int fd = open(drhook_lockfile,O_CREAT|O_WRONLY|O_TRUNC|O_EXCL,S_IRUSR|S_IWUSR);
         if (fd >= 0) {
           size_t count = sizeof(myproc);
           ssize_t sz = write(fd,&myproc,count); // Now we know which MPL-task got the lock (use octal-dump "od" command)
@@ -3378,6 +3377,14 @@ c_drhook_getenv_(const char *s,
 
 /*=== c_drhook_init_ ===*/
 
+extern void tabort_delete_lockfile();
+static void drhook_delete_lockfile() {
+  if (access(drhook_lockfile, F_OK) != -1) {
+    // File is found
+    remove(drhook_lockfile);
+  }
+}
+
 void 
 c_drhook_init_(const char *progname,
                const int *num_threads
@@ -3408,6 +3415,10 @@ c_drhook_init_(const char *progname,
   }
   if (!a_out) {
     a_out = strdup_drhook("a.out"); /* Failed to obtain the name of the executing program */
+  }
+  if (myproc == 1) { /* myproc is set earlier in this routine within "init_drhook" */
+    tabort_delete_lockfile();
+    drhook_delete_lockfile();
   }
 }
 

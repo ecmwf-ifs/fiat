@@ -66,9 +66,6 @@ void setup_test(int argc, char* argv[]) {
     setenv("DR_HOOK",        "1", OVERWRITE );
     setenv("DR_HOOK_SILENT", "1", DONT_OVERWRITE );
 
-    // There seems to be a problem with the lockfile being kept between runs that abort
-    setenv("DR_HOOK_USE_LOCKFILE","0", DONT_OVERWRITE );
-
     char* env = getenv("CUSTOM_ABORT");
     int use_custom_abort = env ? atoi(env) : 0;
     if( use_custom_abort ) {

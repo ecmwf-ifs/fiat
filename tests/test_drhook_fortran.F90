@@ -91,8 +91,6 @@ call ec_setenv("DR_HOOK",        "1",   overwrite=.true.)
 call ec_setenv("DR_HOOK_OPT",    "PROF",overwrite=.false.)
 call ec_setenv("DR_HOOK_SILENT", "1",   overwrite=.false.)
 
-! TODO: fix problem with lockfiles between runs that abort
-call ec_setenv("DR_HOOK_USE_LOCKFILE", "0", overwrite=.false.)
 end subroutine
 
 subroutine test_end
