@@ -511,10 +511,3 @@ int ec_mpisize_()
 }
 
 int ec_mpisize() { return ec_mpisize_(); }
-
-
-
-
-
-
-

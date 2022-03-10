@@ -83,16 +83,16 @@ USE EC_LUN, ONLY : NULERR
 !-- OML_INCR_COUNTER to increment and check before launching synchronization
 
 !**Willem Deconinck/02-Feb-2022
-!-- Deprecate OMP_GET_NUM_THREADS() and remove overloads as they were not used
-!   Use OMP_GET_MAX_THREADS instead.
+!-- Deprecate OML_GET_NUM_THREADS() and remove overloads as they were not used
+!   Use OML_GET_MAX_THREADS instead.
 !-- Initialize OML_ABSMAX_THREADS within OML_INIT and abort if OML_INIT was forgotten
 !   before accessing OML_ABSMAX_THREADS
 
 !**Sami Saarinen/19-Feb-2022
 !-- Final clean-ups & fixes for this module
 !:: Rename (and bring back) OML_NUM_THREADS(<value>) as OML_SET_NUM_THREADS(<value>)
-!:: Bring back OMP_GET_NUM_THREADS() == the *actual* number of threads WHEN IN a parallel region (otherwise == 1)
-!:: The OMP_GET_MAX_THREADS() is the *currently* available max threads, which could go up|down
+!:: Bring back OML_GET_NUM_THREADS() == the *actual* number of threads WHEN IN a parallel region (otherwise == 1)
+!:: The OML_GET_MAX_THREADS() is the *currently* available max threads, which could go up|down
 !   if OML|OMP_SET_NUM_THREADS(<value>) was called explicitly (NOT recommended -- messes up thread affinity)
 !:: Got rid of the confusing OML_ABSMAX_THREADS() -- instead relying solely on OML_MAX_THREADS()
 !   Now N_OML_MAX_THREADS holds the max allowed value (upon OML_INIT())

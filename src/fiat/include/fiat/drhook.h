@@ -12,7 +12,7 @@
 #ifndef _DRHOOK_H_
 #define _DRHOOK_H_
 
-#include "preprocessor.h"
+#include "fiat_pp.h"
 
 #ifdef __cplusplus
 extern "C" {
