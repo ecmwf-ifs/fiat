@@ -8,6 +8,12 @@
 
 if( HAVE_TESTS )
 
+if( HAVE_MPI AND MPIEXEC )
+  set( LAUNCH ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 1 )
+else()
+  set( LAUNCH ${CMAKE_CROSSCOMPILING_EMULATOR} )
+endif()
+
 
 if( HAVE_OMP )
   set( OMP OpenMP::OpenMP_Fortran )
@@ -28,6 +34,7 @@ ecbuild_add_executable(
 add_test(NAME fiat_test_abort_exception_handler
   COMMAND ${CMAKE_COMMAND}
   "-DEXECUTABLE=$<TARGET_FILE:fiat-test-abort-exception-handler>"
+  "-DLAUNCH=${LAUNCH}"
   "-DPASS_REGULAR_EXPRESSION=problem in function_2"
   -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
 endif()
@@ -50,8 +57,13 @@ ecbuild_add_executable(
     NOINSTALL )
 add_test( NAME fiat_test_drhook_no_output
           COMMAND ${CMAKE_COMMAND}
-          -DEXECUTABLE=$<TARGET_FILE:fiat-test-drhook-no-output> 
+          "-DLAUNCH=${LAUNCH}"
+          "-DEXECUTABLE=$<TARGET_FILE:fiat-test-drhook-no-output>"
           -P ${CMAKE_CURRENT_SOURCE_DIR}/test_drhook_no_output.cmake )
+set_tests_properties(fiat_test_drhook_no_output PROPERTIES
+    ENVIRONMENT "DR_HOOK_ASSERT_MPI_INITIALIZED=0"
+)
+
 
 # ----------------------------------------------------------------------------------------
 # Tests: fiat_test_drhook_abort_my_abort, fiat_test_drhook_abort_abor1fl
@@ -68,13 +80,14 @@ ecbuild_add_executable(
 add_test( NAME fiat_test_drhook_abort_abor1fl
           COMMAND fiat-test-drhook-abort )
 set_tests_properties(fiat_test_drhook_abort_abor1fl PROPERTIES
-  PASS_REGULAR_EXPRESSION "ABOR1.*EC_DRHOOK.*\[DrHookCallTree\]"
+    ENVIRONMENT "DR_HOOK_ASSERT_MPI_INITIALIZED=0"
+    PASS_REGULAR_EXPRESSION "ABOR1.*EC_DRHOOK.*\[DrHookCallTree\]"
 )
 
 add_test( NAME fiat_test_drhook_abort_custom_abort
           COMMAND fiat-test-drhook-abort )
 set_tests_properties(fiat_test_drhook_abort_custom_abort PROPERTIES
-    ENVIRONMENT "CUSTOM_ABORT=1"
+    ENVIRONMENT "CUSTOM_ABORT=1;DR_HOOK_ASSERT_MPI_INITIALIZED=0"
     PASS_REGULAR_EXPRESSION "custom_abort.*EC_DRHOOK.*\[DrHookCallTree\]"
 )
 
@@ -87,6 +100,7 @@ ecbuild_add_test(
     LINKER_LANGUAGE Fortran
     DEFINITIONS ${FCKIT_DEFINITIONS})
 set_tests_properties(fiat_test_drhook_fortran PROPERTIES
+    ENVIRONMENT "MPL=0;DR_HOOK_ASSERT_MPI_INITIALIZED=0;DR_HOOK_OPT=NOPROPAGATE_SIGNALS"
     PASS_REGULAR_EXPRESSION "EC_DRHOOK.*\[DrHookCallTree\]" )
 
 # ----------------------------------------------------------------------------------------
@@ -121,7 +135,8 @@ ecbuild_add_executable(
 
 add_test(NAME fiat_test_mpl_no_output
          COMMAND ${CMAKE_COMMAND}
-         -DEXECUTABLE=$<TARGET_FILE:fiat-test-mpl-no-output> 
+         "-DEXECUTABLE=$<TARGET_FILE:fiat-test-mpl-no-output>"
+         "-DLAUNCH=${LAUNCH}"
          -P ${CMAKE_CURRENT_SOURCE_DIR}/test_mpl_no_output.cmake )
 
 # ----------------------------------------------------------------------------------------

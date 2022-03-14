@@ -16,6 +16,11 @@
 
 #include "drhook.h"
 
+#ifdef __INTEL_COMPILER
+// Otherwise SIGFPE is not triggered
+#pragma STDC FENV_ACCESS ON
+#endif
+
 static int trig_sigfpe = 0;
 
 void set_trig_sigfpe() {
