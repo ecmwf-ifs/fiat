@@ -20,6 +20,10 @@ if( HAVE_DR_HOOK_MULTI_PRECISION_HANDLES )
    list( APPEND FIAT_DEFINITIONS DR_HOOK_MULTI_PRECISION_HANDLES )
 endif()
 
+if( FIAT_ATTRIBUTE_CONSTRUCTOR_SUPPORTED )
+  list( APPEND FIAT_DEFINITIONS FIAT_ATTRIBUTE_CONSTRUCTOR_SUPPORTED )
+endif()
+
 ### Compilation flags
 
 if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
@@ -37,7 +41,7 @@ endif()
 if( NOT fiat_VERSION_PATCH )
     set( fiat_VERSION_PATCH 0 )
 endif()
-configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/util/version.c.in ${CMAKE_CURRENT_BINARY_DIR}/version.c @ONLY )
+configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/library/version.c.in ${CMAKE_CURRENT_BINARY_DIR}/version.c @ONLY )
 
 ecbuild_list_add_pattern( LIST fiat_src GLOB *.c *.F* *.cc )
 set( fiat_src ${fiat_src} PARENT_SCOPE )

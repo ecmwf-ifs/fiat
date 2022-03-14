@@ -18,6 +18,31 @@ if( NOT ${PROJECT_NAME}_GIT_SHA1 )
     endif()
 endif()
 
+
+try_run( execute_result compile_result
+         ${CMAKE_CURRENT_BINARY_DIR}
+         ${PROJECT_SOURCE_DIR}/cmake/test_attribute_constructor.c
+         COMPILE_OUTPUT_VARIABLE compile_output
+         RUN_OUTPUT_VARIABLE execute_output )
+
+ecbuild_debug("Compiling and running ${PROJECT_SOURCE_DIR}/cmake/test_attribute_constructor.c")
+ecbuild_debug_var( compile_result )
+ecbuild_debug_var( compile_output )
+ecbuild_debug_var( execute_result )
+ecbuild_debug_var( execute_output )
+
+
+if( NOT DEFINED FIAT_ATTRIBUTE_CONSTRUCTOR_SUPPORTED )
+  set( FIAT_ATTRIBUTE_CONSTRUCTOR_SUPPORTED 0 )
+  if( compile_result )
+    if( execute_result MATCHES 0 )
+      set( FIAT_ATTRIBUTE_CONSTRUCTOR_SUPPORTED 1 )
+    else()
+      ecbuild_info("Compiler failed to correctly run program with \"__attribute__((constructor))\".")
+    endif()
+  endif()
+endif()
+
 include( fiat_target_fortran_module_directory )
 include( fiat_target_ignore_missing_symbols )
 
