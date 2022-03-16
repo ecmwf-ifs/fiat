@@ -40,6 +40,8 @@ long long int ec_get_cycles_()
 #include <stdint.h>
 #include <sys/platform/ppc.h>
 #include <sched.h>
+#include <stdio.h>
+#include <linux/limits.h>
 
 long long int ec_get_cycles_()
 {
@@ -77,7 +79,7 @@ long long int ec_get_cycles_()
     cas_unlock(&mylock);
   }
 
-#ifdef _ARCH_PPC64
+#ifdef __powerpc64__
   /*
     This reads timebase in one 64bit go.  Does *not* include a workaround for the cell (see 
     http://ozlabs.org/pipermail/linuxppc-dev/2006-October/027052.html)
