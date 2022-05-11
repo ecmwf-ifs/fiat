@@ -1,5 +1,5 @@
 ! (C) Copyright 2005- ECMWF.
-! (C) Copyright 2005- Meteo France.
+! (C) Copyright 2013- Meteo France.
 ! 
 ! This software is licensed under the terms of the Apache Licence Version 2.0
 ! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -18,6 +18,19 @@ FUNCTION FORTRAN_MPI_ABORT(KRC) BIND(C,NAME="fortran_mpi_abort") RESULT(IRET)
     INTEGER :: IRET
     CALL MPI_ABORT(MPI_COMM_WORLD,KRC,IRET)
 END FUNCTION FORTRAN_MPI_ABORT
+
+FUNCTION FORTRAN_MPI_INITIALIZED() BIND(C,NAME="fortran_mpi_initialized") RESULT(IRET)
+    IMPLICIT NONE
+    INTEGER :: IRET
+    INTEGER :: IERROR
+    LOGICAL :: LINIT
+    CALL MPI_INITIALIZED(LINIT,IERROR)
+    IF (LINIT) THEN
+      IRET = 1
+    ELSE
+      IRET = 0
+    ENDIF
+END FUNCTION FORTRAN_MPI_INITIALIZED
 
 FUNCTION MPL_INIT_BINDC() BIND(C,NAME="mpl_init") RESULT(KERROR)
     USE ISO_C_BINDING, ONLY : C_INT

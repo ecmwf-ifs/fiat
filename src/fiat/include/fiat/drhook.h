@@ -1,5 +1,6 @@
 /*
  * (C) Copyright 2005- ECMWF.
+ * (C) Copyright 2013- Meteo-France.
  * 
  * This software is licensed under the terms of the Apache Licence Version 2.0
  * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -11,7 +12,7 @@
 #ifndef _DRHOOK_H_
 #define _DRHOOK_H_
 
-#include "preprocessor.h"
+#include "fiat_pp.h"
 
 #ifdef __cplusplus
 extern "C" {

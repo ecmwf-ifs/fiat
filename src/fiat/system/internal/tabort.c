@@ -30,6 +30,7 @@ extern int ec_sleep(const int nsec);
 extern void LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr);
 extern void ec_microsleep(int usecs); // from ec_env.c
 extern void fortran_mpi_abort(int rc);
+extern int fortran_mpi_initialized();
 
 static const char tabort_lockfile[] = "tabort_lock";
 
@@ -44,19 +45,20 @@ void tabort_delete_lockfile_() {
   tabort_delete_lockfile();
 }
 
-
-void tabort_()
-{
+void tabort_() {
   const int sig = SIGABRT;
   int rc = 128 + sig;
   static volatile sig_atomic_t irecur = 0;
   if (++irecur == 1) { // only one thread per task ever gets here
     // Only the fastest MPI task calls LinuxTraceBack -- avoids messy outputs
-    int nfirst = 0;
-    int fd = open(tabort_lockfile,O_CREAT|O_TRUNC|O_EXCL,S_IRUSR|S_IWUSR);
-    if (fd >= 0) {
-      close(fd);
-      nfirst = 1;
+    int mpi_init = fortran_mpi_initialized();
+    int nfirst = (mpi_init ? 0 : 1);
+    if( nfirst == 0 ) {
+      int fd = open(tabort_lockfile,O_CREAT|O_TRUNC|O_EXCL,S_IRUSR|S_IWUSR);
+      if (fd >= 0) {
+        close(fd);
+        nfirst = 1;
+      }
     }
     if (nfirst) {
       drhook_calltree();
@@ -66,7 +68,12 @@ void tabort_()
       const int nsecs = 100;
       ec_sleep(nsecs);
     }
-    fortran_mpi_abort(rc); // calls MPI_ABORT with MPI_COMM_WORLD
+    if (mpi_init) {
+      fortran_mpi_abort(rc); // calls MPI_ABORT with MPI_COMM_WORLD
+    }
+    else {
+      abort();
+    }
   }
   // Still here ?? get the hell out of here ... now !!
   _exit(rc);

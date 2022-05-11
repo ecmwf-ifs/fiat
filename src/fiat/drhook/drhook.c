@@ -1,5 +1,6 @@
 /*
  * (C) Copyright 2005- ECMWF.
+ * (C) Copyright 2013- Meteo-France.
  * 
  * This software is licensed under the terms of the Apache Licence Version 2.0
  * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -341,7 +342,7 @@ static int opt_random_memstat = 0; /* > 0 if to obtain random memory stats (maxh
 static double opt_trace_stack = 0; /* if > 0, a multiplier for OMP_STACKSIZE to monitor high master thread stack usage --
                                       -- implies opt_random_memstat = 1 (regardless of DR_HOOK_RANDOM_MEMSTAT setting) 
                                       -- for master MPI task only (for the moment) */
-static long long int drhook_oml_stacksize = 0; /* Slave stack size -- 
+static long long int drhook_oml_stacksize = 0; /* Slave stack size --
                                                   an indicative stack size even master thread should not exceed */
 static long long int drhook_stacksize_threshold = 0;
 static long long int slave_stacksize();
@@ -714,12 +715,12 @@ static void dump_file(const char *pfx, int tid, int sig, int nsigs, const char f
 
 // Forward declaration of subroutine in ec_meminfo.F90
 extern void ec_meminfo_( const int* ku,
-			 const char* cdstring,
-			 const int* kcomm,
-			 const int* kbarr,
-			 const int* kiotask,
-			 const int* kcall,
-			 int cdstring_strlen );
+                         const char* cdstring,
+                         const int* kcomm,
+                         const int* kbarr,
+                         const int* kiotask,
+                         const int* kcall,
+                         int cdstring_strlen );
 
 static void dump_hugepages(int enforce, const char *pfx, int tid, int sig, int nsigs)
 {
@@ -1388,48 +1389,48 @@ ignore_signals(int silent)
 
 /*--- signal_drhook ---*/
 
-#define SETSIG5(x,ignore_flag,handler_name,preserve_old,xstr) {	   \
-    drhook_sig_t *sl = &siglist[x];                                \
-    if (sl->active == 0) {					   \
-      drhook_sigfunc_t u;					   \
-      u.func3args = handler_name;					\
-      sl->active = 1;							\
-      strcpy(sl->name,xstr);						\
-      sigemptyset(&sl->new.sa_mask);					\
-      sl->new.sa_handler = u.func1args;					\
-      sl->new.sa_flags = SA_SIGINFO;					\
-      sigaction(x,&sl->new,preserve_old ? &sl->old : NULL);		\
-      sl->ignore_atexit = ignore_flag;					\
-      trapfpe_treatment(x,silent);					\
-      if (!silent && myproc == 1) {					\
-        int tid = drhook_oml_get_thread_num();				\
-        char *pfx = PREFIX(tid);                                        \
-        const char fmt[] = "%s %s [%s@%s:%d] New signal handler '%s' for signal#%d (%s) at %p (next at %p)\n"; \
-        fprintf(stderr,fmt,						\
-                pfx,TIMESTR(tid),FFL,					\
-                #handler_name,						\
-                x, sl->name,						\
-                (void*) sl->new.sa_handler,				\
-                preserve_old ? (void*) sl->old.sa_handler : NULL);	\
-      }									\
-    }									\
+#define SETSIG5(x,ignore_flag,handler_name,preserve_old,xstr) {                                                       \
+    drhook_sig_t *sl = &siglist[x];                                                                                   \
+    if (sl->active == 0) {                                                                                            \
+      drhook_sigfunc_t u;                                                                                             \
+      u.func3args = handler_name;                                                                                     \
+      sl->active = 1;                                                                                                 \
+      strcpy(sl->name,xstr);                                                                                          \
+      sigemptyset(&sl->new.sa_mask);                                                                                  \
+      sl->new.sa_handler = u.func1args;                                                                               \
+      sl->new.sa_flags = SA_SIGINFO;                                                                                  \
+      sigaction(x,&sl->new,preserve_old ? &sl->old : NULL);                                                           \
+      sl->ignore_atexit = ignore_flag;                                                                                \
+      trapfpe_treatment(x,silent);                                                                                    \
+      if (!silent && myproc == 1) {                                                                                   \
+        int tid = drhook_oml_get_thread_num();                                                                        \
+        char *pfx = PREFIX(tid);                                                                                      \
+        const char fmt[] = "%s %s [%s@%s:%d] New signal handler '%s' for signal#%d (%s) at %p (next at %p)\n";        \
+        fprintf(stderr,fmt,                                                                                           \
+                pfx,TIMESTR(tid),FFL,                                                                                 \
+                #handler_name,                                                                                        \
+                x, sl->name,                                                                                          \
+                (void*) sl->new.sa_handler,                                                                           \
+                preserve_old ? (void*) sl->old.sa_handler : NULL);                                                    \
+      }                                                                                                               \
+    }                                                                                                                 \
   }
 
 #define SETSIG(x,ignore_flag) SETSIG5(x,ignore_flag,signal_drhook,1,#x)
 
-#define JSETSIG(x,ignore_flag) {                                        \
-    drhook_sig_t *sl = &siglist[x];					\
-    drhook_sigfunc_t u;							\
-    /* fprintf(stderr,"JSETSIG: sl->active = %d\n",sl->active); */	\
-    u.func3args = signal_harakiri;					\
-    sl->active = 1;							\
-    strcpy(sl->name,#x);                                                \
-    sigemptyset(&sl->new.sa_mask);					\
-    sl->new.sa_handler = u.func1args;					\
-    sl->new.sa_flags = SA_SIGINFO;					\
-    sigaction(x,&sl->new,&sl->old);					\
-    sl->ignore_atexit = ignore_flag;					\
-    trapfpe_treatment(x,0);						\
+#define JSETSIG(x,ignore_flag) {                                                                                      \
+    drhook_sig_t *sl = &siglist[x];                                                                                   \
+    drhook_sigfunc_t u;                                                                                               \
+    /* fprintf(stderr,"JSETSIG: sl->active = %d\n",sl->active); */                                                    \
+    u.func3args = signal_harakiri;                                                                                    \
+    sl->active = 1;                                                                                                   \
+    strcpy(sl->name,#x);                                                                                              \
+    sigemptyset(&sl->new.sa_mask);                                                                                    \
+    sl->new.sa_handler = u.func1args;                                                                                 \
+    sl->new.sa_flags = SA_SIGINFO;                                                                                    \
+    sigaction(x,&sl->new,&sl->old);                                                                                   \
+    sl->ignore_atexit = ignore_flag;                                                                                  \
+    trapfpe_treatment(x,0);                                                                                           \
   }
 
 #define DRH_STRUCT_RLIMIT struct rlimit
@@ -1644,11 +1645,11 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
           int rc = set_unlimited_corefile(&hardlimit,1);
           if (rc == 0) {
             fprintf(stderr,
-                    "%s %s [%s@%s:%d] Hardlimit for core file is now %llu (0x%llx)\n", 
+                    "%s %s [%s@%s:%d] Hardlimit for core file is now %llu (0x%llx)\n",
                     pfx,TIMESTR(tid),FFL,hardlimit,hardlimit);
           }
         }
-        
+
 #if 1
         fprintf(stderr,
                 "%s %s [%s@%s:%d] Also activating Harakiri-alarm (SIGALRM=%d) to expire after %ds elapsed to prevent hangs, nsigs = %d\n",
@@ -2026,9 +2027,9 @@ signal_drhook_init(int enforce)
     }
     hlen = strlen(hostname);
     {
-      extern void drhook_run_omp_parallel_ipfstr_(const int *, 
-						  void (*func)(const char *, long),
-						  const char *, /*hidden*/ long);
+      extern void drhook_run_omp_parallel_ipfstr_(const int *,
+                                                  void (*func)(const char *, long),
+                                                  const char *, /*hidden*/ long);
       drhook_run_omp_parallel_ipfstr_(&ntids,set_ec_drhook_label,hostname,hlen);
     }
   }
@@ -4392,28 +4393,36 @@ c_drhook_print_(const int *ftnunitno,
 
         free_drhook(end_stamp);
 
-       if (thread_cycles) {
+        if (thread_cycles) {
           int ntids = numthreads;
-	  if (ntids > 1) {
-	    extern void drhook_run_omp_parallel_get_cycles_(const int *, long long int *);
-	    drhook_run_omp_parallel_get_cycles_(&ntids,thread_cycles);
-	  }
-	  else {
-	    long long int cycles = ec_get_cycles();
-	    thread_cycles[0] = cycles - thread_cycles[0];
-	  }
+          if (ntids > 1) {
+            extern void drhook_run_omp_parallel_get_cycles_(const int *, long long int *);
+            drhook_run_omp_parallel_get_cycles_(&ntids,thread_cycles);
+          }
+          else {
+            long long int cycles = ec_get_cycles();
+            thread_cycles[0] = cycles - thread_cycles[0];
+          }
         } // if (thread_cycles)
-	
+
         for (t=0; t<numthreads; t++) {
           double tmp = 100.0*(tot[t]/tottime);
           fprintf(fp,"\tThread#%d: %11.2f sec (%.2f%%) -- Cycles:",t+1,tot[t],tmp);
-	  if (opt_cycles)    fprintf(fp," %lld",cycles[t]);
-          if (thread_cycles) fprintf(fp," (%lld)",thread_cycles[t]);
+          if (opt_cycles) {
+            fprintf(fp," %lld",cycles[t]);
+          }
+          if (thread_cycles) {
+            fprintf(fp," (%lld)",thread_cycles[t]);
+          }
           fprintf(fp,"\n");
           if (myproc == 1) {
             fprintf(stderr,"\tThread#%d: %11.2f sec (%.2f%%) -- Cycles:",t+1,tot[t],tmp);
-	    if (opt_cycles)    fprintf(stderr," %lld",cycles[t]);
-	    if (thread_cycles) fprintf(stderr," (%lld)",thread_cycles[t]);
+            if (opt_cycles) {
+              fprintf(stderr," %lld",cycles[t]);
+            }
+            if (thread_cycles) {
+              fprintf(stderr," (%lld)",thread_cycles[t]);
+            }
             fprintf(stderr,"\n");
           }
         }
@@ -4856,9 +4865,9 @@ static void set_timed_kill()
           (target_sig >= 1 && target_sig <= NSIG) &&
           start_time > 0) {
           if (ntids > 1) {
-	    extern void drhook_run_omp_parallel_ipfipipipdpstr_(const int *, 
-			void (*func)(const int *, const int *, const int *, const double *, const char *, long),
-                        const int *, const int *, const int *, const double *, const char *, long);
+            extern void drhook_run_omp_parallel_ipfipipipdpstr_(const int *, 
+                         void (*func)(const int *, const int *, const int *, const double *, const char *, long),
+                         const int *, const int *, const int *, const double *, const char *, long);
             drhook_run_omp_parallel_ipfipipipdpstr_(&ntids,set_killer_timer,
                                                     &ntids,&target_omltid,&target_sig,&start_time,p,strlen(p));
           }

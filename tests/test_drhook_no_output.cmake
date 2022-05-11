@@ -33,5 +33,5 @@ function( run_command COMMAND )
 endfunction()
 
 message( "Running test ${EXECUTABLE} ... ")
-run_command( ${EXECUTABLE} )
+run_command( ${LAUNCH} ${EXECUTABLE} )
 message( "Running test ${EXECUTABLE} ... done")

@@ -10,7 +10,7 @@
 program abort_test
 use oml_mod
 use mpl_module
-use yomhook
+use yomhook, only : lhook, dr_hook_init
 use fckit_module
 implicit none
 
