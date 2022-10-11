@@ -46,3 +46,18 @@ foreach( file ${files} )
       "${CMAKE_BINARY_DIR}/${INSTALL_BIN_DIR}/${file}")
 endforeach()
 
+
+### Program fiat-printbinding
+# Note: it only depends on MPI and OpenMP
+ecbuild_add_executable(TARGET fiat-printbinding
+  SOURCES fiat-printbinding.c )
+find_package( OpenMP COMPONENTS C )
+if( TARGET OpenMP::OpenMP_C )
+  target_link_libraries( fiat-printbinding OpenMP::OpenMP_C )
+endif()
+find_package( MPI COMPONENTS C )
+if( TARGET MPI::MPI_C )
+  target_link_libraries( fiat-printbinding MPI::MPI_C )
+else()
+  target_compile_definitions( fiat-printbinding PRIVATE NOMPI )
+endif()
