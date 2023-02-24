@@ -73,7 +73,7 @@ set_tests_properties(fiat_test_drhook_no_output PROPERTIES
 ecbuild_add_executable(
     TARGET  fiat-test-drhook-abort
     SOURCES test_drhook_abort.c
-    LIBS    fiat
+    LIBS    fiat  
     NOINSTALL )
 
 
@@ -96,7 +96,7 @@ set_tests_properties(fiat_test_drhook_abort_custom_abort PROPERTIES
 ecbuild_add_test(
     TARGET  fiat_test_drhook_fortran
     SOURCES test_drhook_fortran.F90 
-    LIBS    fiat ${OMP} ${FCKIT_LIB}
+    LIBS    fiat ${OMP} ${FCKIT_LIB}    
     LINKER_LANGUAGE Fortran
     DEFINITIONS ${FCKIT_DEFINITIONS})
 set_tests_properties(fiat_test_drhook_fortran PROPERTIES
@@ -110,7 +110,7 @@ ecbuild_add_test(
     TARGET  fiat_test_ec_args_fortran 
     SOURCES test_ec_args_fortran.F90 
     ARGS arg1 arg2 arg3
-    LIBS    fiat ${OMP}
+    LIBS    fiat ${OMP} 
     LINKER_LANGUAGE Fortran )
 
 # ----------------------------------------------------------------------------------------

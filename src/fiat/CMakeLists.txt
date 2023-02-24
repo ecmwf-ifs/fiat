@@ -52,7 +52,7 @@ ecbuild_add_library( TARGET fiat
     PRIVATE_LIBS 
         ${CMAKE_DL_LIBS}
         ${RT_LIB}
-    PRIVATE_INCLUDES
+   PRIVATE_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/drhook/internal
         ${CMAKE_CURRENT_SOURCE_DIR}/ecsort/internal
         ${CMAKE_CURRENT_SOURCE_DIR}/util/internal
@@ -65,6 +65,13 @@ ecbuild_add_library( TARGET fiat
         $<INSTALL_INTERFACE:include/fiat>
 )
 
+
+## if compiler is pgi  add two libs 
+
+if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
+   target_link_libraries(fiat PUBLIC ${NVTOOLSEXT_LIB})
+   target_link_libraries(fiat PUBLIC ${NVHPCWRAPNVTX_LIB})
+endif()
 
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
   # Following should not be necessary; 
