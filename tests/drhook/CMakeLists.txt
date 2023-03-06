@@ -3,16 +3,19 @@ find_package( CMath )
 ecbuild_add_executable( TARGET drhook_ex1
   SOURCES drhook_ex1.F90 
   LIBS fiat
+  LINKER_LANGUAGE Fortran
   NOINSTALL )
 
 ecbuild_add_executable( TARGET drhook_ex2
   SOURCES drhook_ex2.F90 
   LIBS fiat
+  LINKER_LANGUAGE Fortran
   NOINSTALL )
 
 ecbuild_add_executable( TARGET drhook_ex3
   SOURCES drhook_ex3.F90 
   LIBS fiat
+  LINKER_LANGUAGE Fortran
   NOINSTALL )
 
 ecbuild_add_executable( TARGET drhook_ex4
@@ -23,6 +26,7 @@ ecbuild_add_executable( TARGET drhook_ex4
 ecbuild_add_executable( TARGET drhook_ex5
   SOURCES drhook_ex5.F90
   LIBS fiat
+  LINKER_LANGUAGE Fortran
   NOINSTALL )
 
 
