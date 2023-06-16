@@ -61,3 +61,10 @@ if( HAVE_MPI AND TARGET MPI::MPI_C )
 else()
   target_compile_definitions( fiat-printbinding PRIVATE NOMPI )
 endif()
+
+# On LUMI with Cray compiler we have false warnings about implicit function declaration (CPU_ZERO, sched_affinity)
+check_c_compiler_flag( "-Wno-implicit-function-declaration" disable_warning_implicit_function_declaration )
+if( disable_warning_implicit_function_declaration )
+  target_compile_options( fiat-printbinding PRIVATE "-Wno-implicit-function-declaration" )
+endif()
+

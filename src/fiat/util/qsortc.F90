@@ -25,8 +25,9 @@ CHARACTER(LEN=LEN(A)) :: X,XX,Z,ZZ,Y
       NDEEP=0
       U1=N
       L1=1
-      DO 1  I=1,N
-    1 ORD(I)=I
+      DO I=1,N
+        ORD(I)=I
+      ENDDO
     2 IF (U1.LE.L1) RETURN
 
     3 L=L1
