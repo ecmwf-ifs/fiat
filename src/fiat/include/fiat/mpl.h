@@ -20,6 +20,8 @@ extern "C" {
 int  mpl_init();
 int  mpl_end();
 int  mpl_myrank(); // Note return value is 1-based as opposed to MPI_Rank which is 0-based
+int  mpl_comm();
+int  mpl_comm_oml(int oml_thread); // Note oml_thread argument is 1-based as opposed to omp_threads
 
 #ifdef __cplusplus
 } // extern "C"
