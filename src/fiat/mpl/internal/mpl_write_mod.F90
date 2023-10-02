@@ -103,11 +103,14 @@ SUBROUTINE MPL_WRITE_INT(KFPTR,KOP,KBUF,KLEN,KREQ,KERROR)
 
 INTEGER(KIND=JPIM),INTENT(IN) :: KFPTR,KOP,KLEN
 INTEGER(KIND=JPIM),INTENT(OUT) :: KERROR
-INTEGER(KIND=JPIM) KBUF(:)
-INTEGER(KIND=JPIM) KREQ
+
+TYPE(MPI_FILE)     :: KFPTR_LOCAL
+INTEGER(KIND=JPIM) :: KBUF(:)
+TYPE(MPI_REQUEST)  :: KREQ
+TYPE(MPI_STATUS)   :: STATUS
 
 
-INTEGER(KIND=JPIM) STATUS(MPI_STATUS_SIZE)
+KFPTR_LOCAL%MPI_VAL=KFPTR
 !
 #ifndef MPI1
 
@@ -139,7 +142,7 @@ IF( KOP == 1 ) THEN
 
 ! blocking write, non collective, shared file pointer
         
-  CALL MPI_FILE_WRITE_SHARED(KFPTR,&
+  CALL MPI_FILE_WRITE_SHARED(KFPTR_LOCAL,&
                            & KBUF,&
                            & KLEN,&
                            & MPI_INTEGER,&
@@ -150,7 +153,7 @@ ELSEIF( KOP == 2 ) THEN
 
 ! blocking write, collective, ordered with shared file pointer
 
-  CALL MPI_FILE_WRITE_ORDERED(KFPTR,&
+  CALL MPI_FILE_WRITE_ORDERED(KFPTR_LOCAL,&
                             & KBUF,&
                             & KLEN,&
                             & MPI_INTEGER,&
@@ -161,7 +164,7 @@ ELSEIF( KOP == 3 ) THEN
 
 ! non blocking write, non collective, shared file pointer
 
-  CALL MPI_FILE_IWRITE_SHARED(KFPTR,&
+  CALL MPI_FILE_IWRITE_SHARED(KFPTR_LOCAL,&
                             & KBUF,&
                             & KLEN,&
                             & MPI_INTEGER,&
@@ -172,7 +175,7 @@ ELSEIF( KOP == 4 ) THEN
 
 ! non blocking write, collective, ordered with shared file pointer
 
-  CALL MPI_FILE_WRITE_ORDERED_BEGIN(KFPTR,&
+  CALL MPI_FILE_WRITE_ORDERED_BEGIN(KFPTR_LOCAL,&
                                   & KBUF,&
                                   & KLEN,&
                                   & MPI_INTEGER,&
@@ -186,7 +189,7 @@ ELSEIF( KOP == 5 ) THEN
 
 ELSEIF( KOP == 6 ) THEN
 
-  CALL MPI_FILE_WRITE_ORDERED_END(KFPTR,&
+  CALL MPI_FILE_WRITE_ORDERED_END(KFPTR_LOCAL,&
                                 & KBUF,&
                                 & STATUS,&
                                 & KERROR)
@@ -223,11 +226,12 @@ SUBROUTINE MPL_WRITE_REAL8(KFPTR,KOP,PBUF,KLEN,KREQ,KERROR)
 
 INTEGER(KIND=JPIM),INTENT(IN) :: KFPTR,KOP,KLEN
 INTEGER(KIND=JPIM),INTENT(OUT) :: KERROR
-REAL(KIND=JPRM) PBUF(:)
-INTEGER(KIND=JPIM) KREQ
+REAL(KIND=JPRM)   :: PBUF(:)
+TYPE(MPI_REQUEST) :: KREQ
+TYPE(MPI_FILE)    :: KFPTR_LOCAL
+TYPE(MPI_STATUS)  :: STATUS
 
-
-INTEGER(KIND=JPIM) STATUS(MPI_STATUS_SIZE)
+KFPTR_LOCAL%MPI_VAL=KFPTR
 !
 #ifndef MPI1
 
@@ -259,7 +263,7 @@ IF( KOP == 1 ) THEN
 
 ! blocking write, non collective, shared file pointer
         
-  CALL MPI_FILE_WRITE_SHARED(KFPTR,&
+  CALL MPI_FILE_WRITE_SHARED(KFPTR_LOCAL,&
                            & PBUF,&
                            & KLEN,&
                            & MPI_REAL8,&
@@ -270,7 +274,7 @@ ELSEIF( KOP == 2 ) THEN
 
 ! blocking write, collective, ordered with shared file pointer
 
-  CALL MPI_FILE_WRITE_ORDERED(KFPTR,&
+  CALL MPI_FILE_WRITE_ORDERED(KFPTR_LOCAL,&
                             & PBUF,&
                             & KLEN,&
                             & MPI_REAL8,&
@@ -281,7 +285,7 @@ ELSEIF( KOP == 3 ) THEN
 
 ! non blocking write, non collective, shared file pointer
 
-  CALL MPI_FILE_IWRITE_SHARED(KFPTR,&
+  CALL MPI_FILE_IWRITE_SHARED(KFPTR_LOCAL,&
                             & PBUF,&
                             & KLEN,&
                             & MPI_REAL8,&
@@ -292,7 +296,7 @@ ELSEIF( KOP == 4 ) THEN
 
 ! non blocking write, collective, ordered with shared file pointer
 
-  CALL MPI_FILE_WRITE_ORDERED_BEGIN(KFPTR,&
+  CALL MPI_FILE_WRITE_ORDERED_BEGIN(KFPTR_LOCAL,&
                                   & PBUF,&
                                   & KLEN,&
                                   & MPI_REAL8,&
@@ -306,7 +310,7 @@ ELSEIF( KOP == 5 ) THEN
 
 ELSEIF( KOP == 6 ) THEN
 
-  CALL MPI_FILE_WRITE_ORDERED_END(KFPTR,&
+  CALL MPI_FILE_WRITE_ORDERED_END(KFPTR_LOCAL,&
                                 & PBUF,&
                                 & STATUS,&
                                 & KERROR)

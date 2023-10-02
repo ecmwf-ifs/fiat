@@ -37,7 +37,7 @@ MODULE MPL_DATA_MODULE
 !  LINITMPI_VIA_MPL : true if MPI has been initialized from within MPL_INIT()
 !  LTHSAFEMPI   : Thread safe MPI, if .TRUE. (default)
 
-USE MPL_MPIF , ONLY : MPI_COMM_WORLD
+!!USE MPL_MPIF , ONLY : MPI_COMM_WORLD
 USE EC_PARKIND  ,ONLY : JPIM
 
 IMPLICIT NONE

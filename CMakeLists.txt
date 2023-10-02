@@ -37,6 +37,11 @@ ecbuild_add_option( FEATURE DR_HOOK_MULTI_PRECISION_HANDLES
                     DESCRIPTION "[DEPRECATED] Support single precision handles for DR_HOOK"
                     DEFAULT OFF )
 
+ecbuild_add_option( FEATURE MPL_F77_DEPRECATED
+         	    DESCRIPTION "Compile deprecated mpif.h MPL instead of MPI_F08 version"
+	            REQUIRED_PACKAGES "MPI COMPONENTS Fortran"
+	            DEFAULT OFF )
+
 ecbuild_add_option( FEATURE WARNINGS
                     DEFAULT ON
                     DESCRIPTION "Add warnings to compiler" )
