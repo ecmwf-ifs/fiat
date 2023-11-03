@@ -86,7 +86,12 @@ else()
 endif()
 
 if( HAVE_OMP )
-    target_link_libraries( fiat PRIVATE OpenMP::OpenMP_Fortran )
+  target_link_libraries( fiat PRIVATE OpenMP::OpenMP_Fortran )
+  if( CMAKE_C_COMPILER_ID MATCHES Intel )
+    ecbuild_add_c_flags("-qopenmp"                                  NO_FAIL)
+  else()
+    ecbuild_add_c_flags("-fopenmp"                                  NO_FAIL)
+  endif()
 endif()
 
 fiat_target_ignore_missing_symbols( TARGET fiat SYMBOLS

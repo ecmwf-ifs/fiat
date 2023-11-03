@@ -29,6 +29,10 @@ ecbuild_add_option( FEATURE MPI
                     DESCRIPTION "Support for MPI distributed parallelism"
                     REQUIRED_PACKAGES "MPI COMPONENTS Fortran" )
 
+ecbuild_add_option( FEATURE PAPI
+                    DESCRIPTION "Support for HW counters in drhook via PAPI"
+                    )
+
 ecbuild_add_option( FEATURE FCKIT
                     DESCRIPTION "Support for fckit"
                     REQUIRED_PACKAGES "fckit QUIET" )
@@ -46,6 +50,7 @@ ecbuild_find_package( NAME Realtime QUIET )
 ### Sources
 
 include( fiat_compiler_warnings )
+include( papi )
 add_subdirectory(src)
 add_subdirectory(share)
 
