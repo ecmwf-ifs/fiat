@@ -84,6 +84,7 @@ static int backtrace(void **buffer, int size) { return 0; }
 #include <dlfcn.h>
 
 #include "ec_get_cycles.h"
+#include "drhook_papi.h"
 static long long int *thread_cycles = NULL;
 
 int drhook_lhook = 1; // NOTE: A global variable !!
@@ -302,6 +303,7 @@ static int opt_getpag = 0;
 static int opt_walltime = 0;
 static int opt_cputime = 0;
 static int opt_wallprof = 0;
+static int opt_papi  = 0;
 static int opt_cpuprof = 0;
 static int opt_memprof = 0;
 static int opt_cycles = 0;
@@ -470,6 +472,13 @@ typedef struct drhook_key_t {
   long long int maxmem_selfdelta, maxmem_alldelta;
   long long int mem_maxhwm, mem_maxrss, mem_maxstk, mem_maxpagdelta;
   long long int paging_in;
+
+#ifdef HKPAPI
+  long_long counters_in[NPAPICNTRS];
+  long_long delta_counters_all[NPAPICNTRS];
+  long_long delta_counters_child[NPAPICNTRS];
+#endif
+
   unsigned long long int alloc_count, free_count;
   struct drhook_key_t *next;
 } drhook_key_t;
@@ -498,6 +507,10 @@ typedef struct drhook_prof_t {
   double pc;
   double total;
   double self;
+#ifdef HKPAPI
+  long_long counter_tot[NPAPICNTRS];
+  long_long counter_self[NPAPICNTRS];
+#endif
   unsigned long long int calls;
   double percall_ms_self;
   double percall_ms_total;
@@ -1037,7 +1050,8 @@ insert_calltree(int tid, drhook_key_t *keyptr)
 
 static void
 remove_calltree(int tid, drhook_key_t *keyptr,
-                const double *delta_wall, const double *delta_cpu, const long long int *delta_cycles)
+                const double *delta_wall, const double *delta_cpu,
+		const long long int *delta_cycles,long_long * delta_counters)
 {
   if (tid >= 1 && tid <= numthreads) {
     drhook_calltree_t *treeptr = thiscall[tid-1];
@@ -1046,6 +1060,12 @@ remove_calltree(int tid, drhook_key_t *keyptr,
       if (treeptr->prev) {
         drhook_key_t *parent_keyptr = treeptr->prev->keyptr;
         if (parent_keyptr) { /* extra security */
+#ifdef HKPAPI
+	  drhook_papi_add(NULL,
+			parent_keyptr->delta_counters_child,
+			delta_counters
+			);
+#endif
           if (opt_walltime) {
             parent_keyptr->delta_wall_child += (*delta_wall);
           }
@@ -2147,6 +2167,21 @@ get_memmon_out(int me)
   return s;
 }
 
+/*--- get_memmon_out ---*/
+
+static char *
+get_csv_out(int me)
+{
+  char *s = NULL;
+  char *p = get_mon_out(me);
+  if (p) {
+    s = malloc_drhook((strlen(p) + 5) * sizeof(*s));
+    sprintf(s,"%s.csv",p);
+  }
+  if (!s) s = strdup_drhook("drhook.prof.0.csv");
+  return s;
+}
+
 /*--- random_memstat ---*/
 
 static void
@@ -2498,7 +2533,7 @@ process_options()
     while (p) {
       /* Assume that everything is OFF by default */
       if (strequ(p,"ALL")) { /* all except profiler data */
-        opt_gethwm = opt_getstk = opt_getrss = opt_getpag = opt_walltime = opt_cputime = opt_cycles = 1;
+        opt_papi = opt_gethwm = opt_getstk = opt_getrss = opt_getpag = opt_walltime = opt_cputime = opt_cycles = 1;
         opt_calls = 1;
         any_memstat++;
         OPTPRINT(fp,"%s%s",comma,"ALL"); comma = ",";
@@ -2568,6 +2603,15 @@ process_options()
         opt_cycles = 1;
         OPTPRINT(fp,"%s%s",comma,"WALLPROF"); comma = ",";
       }
+      else if (strequ(p,"COUNTERS") ) {
+        opt_wallprof = 1;
+        opt_walltime = 1;
+        opt_cpuprof = 0; /* Note: Switches cpuprof OFF */
+        opt_calls = 1;
+        opt_cycles = 1;
+	opt_papi = 1;
+        OPTPRINT(fp,"%s%s",comma,"COUNTERS"); comma = ",";
+      }
       else if (strequ(p,"CPUPROF")) {
         opt_cpuprof = 1;
         opt_cputime = 1;
@@ -2603,6 +2647,8 @@ process_options()
       else if (strequ(p,"CALLPATH")) {
         opt_callpath = 1;
         OPTPRINT(fp,"%s%s",comma,"CALLPATH"); comma = ",";
+      } else {
+	printf("DrHook: Note - no match for HOOK_OPT : %s\n",p);
       }
       p = strtok(NULL,delim);
     }
@@ -2780,7 +2826,10 @@ getkey(int tid, const char *name, int name_len,
             (opt_trim && strncasecmp(keyptr->name, name, name_len) == 0)))) {
         if (opt_walltime) keyptr->wall_in = walltime ? *walltime : WALLTIME();
         if (opt_cputime) keyptr->cpu_in  = cputime ? *cputime : CPUTIME();
-        if (opt_cycles) keyptr->cycles_in  = cycles ? *cycles : ec_get_cycles();
+        if (opt_cycles) keyptr->cycles_in  = cycles ? *cycles : ec_get_cycles();	
+#ifdef HKPAPI
+	drhook_papi_readAll(keyptr->counters_in);
+#endif
         if (any_memstat) memstat(keyptr,&tid,1);
         if (opt_calls) {
           keyptr->calls++;
@@ -2882,6 +2931,11 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
   else if (tid >= 1 && tid <= numthreads) {
     double delta_wall = 0;
     double delta_cpu  = 0;
+    long_long * delta_counters=NULL;
+#ifdef HKPAPI
+    delta_counters=alloca(drhook_papi_num_counters() * sizeof(long_long) );
+    drhook_papi_bzero(delta_counters);
+#endif
     long long int delta_cycles  = 0;
     if (any_memstat) memstat(keyptr,&tid,0);
     if (opt_calls)   keyptr->status--;
@@ -2911,7 +2965,11 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
     if (opt_walltime) keyptr->delta_wall_all   += delta_wall;
     if (opt_cputime)  keyptr->delta_cpu_all    += delta_cpu;
     if (opt_cycles)   keyptr->delta_cycles_all += delta_cycles;
-    remove_calltree(tid, keyptr, &delta_wall, &delta_cpu, &delta_cycles);
+#ifdef HKPAPI
+    drhook_papi_subtract(delta_counters, NULL , keyptr->counters_in);
+    drhook_papi_add(NULL,   keyptr->delta_counters_all, delta_counters);
+#endif
+    remove_calltree(tid, keyptr, &delta_wall, &delta_cpu, &delta_cycles,delta_counters);
   }
 }
 
@@ -2920,7 +2978,7 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
 static void
 init_drhook(int ntids)
 {
-  if (numthreads == 0 || !keydata || !calltree || !keyself || !overhead || !curkeyptr || !cstk) {
+ if (numthreads == 0 || !keydata || !calltree || !keyself || !overhead || !curkeyptr || !cstk) {
     int j;
     if (pid == -1) { /* Ensure that called just once */
       {
@@ -3037,6 +3095,9 @@ itself(drhook_key_t *keyptr_self,
     if (opt == 0) {
       if (opt_wallprof) keyptr->wall_in = walltime ? *walltime : WALLTIME();
       else              keyptr->cpu_in = cputime ? *cputime : CPUTIME();
+#ifdef HKPAPI
+      drhook_papi_readAll(keyptr->counters_in);
+#endif
       keyptr->calls++;
     }
     else if (opt == 1) {
@@ -3050,6 +3111,17 @@ itself(drhook_key_t *keyptr_self,
         keyptr->delta_cpu_all += delta;
       }
       if (delta_time) *delta_time = delta;
+
+#ifdef HKPAPI
+      long_long cntrs_delta[NPAPICNTRS];
+
+      /* cntrs_delta = current - counters_in */
+      drhook_papi_subtract(cntrs_delta, NULL, keyptr->counters_in);
+
+      /* keyptr->delta_counters_all += cntrs_delta */
+      drhook_papi_add(NULL, keyptr->delta_counters_all,cntrs_delta);
+#endif
+
     }
   }
   return keyptr;
@@ -3177,6 +3249,15 @@ do_prof()
   if (signal_handler_ignore_atexit) return;
 
   if (!do_prof_off && (opt_wallprof || opt_cpuprof)) {
+    /* CPU or wall-clock profiling */
+    const int ftnunitno = 0;
+    const int master = 1;
+    const int print_option = 3;
+    int initlev = 0;
+    c_drhook_print_(&ftnunitno, &master, &print_option, &initlev);
+  }
+
+  if (!do_prof_off && (opt_papi)) {
     /* CPU or wall-clock profiling */
     const int ftnunitno = 0;
     const int master = 1;
@@ -3331,14 +3412,21 @@ c_drhook_check_watch_(const char *where,
 }
 
 /*** PUBLIC ***/
+#ifdef HKPAPI
+#define PAPIREAD \
+  long_long cntrs[NPAPICNTRS]; \
+  drhook_papi_readAll(cntrs)
+#else
+#define PAPIREAD /*NOOP*/
+#endif
 
 #define TIMERS \
   double walltime = opt_walltime ? WALLTIME() : 0;          \
   double cputime  = opt_cputime ? CPUTIME()  : 0;           \
   long long int cycles = opt_cycles ? ec_get_cycles() : 0;  \
   long long int hwm = opt_gethwm ? gethwm_() : 0;           \
-  long long int stk = opt_getstk ? getstk_() : 0
-
+  long long int stk = opt_getstk ? getstk_() : 0;	    \
+  PAPIREAD
 
 /*=== c_drhook_set_lhook_ ===*/
 
@@ -3421,6 +3509,10 @@ c_drhook_init_(const char *progname,
     tabort_delete_lockfile();
     drhook_delete_lockfile();
   }
+#ifdef HKPAPI
+  drhook_papi_init();
+#endif
+
 }
 
 
@@ -4217,6 +4309,13 @@ c_drhook_print_(const int *ftnunitno,
           drhook_key_t *keyptr = &keydata[t][j];
           while (keyptr) {
             if (keyptr->name && (keyptr->status == 0 || signal_handler_called)) {
+#ifdef HKPAPI
+	      drhook_papi_subtract(p->counter_self,
+				   keyptr->delta_counters_all,
+				   keyptr->delta_counters_child);
+	      drhook_papi_cpy(p->counter_tot,
+			      keyptr->delta_counters_all);
+#endif
               p->self = opt_wallprof ?
                 keyptr->delta_wall_all - keyptr->delta_wall_child :
                 keyptr->delta_cpu_all - keyptr->delta_cpu_child;
@@ -4254,8 +4353,11 @@ c_drhook_print_(const int *ftnunitno,
         int *clusize = calloc_drhook(nprof+1, sizeof(*clusize)); /* make sure at least 1 element */
         char *prevname = NULL;
         const char *fmt = "%5d %8.2f %12.3f %12.3f %12.3f %14llu %11.2f %11.2f   %s";
+        const char *csvfmt = ",%d,%.2f,%.3f,%.3f,%.3f,%llu";
         char *filename = get_mon_out(myproc);
+        char *csvfilename = get_csv_out(myproc);
         FILE *fp = NULL;
+        FILE *fpcsv = NULL;
 
         if (!filename) break;
 
@@ -4265,9 +4367,19 @@ c_drhook_print_(const int *ftnunitno,
                   pfx,TIMESTR(tid),FFL,
                   myproc,filename);
         }
-
-        fp = fopen(filename,"w");
+	fp = fopen(filename,"w");
         if (!fp) goto finish_3;
+
+	if (opt_papi==1){
+	  if ((myproc == 1 && mon_out_procs == -1) || mon_out_procs == myproc) {
+	    fprintf(stderr,
+		    "%s %s [%s@%s:%d] Writing counter information of proc#%d into file '%s'\n",
+		    pfx,TIMESTR(tid),FFL,
+		    myproc,csvfilename);
+	  }
+	  fpcsv = fopen(csvfilename,"w");
+	  if (!fpcsv) goto finish_3;
+	}
 
         /* alphanumerical sorting to find out clusters of the same routine but on different threads */
         /* also find out total wall clock time */
@@ -4427,52 +4539,98 @@ c_drhook_print_(const int *ftnunitno,
           }
         }
 
-        fprintf(fp,"\n");
-        {
-          len =
-            fprintf(fp,"    #  %% Time         Cumul         Self        Total     # of calls        Self       Total    ");
-        }
-        fprintf(fp,"Routine@<thread-id>");
-        if (opt_clusterinfo) fprintf(fp," [Cluster:(id,size)]");
-        fprintf(fp,"\n");
-        if (opt_sizeinfo) fprintf(fp,"%*s %s\n",len-20," ","(Size; Size/sec; Size/call; MinSize; MaxSize)");
-        fprintf(fp,  "        (self)        (sec)        (sec)        (sec)                    ms/call     ms/call\n");
-        fprintf(fp,"\n");
+	fprintf(fp,"\n");
+	{
+	  len =
+	    fprintf(fp,"    #  %% Time         Cumul         Self        Total     # of calls        Self       Total    ");
+	}
+	fprintf(fp,"Routine@<thread-id>");
+	if (opt_clusterinfo) fprintf(fp," [Cluster:(id,size)]");
+	fprintf(fp,"\n");
+	if (opt_sizeinfo) fprintf(fp,"%*s %s\n",len-20," ","(Size; Size/sec; Size/call; MinSize; MaxSize)");
+	fprintf(fp,  "        (self)        (sec)        (sec)        (sec)                    ms/call     ms/call\n");
+	fprintf(fp,"\n");
+	
+	cumul = 0;
+	for (j=0; j<nprof; ) {
+	  int cluster_size = clusize[p->cluster];
+	  if (p->pc < percent_limit) break;
+	  if (opt_cputime) {
+	    cumul += p->self;
+	  }
+	  else {
+	    if (p->is_max || cluster_size == 1) cumul += p->self;
+	  }
+	
+	  {
+	    fprintf(fp, fmt,
+		    ++j, p->pc, cumul, p->self, p->total, p->calls,
+		    p->percall_ms_self, p->percall_ms_total,
+		    p->is_max ? "*" : " ");
+	  }
+	  print_routine_name(fp, p, len, cluster_size);
 
-        cumul = 0;
-        for (j=0; j<nprof; ) {
-          int cluster_size = clusize[p->cluster];
-          if (p->pc < percent_limit) break;
-          if (opt_cputime) {
-            cumul += p->self;
-          }
-          else {
-            if (p->is_max || cluster_size == 1) cumul += p->self;
-          }
-    {
-            fprintf(fp, fmt,
-                    ++j, p->pc, cumul, p->self, p->total, p->calls,
-                    p->percall_ms_self, p->percall_ms_total,
-                    p->is_max ? "*" : " ");
-          }
-
-          print_routine_name(fp, p, len, cluster_size);
-
-          if (opt_sizeinfo && p->sizeinfo > 0) {
-            char s1[DRHOOK_STRBUF], s2[DRHOOK_STRBUF], s3[DRHOOK_STRBUF];
-            char s4[DRHOOK_STRBUF], s5[DRHOOK_STRBUF];
-            lld_commie(p->sizeinfo,s1);
-            dbl_commie(p->sizespeed,s2);
-            dbl_commie(p->sizeavg,s3);
-            lld_commie(p->min_sizeinfo,s4);
-            lld_commie(p->max_sizeinfo,s5);
-            fprintf(fp,"\n%*s (%s; %s; %s; %s; %s)",len-20," ",s1,s2,s3,s4,s5);
-          }
-          fprintf(fp,"\n");
-          p++;
-        } /* for (j=0; j<nprof; ) */
-
+	  if (opt_sizeinfo && p->sizeinfo > 0) {
+	    char s1[DRHOOK_STRBUF], s2[DRHOOK_STRBUF], s3[DRHOOK_STRBUF];
+	    char s4[DRHOOK_STRBUF], s5[DRHOOK_STRBUF];
+	    lld_commie(p->sizeinfo,s1);
+	    dbl_commie(p->sizespeed,s2);
+	    dbl_commie(p->sizeavg,s3);
+	    lld_commie(p->min_sizeinfo,s4);
+	    lld_commie(p->max_sizeinfo,s5);
+	    fprintf(fp,"\n%*s (%s; %s; %s; %s; %s)",len-20," ",s1,s2,s3,s4,s5);
+	  }
+	  fprintf(fp,"\n");
+	  p++;
+	} /* for (j=0; j<nprof; ) */
         fclose(fp);
+
+	if (opt_papi){
+	  p=prof;
+	  int first_counter_is_cyc=0;
+	  if (strcmp(drhook_papi_counter_name(0,0),"PAPI_TOT_CYC")==0)
+	    first_counter_is_cyc=1;
+	  {
+	    len =
+	      fprintf(fpcsv,"Routine@<thread-id>,Rank,%% Self Time,Cumul,Excl Time,Incl. Time,#Calls");
+	    for (int c=0;c<drhook_papi_num_counters();c++)
+	      fprintf(fpcsv,",%s(excl)",drhook_papi_counter_name(c,1));
+	    for (int c=0;c<drhook_papi_num_counters();c++)
+	      fprintf(fpcsv,",%s(incl)",drhook_papi_counter_name(c,1));
+	    if (first_counter_is_cyc==1)
+	      fprintf(fpcsv,",Mcyc/sec(excl),Mcyc/sec(incl)");
+	    fprintf(fpcsv,"\n");
+	  }
+
+	  cumul = 0;
+	  for (j=0; j<nprof; ) {
+	    int cluster_size = clusize[p->cluster];
+	    if (opt_cputime)
+	      cumul += p->self;	
+	    else
+	      if (p->is_max || cluster_size == 1) cumul += p->self;
+
+	    print_routine_name(fpcsv, p, len, cluster_size);
+	    {
+	      fprintf(fpcsv, csvfmt,
+		      ++j, p->pc, cumul, p->self, p->total, p->calls,
+		      p->is_max ? "*" : " ");
+	      for (int c=0;c<drhook_papi_num_counters();c++)
+		fprintf(fpcsv,",%lld",p->counter_self[c]);
+	      for (int c=0;c<drhook_papi_num_counters();c++)
+		fprintf(fpcsv,",%lld",p->counter_tot[c]);
+	      if (first_counter_is_cyc==1)
+		fprintf(fpcsv,",%.3f,%.3f",
+			p->counter_self[0]/p->self/1000000.0,
+			p->counter_tot[0]/p->total/1000000.0
+			);
+
+	    }
+	    fprintf(fpcsv,"\n");
+	    p++;
+	  } /* for (j=0; j<nprof; ) */
+	}
+
       finish_3:
         free_drhook(filename);
         free_drhook(maxval);
