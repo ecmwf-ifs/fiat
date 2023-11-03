@@ -151,7 +151,7 @@ int report_init(int periodicreport){
 
     rc = (num = PAPI_num_counters());
     if (rc != PAPI_OK) {
-      PAPI_perror(rc, "PAPI_num_counters", strlen("PAPI_num_counters"));
+      PAPI_perror("PAPI_num_counters");
     }
 
     //fprintf(stderr,"PAPI_num_counters = %d\n",num);

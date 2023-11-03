@@ -22,12 +22,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 ### Options
 
 ecbuild_add_option( FEATURE OMP
-                    DESCRIPTION "support for OpenMP shared memory parallelism"
+                    DESCRIPTION "Support for OpenMP shared memory parallelism"
                     REQUIRED_PACKAGES "OpenMP COMPONENTS Fortran" )
 
 ecbuild_add_option( FEATURE MPI
                     DESCRIPTION "Support for MPI distributed parallelism"
                     REQUIRED_PACKAGES "MPI COMPONENTS Fortran" )
+
+ecbuild_add_option( FEATURE PAPI
+                    DESCRIPTION "Support for HW counters in drhook via PAPI"
+		    REQUIRED_PACKAGES "OpenMP COMPONENTS C" "PAPI")
 
 ecbuild_find_package( fckit QUIET )
 ecbuild_add_option( FEATURE FCKIT
@@ -49,6 +53,11 @@ ecbuild_add_option( FEATURE SINGLE_PRECISION
 ecbuild_add_option( FEATURE WARNINGS
                     DEFAULT ON
                     DESCRIPTION "Add warnings to compiler" )
+
+ecbuild_add_option( FEATURE MKL
+                    DESCRIPTION "Use MKL for BLAS and/or FFTW"
+                    DEFAULT ON
+                    REQUIRED_PACKAGES "MKL" )
 
 ecbuild_find_package( NAME Realtime QUIET )
 
