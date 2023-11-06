@@ -1,7 +1,6 @@
 #ifndef DRHOOK_PAPI
 #define DRHOOK_PAPI
 #ifdef HKPAPI
-#warning Compiling with PAPI
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -9,11 +8,11 @@
 
 #include <papi.h>
 
-#define  NPAPICNTRS 2
+#define  NPAPICNTRS 3
 
-int drhook_papi_init();
+int drhook_papi_init(int rank);
 int drhook_papi_num_counters();
-char * drhook_papi_counter_name(int c,int t);
+const char * drhook_papi_counter_name(int c,int t);
 long_long drhook_papi_read(int counterId);
 int drhook_papi_readAll(long_long * counterArray);
 

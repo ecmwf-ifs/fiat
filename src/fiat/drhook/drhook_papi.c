@@ -7,11 +7,18 @@
 
 #define STD_MSG_LEN 4096
 
+int *  drhook_papi_event_set=NULL;
+enum {drhook_papi_notstarted,drhook_papi_running,drhook_papi_failed};
+int    drhook_papi_state=0;
+int    drhook_papi_rank=0; /* C style! */
+size_t drhook_max_counter_name=0;
+
 /* hardwired for now */
 const char * hookCounters[ NPAPICNTRS ][2]=
   {
    {"PAPI_TOT_CYC","Cycles"},
-   {"PAPI_FP_OPS","FP Operations"}
+   {"PAPI_FP_OPS","FP Operations"},
+   {"PAPI_L2_DCM","L2 Miss"}
   };
 
 /* function to use for thread id 
@@ -25,7 +32,7 @@ unsigned long safe_thread_num(){
   return temp;
 }
 
-char * drhook_papi_counter_name(int c,int t){
+const char * drhook_papi_counter_name(int c,int t){
   return hookCounters[c][t];
 }
 
@@ -45,7 +52,7 @@ void drhook_papi_print(char * s,long_long* a,int header){
   char msg[STD_MSG_LEN];
   if (header>0){
     char fmt[STD_MSG_LEN];
-    sprintf(fmt,"%%%ds",strlen(s));
+    sprintf(fmt,"%%%lds",strlen(s));
     sprintf(msg,fmt," ");
     for (int i=0;i<drhook_papi_num_counters();i++)
       sprintf(&msg[strlen(msg)]," %16s",hookCounters[ i ][1]);
@@ -84,12 +91,6 @@ void drhook_papi_add(long_long* a,long_long* b, long_long* c){
 }
 
 
-int * myEventSet=NULL;
-
-enum {drhook_papi_notstarted,drhook_papi_running,drhook_papi_failed};
-int drhook_papi_state=0;
-
-int drhook_max_counter_name=0;
 
 // number of counters available to read
 int drhook_papi_num_counters(){
@@ -107,13 +108,13 @@ int drhook_papi_readAll(long_long * counterArray){
     printf("Fault: papi not running\n");
     exit (1);
   }
-  if (!myEventSet){
+  if (!drhook_papi_event_set){
     printf("Fault: Eventset was null\n");
     exit (1);
   }
-  int err=PAPI_read(myEventSet[safe_thread_num()],counterArray);
+  int err=PAPI_read(drhook_papi_event_set[safe_thread_num()],counterArray);
   if (err!=PAPI_OK){
-    printf("DRHOOK:PAPI:PAPI_read: Error reading counters, thread=%ld es=%d %s\n",safe_thread_num(),myEventSet[safe_thread_num()],PAPI_strerror(err));
+    printf("DRHOOK:PAPI:PAPI_read: Error reading counters, thread=%ld es=%d %s\n",safe_thread_num(),drhook_papi_event_set[safe_thread_num()],PAPI_strerror(err));
   }
 #if defined(DEBUG)
   drhook_papi_print("readAll:",counterArray);
@@ -126,13 +127,16 @@ void drhook_papi_readall_(long_long * counterArray){
 }
 
 /* return 1 if papi can be used after the call */
-int drhook_papi_init(){
+int drhook_papi_init(int rank){
   int lib_version;
   char pmsg[STD_MSG_LEN];
   int paperr=-1;
 
+  
   if (drhook_papi_state==drhook_papi_running) return 1;
   if (drhook_papi_state==drhook_papi_failed) return 0;
+
+  drhook_papi_rank=rank;
 
 #ifdef _OPENMP
   if (omp_in_parallel()){
@@ -193,19 +197,19 @@ int drhook_papi_init(){
     return 0;
   }
 
-  snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Version %d.%d.%d initialised with %d threads",
-	   PAPI_VERSION_MAJOR( lib_version ),
-	   PAPI_VERSION_MINOR( lib_version ),
-	   PAPI_VERSION_REVISION( lib_version ),
-	   nthreads );
+    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Version %d.%d.%d initialised with %d threads",
+	     PAPI_VERSION_MAJOR( lib_version ),
+	     PAPI_VERSION_MINOR( lib_version ),
+	     PAPI_VERSION_REVISION( lib_version ),
+	     nthreads );
   
-  printf("%s\n",pmsg);
+    if (drhook_papi_rank==0) printf("%s\n",pmsg);
 
-  myEventSet=malloc(nthreads*sizeof(int));
+  drhook_papi_event_set=malloc(nthreads*sizeof(int));
 
   int prof_papi_numcntrs;
   bool failed=false;  
-#pragma omp parallel default(none) shared(drhook_max_counter_name,hookCounters,myEventSet,nthreads,prof_papi_numcntrs,failed)
+#pragma omp parallel default(none) shared(drhook_papi_rank,drhook_max_counter_name,hookCounters,drhook_papi_event_set,nthreads,prof_papi_numcntrs,failed)
   {
     int paperr2,counter;
     int * events;
@@ -220,8 +224,8 @@ int drhook_papi_init(){
     for (k=0;k<nthreads;k++) {
 #pragma omp barrier
       if (j==k){
-	myEventSet[j]=PAPI_NULL;
-	paperr2=PAPI_create_eventset(&myEventSet[j]);
+	drhook_papi_event_set[j]=PAPI_NULL;
+	paperr2=PAPI_create_eventset(&drhook_papi_event_set[j]);
 	if (paperr2 != PAPI_OK){
 	  snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: create event set failed (%s)",PAPI_strerror(paperr2));
 	  printf("%s\n",pmsg2);
@@ -233,7 +237,7 @@ int drhook_papi_init(){
 	for (counter=0;counter < prof_papi_numcntrs  ;counter ++){
 	  int eventCode;
 	  snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: %s (%s)",hookCounters[counter][0],hookCounters[counter][1]);
-	  if (k==0)printf("%s\n",pmsg2);
+	  if (drhook_papi_rank==0) if (k==0)printf("%s\n",pmsg2);
 
 	  if (strlen(hookCounters[counter][1]) > drhook_max_counter_name )
 	    drhook_max_counter_name=strlen(hookCounters[counter][1]);
@@ -246,7 +250,7 @@ int drhook_papi_init(){
 	    failed=true;
 	  }
 
-	  paperr2=PAPI_add_event(myEventSet[j],eventCode);
+	  paperr2=PAPI_add_event(drhook_papi_event_set[j],eventCode);
 	  if (paperr2!=PAPI_OK){
 	    failed=true;
 	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: add_event failed: %d (%s)",paperr2,PAPI_strerror(paperr2));
@@ -265,7 +269,7 @@ int drhook_papi_init(){
 	      printf("Preset not available");
 	  }else {
 #if defined(DEBUG)
-	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: Added code=%d to Evnt set  %d",eventCode,myEventSet[j]);
+	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: Added code=%d to Evnt set  %d",eventCode,drhook_papi_event_set[j]);
 	    if (k==0)printf("%s\n",pmsg2);
 #endif
 	  }
@@ -276,7 +280,7 @@ int drhook_papi_init(){
 	  /* get the number of events in the event set */
 	  number=prof_papi_numcntrs;
 	  events=malloc(prof_papi_numcntrs*sizeof(int));
-	  paperr2 = PAPI_list_events(myEventSet[j],events , &number);
+	  paperr2 = PAPI_list_events(drhook_papi_event_set[j],events , &number);
 	  if ( paperr2 != PAPI_OK){
 	    failed=true;
 	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: Error quierying events - %d=%s",paperr2,PAPI_strerror(paperr2));
@@ -296,7 +300,7 @@ int drhook_papi_init(){
 	    printf("%s\n",pmsg2);
 	  }
 
-	  paperr2=PAPI_start(myEventSet[j]);
+	  paperr2=PAPI_start(drhook_papi_event_set[j]);
 	  if (paperr2 != PAPI_OK) {
 	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: starting counters failed (%d=%s)",paperr2,PAPI_strerror(paperr2));
 	    printf("%s\n",pmsg2);
@@ -312,7 +316,7 @@ int drhook_papi_init(){
   }
   if (failed){   drhook_papi_state=drhook_papi_failed ; return 0;}
   drhook_papi_state=drhook_papi_running;
-  printf("DRHOOK:PAPI: Initialisation sucess\n");
+  if (drhook_papi_rank==0) printf("DRHOOK:PAPI: Initialisation sucess\n");
   return 1;
 }
 

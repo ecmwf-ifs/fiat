@@ -3510,7 +3510,7 @@ c_drhook_init_(const char *progname,
     drhook_delete_lockfile();
   }
 #ifdef HKPAPI
-  drhook_papi_init();
+  drhook_papi_init(myproc -1);
 #endif
 
 }
@@ -4353,7 +4353,7 @@ c_drhook_print_(const int *ftnunitno,
         int *clusize = calloc_drhook(nprof+1, sizeof(*clusize)); /* make sure at least 1 element */
         char *prevname = NULL;
         const char *fmt = "%5d %8.2f %12.3f %12.3f %12.3f %14llu %11.2f %11.2f   %s";
-        const char *csvfmt = ",%d,%.2f,%.3f,%.3f,%.3f,%llu";
+        const char *csvfmt = ",%d,%d,%.4f,%.6f,%.6f,%.6f,%llu";
         char *filename = get_mon_out(myproc);
         char *csvfilename = get_csv_out(myproc);
         FILE *fp = NULL;
@@ -4592,7 +4592,7 @@ c_drhook_print_(const int *ftnunitno,
 	    first_counter_is_cyc=1;
 	  {
 	    len =
-	      fprintf(fpcsv,"Routine@<thread-id>,Rank,%% Self Time,Cumul,Excl Time,Incl. Time,#Calls");
+	      fprintf(fpcsv,"Routine@<thread-id>,MPI Rank,Rank,%% Self Time,Cumul,Excl Time,Incl. Time,#Calls");
 	    for (int c=0;c<drhook_papi_num_counters();c++)
 	      fprintf(fpcsv,",%s(excl)",drhook_papi_counter_name(c,1));
 	    for (int c=0;c<drhook_papi_num_counters();c++)
@@ -4613,7 +4613,7 @@ c_drhook_print_(const int *ftnunitno,
 	    print_routine_name(fpcsv, p, len, cluster_size);
 	    {
 	      fprintf(fpcsv, csvfmt,
-		      ++j, p->pc, cumul, p->self, p->total, p->calls,
+		      myproc-1,++j, p->pc, cumul, p->self, p->total, p->calls,
 		      p->is_max ? "*" : " ");
 	      for (int c=0;c<drhook_papi_num_counters();c++)
 		fprintf(fpcsv,",%lld",p->counter_self[c]);
