@@ -72,13 +72,14 @@ endif()
 ### Program fiat-drhook-sanity
 # Note: it only depends on MPI and OpenMP
 ecbuild_add_executable(TARGET fiat-drhook-sanity
-  SOURCES fiat-drhook-sanity.f90 fiat-drhook-sanity-stream.f90 mysecond.c
+  SOURCES fiat-drhook-sanity.f90 fiat-drhook-sanity-stream.f90 fiat-drhook-sanity-gemm.f90 mysecond.c
   LIBS    fiat parkind_dp
 )
 find_package( OpenMP COMPONENTS Fortran )
 if( TARGET OpenMP::OpenMP_Fortran )
   target_link_libraries( fiat-drhook-sanity OpenMP::OpenMP_Fortran )
 endif()
+target_link_libraries( fiat-drhook-sanity ${MKL_LIBRARIES} )
 
 find_package( MPI COMPONENTS C )
 if( HAVE_MPI AND TARGET MPI::MPI_C )

@@ -4,6 +4,7 @@ program drhook_sanity
   use mpl_module
   use yomhook, only : LHOOK,DR_HOOK,JPHOOK,dr_hook_init,dr_hook_end
   use stream_mod
+  use gemm_mod
   implicit none
   logical :: luse_mpi = .true.
   integer :: myproc,nproc,nthread
@@ -31,6 +32,7 @@ program drhook_sanity
   IF (LHOOK) CALL DR_HOOK('MAIN',0,ZHOOK_HANDLE)
 
   call stream_combinations()
+  call gemm_combinations()
   
   IF (LHOOK) CALL DR_HOOK('MAIN',1,ZHOOK_HANDLE)
 

@@ -14,10 +14,18 @@ int    drhook_papi_rank=0; /* C style! */
 size_t drhook_max_counter_name=0;
 
 /* hardwired for now */
+/* const char * hookCounters[ NPAPICNTRS ][2]= */
+/*   { */
+/*    {"PAPI_TOT_CYC","Cycles"}, */
+/*    {"PAPI_FP_OPS","FP Operations"}, */
+/*    {"PAPI_L2_DCM","L2 Miss"} */
+/*   }; */
+
 const char * hookCounters[ NPAPICNTRS ][2]=
   {
    {"PAPI_TOT_CYC","Cycles"},
    {"PAPI_FP_OPS","FP Operations"},
+   {"PAPI_L1_DCA","L1 Access"},
    {"PAPI_L2_DCM","L2 Miss"}
   };
 

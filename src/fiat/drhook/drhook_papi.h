@@ -8,7 +8,7 @@
 
 #include <papi.h>
 
-#define  NPAPICNTRS 3
+#define  NPAPICNTRS 4
 
 int drhook_papi_init(int rank);
 int drhook_papi_num_counters();

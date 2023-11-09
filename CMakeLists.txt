@@ -45,6 +45,11 @@ ecbuild_add_option( FEATURE WARNINGS
                     DEFAULT ON
                     DESCRIPTION "Add warnings to compiler" )
 
+ecbuild_add_option( FEATURE MKL
+                    DESCRIPTION "Use MKL for BLAS and/or FFTW"
+                    DEFAULT ON
+                    REQUIRED_PACKAGES "MKL" )
+
 ecbuild_find_package( NAME Realtime QUIET )
 
 ### Sources

@@ -42,24 +42,29 @@ MODULE stream_mod
   ! The intent is to demonstrate the extent to which ordinary user
   ! code can exploit the main memory bandwidth of the system under
   ! test.
-  use yomhook, only : LHOOK,DR_HOOK,JPHOOK
+  use yomhook, only : lhook,dr_hook,jphook
 
-CONTAINS
-  SUBROUTINE stream_combinations()
-    IMPLICIT NONE
-    INTEGER*8 n
-    REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
-    n=100000000
-    IF (LHOOK) CALL DR_HOOK('STREAM',0,ZHOOK_HANDLE)
-    CALL stream(n)
-    IF (LHOOK) CALL DR_HOOK('STREAM',1,ZHOOK_HANDLE)
+contains
+  subroutine stream_combinations()
+    implicit none
+    integer*8 n,ntimes,i
+    real(kind=jphook) :: zhook_handle
+    n=1024*1024
+    ntimes=1024
+    if (lhook) call dr_hook('STREAM',0,zhook_handle)
+    do i=1,3
+       call stream(n,ntimes)
+       n=n*8
+       ntimes=ntimes/8
+    end do
+    if (lhook) call dr_hook('STREAM',1,zhook_handle)
 
-  END SUBROUTINE stream_combinations
+  end subroutine stream_combinations
 
-  SUBROUTINE stream(n)
+  SUBROUTINE stream(n,ntimes)
     INTEGER*8 n,offset,ndim
     INTEGER*8 ntimes
-    PARAMETER (offset=0,ntimes=10)
+    PARAMETER (offset=0)
     !     ..
     !     .. Local Scalars ..
     DOUBLE PRECISION scalar,t
@@ -75,6 +80,8 @@ CONTAINS
     DOUBLE PRECISION mysecond
     REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
     REAL(KIND=JPHOOK) :: ZHOOK_1,ZHOOK_2,ZHOOK_3,ZHOOK_4
+    CHARACTER(len=25) :: tag
+
 !    INTEGER realsize
     EXTERNAL mysecond !,checktick,realsize
     !$    INTEGER omp_get_num_threads
@@ -102,6 +109,8 @@ CONTAINS
     ndim=n+offset
     allocate(a(ndim),b(ndim),c(ndim))
     nbpw = realsize()
+    write(tag,'(I20)')n    
+    tag="_n="//adjustl(tag)
 
     PRINT *,'----------------------------------------------'
     PRINT *,'STREAM Version $Revision: 5.6 $'
@@ -114,27 +123,23 @@ CONTAINS
     WRITE (*,FMT=9030) '--'
     WRITE (*,FMT=9030) 'The *best* time for each test is used'
     WRITE (*,FMT=9030) '*EXCLUDING* the first and last iterations'
-
-    !$OMP PARALLEL
-    !$OMP MASTER
+!$OMP PARALLEL
+!$OMP MASTER
     PRINT *,'----------------------------------------------'
-    !$    PRINT *,'Number of Threads = ',OMP_GET_NUM_THREADS()
-    !$OMP END MASTER
-    !$OMP END PARALLEL
+!$  PRINT *,'Number of Threads = ',OMP_GET_NUM_THREADS()
+!$OMP END MASTER
+!$OMP END PARALLEL
 
     PRINT *,'----------------------------------------------'
-    !$OMP PARALLEL
-    PRINT *,'Printing one line per active thread....'
-    !$OMP END PARALLEL
 
-    !$OMP PARALLEL DO
+!$OMP PARALLEL DO
     DO 10 j = 1,n
        a(j) = 2.0d0
        b(j) = 0.5D0
        c(j) = 0.0D0
 10  END DO
     t = mysecond()
-    !$OMP PARALLEL DO
+!$OMP PARALLEL DO
     DO 20 j = 1,n
        a(j) = 0.5d0*a(j)
 20  END DO
@@ -150,53 +155,53 @@ CONTAINS
     scalar = 0.5d0*a(1)
     DO 70 k = 1,ntimes
 
-       IF (LHOOK) CALL DR_HOOK('STREAM_COPY',0,ZHOOK_1)
+       IF (LHOOK) CALL DR_HOOK('STREAM_COPY'//tag,0,ZHOOK_1)
        t = mysecond()
        a(1) = a(1) + t
-       !$OMP PARALLEL DO
+!$OMP PARALLEL DO
        DO 30 j = 1,n
           c(j) = a(j)
 30     END DO
        t = mysecond() - t
-       IF (LHOOK) CALL DR_HOOK('STREAM_COPY',1,ZHOOK_1)
+       IF (LHOOK) CALL DR_HOOK('STREAM_COPY'//tag,1,ZHOOK_1)
 
        c(n) = c(n) + t
        times(1,k) = t
 
-       IF (LHOOK) CALL DR_HOOK('STREAM_SCALE',0,ZHOOK_2)
+       IF (LHOOK) CALL DR_HOOK('STREAM_SCALE'//tag,0,ZHOOK_2)
        t = mysecond()
        c(1) = c(1) + t
-       !$OMP PARALLEL DO
+!$OMP PARALLEL DO
        DO 40 j = 1,n
           b(j) = scalar*c(j)
 40     END DO
        t = mysecond() - t
-       IF (LHOOK) CALL DR_HOOK('STREAM_SCALE',1,ZHOOK_2)
+       IF (LHOOK) CALL DR_HOOK('STREAM_SCALE'//tag,1,ZHOOK_2)
 
        b(n) = b(n) + t
        times(2,k) = t
 
-       IF (LHOOK) CALL DR_HOOK('STREAM_ADD',0,ZHOOK_3)
+       IF (LHOOK) CALL DR_HOOK('STREAM_ADD'//tag,0,ZHOOK_3)
        t = mysecond()
        a(1) = a(1) + t
-       !$OMP PARALLEL DO
+!$OMP PARALLEL DO
        DO 50 j = 1,n
           c(j) = a(j) + b(j)
 50     END DO
        t = mysecond() - t
-       IF (LHOOK) CALL DR_HOOK('STREAM_ADD',1,ZHOOK_3)
+       IF (LHOOK) CALL DR_HOOK('STREAM_ADD'//tag,1,ZHOOK_3)
        c(n) = c(n) + t
        times(3,k) = t
 
-       IF (LHOOK) CALL DR_HOOK('STREAM_TRIAD',0,ZHOOK_4)
+       IF (LHOOK) CALL DR_HOOK('STREAM_TRIAD'//tag,0,ZHOOK_4)
        t = mysecond()
        b(1) = b(1) + t
-       !$OMP PARALLEL DO
+!$OMP PARALLEL DO
        DO 60 j = 1,n
           a(j) = b(j) + scalar*c(j)
 60     END DO
        t = mysecond() - t
-       IF (LHOOK) CALL DR_HOOK('STREAM_TRIAD',1,ZHOOK_4)
+       IF (LHOOK) CALL DR_HOOK('STREAM_TRIAD'//tag,1,ZHOOK_4)
 
        a(n) = a(n) + t
        times(4,k) = t
@@ -302,10 +307,10 @@ CONTAINS
         '----------------------------------------------'
  END FUNCTION realsize
 
-SUBROUTINE confuse(q,r)
+ SUBROUTINE confuse(q,r)
   !     IMPLICIT NONE
   !     .. Scalar Arguments ..
-  DOUBLE PRECISION q,r
+   DOUBLE PRECISION q,r
   !     ..
   !     .. Intrinsic Functions ..
   INTRINSIC cos
