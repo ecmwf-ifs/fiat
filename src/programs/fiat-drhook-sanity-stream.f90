@@ -1,4 +1,4 @@
-MODULE stream_mod
+MODULE stream_mod  
   !=======================================================================
   ! Program: STREAM
   ! Programmer: John D. McCalpin
@@ -57,11 +57,13 @@ contains
        n=n*8
        ntimes=ntimes/8
     end do
+
     if (lhook) call dr_hook('STREAM',1,zhook_handle)
 
   end subroutine stream_combinations
 
   SUBROUTINE stream(n,ntimes)
+!$  USE omp_lib
     INTEGER*8 n,offset,ndim
     INTEGER*8 ntimes
     PARAMETER (offset=0)
@@ -80,12 +82,10 @@ contains
     DOUBLE PRECISION mysecond
     REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
     REAL(KIND=JPHOOK) :: ZHOOK_1,ZHOOK_2,ZHOOK_3,ZHOOK_4
-    CHARACTER(len=25) :: tag
+    CHARACTER(len=29) :: tag
 
 !    INTEGER realsize
     EXTERNAL mysecond !,checktick,realsize
-    !$    INTEGER omp_get_num_threads
-    !$    EXTERNAL omp_get_num_threads
     !     ..
     !     .. Intrinsic Functions ..
     !
@@ -110,7 +110,11 @@ contains
     allocate(a(ndim),b(ndim),c(ndim))
     nbpw = realsize()
     write(tag,'(I20)')n    
-    tag="_n="//adjustl(tag)
+!$  if (omp_in_parallel()) then
+!$    tag="_par_n="//adjustl(tag)
+!$  else
+      tag="_n="//adjustl(tag)
+!$  end if
 
     PRINT *,'----------------------------------------------'
     PRINT *,'STREAM Version $Revision: 5.6 $'
@@ -155,7 +159,7 @@ contains
     scalar = 0.5d0*a(1)
     DO 70 k = 1,ntimes
 
-       IF (LHOOK) CALL DR_HOOK('STREAM_COPY'//tag,0,ZHOOK_1)
+       IF (LHOOK) CALL DR_HOOK('STREAM_COPY'//TRIM(tag),0,ZHOOK_1)
        t = mysecond()
        a(1) = a(1) + t
 !$OMP PARALLEL DO
@@ -163,12 +167,12 @@ contains
           c(j) = a(j)
 30     END DO
        t = mysecond() - t
-       IF (LHOOK) CALL DR_HOOK('STREAM_COPY'//tag,1,ZHOOK_1)
+       IF (LHOOK) CALL DR_HOOK('STREAM_COPY'//TRIM(tag),1,ZHOOK_1)
 
        c(n) = c(n) + t
        times(1,k) = t
 
-       IF (LHOOK) CALL DR_HOOK('STREAM_SCALE'//tag,0,ZHOOK_2)
+       IF (LHOOK) CALL DR_HOOK('STREAM_SCALE'//TRIM(tag),0,ZHOOK_2)
        t = mysecond()
        c(1) = c(1) + t
 !$OMP PARALLEL DO
@@ -176,12 +180,12 @@ contains
           b(j) = scalar*c(j)
 40     END DO
        t = mysecond() - t
-       IF (LHOOK) CALL DR_HOOK('STREAM_SCALE'//tag,1,ZHOOK_2)
+       IF (LHOOK) CALL DR_HOOK('STREAM_SCALE'//TRIM(tag),1,ZHOOK_2)
 
        b(n) = b(n) + t
        times(2,k) = t
 
-       IF (LHOOK) CALL DR_HOOK('STREAM_ADD'//tag,0,ZHOOK_3)
+       IF (LHOOK) CALL DR_HOOK('STREAM_ADD'//TRIM(tag),0,ZHOOK_3)
        t = mysecond()
        a(1) = a(1) + t
 !$OMP PARALLEL DO
@@ -189,11 +193,11 @@ contains
           c(j) = a(j) + b(j)
 50     END DO
        t = mysecond() - t
-       IF (LHOOK) CALL DR_HOOK('STREAM_ADD'//tag,1,ZHOOK_3)
+       IF (LHOOK) CALL DR_HOOK('STREAM_ADD'//TRIM(tag),1,ZHOOK_3)
        c(n) = c(n) + t
        times(3,k) = t
 
-       IF (LHOOK) CALL DR_HOOK('STREAM_TRIAD'//tag,0,ZHOOK_4)
+       IF (LHOOK) CALL DR_HOOK('STREAM_TRIAD'//TRIM(tag),0,ZHOOK_4)
        t = mysecond()
        b(1) = b(1) + t
 !$OMP PARALLEL DO
@@ -201,7 +205,7 @@ contains
           a(j) = b(j) + scalar*c(j)
 60     END DO
        t = mysecond() - t
-       IF (LHOOK) CALL DR_HOOK('STREAM_TRIAD'//tag,1,ZHOOK_4)
+       IF (LHOOK) CALL DR_HOOK('STREAM_TRIAD'//TRIM(tag),1,ZHOOK_4)
 
        a(n) = a(n) + t
        times(4,k) = t
