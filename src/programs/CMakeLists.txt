@@ -74,7 +74,14 @@ endif()
 ecbuild_add_executable(TARGET fiat-drhook-sanity
   SOURCES fiat-drhook-sanity.f90 fiat-drhook-sanity-stream.f90 fiat-drhook-sanity-gemm.f90 mysecond.c
   LIBS    fiat parkind_dp
-)
+  )
+target_compile_definitions( fiat-drhook-sanity PRIVATE OMP )
+
+ecbuild_info( CMAKE_Fortran_COMPILER_ID -  1. ${CMAKE_Fortran_COMPILER_ID} 2. ${EC_COMPILER_FAMILY}  )
+if( ${CMAKE_Fortran_COMPILER_ID} MATCHES Intel )
+  set_source_files_properties(fiat-drhook-sanity-stream.f90 PROPERTIES COMPILE_FLAGS " -qopt-prefetch-distance=64,12 -qopt-streaming-cache-evict=0 -qopt-streaming-stores always -qopt-zmm-usage=high ")
+endif()
+
 find_package( OpenMP COMPONENTS Fortran )
 if( TARGET OpenMP::OpenMP_Fortran )
   target_link_libraries( fiat-drhook-sanity OpenMP::OpenMP_Fortran )
