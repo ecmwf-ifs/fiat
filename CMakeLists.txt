@@ -45,6 +45,10 @@ ecbuild_add_option( FEATURE SINGLE_PRECISION
                     DEFAULT ON
                     DESCRIPTION "Support for Single Precision" )
 
+ecbuild_add_option( FEATURE DUMMY_MPI_HEADER
+                    DEFAULT ON
+                    DESCRIPTION "[DANGEROUS] Install a dummy MPI header" )
+
 ecbuild_add_option( FEATURE WARNINGS
                     DEFAULT ON
                     DESCRIPTION "Add warnings to compiler" )

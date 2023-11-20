@@ -70,6 +70,7 @@ Extra options can be added to the `cmake` command to control the build:
  - `-DENABLE_DOUBLE_PRECISION=<ON|OFF>` default=ON
  - `-DENABLE_MPI=<ON|OFF>` 
  - `-DENABLE_OMP=<ON|OFF>`
+ - `-DENABLE_DUMMY_MPI_HEADER=<ON|OFF>` default=ON
  - `-DCMAKE_INSTALL_PREFIX=<install-prefix>`
 
 More options to control compilation flags, only when defaults are not sufficient
