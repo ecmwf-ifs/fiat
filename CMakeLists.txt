@@ -31,8 +31,9 @@ ecbuild_add_option( FEATURE MPI
 
 ecbuild_add_option( FEATURE PAPI
                     DESCRIPTION "Support for HW counters in drhook via PAPI"
-                    )
-
+		    REQUIRED_PACKAGES "OpenMP"
+		    )
+		  
 ecbuild_add_option( FEATURE FCKIT
                     DESCRIPTION "Support for fckit"
                     REQUIRED_PACKAGES "fckit QUIET" )

@@ -4592,7 +4592,7 @@ c_drhook_print_(const int *ftnunitno,
 	    first_counter_is_cyc=1;
 	  {
 	    len =
-	      fprintf(fpcsv,"Routine,MPI Rank,ThreadId,Rank,%% Self Time,Cumul,Excl Time,Incl. Time,#Calls");
+	      fprintf(fpcsv,"Routine,MPI Rank,ThreadId,SelfRank,%% Self Time,Cumul,Excl Time,Incl. Time,#Calls");
 	    for (int c=0;c<drhook_papi_num_counters();c++)
 	      fprintf(fpcsv,",%s(excl)",drhook_papi_counter_name(c,1));
 	    for (int c=0;c<drhook_papi_num_counters();c++)
