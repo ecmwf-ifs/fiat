@@ -118,12 +118,8 @@ CHARACTER(LEN=66) :: CL_ERROR_MESSAGE
 
 #include "user_clock.intfb.h"
 
-IF(LSTATS) THEN
-
-  ! only process gstats calls for master thread
-
-  IF(OML_MY_THREAD() > 1)GOTO 99999
-
+! Process GSTATS calls if LSTATS is .TRUE. and we are the master
+IF (LSTATS .AND. OML_MY_THREAD() == 1) THEN
   IF(.NOT.ALLOCATED(ZHOOK_HANDLE))THEN
     NUM_THREADS=OML_GET_MAX_THREADS()
     ALLOCATE(ZHOOK_HANDLE(NUM_THREADS))
@@ -420,5 +416,4 @@ IF(LSTATS) THEN
   
 ENDIF
 
-99999 CONTINUE
 END SUBROUTINE GSTATS
