@@ -113,6 +113,8 @@ INTEGER(KIND=JPIM) :: J
 REAL(KIND=JPRD)    :: ZSUM,ZSUMB,ZTOT
 REAL(KIND=JPRD)    :: SBYTES,RBYTES
 INTEGER(KIND=JPIM) :: NSEND,NRECV
+CHARACTER(LEN=4) :: CL_MAXSTAT
+CHARACTER(LEN=66) :: CL_ERROR_MESSAGE
 
 #include "user_clock.intfb.h"
 
@@ -199,18 +201,23 @@ IF(LSTATS) THEN
     LLFIRST = .FALSE.
   ENDIF
 
-  IF(KNUM < 0.OR. KNUM > JPMAXSTAT) CALL ABOR1('GSTATS')
+  ! Check KNUM is valid (> 0 and < JPMAXSTAT)
+  IF (KNUM < 0) CALL ABOR1('GSTATS: KNUM cannot be negative')
+  IF (KNUM > JPMAXSTAT) THEN
+    WRITE(CL_MAXSTAT,'(I4)') JPMAXSTAT
+    CALL ABOR1('GSTATS: KNUM cannot be greater than ' // CL_MAXSTAT)
+  ENDIF
+
   IF(KSWITCH == 0.OR. KSWITCH == 1) THEN
     NCALLS(KNUM) = NCALLS(KNUM)+1
   ENDIF
   IMOD = MOD(NCALLS(KNUM),2)
-  IF(.NOT.((KSWITCH == 0.AND. IMOD == 1) .OR.&
-   &(KSWITCH == 2.AND. IMOD == 1) .OR.&
-   &(KSWITCH == 3.AND. IMOD == 1) .OR.&
-   &(KSWITCH == 1.AND. IMOD == 0))) THEN
-    WRITE(JPERR,*) 'KNUM,KSWITCH,IMOD,NCALLS(KNUM)',&
-     &KNUM,KSWITCH,IMOD,NCALLS(KNUM)
-    CALL ABOR1('GSTATS')
+
+  ! Check we haven't opened or closed a region twice in a row
+  IF (.NOT.((KSWITCH == 0 .AND. IMOD == 1) .OR. (KSWITCH == 2 .AND. IMOD == 1) .OR. &
+    &       (KSWITCH == 3 .AND. IMOD == 1) .OR. (KSWITCH == 1 .AND. IMOD == 0))) THEN
+    WRITE(CL_ERROR_MESSAGE,'(A42,I4)') "Invalid GSTATS call - check region KNUM = ", KNUM
+    CALL ABOR1('GSTATS: ' // CL_ERROR_MESSAGE)
   ENDIF
 
   NSWITCHVAL(KNUM)=KSWITCH
