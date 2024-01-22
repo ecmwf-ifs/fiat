@@ -39,7 +39,7 @@ SUBROUTINE GSTATS(KNUM,KSWITCH)
 
 
 !     EXTERNALS.   USER_CLOCK - timing routine
-!     ----------   MPL_BARRIER - syncronization of processors
+!     ----------
 
 !     REFERENCE.
 !     ----------
@@ -66,7 +66,6 @@ USE EC_PARKIND  ,ONLY : JPRD, JPIM ,JPIB
 USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 
 USE YOMGSTATS  
-USE MPL_MODULE
 USE MPL_STATS_MOD
 USE OML_MOD
 
