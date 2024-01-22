@@ -110,8 +110,6 @@ INTEGER(KIND=JPIM) :: IXMLLUN
 
 !     ------------------------------------------------------------------
 
-! write(0,*) "JPMAXSTAT,NPRNT_STATS =",JPMAXSTAT,NPRNT_STATS
-
 ILBUF = JPARRAYS*(JPMAXSTAT+1)
 ILRECV = 500*4
 ZAVEAVE(:) = 0.0_JPRD
@@ -305,7 +303,6 @@ ELSEIF(LSTATS) THEN
           ZT_SUMB=ZT_SUMB+ZSUMB
         ENDIF
         IF( LDETAILED_STATS .AND. JROC <= NPRNT_STATS ) THEN
-!         IF(JNUM < 501 .OR. LSTATS_COMMS .OR. LSTATS_OMP) THEN 
             WRITE(KULOUT,'(I4,1X,A3,1X,A40,1X,I5,6(1X,F9.1),1X,F5.1,1X,F8.2)')&
              &JNUM,CCTYPE(JNUM),CCDESC(JNUM),ICALLS,ZSUM,ZAVE,ZAVETCPU,ZAVEVCPU,&
              &ZSTDDEV,ZMAX,ZSUMB,ZFRAC
@@ -325,12 +322,9 @@ ELSEIF(LSTATS) THEN
                & '<frac unit="percent">',ZFRAC,'</frac>',&
                & '</num>'
              ENDIF
-!        ENDIF
         ENDIF
       ENDIF
     ENDDO
-!    ZCOMTIM = SUM(TIMESUM(51:99))+SUM(TIMESUM(151:199))
-!    ZDETAIL = SUM(TIMESUM(:))-TIMESUM(0)-TIMESUM(1)-SUM(TIMESUM(20:23))
     IF( LDETAILED_STATS .AND. JROC <= NPRNT_STATS ) THEN
       WRITE(KULOUT,*) ''
       WRITE(KULOUT,'((A,2F8.1))')&
