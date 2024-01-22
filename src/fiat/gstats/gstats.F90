@@ -83,8 +83,8 @@ EXTERNAL GETMAXRSS, GETHWM, GETSTK, GETCURHEAP, GETPAG
 REAL(KIND=JPRD) :: ZTIMED,ZCLOCK,ZCLOCK1,ZTIME,ZTCPU,ZVCPU
 LOGICAL :: LLFIRST=.TRUE.
 LOGICAL :: LLMFIRST=.TRUE.
-  CHARACTER(LEN=32), SAVE :: CCDESC_DRHOOK(JPMAXSTAT)
-  CHARACTER(LEN=32), SAVE :: CCDESC_BARR(JPMAXSTAT)
+CHARACTER(LEN=32), SAVE :: CCDESC_DRHOOK(JPMAXSTAT)
+CHARACTER(LEN=32), SAVE :: CCDESC_BARR(JPMAXSTAT)
 SAVE IIMEM, IIPAG, IIMEMC
 
 INTEGER(KIND=JPIM),SAVE :: NUM_THREADS
@@ -113,7 +113,7 @@ INTEGER(KIND=JPIM) :: NSEND,NRECV
 
 IF(LSTATS) THEN
 
-! only process gstats calls for master thread
+  ! only process gstats calls for master thread
 
   IF(OML_MY_THREAD() > 1)GOTO 99999
 
@@ -164,7 +164,7 @@ IF(LSTATS) THEN
     ELSEIF(CCTYPE(KNUM).EQ.'BAR')THEN
       CALL DR_HOOK(CCDESC_DRHOOK(KNUM),KSWITCH,ZHOOK_HANDLE_BARR)
     ENDIF
-! measure GSTATS HOOK overhead
+    ! measure GSTATS HOOK overhead
     CALL USER_CLOCK(PELAPSED_TIME=ZCLOCK1)
     TIMESUM(401) = TIMESUM(401)+ZCLOCK1-ZCLOCK
     NCALLS(401) = NCALLS(401)+1
@@ -211,7 +211,7 @@ IF(LSTATS) THEN
   NSWITCHVAL(KNUM)=KSWITCH
 
   IF( KSWITCH == 0 ) THEN
-! Start timing event
+    ! Start timing event
     IF(KNUM>=500)THEN
       ZTIMED = ZCLOCK-TIME_LAST_CALL
       TIMESUMB(KNUM) = TIMESUMB(KNUM)+ZTIMED
@@ -220,7 +220,7 @@ IF(LSTATS) THEN
     ENDIF
 
     IF( LLFINDSUMB .AND. MYPROC_STATS <= 2 )THEN
-!     diagnostic code to find source of sumb (this should only be activated temporarily)
+      !     diagnostic code to find source of sumb (this should only be activated temporarily)
       DO J=9,1,-1
         ISUMBSTACK(J+1)=ISUMBSTACK(J)
       ENDDO
@@ -235,7 +235,7 @@ IF(LSTATS) THEN
           ENDIF
         ENDDO
       ENDIF
-!     check if grouped counters are overlapping
+      !     check if grouped counters are overlapping
       DO J=0,JPMAXSTAT
         IF( J /= KNUM )THEN
           IF( CCTYPE(J   )/='   '.AND.CCTYPE(J   )/='TRS'.AND.CCTYPE(J   )/='MP-' .AND.&
@@ -304,7 +304,7 @@ IF(LSTATS) THEN
       UNKNOWN_RECVBYTES(KNUM)=UNKNOWN_RECVBYTES(KNUM)+RBYTES
     ENDIF
   ELSEIF( KSWITCH == 1 ) THEN
-! Finish timing event
+    ! Finish timing event
     ZTIME = THISTIME(KNUM)+(ZCLOCK-TIMELCALL(KNUM))
     IF(LSTATS_MPL.AND.CCTYPE(KNUM) .EQ. 'MPL') THEN
       CALL MPL_STATSREAD(NSEND,SBYTES,NRECV,RBYTES)
@@ -341,7 +341,7 @@ IF(LSTATS) THEN
       ENDIF
       IF(IMEM < NTMEM(KNUM,5)) NTMEM(KNUM,5)=IMEM
     ENDIF
-! Save counters that result in large delays
+    ! Save counters that result in large delays
     IF( KNUM >= 500 .AND. NCALLS(KNUM)/2 > 10 )THEN
       IF( ZTIME > TIMESUM(KNUM)/FLOAT(NCALLS(KNUM)/2) + 0.2_JPRD )THEN
         ! ignore counters 1007 and 1013 due to NFRLW frequency LW radiation calls 
@@ -358,7 +358,7 @@ IF(LSTATS) THEN
       ENDIF
     ENDIF
   ELSEIF( KSWITCH == 2 ) THEN
-! Suspend timing event
+    ! Suspend timing event
     ZTIMED = ZCLOCK-TIMELCALL(KNUM)
     THISTIME(KNUM) = THISTIME(KNUM)+ZTIMED
     THISTCPU(KNUM) = THISTCPU(KNUM)+ZTCPU-TTCPULCALL(KNUM)
@@ -371,7 +371,7 @@ IF(LSTATS) THEN
       RECVBYTES(KNUM)=RECVBYTES(KNUM)+RBYTES
     ENDIF
   ELSEIF( KSWITCH == 3 ) THEN
-! Resume timing event
+    ! Resume timing event
     TIMELCALL(KNUM) = ZCLOCK
     TTCPULCALL(KNUM) = ZTCPU
     TVCPULCALL(KNUM) = ZVCPU
@@ -391,7 +391,7 @@ IF(LSTATS) THEN
     TIME_LAST_CALL = ZCLOCK
   ENDIF
 
-!   Trace stats
+  !   Trace stats
   NCALLS_TOTAL = NCALLS_TOTAL+1
   IF (LTRACE_STATS .AND. NCALLS_TOTAL <= NTRACE_STATS) THEN
     ICALL = NCALLS_TOTAL
@@ -399,7 +399,7 @@ IF(LSTATS) THEN
     NCALL_TRACE(ICALL) = (JPMAXSTAT+1)*KSWITCH+KNUM
   ENDIF
 
-! measure gstats overhead
+  ! measure gstats overhead
   CALL USER_CLOCK(PELAPSED_TIME=ZCLOCK1)
   TIMESUM(400) = TIMESUM(400)+ZCLOCK1-ZCLOCK
   NCALLS(400) = NCALLS(400)+1
