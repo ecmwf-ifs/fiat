@@ -4152,7 +4152,6 @@ c_drhook_print_(const int *ftnunitno,
       int nprof = 0;
       drhook_prof_t *prof = NULL;
       drhook_prof_t *p;
-      double flop_tot = 0, instr_tot = 0;
       double *flop = NULL, *instr = NULL;
 
       if (!opt_wallprof && !opt_cpuprof) return; /* no profiling info available */
@@ -4332,12 +4331,8 @@ c_drhook_print_(const int *ftnunitno,
         p = prof;
         qsort(p, nprof, sizeof(*p), prof_pc_comp_desc);
 
-        flop_tot = 0;
-        instr_tot = 0;
         max_overhead_pc = 0;
         for (t=0; t<numthreads; t++) {
-          flop_tot += flop[t];
-          instr_tot += instr[t];
           if (overhead) {
             max_overhead_pc = MAX(max_overhead_pc,overhead[t]);
 #ifdef DEBUG

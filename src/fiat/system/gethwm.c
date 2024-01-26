@@ -50,7 +50,7 @@ ll_t gethwm()
 #else
 ll_t gethwm()
 {
-  ll_t rc = (ll_t)((char *)sbrk(0) - (char *)0);
+  ll_t rc = (ll_t)((uintptr_t)sbrk(0));
   return rc;
 }
 #endif
