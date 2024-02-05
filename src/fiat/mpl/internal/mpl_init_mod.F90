@@ -332,7 +332,7 @@ IF (CL_TASKSPERNODE(1:1) == ' ' ) THEN
       MPL_NCPU_PER_NODE=32
    ELSE
       MPL_NCPU_PER_NODE=1
-      IF(LLINFO) WRITE(MPL_UNIT,'(A)')'MPL_INIT : MPL_NCPU_PER_NODE = 1 (CAUTION: could not be inferred from hostname!)'
+      !IF(LLINFO) WRITE(MPL_UNIT,'(A)')'MPL_INIT : MPL_NCPU_PER_NODE = 1 (CAUTION: could not be inferred from hostname!)'
    ENDIF
 ELSE
    READ(CL_TASKSPERNODE,*) MPL_NCPU_PER_NODE  
