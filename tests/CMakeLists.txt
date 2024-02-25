@@ -54,6 +54,7 @@ ecbuild_add_executable(
     TARGET  fiat-test-drhook-no-output
     SOURCES test_drhook_no_output.c 
     LIBS    fiat
+    LINKER_LANGUAGE C
     NOINSTALL )
 add_test( NAME fiat_test_drhook_no_output
           COMMAND ${CMAKE_COMMAND}
@@ -74,6 +75,7 @@ ecbuild_add_executable(
     TARGET  fiat-test-drhook-abort
     SOURCES test_drhook_abort.c
     LIBS    fiat
+    LINKER_LANGUAGE C
     NOINSTALL )
 
 
