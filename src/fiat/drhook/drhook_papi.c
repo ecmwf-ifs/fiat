@@ -284,7 +284,7 @@ int drhook_papi_init(int rank){
 	  paperr2 = PAPI_list_events(drhook_papi_event_set[j],events , &number);
 	  if ( paperr2 != PAPI_OK){
 	    failed=true;
-	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: Error quierying events - %d=%s",paperr2,PAPI_strerror(paperr2));
+	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: Error querying events - %d=%s",paperr2,PAPI_strerror(paperr2));
 	    printf("%s\n",pmsg2);
 	  }else {
 #if defined(DEBUG)

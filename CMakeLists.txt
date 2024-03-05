@@ -31,7 +31,7 @@ ecbuild_add_option( FEATURE MPI
 
 ecbuild_add_option( FEATURE PAPI
                     DESCRIPTION "Support for HW counters in drhook via PAPI"
-		    REQUIRED_PACKAGES "OpenMP"
+		    REQUIRED_PACKAGES OpenMP PAPI
 		    )
 		  
 ecbuild_add_option( FEATURE FCKIT
@@ -56,7 +56,6 @@ ecbuild_find_package( NAME Realtime QUIET )
 ### Sources
 
 include( fiat_compiler_warnings )
-include( papi )
 add_subdirectory(src)
 add_subdirectory(share)
 

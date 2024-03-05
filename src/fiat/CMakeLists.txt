@@ -98,6 +98,12 @@ if( HAVE_OMP )
 
 endif()
 
+if ( HAVE_PAPI )
+   target_link_libraries      ( fiat PRIVATE ${PAPI_LIBRARIES} )
+   target_include_directories ( fiat PRIVATE ${PAPI_INCLUDE_DIRS} )
+   target_compile_definitions ( fiat PRIVATE HKPAPI )
+endif()
+
 fiat_target_ignore_missing_symbols( TARGET fiat SYMBOLS
   _MallocExtension_GetNumericProperty
   _MPI_Get_version
