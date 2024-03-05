@@ -8,6 +8,7 @@ contains
     integer*8 n,i
     real(kind=jphook) :: zhook_handle
     n=1000
+#if defined(HAVE_BLAS)
     if (lhook) call dr_hook('GEMM_ALL',0,zhook_handle)
     do i=1,4
        call dgemm_driver(n)
@@ -15,8 +16,10 @@ contains
        n=n*2
     end do
     if (lhook) call dr_hook('GEMM_ALL',1,zhook_handle)
+#endif
   end subroutine gemm_combinations
 
+#if defined(HAVE_BLAS)
   subroutine  dgemm_driver(nn)
     implicit none
     double precision, allocatable :: a(:,:),b(:,:),c(:,:)
@@ -76,5 +79,6 @@ contains
     return
     
   end subroutine sgemm_driver
+#endif
   
 end module gemm_mod

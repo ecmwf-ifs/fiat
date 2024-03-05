@@ -72,7 +72,7 @@ endif()
 ### Program fiat-drhook-sanity
 # Note: it only depends on MPI and OpenMP
 ecbuild_add_executable(TARGET fiat-drhook-sanity
-  SOURCES fiat-drhook-sanity.f90 fiat-drhook-sanity-stream.f90 fiat-drhook-sanity-gemm.f90 mysecond.c
+  SOURCES fiat-drhook-sanity.F90 fiat-drhook-sanity-stream.F90 fiat-drhook-sanity-gemm.F90 mysecond.c
   LIBS    fiat parkind_dp
   )
 target_compile_definitions( fiat-drhook-sanity PRIVATE OMP )

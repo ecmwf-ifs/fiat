@@ -32,7 +32,10 @@ program drhook_sanity
   IF (LHOOK) CALL DR_HOOK('MAIN',0,ZHOOK_HANDLE)
 
   call stream_combinations()
+
+#if defined(HAVE_BLAS)
   call gemm_combinations()
+#endif
   
   IF (LHOOK) CALL DR_HOOK('MAIN',1,ZHOOK_HANDLE)
 
