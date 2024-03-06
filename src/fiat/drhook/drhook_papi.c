@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include "oml.h"
 
 #define STD_MSG_LEN 4096
 
@@ -26,11 +27,7 @@ const char * hookCounters[ NPAPICNTRS ][2]=
    - it should be better than omp_get_thread_num!
 */
 unsigned long safe_thread_num(){
-  unsigned long temp=0;
-#ifdef _OPENMP
-  temp=omp_get_thread_num();
-#endif
-  return temp;
+  return oml_my_thread()-1;
 }
 
 const char * drhook_papi_counter_name(int c,int t){
@@ -215,10 +212,7 @@ int drhook_papi_init(int rank){
     int paperr2,counter;
     int * events;
     int number;
-    int j=1;
-#ifdef _OPENMP
-    j=safe_thread_num();
-#endif
+    int j=safe_thread_num();
     
     char pmsg2[STD_MSG_LEN];
     int k;
