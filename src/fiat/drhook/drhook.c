@@ -4585,6 +4585,7 @@ c_drhook_print_(const int *ftnunitno,
 	} /* for (j=0; j<nprof; ) */
         fclose(fp);
 
+#ifdef HKPAPI
 	if (opt_papi){
 	  p=prof;
 	  int first_counter_is_cyc=0;
@@ -4626,13 +4627,12 @@ c_drhook_print_(const int *ftnunitno,
 			p->counter_self[0]/p->self/1000000.0,
 			p->counter_tot[0]/p->total/1000000.0
 			);
-
 	    }
 	    fprintf(fpcsv,"\n");
 	    p++;
 	  } /* for (j=0; j<nprof; ) */
 	}
-
+#endif
       finish_3:
         free_drhook(filename);
         free_drhook(maxval);
