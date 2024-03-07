@@ -16,6 +16,9 @@ const char * drhook_papi_counter_name(int c,int t);
 long_long drhook_papi_read(int counterId);
 int drhook_papi_readAll(long_long * counterArray);
 
+/* implemented in forrtran */
+int drhook_run_omp_parallel_papi_startup(int * drhook_papi_event_set,int nthreads);
+
 /* a = b - c  
 if  b or c == NULL means use current readings
  */      

@@ -136,20 +136,18 @@ int drhook_papi_init(int rank){
 
   drhook_papi_rank=rank;
 
-#ifdef _OPENMP
-  if (omp_in_parallel()){
-    printf("drhook_papi: Tried to initialise from a parallel region :-(\n");
+  if (oml_in_parallel()){
+    printf("DRHOOK:PAPI: Tried to initialise from a parallel region :-(\n");
     return 0;
   }
-#endif
   
   paperr=PAPI_library_init(PAPI_VER_CURRENT);
   if (paperr !=  PAPI_VER_CURRENT){
-    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI:PAPI_library_init: ret=%d ver=%d ",
+    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI:PAPI_library_init: ret code=%d version loaded =%d ",
 	     paperr,PAPI_VER_CURRENT);
     printf("%s\n",pmsg);
     if (paperr > 0) {
-      snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: library version mismatch!\n");
+      snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: library version mismatch between compilation and run!\n");
       printf("%s\n",pmsg);
       return 0;
     }
@@ -182,10 +180,7 @@ int drhook_papi_init(int rank){
     
   lib_version = PAPI_get_opt( PAPI_LIB_VERSION, NULL );
 
-  int nthreads=1;
-#ifdef _OPENMP
-  nthreads=omp_get_max_threads();
-#endif
+  int nthreads=oml_get_max_threads();
 
   paperr=PAPI_thread_init(safe_thread_num);
   
@@ -195,125 +190,116 @@ int drhook_papi_init(int rank){
     return 0;
   }
 
-    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Version %d.%d.%d initialised with %d threads",
-	     PAPI_VERSION_MAJOR( lib_version ),
-	     PAPI_VERSION_MINOR( lib_version ),
-	     PAPI_VERSION_REVISION( lib_version ),
-	     nthreads );
+  snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Version %d.%d.%d initialised with %d threads",
+	   PAPI_VERSION_MAJOR( lib_version ),
+	   PAPI_VERSION_MINOR( lib_version ),
+	   PAPI_VERSION_REVISION( lib_version ),
+	   nthreads );
   
-    if (drhook_papi_rank==0) printf("%s\n",pmsg);
+  if (drhook_papi_rank==0) printf("%s\n",pmsg);
 
   drhook_papi_event_set=malloc(nthreads*sizeof(int));
 
   int prof_papi_numcntrs;
-  bool failed=false;  
-#pragma omp parallel default(none) shared(drhook_papi_rank,drhook_max_counter_name,hookCounters,drhook_papi_event_set,nthreads,prof_papi_numcntrs,failed)
-  {
-    int paperr2,counter;
-    int * events;
-    int number;
-    int j=safe_thread_num();
-    
-    char pmsg2[STD_MSG_LEN];
-    int k;
-    for (k=0;k<nthreads;k++) {
-#pragma omp barrier
-      if (j==k){
-	drhook_papi_event_set[j]=PAPI_NULL;
-	paperr2=PAPI_create_eventset(&drhook_papi_event_set[j]);
-	if (paperr2 != PAPI_OK){
-	  snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: create event set failed (%s)",PAPI_strerror(paperr2));
-	  printf("%s\n",pmsg2);
-	  failed=true;
-	}
-
-	prof_papi_numcntrs=NPAPICNTRS;
-
-	for (counter=0;counter < prof_papi_numcntrs  ;counter ++){
-	  int eventCode;
-	  snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: %s (%s)",hookCounters[counter][0],hookCounters[counter][1]);
-	  if (drhook_papi_rank==0) if (k==0)printf("%s\n",pmsg2);
-
-	  if (strlen(hookCounters[counter][1]) > drhook_max_counter_name )
-	    drhook_max_counter_name=strlen(hookCounters[counter][1]);
-
-	  paperr2=PAPI_event_name_to_code(hookCounters[counter][0],&eventCode);
-	  if (paperr2 !=PAPI_OK){
-	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: event name to code failed (%s)",PAPI_strerror(paperr2));
-	    printf("%s\n",pmsg2);
-	    PAPI_perror("initPapi");
-	    failed=true;
-	  }
-
-	  paperr2=PAPI_add_event(drhook_papi_event_set[j],eventCode);
-	  if (paperr2!=PAPI_OK){
-	    failed=true;
-	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: add_event failed: %d (%s)",paperr2,PAPI_strerror(paperr2));
-	    printf("%s\n",pmsg2);
-	    if (paperr2 == PAPI_EINVAL)
-	      printf("Invalid argumet");
-	    else if (paperr2 == PAPI_ENOMEM)
-	      printf("Out of Mmemory");
-	    else if (paperr2 == PAPI_ENOEVST)
-	      printf("EventSet does not exist");
-	    else if (paperr2 == PAPI_EISRUN)
-	      printf("EventSet  is running");
-	    else if (paperr2 == PAPI_ECNFLCT)
-	      printf("Conflict");
-	    else if (paperr2 == PAPI_ENOEVNT)
-	      printf("Preset not available");
-	  }else {
-#if defined(DEBUG)
-	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: Added code=%d to Evnt set  %d",eventCode,drhook_papi_event_set[j]);
-	    if (k==0)printf("%s\n",pmsg2);
-#endif
-	  }
-	}
-
-#pragma omp critical (__prof_crit_initPAPI)
-	{
-	  /* get the number of events in the event set */
-	  number=prof_papi_numcntrs;
-	  events=malloc(prof_papi_numcntrs*sizeof(int));
-	  paperr2 = PAPI_list_events(drhook_papi_event_set[j],events , &number);
-	  if ( paperr2 != PAPI_OK){
-	    failed=true;
-	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: Error querying events - %d=%s",paperr2,PAPI_strerror(paperr2));
-	    printf("%s\n",pmsg2);
-	  }else {
-#if defined(DEBUG)
-	    for (counter=0;counter<number;counter++)
-	      {
-		snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: Ev: %d=%d",counter,events[counter]);
-		printf("%s\n",pmsg2);
-	      }
-#endif
-	  }
-
-	  if (number != prof_papi_numcntrs){
-	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: Error checking events - expected=%d got=%d",prof_papi_numcntrs,number);
-	    printf("%s\n",pmsg2);
-	  }
-
-	  paperr2=PAPI_start(drhook_papi_event_set[j]);
-	  if (paperr2 != PAPI_OK) {
-	    snprintf(pmsg2,STD_MSG_LEN,"DRHOOK:PAPI: starting counters failed (%d=%s)",paperr2,PAPI_strerror(paperr2));
-	    printf("%s\n",pmsg2);
-	    failed=true;
-	  }else {
-#if defined(DEBUG)
-	    printf("DRHOOK:PAPI: Started counting for thread %d \n",k);
-#endif
-	  }
-	}
-      }
-    }
-  }
-  if (failed){   drhook_papi_state=drhook_papi_failed ; return 0;}
+  bool failed=false;
+  
+  drhook_run_omp_parallel_papi_startup(drhook_papi_event_set,nthreads);
+  
+  /* if (failed){   drhook_papi_state=drhook_papi_failed ; return 0;} */
   drhook_papi_state=drhook_papi_running;
   if (drhook_papi_rank==0) printf("DRHOOK:PAPI: Initialisation sucess\n");
   return 1;
 }
 
+int dr_hook_papi_start_threads(int * events){
+  int thread=safe_thread_num();
+  int papiErr;
+  char pmsg[STD_MSG_LEN];
 
+  events[thread]=PAPI_NULL;
+  papiErr=PAPI_create_eventset(&events[thread]);
+  if (papiErr != PAPI_OK){
+    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: create event set failed (%s) \n",PAPI_strerror(papiErr));
+    printf("%s\n",pmsg);
+    return 0;
+  } else
+    printf("Event set %d created for thread %d\n",events[thread],thread);
+  
+  int prof_papi_numcntrs=NPAPICNTRS;
+  for (int counter=0;counter < prof_papi_numcntrs  ;counter ++){
+    int eventCode;
+    
+    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: %s (%s)",hookCounters[counter][0],hookCounters[counter][1]);
+    if (drhook_papi_rank==0) if (thread==0)printf("%s\n",pmsg);
+    
+    papiErr=PAPI_event_name_to_code(hookCounters[counter][0],&eventCode);
+    if (papiErr !=PAPI_OK){
+      snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: event name to code failed (%s)",PAPI_strerror(papiErr));
+      printf("%s\n",pmsg);
+      PAPI_perror("initPapi");
+      return 0;
+    }
+
+    papiErr=PAPI_add_event(events[thread],eventCode);
+    if (papiErr!=PAPI_OK){
+      snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: add_event failed: %d (%s)",papiErr,PAPI_strerror(papiErr));
+      printf("%s\n",pmsg);
+      if (papiErr == PAPI_EINVAL)
+	printf("Invalid argumet");
+      else if (papiErr == PAPI_ENOMEM)
+	printf("Out of Mmemory");
+      else if (papiErr == PAPI_ENOEVST)
+	printf("EventSet does not exist");
+      else if (papiErr == PAPI_EISRUN)
+	printf("EventSet  is running");
+      else if (papiErr == PAPI_ECNFLCT)
+	printf("Conflict");
+      else if (papiErr == PAPI_ENOEVNT)
+	printf("Preset not available");
+      return 0;
+    }else {
+#if defined(DEBUG)
+      snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Added code=%d to Evnt set  %d",events[thread]);
+      if (thread==0)printf("%s\n",pmsg);
+#endif
+    }
+  }
+  
+  int number;
+  int * checkEvents=malloc(prof_papi_numcntrs*sizeof(int));
+  papiErr = PAPI_list_events(events[thread],checkEvents , &number);
+  if ( papiErr != PAPI_OK){
+    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Error querying events - %d=%s",papiErr,PAPI_strerror(papiErr));
+    printf("%s\n",pmsg);
+    return 0;
+  }else {
+#if defined(DEBUG)
+    for (counter=0;counter<number;counter++)
+      {
+	snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Ev: %d=%d",counter,events[counter]);
+	printf("%s\n",pmsg);
+      }
+#endif
+  }
+  
+  if (number != prof_papi_numcntrs){
+    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Error checking events - expected=%d got=%d",prof_papi_numcntrs,number);
+    printf("%s\n",pmsg);
+  }
+  
+  papiErr=PAPI_start(events[thread]);
+  
+  if (papiErr != PAPI_OK) {
+    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: starting counters failed (%d=%s)",papiErr,PAPI_strerror(papiErr));
+    printf("%s\n",pmsg);
+    return 0;
+  }else {
+#if defined(DEBUG)
+    printf("DRHOOK:PAPI: Started counting for thread %d \n",thread);
+#endif
+  }
+  
+  return 1;
+}
+  
 #endif

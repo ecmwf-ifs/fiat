@@ -85,7 +85,7 @@ contains
     CHARACTER(len=29) :: tag
 
 !    INTEGER realsize
-    EXTERNAL mysecond !,checktick,realsize
+    EXTERNAL mysecond !,checktick !,realsize
     !     ..
     !     .. Intrinsic Functions ..
     !
@@ -232,7 +232,7 @@ contains
 9000 FORMAT (1x,a,i6,a)
 9010 FORMAT (1x,a,i10)
 9020 FORMAT (1x,a,i7,a)
-9030 FORMAT (1x,a,i3,a,a)
+9030 FORMAT (1x,a,i5,a,a)
 9040 FORMAT ('Function',5x,'Rate (MB/s)  Avg time   Min time  Max time' &
          )
 9050 FORMAT (a,4 (f12.4,2x))
@@ -348,7 +348,7 @@ INTEGER FUNCTION checktick()
   INTRINSIC max,min,nint
   !     ..
   i = 0
-
+  t1=-1
 10 t2 = mysecond()
   IF (t2.EQ.t1) GO TO 10
 
