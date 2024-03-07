@@ -10,6 +10,19 @@
 
 ! These functions are to be used within drhook C methods, to avoid having OMP pragmas there.
 
+module hook_papi_interface
+#ifdef HKPAPI
+  
+  interface
+     function dr_hook_papi_start_threads ( events) bind ( c )
+       use :: iso_c_binding
+       INTEGER(KIND=C_INT) :: dr_hook_papi_start_threads
+       INTEGER(KIND=C_INT), INTENT(INOUT) :: Events(*)
+     end function dr_hook_papi_start_threads
+  end interface
+#endif
+end module hook_papi_interface
+
 subroutine drhook_run_omp_parallel_ipfstr(NTIDS, FUNC, CDSTR)
 ! Usage:
 ! ------
@@ -61,3 +74,33 @@ ICYCLES = ec_get_cycles()
 NCYCLES(IOMPTID) = ICYCLES - NCYCLES(IOMPTID)
 !$OMP END PARALLEL
 end subroutine drhook_run_omp_parallel_get_cycles
+
+#ifdef HKPAPI
+
+subroutine drhook_run_omp_parallel_papi_startup(events,n) bind(c)
+  use, intrinsic :: iso_c_binding, only : c_char, c_int, c_double
+  use hook_papi_interface
+  use OML_MOD
+  implicit none
+  INTEGER(KIND=C_INT), INTENT(INOUT) :: Events(n)
+  INTEGER(KIND=C_INT), VALUE :: n
+  INTEGER(KIND=C_INT)  :: thread
+  INTEGER(KIND=C_INT)  :: rc,rcOut
+  INTEGER  :: myThread
+  INTEGER  :: nThreads
+
+  myThread=OML_MY_THREAD()-1
+  nThreads=OML_GET_MAX_THREADS()
+  rcOut=0
+  !$OMP PARALLEL
+  DO thread=0,nThreads-1
+     if	(thread==myThread) then
+        rc=dr_hook_papi_start_threads(events)
+        if (rc==0)rcOut=1
+     end if
+     !$OMP BARRIER
+  END DO
+  !$OMP END PARALLEL
+
+end subroutine drhook_run_omp_parallel_papi_startup
+#endif

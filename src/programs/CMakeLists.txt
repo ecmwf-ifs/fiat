@@ -55,6 +55,7 @@ find_package( OpenMP COMPONENTS C )
 if( TARGET OpenMP::OpenMP_C )
   target_link_libraries( fiat-printbinding OpenMP::OpenMP_C )
 endif()
+
 find_package( MPI COMPONENTS C )
 if( HAVE_MPI AND TARGET MPI::MPI_C )
   target_link_libraries( fiat-printbinding MPI::MPI_C )
@@ -67,4 +68,31 @@ check_c_compiler_flag( "-Wno-implicit-function-declaration" disable_warning_impl
 if( disable_warning_implicit_function_declaration )
   target_compile_options( fiat-printbinding PRIVATE "-Wno-implicit-function-declaration" )
 endif()
+
+### Program fiat-drhook-sanity
+# Note: it only depends on MPI and OpenMP
+ecbuild_add_executable(TARGET fiat-drhook-sanity
+  SOURCES fiat-drhook-sanity.F90 fiat-drhook-sanity-stream.F90 fiat-drhook-sanity-gemm.F90 mysecond.c
+  LIBS    fiat parkind_dp
+  )
+target_compile_definitions( fiat-drhook-sanity PRIVATE OMP )
+
+ecbuild_info( CMAKE_Fortran_COMPILER_ID -  1. ${CMAKE_Fortran_COMPILER_ID} 2. ${EC_COMPILER_FAMILY}  )
+if( ${CMAKE_Fortran_COMPILER_ID} MATCHES Intel )
+  set_source_files_properties(fiat-drhook-sanity-stream.f90 PROPERTIES COMPILE_FLAGS " -qopt-prefetch-distance=64,12 -qopt-streaming-cache-evict=0 -qopt-streaming-stores always -qopt-zmm-usage=high ")
+endif()
+
+find_package( OpenMP COMPONENTS Fortran )
+if( TARGET OpenMP::OpenMP_Fortran )
+  target_link_libraries( fiat-drhook-sanity OpenMP::OpenMP_Fortran )
+endif()
+target_link_libraries( fiat-drhook-sanity ${MKL_LIBRARIES} )
+
+find_package( MPI COMPONENTS C )
+if( HAVE_MPI AND TARGET MPI::MPI_C )
+  target_link_libraries( fiat-drhook-sanity MPI::MPI_C )
+else()
+  target_compile_definitions( fiat-drhook-sanity PRIVATE NOMPI )
+endif()
+
 
