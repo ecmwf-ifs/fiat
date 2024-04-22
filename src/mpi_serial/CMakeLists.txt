@@ -24,6 +24,7 @@ ecbuild_add_library( TARGET mpi_serial
             mpi_cart_create.F
             mpi_cart_rank.F
             mpi_cart_sub.F
+            mpi_comm_compare.F
             mpi_comm_create.F
             mpi_comm_free.F
             mpi_comm_group.F

@@ -11,30 +11,25 @@ set( HAVE_sp ${HAVE_SINGLE_PRECISION} )
 
 foreach( prec sp dp )
   if( HAVE_${prec} )
-
-  ecbuild_add_library(
-    TARGET  parkind_${prec}
-    SOURCES parkind1.F90 
-            parkind2.F90
-  )
-
-  fiat_target_fortran_module_directory(
-    TARGET            parkind_${prec}
-    MODULE_DIRECTORY  ${CMAKE_BINARY_DIR}/module/parkind_${prec}
-    INSTALL_DIRECTORY module/parkind_${prec}
-  )
-
-  if( ${prec} MATCHES "sp" )
+    set( target parkind_${prec} )
+    ecbuild_add_library(
+      TARGET  ${target}
+      SOURCES parkind1.F90
+              parkind2.F90
+    )
 
     if( EC_OS_BITS EQUAL "64" )
-      target_compile_definitions( parkind_${prec} PRIVATE ADDRESS64 )
+      target_compile_definitions( ${target} PRIVATE ADDRESS64 )
     endif()
 
-    target_compile_definitions( parkind_${prec} PRIVATE PARKIND1_SINGLE )
-
-  endif()
-  
+    fiat_target_fortran_module_directory(
+      TARGET            ${target}
+      MODULE_DIRECTORY  ${CMAKE_BINARY_DIR}/module/${target}
+      INSTALL_DIRECTORY module/${target}
+    )
   endif()
 endforeach()
 
-
+if( TARGET parkind_sp )
+  target_compile_definitions( parkind_sp PRIVATE PARKIND1_SINGLE )
+endif()

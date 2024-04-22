@@ -74,6 +74,7 @@ SUBROUTINE DR_HOOK_ASSERT_MPI_INITIALIZED_()
   CMPIRUN_DETECT(2) = 'ALPS_APP_PE'           ! Cray PE
   CMPIRUN_DETECT(3) = 'PMI_SIZE'              ! Intel
   CMPIRUN_DETECT(4) = 'SLURM_STEP_NUM_TASKS'  ! Slurm
+  ! When adding here, change NVARS parameter above
 
   LMPI_REQUIRED = .FALSE.
   DO IVAR=1,NVARS

@@ -21,6 +21,7 @@ ecbuild_add_executable( TARGET drhook_ex3
 ecbuild_add_executable( TARGET drhook_ex4
   SOURCES drhook_ex4.c
   LIBS fiat ${CMATH_LIBRARIES}
+  LINKER_LANGUAGE C
   NOINSTALL )
 
 ecbuild_add_executable( TARGET drhook_ex5

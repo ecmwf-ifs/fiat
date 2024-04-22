@@ -54,6 +54,7 @@ ecbuild_add_executable(
     TARGET  fiat-test-drhook-no-output
     SOURCES test_drhook_no_output.c 
     LIBS    fiat
+    LINKER_LANGUAGE C
     NOINSTALL )
 add_test( NAME fiat_test_drhook_no_output
           COMMAND ${CMAKE_COMMAND}
@@ -74,6 +75,7 @@ ecbuild_add_executable(
     TARGET  fiat-test-drhook-abort
     SOURCES test_drhook_abort.c
     LIBS    fiat
+    LINKER_LANGUAGE C
     NOINSTALL )
 
 
@@ -168,6 +170,12 @@ endif()
 foreach( lang C CXX Fortran )
   if( CMAKE_${lang}_COMPILER )
     list( APPEND _test_args "-DCMAKE_${lang}_COMPILER=${CMAKE_${lang}_COMPILER}" )
+  endif()
+  if( CMAKE_${lang}_FLAGS )
+    list( APPEND _test_args "-DCMAKE_${lang}_FLAGS=${CMAKE_${lang}_FLAGS}" )
+  endif()
+  if( CMAKE_EXE_LINKER_FLAGS )
+    list( APPEND _test_args "-DCMAKE_EXE_LINKER_FLAGS=${CMAKE_EXE_LINKER_FLAGS}" )
   endif()
 endforeach()
 
