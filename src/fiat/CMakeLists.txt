@@ -8,7 +8,7 @@
 
 ### Assemble list of definitions
 
-if( TARGET fckit )
+if( HAVE_FCKIT )
   list( APPEND FIAT_DEFINITIONS WITH_FCKIT )
 endif()
 
