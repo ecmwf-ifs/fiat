@@ -74,7 +74,7 @@ endif()
 
 target_compile_definitions( fiat PRIVATE ${FIAT_DEFINITIONS} )
 
-if( TARGET fckit )
+if( HAVE_FCKIT )
     target_link_libraries( fiat PRIVATE fckit )
 endif()
 

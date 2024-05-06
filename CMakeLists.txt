@@ -29,9 +29,10 @@ ecbuild_add_option( FEATURE MPI
                     DESCRIPTION "Support for MPI distributed parallelism"
                     REQUIRED_PACKAGES "MPI COMPONENTS Fortran" )
 
+ecbuild_find_package( fckit QUIET )
 ecbuild_add_option( FEATURE FCKIT
                     DESCRIPTION "Support for fckit"
-                    REQUIRED_PACKAGES "fckit QUIET" )
+                    CONDITION fckit_FOUND AND fckit_HAVE_ECKIT )
 
 ecbuild_add_option( FEATURE DR_HOOK_MULTI_PRECISION_HANDLES
                     DESCRIPTION "[DEPRECATED] Support single precision handles for DR_HOOK"
