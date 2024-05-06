@@ -8,7 +8,7 @@
 
 ### Assemble list of definitions
 
-if( TARGET fckit )
+if( HAVE_FCKIT )
   list( APPEND FIAT_DEFINITIONS WITH_FCKIT )
 endif()
 
@@ -74,7 +74,7 @@ endif()
 
 target_compile_definitions( fiat PRIVATE ${FIAT_DEFINITIONS} )
 
-if( TARGET fckit )
+if( HAVE_FCKIT )
     target_link_libraries( fiat PRIVATE fckit )
 endif()
 
