@@ -1,8 +1,10 @@
 #include <unordered_map>
 #include <cstring>
-#include <mpi.h>
 #include <iostream>
 using namespace std;
+
+extern "C" double MPI_Wtime ();
+#pragma weak MPI_Wtime
 
 //extern int map_start(const char * str);
 //extern void map_stop();

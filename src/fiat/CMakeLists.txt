@@ -77,6 +77,7 @@ ecbuild_add_library( TARGET fiat
 if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
    target_link_libraries(fiat PUBLIC ${NVTOOLSEXT_LIB})
    target_link_libraries(fiat PUBLIC ${NVHPCWRAPNVTX_LIB})
+   target_include_directories(fiat PRIVATE "${CUDAToolkit_LIBRARY_DIR}/../include")
 endif()
 
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
