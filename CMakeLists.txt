@@ -51,6 +51,21 @@ ecbuild_add_option( FEATURE WARNINGS
 
 ecbuild_find_package( NAME Realtime QUIET )
 
+#### 
+
+if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
+
+ find_package(CUDAToolkit REQUIRED COMPONENTS nvtx3)
+ find_package(NVHPC REQUIRED COMPONENTS HOSTUTILS)
+   
+ find_library(NVTOOLSEXT_LIB NAMES nvToolsExt  REQUIRED HINTS ${CUDAToolkit_LIBRARY_DIR})
+ find_library(NVHPCWRAPNVTX_LIB NAMES nvhpcwrapnvtx  REQUIRED HINTS  ${NVHPC_HOSTUTILS_LIBRARY_DIR} )
+
+endif()
+ 
+
+
+
 ### Sources
 
 include( fiat_compiler_warnings )
