@@ -44,6 +44,12 @@ endif()
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/library/version.c.in ${CMAKE_CURRENT_BINARY_DIR}/version.c @ONLY )
 
 ecbuild_list_add_pattern( LIST fiat_src GLOB *.c *.F* *.cc )
+if(NOT (CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" ))
+	# The files in the mynvtx directory are only intended to work with NVHPC
+	#	So don't try to compile them when using another compiler
+	ecbuild_list_exclude_pattern( LIST fiat_src REGEX mynvtx/* )
+endif()
+
 set( fiat_src ${fiat_src} PARENT_SCOPE )
 
 ecbuild_add_library( TARGET fiat
@@ -65,6 +71,14 @@ ecbuild_add_library( TARGET fiat
         $<INSTALL_INTERFACE:include/fiat>
 )
 
+
+## if compiler is pgi  add two libs 
+
+if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
+   target_link_libraries(fiat PUBLIC ${NVTOOLSEXT_LIB})
+   target_link_libraries(fiat PUBLIC ${NVHPCWRAPNVTX_LIB})
+   target_include_directories(fiat PRIVATE "${CUDAToolkit_LIBRARY_DIR}/../include")
+endif()
 
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
   # Following should not be necessary; 
