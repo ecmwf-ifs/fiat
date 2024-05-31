@@ -32,9 +32,9 @@ if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
 endif()
 
 if( CMAKE_Fortran_COMPILER_ID MATCHES "GNU" )
-  ecbuild_add_fortran_flags( -ffree-line-length-none NO_FAIL )
+  ecbuild_add_fortran_flags( -ffree-line-length-none )
   if( CMAKE_Fortran_COMPILER_VERSION GREATER_EQUAL 10 )
-      ecbuild_add_fortran_flags( -fallow-argument-mismatch NO_FAIL )
+      ecbuild_add_fortran_flags( -fallow-argument-mismatch )
   endif()
 endif()
 
@@ -58,7 +58,7 @@ ecbuild_add_library( TARGET fiat
     PRIVATE_LIBS 
         ${CMAKE_DL_LIBS}
         ${RT_LIB}
-   PRIVATE_INCLUDES
+    PRIVATE_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/drhook/internal
         ${CMAKE_CURRENT_SOURCE_DIR}/ecsort/internal
         ${CMAKE_CURRENT_SOURCE_DIR}/util/internal

@@ -86,14 +86,9 @@ ecbuild_add_library( TARGET mpi_serial
 
 ## Install and Export ##
 
-if( ${HAVE_DUMMY_MPI_HEADER} )
-
-  install(
-      FILES
-          ${CMAKE_CURRENT_SOURCE_DIR}/mpif.h
-      DESTINATION
-          include/mpi_serial
-  )
-
-endif()
-
+install(
+    FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpif.h
+    DESTINATION
+        include/mpi_serial
+)
