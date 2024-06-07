@@ -33,7 +33,7 @@ jobs:
         name:
           - linux gnu-10
           - linux clang-12
-          - linux nvhpc-21.9
+          - linux nvhpc-24.3
           - linux intel-classic
           - macos
 
@@ -64,9 +64,9 @@ jobs:
             compiler_fc: gfortran-10
             caching: true
 
-          - name: linux nvhpc-21.9
+          - name: linux nvhpc-24.3
             os: ubuntu-20.04
-            compiler: nvhpc-21.9
+            compiler: nvhpc-24.3
             compiler_cc: nvc
             compiler_cxx: nvc++
             compiler_fc: nvfortran
