@@ -12,7 +12,7 @@
 # See <https://creativecommons.org/publicdomain/zero/1.0/> for
 # details.
 
-version=21.9
+version=24.3
 
 TEMPORARY_FILES="${TMPDIR:-/tmp}"
 export NVHPC_INSTALL_DIR=$(pwd)/nvhpc-install
@@ -55,8 +55,8 @@ if [ -d "${NVHPC_INSTALL_DIR}" ]; then
     fi
 fi
 
-# Example download URL for version 21.9
-#    https://developer.download.nvidia.com/hpc-sdk/21.9/nvhpc_2020_219_Linux_x86_64_cuda_11.0.tar.gz
+# Example download URL for version 24.3
+#    https://developer.download.nvidia.com/hpc-sdk/24.3/nvhpc_2020_219_Linux_x86_64_cuda_11.0.tar.gz
 
 ver="$(echo $version | tr -d . )"
 URL=$(curl -s "https://developer.nvidia.com/nvidia-hpc-sdk-$ver-downloads" | grep -oP "https://developer.download.nvidia.com/hpc-sdk/([0-9]{2}\.[0-9]+)/nvhpc_([0-9]{4})_([0-9]+)_Linux_$(uname -m)_cuda_([0-9\.]+).tar.gz" | sort | tail -1)

@@ -13,7 +13,7 @@ USE EC_PARKIND , ONLY : JPIM, JPRD
 USE OML_MOD    , ONLY : OML_MY_THREAD
 USE YOMHOOK    , ONLY : LHOOK
 USE DR_HACK_MOD, ONLY : LL_DRHACK, DR_HACK_INIT, DR_HACK
-#ifdef __PGI
+#ifdef HAVE_DR_NVTX
 USE NVTX
 USE DR_NVTX
 #endif
@@ -37,13 +37,13 @@ INTEGER(KIND=8)    :: MAXMEM=0 ! For comparing memory between HEAPCHECK_START an
 
 #include "dr_hook_init.intfb.h"
 
-#ifdef __PGI
+#ifdef HAVE_DR_NVTX
 INTEGER, SAVE :: II_DRNVTX = 0 ! 0=no initialized, -1=nvtx off, +1=nvtx on
 CHARACTER*32 :: CL_NVTX
 #endif
 
 
-#ifdef __PGI
+#ifdef HAVE_DR_NVTX
 IF (II_DRNVTX == 0) THEN
   CALL GETENV ('DR_NVTX', CL_NVTX)
   IF (CL_NVTX == '1') THEN
