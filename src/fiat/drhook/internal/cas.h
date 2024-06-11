@@ -23,7 +23,13 @@
 #define INLINE __inline__
 #endif
 
-#if defined(__GNUC__) && !defined(__NEC__) && !defined(__PGI)
+#if defined(__PGIC__) && defined(__PGIC_MINOR__)
+#if __PGIC__ <= 20 && __PGIC_MINOR__ < 7
+#define PGI_NO_SUPPORT
+#endif
+#endif
+
+#if defined(__GNUC__) && !defined(__NEC__) && !defined(PGI_NO_SUPPORT)
 
 #define CAS(lock,oldval,newval) __sync_bool_compare_and_swap(lock,oldval,newval)
 
