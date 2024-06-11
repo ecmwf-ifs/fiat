@@ -159,7 +159,7 @@ static char *end_stamp = NULL;
 static int numthreads = 0;
 static int myproc = 1;
 static int nproc = -1;
-static int max_threads = 1;
+//static int max_threads = 1;
 
 typedef struct drhook_prefix_t {
   char s[3840];
@@ -1607,7 +1607,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
     
     /* if (sig != SIGTERM) signal(SIGTERM, SIG_DFL); */  /* Let the default SIGTERM to occur */
     
-    max_threads = drhook_oml_get_max_threads();
+    // max_threads = drhook_oml_get_max_threads();
     if (nsigs == 1) {
       /*---- First call to signal handler: call alarm(drhook_harakiri_timeout), tracebacks,  exit ------*/
       
@@ -3393,7 +3393,7 @@ c_drhook_init_(const char *progname,
                ,int progname_len)
 {
   init_drhook(*num_threads);
-  max_threads = MAX(1,*num_threads);
+  //max_threads = MAX(1,*num_threads);
   if (a_out) free_drhook(a_out);
   progname = trim(progname, &progname_len);  
   if (progname_len > 0) {
