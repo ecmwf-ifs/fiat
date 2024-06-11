@@ -71,7 +71,8 @@ endif()
 ecbuild_add_test( TARGET fiat_test_drhook_ex5
                   COMMAND drhook_ex5
                   MPI 2
-                  ENVIRONMENT DR_HOOK=1 DR_HOOK_SILENT=1 )
+                  ENVIRONMENT DR_HOOK=1 DR_HOOK_SILENT=1
+                  CONDITION HAVE_MPI )
 
 # TODO:
 # Better parse output to see if it matches.
