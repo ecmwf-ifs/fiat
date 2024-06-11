@@ -23,6 +23,9 @@ ecbuild_add_executable( TARGET drhook_ex4
   LIBS fiat ${CMATH_LIBRARIES}
   LINKER_LANGUAGE C
   NOINSTALL )
+if( CMAKE_C_COMPILER_ID MATCHES "PGI|NVHPC" )
+  target_compile_options( drhook_ex4 PUBLIC -Ktrap=fp )
+endif()
 
 ecbuild_add_executable( TARGET drhook_ex5
   SOURCES drhook_ex5.F90

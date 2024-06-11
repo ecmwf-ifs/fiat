@@ -33,7 +33,7 @@ jobs:
         name:
           - linux gnu-10
           - linux clang-12
-          - linux nvhpc-21.9
+          - linux nvhpc-24.3
           - linux intel-classic
           - macos
 
@@ -64,9 +64,9 @@ jobs:
             compiler_fc: gfortran-10
             caching: true
 
-          - name: linux nvhpc-21.9
+          - name: linux nvhpc-24.3
             os: ubuntu-20.04
-            compiler: nvhpc-21.9
+            compiler: nvhpc-24.3
             compiler_cc: nvc
             compiler_cxx: nvc++
             compiler_fc: nvfortran
@@ -120,6 +120,25 @@ jobs:
         path: ${{ env.DEPS_DIR }}
         key: deps-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ env.CACHE_SUFFIX }}
 
+    # Free up disk space for nvhpc
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      if: contains( matrix.compiler, 'nvhpc' )
+      continue-on-error: true
+      with:
+        # this might remove tools that are actually needed,
+        # if set to "true" but frees about 6 GB
+        tool-cache: false
+
+        # all of these default to true, but feel free to set to
+        # "false" if necessary for your workflow
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
+
     - name: Install NVHPC compiler
       if: contains( matrix.compiler, 'nvhpc' )
       shell: bash -eux {0}
@@ -127,6 +146,7 @@ jobs:
         ${FIAT_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc
         source /opt/nvhpc/env.sh
         echo "${NVHPC_DIR}/compilers/bin"                   >> $GITHUB_PATH
+        echo "NVHPC_ROOT=${NVHPC_DIR}"                      >> $GITHUB_ENV
         [ -z ${MPI_HOME+x} ] || echo "MPI_HOME=${MPI_HOME}" >> $GITHUB_ENV
         echo "FIAT_TEST_IGNORE_MPI_OUTPUT=1"                >> $GITHUB_ENV
 
