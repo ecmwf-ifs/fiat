@@ -22,11 +22,17 @@
 
 #if defined(LINUX)
 
-#if defined(__PGI)
-#warning PGI (tested up to 19.4) does not support __sync_fetch_and_add, skipping memory_hook
+#if defined(__PGIC__) && defined(__PGIC_MINOR__)
+#if __PGIC__ <= 20 && __PGIC_MINOR__ < 7
+#define SKIP_MEMORY_HOOK
+#endif
+#endif
+#if defined(SKIP_MEMORY_HOOK)
+#warning PGI/NVHPC (tested up to 19.4) does not support __sync_fetch_and_add, skipping memory_hook
 /*
  * Comments/Modifications by Willem Deconinck, ECMWF
- * Problem with PGI: undefined symbol __sync_fetch_and_add
+ * Problem with PGI tested up to 19.4: undefined symbol __sync_fetch_and_add
+ * Test with NVHPC 20.7 works, unsure about versions between 19.4 and 20.7
  *
  * --> Is this not GNU specific rather than LINUX?
  * + C11 has new standard API available in <stdatomic.h>,
