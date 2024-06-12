@@ -17,7 +17,7 @@ real(jphook) :: zhook_handle
 
 call dr_hook('drnvtx_ex1',0,zhook_handle)
 
-call sub (3)
+call sub (0)
 
 call dr_hook('drnvtx_ex1',1,zhook_handle)
 
@@ -32,7 +32,7 @@ real(jphook) :: zhook_handle
 
 integer :: i
 
-if (depth <= 0) return
+if (depth > irand (2, 4)) return
 
 do i = 1, len (clname)
   clname (i:i) = ' '
@@ -42,12 +42,19 @@ do i = 1, 16
   clname (i:i) = char (irand (ichar ('A'), ichar ('Z')))
 enddo
 
+do i = 1, depth
+  write (*, '("  ")', advance='no') 
+enddo
+
+write (*, '(" - ",A)') clname (1:16)
+
 call dr_hook(clname,0,zhook_handle)
 
 call sleep (real (irand (10, 200)))
 
-do i = 1, irand (0, 4)
-  call sub (depth-1)
+
+do i = 1, irand (1, 4)
+  call sub (depth+1)
   call sleep (real (irand (10, 200)))
 enddo
 
