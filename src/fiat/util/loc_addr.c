@@ -16,5 +16,5 @@
 intptr_t
 loc_addr_(const char *p)
 {
-  return (intptr_t)(p) - (const intptr_t)(0);
+  return (intptr_t)(p) - (intptr_t)(0);
 }

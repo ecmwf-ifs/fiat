@@ -123,7 +123,7 @@ jobs:
     # Free up disk space for nvhpc
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
-      if: contains( matrix.arch, 'nvhpc' )
+      if: contains( matrix.compiler, 'nvhpc' )
       continue-on-error: true
       with:
         # this might remove tools that are actually needed,
@@ -146,6 +146,7 @@ jobs:
         ${FIAT_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc
         source /opt/nvhpc/env.sh
         echo "${NVHPC_DIR}/compilers/bin"                   >> $GITHUB_PATH
+        echo "NVHPC_ROOT=${NVHPC_DIR}"                      >> $GITHUB_ENV
         [ -z ${MPI_HOME+x} ] || echo "MPI_HOME=${MPI_HOME}" >> $GITHUB_ENV
         echo "FIAT_TEST_IGNORE_MPI_OUTPUT=1"                >> $GITHUB_ENV
 
