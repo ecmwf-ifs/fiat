@@ -43,6 +43,9 @@ endif()
 add_subdirectory( drhook )
 
 
+if (HAVE_DR_NVTX)
+  add_subdirectory( drnvtx )
+endif ()
 
 
 # ----------------------------------------------------------------------------------------

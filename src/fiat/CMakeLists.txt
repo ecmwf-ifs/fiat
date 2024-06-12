@@ -79,6 +79,7 @@ if (HAVE_DR_NVTX)
    target_link_libraries(fiat PUBLIC ${NVTOOLSEXT_LIB})
    target_link_libraries(fiat PUBLIC ${NVHPCWRAPNVTX_LIB})
    target_include_directories(fiat PRIVATE "${CUDAToolkit_LIBRARY_DIR}/../include")
+   add_compile_definitions(HAVE_DR_NVTX)
 endif()
 
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
