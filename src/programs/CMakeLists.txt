@@ -55,6 +55,7 @@ find_package( OpenMP COMPONENTS C )
 if( TARGET OpenMP::OpenMP_C )
   target_link_libraries( fiat-printbinding OpenMP::OpenMP_C )
 endif()
+
 find_package( MPI COMPONENTS C )
 if( HAVE_MPI AND TARGET MPI::MPI_C )
   target_link_libraries( fiat-printbinding MPI::MPI_C )
@@ -67,4 +68,3 @@ check_c_compiler_flag( "-Wno-implicit-function-declaration" disable_warning_impl
 if( disable_warning_implicit_function_declaration )
   target_compile_options( fiat-printbinding PRIVATE "-Wno-implicit-function-declaration" )
 endif()
-
