@@ -273,10 +273,10 @@ int dr_hook_papi_start_threads(int* events){
     }
   }
   
-  int number;
-  int * checkEvents=malloc(prof_papi_numcntrs*sizeof(int));
-  papiErr = PAPI_list_events(events[thread],checkEvents , &number);
-  if ( papiErr != PAPI_OK){
+  int number = prof_papi_numcntrs;
+  int* checkEvents=malloc(prof_papi_numcntrs*sizeof(int));
+  papiErr = PAPI_list_events(events[thread], checkEvents, &number);
+  if (papiErr != PAPI_OK){
     snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Error querying events - %d=%s",papiErr,PAPI_strerror(papiErr));
     printf("%s\n",pmsg);
     return 0;
