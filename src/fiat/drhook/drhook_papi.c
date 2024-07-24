@@ -8,6 +8,8 @@
 
 #define STD_MSG_LEN 4096
 
+static int silent = 0;
+
 int*  drhook_papi_event_set=NULL;
 enum {
   drhook_papi_notstarted,
@@ -129,8 +131,8 @@ int drhook_papi_init(int rank){
   int lib_version;
   char pmsg[STD_MSG_LEN];
   int paperr=-1;
+  char *env;
 
-  
   if (drhook_papi_state==drhook_papi_running) return 1;
   if (drhook_papi_state==drhook_papi_failed) return 0;
 
@@ -140,6 +142,9 @@ int drhook_papi_init(int rank){
     printf("DRHOOK:PAPI: Tried to initialise from a parallel region :-(\n");
     return 0;
   }
+
+  env = getenv("DR_HOOK_SILENT");
+  silent = env ? atoi(env) : silent;
   
   paperr=PAPI_library_init(PAPI_VER_CURRENT);
   if (paperr != PAPI_VER_CURRENT){
@@ -196,7 +201,7 @@ int drhook_papi_init(int rank){
 	   PAPI_VERSION_REVISION( lib_version ),
 	   nthreads );
   
-  if (drhook_papi_rank==0) printf("%s\n",pmsg);
+  if (drhook_papi_rank==0 && !silent) printf("%s\n",pmsg);
 
   drhook_papi_event_set=malloc(nthreads*sizeof(int));
 
@@ -207,7 +212,7 @@ int drhook_papi_init(int rank){
   
   /* if (failed){   drhook_papi_state=drhook_papi_failed ; return 0;} */
   drhook_papi_state=drhook_papi_running;
-  if (drhook_papi_rank==0) printf("DRHOOK:PAPI: Initialisation sucess\n");
+  if (drhook_papi_rank==0 && !silent) printf("DRHOOK:PAPI: Initialisation sucess\n");
   return 1;
 }
 
@@ -224,16 +229,18 @@ int dr_hook_papi_start_threads(int* events){
     return 0;
   }
   
-  printf("DRHOOK:PAPI: Event set %d created for thread %d\n",events[thread],thread);
+  if (!silent) printf("DRHOOK:PAPI: Event set %d created for thread %d\n",events[thread],thread);
   
   int prof_papi_numcntrs=NPAPICNTRS;
   for (int counter=0; counter < prof_papi_numcntrs; counter ++){
     int eventCode;
     
-    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: %s (%s)",hookCounters[counter][0],hookCounters[counter][1]);
-    if (drhook_papi_rank==0) {
-      if (thread==0) {
-        printf("%s\n",pmsg);
+    if (!silent) {
+      snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: %s (%s)",hookCounters[counter][0],hookCounters[counter][1]);
+      if (drhook_papi_rank==0) {
+        if (thread==0) {
+          printf("%s\n",pmsg);
+        }
       }
     }
     
