@@ -1,4 +1,4 @@
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
 #include "drhook_papi.h"
 #include <stdio.h>
 #include <stdbool.h>
@@ -8,20 +8,22 @@
 
 #define STD_MSG_LEN 4096
 
-int *  drhook_papi_event_set=NULL;
-enum {drhook_papi_notstarted,drhook_papi_running,drhook_papi_failed};
-int    drhook_papi_state=0;
+int*  drhook_papi_event_set=NULL;
+enum {
+  drhook_papi_notstarted,
+  drhook_papi_running,
+  drhook_papi_failed
+};
+int    drhook_papi_state=drhook_papi_notstarted;
 int    drhook_papi_rank=0; /* C style! */
-size_t drhook_max_counter_name=0;
 
 /* hardwired for now */
-const char * hookCounters[ NPAPICNTRS ][2]=
-  {
+const char* hookCounters[NPAPICNTRS][2]= {
    {"PAPI_TOT_CYC","Cycles"},
    {"PAPI_FP_OPS","FP Operations"},
    {"PAPI_L1_DCA","L1 Access"},
    {"PAPI_L2_DCM","L2 Miss"}
-  };
+};
 
 /* function to use for thread id 
    - it should be better than omp_get_thread_num!
@@ -30,7 +32,7 @@ unsigned long safe_thread_num(){
   return oml_my_thread()-1;
 }
 
-const char * drhook_papi_counter_name(int c,int t){
+const char* drhook_papi_counter_name(int c,int t){
   return hookCounters[c][t];
 }
 
@@ -46,7 +48,7 @@ void drhook_papi_bzero(long_long* a){
   }
 }
 
-void drhook_papi_print(char * s,long_long* a,int header){
+void drhook_papi_print(char* s, long_long* a, int header){
   char msg[STD_MSG_LEN];
   if (header>0){
     char fmt[STD_MSG_LEN];
@@ -88,8 +90,6 @@ void drhook_papi_add(long_long* a,long_long* b, long_long* c){
   }
 }
 
-
-
 // number of counters available to read
 int drhook_papi_num_counters(){
   return NPAPICNTRS;
@@ -115,7 +115,7 @@ int drhook_papi_readAll(long_long * counterArray){
     printf("DRHOOK:PAPI:PAPI_read: Error reading counters, thread=%ld es=%d %s\n",safe_thread_num(),drhook_papi_event_set[safe_thread_num()],PAPI_strerror(err));
   }
 #if defined(DEBUG)
-  drhook_papi_print("readAll:",counterArray);
+  drhook_papi_print("readAll:",counterArray,0);
 #endif
   return err;
 }
@@ -142,7 +142,7 @@ int drhook_papi_init(int rank){
   }
   
   paperr=PAPI_library_init(PAPI_VER_CURRENT);
-  if (paperr !=  PAPI_VER_CURRENT){
+  if (paperr != PAPI_VER_CURRENT){
     snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI:PAPI_library_init: ret code=%d version loaded =%d ",
 	     paperr,PAPI_VER_CURRENT);
     printf("%s\n",pmsg);
@@ -211,7 +211,7 @@ int drhook_papi_init(int rank){
   return 1;
 }
 
-int dr_hook_papi_start_threads(int * events){
+int dr_hook_papi_start_threads(int* events){
   int thread=safe_thread_num();
   int papiErr;
   char pmsg[STD_MSG_LEN];
@@ -222,18 +222,23 @@ int dr_hook_papi_start_threads(int * events){
     snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: create event set failed (%s) \n",PAPI_strerror(papiErr));
     printf("%s\n",pmsg);
     return 0;
-  } else
-    printf("Event set %d created for thread %d\n",events[thread],thread);
+  }
+  
+  printf("DRHOOK:PAPI: Event set %d created for thread %d\n",events[thread],thread);
   
   int prof_papi_numcntrs=NPAPICNTRS;
-  for (int counter=0;counter < prof_papi_numcntrs  ;counter ++){
+  for (int counter=0; counter < prof_papi_numcntrs; counter ++){
     int eventCode;
     
     snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: %s (%s)",hookCounters[counter][0],hookCounters[counter][1]);
-    if (drhook_papi_rank==0) if (thread==0)printf("%s\n",pmsg);
+    if (drhook_papi_rank==0) {
+      if (thread==0) {
+        printf("%s\n",pmsg);
+      }
+    }
     
     papiErr=PAPI_event_name_to_code(hookCounters[counter][0],&eventCode);
-    if (papiErr !=PAPI_OK){
+    if (papiErr != PAPI_OK){
       snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: event name to code failed (%s)",PAPI_strerror(papiErr));
       printf("%s\n",pmsg);
       PAPI_perror("initPapi");
@@ -245,22 +250,25 @@ int dr_hook_papi_start_threads(int * events){
       snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: add_event failed: %d (%s)",papiErr,PAPI_strerror(papiErr));
       printf("%s\n",pmsg);
       if (papiErr == PAPI_EINVAL)
-	printf("Invalid argumet");
+	      printf("Invalid argumet");
       else if (papiErr == PAPI_ENOMEM)
-	printf("Out of Mmemory");
+	      printf("Out of Mmemory");
       else if (papiErr == PAPI_ENOEVST)
-	printf("EventSet does not exist");
+	      printf("EventSet does not exist");
       else if (papiErr == PAPI_EISRUN)
-	printf("EventSet  is running");
+	      printf("EventSet  is running");
       else if (papiErr == PAPI_ECNFLCT)
-	printf("Conflict");
+	      printf("Conflict");
       else if (papiErr == PAPI_ENOEVNT)
-	printf("Preset not available");
+	      printf("Preset not available");
       return 0;
-    }else {
+    }
+    else {
 #if defined(DEBUG)
-      snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Added code=%d to Evnt set  %d",events[thread]);
-      if (thread==0)printf("%s\n",pmsg);
+      snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Added code=%d to Event set %d",eventCode, events[thread]);
+      if (thread==0) {
+        printf("%s\n",pmsg);
+      }
 #endif
     }
   }
@@ -272,15 +280,13 @@ int dr_hook_papi_start_threads(int * events){
     snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Error querying events - %d=%s",papiErr,PAPI_strerror(papiErr));
     printf("%s\n",pmsg);
     return 0;
-  }else {
-#if defined(DEBUG)
-    for (counter=0;counter<number;counter++)
-      {
-	snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Ev: %d=%d",counter,events[counter]);
-	printf("%s\n",pmsg);
-      }
-#endif
   }
+#if defined(DEBUG)
+  for (int counter=0;counter<number;counter++) {
+  	snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Ev: %d=%d",counter,events[counter]);
+	  printf("%s\n",pmsg);
+  }
+#endif
   
   if (number != prof_papi_numcntrs){
     snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Error checking events - expected=%d got=%d",prof_papi_numcntrs,number);
@@ -293,11 +299,11 @@ int dr_hook_papi_start_threads(int * events){
     snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: starting counters failed (%d=%s)",papiErr,PAPI_strerror(papiErr));
     printf("%s\n",pmsg);
     return 0;
-  }else {
-#if defined(DEBUG)
-    printf("DRHOOK:PAPI: Started counting for thread %d \n",thread);
-#endif
   }
+
+#if defined(DEBUG)
+  printf("DRHOOK:PAPI: Started counting for thread %d \n",thread);
+#endif
   
   return 1;
 }

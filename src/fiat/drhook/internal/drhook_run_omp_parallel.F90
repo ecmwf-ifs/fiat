@@ -10,18 +10,17 @@
 
 ! These functions are to be used within drhook C methods, to avoid having OMP pragmas there.
 
-module hook_papi_interface
-#ifdef HKPAPI
-  
+module drhook_papi_interface
+#if defined(DR_HOOK_HAVE_PAPI)
   interface
      function dr_hook_papi_start_threads ( events) bind ( c )
-       use :: iso_c_binding
-       INTEGER(KIND=C_INT) :: dr_hook_papi_start_threads
-       INTEGER(KIND=C_INT), INTENT(INOUT) :: Events(*)
+       use, intrinsic :: iso_c_binding, only : c_int
+       integer(kind=c_int) :: dr_hook_papi_start_threads
+       integer(kind=c_int), intent(inout) :: events(*)
      end function dr_hook_papi_start_threads
   end interface
 #endif
-end module hook_papi_interface
+end module drhook_papi_interface
 
 subroutine drhook_run_omp_parallel_ipfstr(NTIDS, FUNC, CDSTR)
 ! Usage:
@@ -75,11 +74,11 @@ NCYCLES(IOMPTID) = ICYCLES - NCYCLES(IOMPTID)
 !$OMP END PARALLEL
 end subroutine drhook_run_omp_parallel_get_cycles
 
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
 
 subroutine drhook_run_omp_parallel_papi_startup(events,n) bind(c)
   use, intrinsic :: iso_c_binding, only : c_char, c_int, c_double
-  use hook_papi_interface
+  use drhook_papi_interface
   use OML_MOD
   implicit none
   INTEGER(KIND=C_INT), INTENT(INOUT) :: Events(n)

@@ -473,7 +473,7 @@ typedef struct drhook_key_t {
   long long int mem_maxhwm, mem_maxrss, mem_maxstk, mem_maxpagdelta;
   long long int paging_in;
 
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
   long_long counters_in[NPAPICNTRS];
   long_long delta_counters_all[NPAPICNTRS];
   long_long delta_counters_child[NPAPICNTRS];
@@ -507,7 +507,7 @@ typedef struct drhook_prof_t {
   double pc;
   double total;
   double self;
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
   long_long counter_tot[NPAPICNTRS];
   long_long counter_self[NPAPICNTRS];
 #endif
@@ -1060,7 +1060,7 @@ remove_calltree(int tid, drhook_key_t *keyptr,
       if (treeptr->prev) {
         drhook_key_t *parent_keyptr = treeptr->prev->keyptr;
         if (parent_keyptr) { /* extra security */
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
 	  drhook_papi_add(NULL,
 			parent_keyptr->delta_counters_child,
 			delta_counters
@@ -2827,7 +2827,7 @@ getkey(int tid, const char *name, int name_len,
         if (opt_walltime) keyptr->wall_in = walltime ? *walltime : WALLTIME();
         if (opt_cputime) keyptr->cpu_in  = cputime ? *cputime : CPUTIME();
         if (opt_cycles) keyptr->cycles_in  = cycles ? *cycles : ec_get_cycles();	
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
 	drhook_papi_readAll(keyptr->counters_in);
 #endif
         if (any_memstat) memstat(keyptr,&tid,1);
@@ -2932,7 +2932,7 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
     double delta_wall = 0;
     double delta_cpu  = 0;
     long_long * delta_counters=NULL;
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
     delta_counters=alloca(drhook_papi_num_counters() * sizeof(long_long) );
     drhook_papi_bzero(delta_counters);
 #endif
@@ -2965,7 +2965,7 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
     if (opt_walltime) keyptr->delta_wall_all   += delta_wall;
     if (opt_cputime)  keyptr->delta_cpu_all    += delta_cpu;
     if (opt_cycles)   keyptr->delta_cycles_all += delta_cycles;
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
     drhook_papi_subtract(delta_counters, NULL , keyptr->counters_in);
     drhook_papi_add(NULL,   keyptr->delta_counters_all, delta_counters);
 #endif
@@ -3095,7 +3095,7 @@ itself(drhook_key_t *keyptr_self,
     if (opt == 0) {
       if (opt_wallprof) keyptr->wall_in = walltime ? *walltime : WALLTIME();
       else              keyptr->cpu_in = cputime ? *cputime : CPUTIME();
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
       drhook_papi_readAll(keyptr->counters_in);
 #endif
       keyptr->calls++;
@@ -3112,7 +3112,8 @@ itself(drhook_key_t *keyptr_self,
       }
       if (delta_time) *delta_time = delta;
 
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
+
       long_long cntrs_delta[NPAPICNTRS];
 
       /* cntrs_delta = current - counters_in */
@@ -3412,7 +3413,7 @@ c_drhook_check_watch_(const char *where,
 }
 
 /*** PUBLIC ***/
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
 #define PAPIREAD \
   long_long cntrs[NPAPICNTRS]; \
   drhook_papi_readAll(cntrs)
@@ -3509,7 +3510,7 @@ c_drhook_init_(const char *progname,
     tabort_delete_lockfile();
     drhook_delete_lockfile();
   }
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
   drhook_papi_init(myproc -1);
 #endif
 
@@ -4308,7 +4309,7 @@ c_drhook_print_(const int *ftnunitno,
           drhook_key_t *keyptr = &keydata[t][j];
           while (keyptr) {
             if (keyptr->name && (keyptr->status == 0 || signal_handler_called)) {
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
 	      drhook_papi_subtract(p->counter_self,
 				   keyptr->delta_counters_all,
 				   keyptr->delta_counters_child);
@@ -4580,7 +4581,7 @@ c_drhook_print_(const int *ftnunitno,
 	} /* for (j=0; j<nprof; ) */
         fclose(fp);
 
-#ifdef HKPAPI
+#if defined(DR_HOOK_HAVE_PAPI)
 	if (opt_papi){
 	  p=prof;
 	  int first_counter_is_cyc=0;

@@ -1,4 +1,4 @@
-MODULE stream_mod  
+MODULE test_drhook_counters_stream_mod
   !=======================================================================
   ! Program: STREAM
   ! Programmer: John D. McCalpin
@@ -45,19 +45,23 @@ MODULE stream_mod
   use yomhook, only : lhook,dr_hook,jphook
 
 contains
-  subroutine stream_combinations()
+  subroutine stream_combinations(n_init)
     implicit none
-    integer*8 n,ntimes,i
+    integer(kind=8), intent(in), optional :: n_init
+    integer(kind=8) :: n, ntimes, i
     real(kind=jphook) :: zhook_handle
     n=1024*1024
+    if (present(n_init)) then
+      n = n_init
+    endif
     ntimes=1024
     if (lhook) call dr_hook('STREAM',0,zhook_handle)
     do i=1,3
+       write(6,'(" =============================== CALL STREAM(",I0,",",I0,")")') n, ntimes
        call stream(n,ntimes)
        n=n*8
        ntimes=ntimes/8
     end do
-
     if (lhook) call dr_hook('STREAM',1,zhook_handle)
 
   end subroutine stream_combinations
@@ -79,7 +83,7 @@ contains
     CHARACTER label(4)*11
     !     ..
     !     .. External Functions ..
-    DOUBLE PRECISION mysecond
+    DOUBLE PRECISION timef
     REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
     REAL(KIND=JPHOOK) :: ZHOOK_1,ZHOOK_2,ZHOOK_3,ZHOOK_4
     CHARACTER(len=29) :: tag
@@ -142,12 +146,12 @@ contains
        b(j) = 0.5D0
        c(j) = 0.0D0
 10  END DO
-    t = mysecond()
+    t = timef()
 !$OMP PARALLEL DO
     DO 20 j = 1,n
        a(j) = 0.5d0*a(j)
 20  END DO
-    t = mysecond() - t
+    t = timef() - t
     PRINT *,'----------------------------------------------------'
     quantum = checktick()
     WRITE (*,FMT=9000) &
@@ -160,51 +164,51 @@ contains
     DO 70 k = 1,ntimes
 
        IF (LHOOK) CALL DR_HOOK('STREAM_COPY'//TRIM(tag),0,ZHOOK_1)
-       t = mysecond()
+       t = timef()
        a(1) = a(1) + t
 !$OMP PARALLEL DO
        DO 30 j = 1,n
           c(j) = a(j)
 30     END DO
-       t = mysecond() - t
+       t = timef() - t
        IF (LHOOK) CALL DR_HOOK('STREAM_COPY'//TRIM(tag),1,ZHOOK_1)
 
        c(n) = c(n) + t
        times(1,k) = t
 
        IF (LHOOK) CALL DR_HOOK('STREAM_SCALE'//TRIM(tag),0,ZHOOK_2)
-       t = mysecond()
+       t = timef()
        c(1) = c(1) + t
 !$OMP PARALLEL DO
        DO 40 j = 1,n
           b(j) = scalar*c(j)
 40     END DO
-       t = mysecond() - t
+       t = timef() - t
        IF (LHOOK) CALL DR_HOOK('STREAM_SCALE'//TRIM(tag),1,ZHOOK_2)
 
        b(n) = b(n) + t
        times(2,k) = t
 
        IF (LHOOK) CALL DR_HOOK('STREAM_ADD'//TRIM(tag),0,ZHOOK_3)
-       t = mysecond()
+       t = timef()
        a(1) = a(1) + t
 !$OMP PARALLEL DO
        DO 50 j = 1,n
           c(j) = a(j) + b(j)
 50     END DO
-       t = mysecond() - t
+       t = timef() - t
        IF (LHOOK) CALL DR_HOOK('STREAM_ADD'//TRIM(tag),1,ZHOOK_3)
        c(n) = c(n) + t
        times(3,k) = t
 
        IF (LHOOK) CALL DR_HOOK('STREAM_TRIAD'//TRIM(tag),0,ZHOOK_4)
-       t = mysecond()
+       t = timef()
        b(1) = b(1) + t
 !$OMP PARALLEL DO
        DO 60 j = 1,n
           a(j) = b(j) + scalar*c(j)
 60     END DO
-       t = mysecond() - t
+       t = timef() - t
        IF (LHOOK) CALL DR_HOOK('STREAM_TRIAD'//TRIM(tag),1,ZHOOK_4)
 
        a(n) = a(n) + t
@@ -341,15 +345,15 @@ INTEGER FUNCTION checktick()
   DOUBLE PRECISION timesfound(n)
   !     ..
   !     .. External Functions ..
-  DOUBLE PRECISION mysecond
-  EXTERNAL mysecond
+  DOUBLE PRECISION timef
+  EXTERNAL timef
   !     ..
   !     .. Intrinsic Functions ..
   INTRINSIC max,min,nint
   !     ..
   i = 0
   t1=-1
-10 t2 = mysecond()
+10 t2 = timef()
   IF (t2.EQ.t1) GO TO 10
 
   t1 = t2
@@ -457,4 +461,4 @@ function itoa(i) result(res)
   res = trim(tmp)
 end function itoa
 
-END MODULE stream_mod
+END MODULE

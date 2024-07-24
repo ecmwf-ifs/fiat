@@ -24,12 +24,12 @@ find_path(PAPI_ROOT
 find_library(PAPI_LIBRARIES
     # Pick the static library first for easier run-time linking.
     NAMES libpapi.so libpapi.a papi
-    HINTS ${PAPI_ROOT}/lib ${HILTIDEPS}/lib
+    HINTS ${PAPI_ROOT}/lib
 )
 
 find_path(PAPI_INCLUDE_DIRS
     NAMES papi.h
-    HINTS ${PAPI_ROOT}/include ${HILTIDEPS}/include
+    HINTS ${PAPI_ROOT}/include
 )
 
 include(FindPackageHandleStandardArgs)

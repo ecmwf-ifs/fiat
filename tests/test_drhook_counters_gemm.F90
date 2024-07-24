@@ -1,13 +1,17 @@
-module gemm_mod
+module test_drhook_counters_gemm_mod
   use yomhook, only : lhook,dr_hook,jphook
   implicit none
   
 contains
-  subroutine gemm_combinations()
+  subroutine gemm_combinations(n_init)
     implicit none
-    integer*8 n,i
+    integer(kind=8), intent(in), optional :: n_init
+    integer(kind=8) :: n,i
     real(kind=jphook) :: zhook_handle
     n=1000
+    if (present(n_init)) then
+      n = n_init
+    endif
 #if defined(HAVE_BLAS)
     if (lhook) call dr_hook('GEMM_ALL',0,zhook_handle)
     do i=1,4
@@ -81,4 +85,4 @@ contains
   end subroutine sgemm_driver
 #endif
   
-end module gemm_mod
+end module

@@ -86,15 +86,13 @@ else()
 endif()
 
 if( HAVE_OMP )
-  
   target_link_libraries( fiat PRIVATE OpenMP::OpenMP_Fortran )
-
 endif()
 
-if ( HAVE_PAPI )
+if ( HAVE_DR_HOOK_PAPI )
    target_link_libraries      ( fiat PRIVATE ${PAPI_LIBRARIES} )
    target_include_directories ( fiat PRIVATE ${PAPI_INCLUDE_DIRS} )
-   target_compile_definitions ( fiat PRIVATE HKPAPI )
+   target_compile_definitions ( fiat PRIVATE DR_HOOK_HAVE_PAPI=1 )
 endif()
 
 fiat_target_ignore_missing_symbols( TARGET fiat SYMBOLS
