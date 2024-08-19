@@ -82,7 +82,7 @@ subroutine drhook_run_omp_parallel_papi_startup(events,n) bind(c)
   use OML_MOD
   implicit none
   INTEGER(KIND=C_INT), INTENT(INOUT) :: Events(n)
-  INTEGER(KIND=C_INT), VALUE :: n
+  INTEGER(KIND=C_INT), VALUE, INTENT(IN) :: n
   INTEGER(KIND=C_INT)  :: thread
   INTEGER(KIND=C_INT)  :: rc,rcOut
   INTEGER  :: myThread
