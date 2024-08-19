@@ -232,16 +232,15 @@ int dr_hook_papi_start_threads(int* events){
   if (!silent) printf("DRHOOK:PAPI: Event set %d created for thread %d\n",events[thread],thread);
   
   int prof_papi_numcntrs=NPAPICNTRS;
+  if (!silent && drhook_papi_rank==0 && thread==0)
+    printf("DRHOOK:PAPI: Attempting to add events to event set:\n");
+
   for (int counter=0; counter < prof_papi_numcntrs; counter ++){
     int eventCode;
-    
-    if (!silent) {
+
+    if (!silent && drhook_papi_rank==0 && thread==0) {
       snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: %s (%s)",hookCounters[counter][0],hookCounters[counter][1]);
-      if (drhook_papi_rank==0) {
-        if (thread==0) {
-          printf("%s\n",pmsg);
-        }
-      }
+      printf("%s\n",pmsg);
     }
     
     papiErr=PAPI_event_name_to_code(hookCounters[counter][0],&eventCode);
