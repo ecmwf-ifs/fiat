@@ -4,16 +4,18 @@
 
 #include <papi.h>
 
-#define  NPAPICNTRS 4
+#define  MAXNPAPICNTRS 4
 
 int drhook_papi_init(int rank);
 int drhook_papi_num_counters();
-const char* drhook_papi_counter_name(int c,int t);
+int drhook_papi_max_num_counters();
+void drhook_papi_counter_name(int c, char* event_name);
+void drhook_papi_add_counter_name(const char* counter_name);
 long_long drhook_papi_read(int counterId);
 int drhook_papi_readAll(long_long * counterArray);
 
 /* implemented in forrtran */
-int drhook_run_omp_parallel_papi_startup(int * drhook_papi_event_set,int nthreads);
+int drhook_run_omp_parallel_papi_startup(int * drhook_papi_event_set,int nthreads, int* rcout);
 
 /* a = b - c  
 if  b or c == NULL means use current readings

@@ -76,7 +76,7 @@ end subroutine drhook_run_omp_parallel_get_cycles
 
 #if defined(DR_HOOK_HAVE_PAPI)
 
-subroutine drhook_run_omp_parallel_papi_startup(events,n) bind(c)
+subroutine drhook_run_omp_parallel_papi_startup(events,n, rcOut) bind(c)
   use, intrinsic :: iso_c_binding, only : c_char, c_int, c_double
   use drhook_papi_interface
   use OML_MOD
@@ -84,7 +84,8 @@ subroutine drhook_run_omp_parallel_papi_startup(events,n) bind(c)
   INTEGER(KIND=C_INT), INTENT(INOUT) :: Events(n)
   INTEGER(KIND=C_INT), VALUE, INTENT(IN) :: n
   INTEGER(KIND=C_INT)  :: thread
-  INTEGER(KIND=C_INT)  :: rc,rcOut
+  INTEGER(KIND=C_INT)  :: rc
+  INTEGER(KIND=C_INT), INTENT(OUT)  :: rcOut
   INTEGER  :: myThread
   INTEGER  :: nThreads
 

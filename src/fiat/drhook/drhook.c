@@ -2609,7 +2609,7 @@ process_options()
         opt_cpuprof = 0; /* Note: Switches cpuprof OFF */
         opt_calls = 1;
         opt_cycles = 1;
-	opt_papi = 1;
+        opt_papi = 1;
         OPTPRINT(fp,"%s%s",comma,"COUNTERS"); comma = ",";
       }
       else if (strequ(p,"CPUPROF")) {
@@ -2686,6 +2686,45 @@ process_options()
       }
       OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_CALLTRACE=%d\n",pfx,TIMESTR(tid),FFL,opt_calltrace);
     }
+
+#if defined(DR_HOOK_HAVE_PAPI)
+    if (opt_papi) {
+      newline = 0;
+      env = getenv("DR_HOOK_PAPI_COUNTERS");
+      if (env) {
+        const char delim[] = ", \t/";
+        char *comma = " DR_HOOK_PAPI_COUNTERS=\"";
+        char *s = strdup_drhook(env);
+        char *p = s;
+        while (*p) {
+          if (islower(*p)) *p = toupper(*p);
+          p++;
+        }
+        p = strtok(s,delim);
+        for (int i = 0; p && i < drhook_papi_max_num_counters();  p = strtok(NULL,delim), i++) {
+          drhook_papi_add_counter_name(strdup_drhook(p));
+          OPTPRINT(fp,"%s%s",comma,p); comma = ",";
+        }
+
+        free_drhook(s);
+        if (*comma == ',') {
+          OPTPRINT(fp,"\"\n");
+          newline = 0;
+        }
+        if (newline) OPTPRINT(fp,"\n");
+      } else {
+        const char* default_events[4] = {
+           "PAPI_TOT_CYC",
+           "PAPI_FP_OPS",
+           "PAPI_L1_DCA",
+           "PAPI_L2_DCM"
+        };
+        for (int i = 0; i < 4; i++) {
+          drhook_papi_add_counter_name(strdup_drhook(default_events[i]));
+        }
+      }
+    }
+#endif
 
     if (opt_wallprof || opt_cpuprof || opt_memprof || opt_timeline) {
       atexit(do_prof);
@@ -4585,15 +4624,21 @@ c_drhook_print_(const int *ftnunitno,
 	if (opt_papi){
 	  p=prof;
 	  int first_counter_is_cyc=0;
-	  if (strcmp(drhook_papi_counter_name(0,0),"PAPI_TOT_CYC")==0)
+    char event_name[drhook_papi_max_name_len()];
+    drhook_papi_counter_name(0,event_name);
+	  if (strcmp(event_name,"PAPI_TOT_CYC")==0)
 	    first_counter_is_cyc=1;
 	  {
 	    len =
 	      fprintf(fpcsv,"Routine,MPI Rank,ThreadId,SelfRank,%% Self Time,Cumul,Excl Time,Incl. Time,#Calls");
-	    for (int c=0;c<drhook_papi_num_counters();c++)
-	      fprintf(fpcsv,",%s(excl)",drhook_papi_counter_name(c,1));
-	    for (int c=0;c<drhook_papi_num_counters();c++)
-	      fprintf(fpcsv,",%s(incl)",drhook_papi_counter_name(c,1));
+	    for (int c=0;c<drhook_papi_num_counters();c++){
+        drhook_papi_counter_name(c,event_name);
+	      fprintf(fpcsv,",%s(excl)",event_name);
+      }
+	    for (int c=0;c<drhook_papi_num_counters();c++) {
+        drhook_papi_counter_name(c,event_name);
+	      fprintf(fpcsv,",%s(incl)",event_name);
+      }
 	    if (first_counter_is_cyc==1)
 	      fprintf(fpcsv,",Mcyc/sec(excl),Mcyc/sec(incl)");
 	    fprintf(fpcsv,"\n");
@@ -4603,7 +4648,7 @@ c_drhook_print_(const int *ftnunitno,
 	  for (j=0; j<nprof; ) {
 	    int cluster_size = clusize[p->cluster];
 	    if (opt_cputime)
-	      cumul += p->self;	
+	      cumul += p->self;
 	    else
 	      if (p->is_max || cluster_size == 1) cumul += p->self;
 
