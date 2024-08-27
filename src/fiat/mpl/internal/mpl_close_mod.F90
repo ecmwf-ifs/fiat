@@ -69,6 +69,7 @@ USE EC_PARKIND  ,ONLY : JPIM
 USE MPL_DATA_MODULE
 USE MPL_MESSAGE_MOD
 USE MPL_IOINIT_MOD
+USE MPL_MPIF
 
 IMPLICIT NONE
 
@@ -87,6 +88,8 @@ SUBROUTINE MPL_CLOSE(KFPTR,KERROR)
 
 INTEGER(KIND=JPIM),INTENT(IN) :: KFPTR
 INTEGER(KIND=JPIM),INTENT(OUT) :: KERROR
+
+TYPE(MPI_FILE) :: FH
 !
 #ifndef MPI1
 
@@ -103,7 +106,8 @@ ENDIF
 !
 !     1.    Close the File
 !           --------------
-CALL MPI_FILE_CLOSE(KFPTR,KERROR)
+FH%MPI_VAL=KFPTR
+CALL MPI_FILE_CLOSE(FH,KERROR)
 !
 !     -----------------------------------------------------------------
 #else

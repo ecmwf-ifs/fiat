@@ -43,8 +43,27 @@ if( NOT fiat_VERSION_PATCH )
 endif()
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/library/version.c.in ${CMAKE_CURRENT_BINARY_DIR}/version.c @ONLY )
 
-ecbuild_list_add_pattern( LIST fiat_src GLOB *.c *.F* *.cc )
-set( fiat_src ${fiat_src} PARENT_SCOPE )
+ecbuild_list_add_pattern( LIST fiat_src GLOB 
+    drhook/*.c drhook/*.F* drhook/*.cc
+    ecsort/*.c ecsort/*.F* ecsort/*.cc
+    gstats/*.c gstats/*.F* gstats/*.cc
+    include/*.c include/*.F* include/*.cc
+    library/*.c library/*.F* library/*.cc
+    oml/*.c oml/*.F* oml/*.cc
+    system/*.c system/*.F* system/*.cc
+    util/*.c util/*.F* util/*.cc
+    )
+if( HAVE_MPL_F77_DEPRECATED)
+  ecbuild_list_add_pattern( LIST fiat_src GLOB
+      "mpl/internal_deprecated/*.c" "mpl/internal_deprecated/*.F*"
+      "mpl/internal_deprecated/*.cc" "mpl/mpl_module.F90" "mpl/mpl_bindc.F90" )
+  message("FIAT building with *deprecated* F77 MPL interface")
+else()
+  ecbuild_list_add_pattern( LIST fiat_src GLOB
+      "mpl/internal/*.c" "mpl/internal/*.F*"
+      "mpl/internal/*.cc" "mpl/mpl_module.F90" "mpl/mpl_bindc.F90" )
+  message("FIAT building with MPI_F08 MPL interface")
+endif()
 
 ecbuild_add_library( TARGET fiat
     LINKER_LANGUAGE Fortran
