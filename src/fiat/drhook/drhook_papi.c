@@ -161,8 +161,7 @@ int drhook_papi_init(int rank){
   
   paperr=PAPI_library_init(PAPI_VER_CURRENT);
   if (paperr != PAPI_VER_CURRENT){
-    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI:PAPI_library_init: ret code=%d version loaded =%d ",
-	     paperr,PAPI_VER_CURRENT);
+    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI:PAPI_library_init: ret code=%d version loaded =%d ", paperr,PAPI_VER_CURRENT);
     printf("%s\n",pmsg);
     if (paperr > 0) {
       snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Error, library version mismatch between compilation and run!\n");
@@ -209,10 +208,10 @@ int drhook_papi_init(int rank){
   }
 
   snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Version %d.%d.%d initialised with %d threads",
-	   PAPI_VERSION_MAJOR( lib_version ),
-	   PAPI_VERSION_MINOR( lib_version ),
-	   PAPI_VERSION_REVISION( lib_version ),
-	   nthreads );
+           PAPI_VERSION_MAJOR( lib_version ),
+           PAPI_VERSION_MINOR( lib_version ),
+           PAPI_VERSION_REVISION( lib_version ),
+           nthreads);
   
   if (drhook_papi_rank==0 && !silent) printf("%s\n",pmsg);
 
@@ -271,17 +270,17 @@ int dr_hook_papi_start_threads(int* events){
       snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Error, add_event failed: %d (%s)",papiErr,PAPI_strerror(papiErr));
       printf("%s\n",pmsg);
       if (papiErr == PAPI_EINVAL)
-	      printf("Invalid argument\n");
+        printf("Invalid argument\n");
       else if (papiErr == PAPI_ENOMEM)
-	      printf("Out of memory\n");
+        printf("Out of memory\n");
       else if (papiErr == PAPI_ENOEVST)
-	      printf("EventSet does not exist\n");
+        printf("EventSet does not exist\n");
       else if (papiErr == PAPI_EISRUN)
-	      printf("EventSet is running\n");
+        printf("EventSet is running\n");
       else if (papiErr == PAPI_ECNFLCT)
-	      printf("Conflict\n");
+        printf("Conflict\n");
       else if (papiErr == PAPI_ENOEVNT)
-	      printf("Preset not available\n");
+        printf("Preset not available\n");
       return 0;
     }
     else {
@@ -304,8 +303,8 @@ int dr_hook_papi_start_threads(int* events){
   }
 #if defined(DEBUG)
   for (int counter=0;counter<number;counter++) {
-  	snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Ev: %d=%d",counter,events[counter]);
-	  printf("%s\n",pmsg);
+    snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Ev: %d=%d",counter,events[counter]);
+    printf("%s\n",pmsg);
   }
 #endif
   

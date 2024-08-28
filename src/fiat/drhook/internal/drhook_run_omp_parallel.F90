@@ -94,7 +94,7 @@ subroutine drhook_run_omp_parallel_papi_startup(events,n, rcOut) bind(c)
   rcOut=0
   !$OMP PARALLEL
   DO thread=0,nThreads-1
-     if	(thread==myThread) then
+     if (thread==myThread) then
         rc=dr_hook_papi_start_threads(events)
         if (rc==0)rcOut=1
      end if

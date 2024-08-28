@@ -348,10 +348,12 @@ void common_inits()
        //initialize PAPI counters without periodic reporting
       fprintf(stderr,"Calling report_init(0)\n");
       init_error=report_init(0);
-      if (init_error) fprintf(stderr,
-			      "Unable to init PAPI counters (init_error=%d) : %s\n",
-			      init_error,
-			      PAPI_strerror(init_error));
+      if (init_error)
+        fprintf(stderr,
+          "Unable to init PAPI counters (init_error=%d) : %s\n",
+          init_error,
+          PAPI_strerror(init_error)
+        );
     }
 }
 
