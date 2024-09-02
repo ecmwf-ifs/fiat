@@ -76,3 +76,12 @@ ecbuild_add_test( TARGET fiat_test_drhook_ex5
 
 # TODO:
 # Better parse output to see if it matches.
+
+# ------------------------------------------------------------------------------
+#  External Library Tests
+# ------------------------------------------------------------------------------
+
+# NVTX
+if (HAVE_DR_HOOK_NVTX)
+  add_subdirectory(drhook_nvtx)
+endif ()

@@ -24,9 +24,8 @@ ecbuild_info( "    MPI_Fortran_INCLUDE_DIRS  : [${MPI_Fortran_INCLUDE_DIRS}]" )
 ecbuild_info( "    MPI_Fortran_LIBRARIES     : [${MPI_Fortran_LIBRARIES}]" )
 ecbuild_info( "    MPIEXEC                   : [${MPIEXEC}]" )
 
-if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
-ecbuild_info( " nvToolsExt library from CUDAToolkit : [${NVTOOLSEXT_LIB}]" )
-ecbuild_info( " nvhpcwrapnvtx library from NVHPC : [${NVHPCWRAPNVTX_LIB}]" ) 
+if( HAVE_DR_HOOK_NVTX )
+ecbuild_info( "NVTX_LIBRARIES                : [${NVTX_LIBRARIES}]" )
 endif()
 
 ecbuild_info( "---------------------------------------------------------" )

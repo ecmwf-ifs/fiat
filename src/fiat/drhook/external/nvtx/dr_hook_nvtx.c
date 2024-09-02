@@ -1,8 +1,9 @@
 #include <nvToolsExt.h>
+//#include <nvtx3/nvToolsExt.h>
 #include <string.h>
 #include <stdlib.h>
 
-#include "dr_nvtx_map.h"
+#include "dr_hook_nvtx_map.h"
 
 #define INDENT(n) \
 do {                                    \
@@ -31,9 +32,9 @@ static const char namestack[256][256];
 static int istack=0;
 #endif
 
-void dr_nvtx_start_ (const char * name) 
+void dr_hook_nvtx_start_ (const char * name)
 {
- if (! dr_nvtx_map_start (name)) 
+ if (! dr_hook_nvtx_map_start (name))
    {
 #ifdef NVTX_VERYVERBOSE
     INDENT (istack);
@@ -81,10 +82,10 @@ void dr_nvtx_start_ (const char * name)
 
 }
 
-void dr_nvtx_end_ (const char * name) 
+void dr_hook_nvtx_end_ (const char * name)
 {
 
-  if (! dr_nvtx_map_stop ())
+  if (! dr_hook_nvtx_map_stop ())
     {
 #ifdef NVTX_VERYVERBOSE
       INDENT (istack);

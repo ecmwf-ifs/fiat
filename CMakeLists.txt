@@ -50,32 +50,13 @@ ecbuild_add_option( FEATURE WARNINGS
                     DEFAULT ON
                     DESCRIPTION "Add warnings to compiler" )
 
-if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
- set (DEFAULT_DR_NVTX ON)
-else ()
- set (DEFAULT_DR_NVTX OFF)
-endif ()
 
-ecbuild_add_option( FEATURE DR_NVTX 
-                    DEFAULT ${DEFAULT_DR_NVTX}
-                    DESCRIPTION "Add nvtx intrumentation" )
+ecbuild_add_option( FEATURE DR_HOOK_NVTX
+                    DEFAULT ${DEFAULT_DR_HOOK_NVTX}
+                    DESCRIPTION "Support for NVTX in DR_HOOK"
+                    REQUIRED_PACKAGES NVTX )
 
 ecbuild_find_package( NAME Realtime QUIET )
-
-#### 
-
-if(HAVE_DR_NVTX)
-
- find_package(CUDAToolkit REQUIRED COMPONENTS nvtx3)
- find_package(NVHPC REQUIRED COMPONENTS HOSTUTILS)
-   
- find_library(NVTOOLSEXT_LIB NAMES nvToolsExt  REQUIRED HINTS ${CUDAToolkit_LIBRARY_DIR})
- find_library(NVHPCWRAPNVTX_LIB NAMES nvhpcwrapnvtx  REQUIRED HINTS  ${NVHPC_HOSTUTILS_LIBRARY_DIR} )
-
-endif()
- 
-
-
 
 ### Sources
 

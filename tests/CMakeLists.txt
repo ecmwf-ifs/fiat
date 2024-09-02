@@ -39,14 +39,7 @@ add_test(NAME fiat_test_abort_exception_handler
   -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
 endif()
 
-
 add_subdirectory( drhook )
-
-
-if (HAVE_DR_NVTX)
-  add_subdirectory( drnvtx )
-endif ()
-
 
 # ----------------------------------------------------------------------------------------
 # Test: fiat_test_drhook_no_output

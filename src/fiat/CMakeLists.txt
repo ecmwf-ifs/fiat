@@ -45,10 +45,8 @@ configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/library/version.c.in ${CMAKE_CURRENT
 
 ecbuild_list_add_pattern( LIST fiat_src GLOB *.c *.F* *.cc )
 
-if( NOT HAVE_DR_NVTX)  
-  # The files in the drnvtx directory are only intended to work with NVHPC
-  #	So don't try to compile them when using another compiler
-  ecbuild_list_exclude_pattern( LIST fiat_src REGEX drnvtx/* )
+if( NOT HAVE_DR_HOOK_NVTX)
+  ecbuild_list_exclude_pattern( LIST fiat_src REGEX drhook/external/nvtx/* )
 endif()
 
 set( fiat_src ${fiat_src} PARENT_SCOPE )
@@ -72,14 +70,10 @@ ecbuild_add_library( TARGET fiat
         $<INSTALL_INTERFACE:include/fiat>
 )
 
-
-## if compiler is pgi  add two libs 
-
-if (HAVE_DR_NVTX)
-   target_link_libraries(fiat PUBLIC ${NVTOOLSEXT_LIB})
-   target_link_libraries(fiat PUBLIC ${NVHPCWRAPNVTX_LIB})
-   target_include_directories(fiat PRIVATE "${CUDAToolkit_LIBRARY_DIR}/../include")
-   add_compile_definitions(HAVE_DR_NVTX)
+if (HAVE_DR_HOOK_NVTX)
+   target_link_libraries     ( fiat PRIVATE ${NVTX_LIBRARIES} )
+   target_include_directories( fiat PRIVATE ${NVTX_INCLUDE_DIRS} )
+   target_compile_definitions( fiat PRIVATE DR_HOOK_HAVE_NVTX=1 )
 endif()
 
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )

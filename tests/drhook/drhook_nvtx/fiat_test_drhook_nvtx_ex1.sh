@@ -3,7 +3,7 @@
 set -xe
 
 export DR_HOOK=1 
-export DR_NVTX=1 
+export DR_HOOK_NVTX=1
 
 \rm -f nsys.drnvtx_ex1.qdrep
 

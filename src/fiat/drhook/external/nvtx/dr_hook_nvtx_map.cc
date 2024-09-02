@@ -2,7 +2,7 @@
 #include <cstring>
 #include <iostream>
 
-#include "dr_nvtx_map.h"
+#include "dr_hook_nvtx_map.h"
 
 using namespace std;
 
@@ -52,7 +52,7 @@ namespace
   int ilast = 0;
 };
 
-extern "C" int dr_nvtx_map_start (const char * str) 
+extern "C" int dr_hook_nvtx_map_start (const char * str)
 {
   counter * elem = &(map[str]);
   ilast++;
@@ -65,7 +65,7 @@ extern "C" int dr_nvtx_map_start (const char * str)
   return 1;
 }
 
-extern "C" int dr_nvtx_map_stop () 
+extern "C" int dr_hook_nvtx_map_stop ()
 {
  counter * last = stack[ilast];
  ilast--;
