@@ -45,9 +45,7 @@ configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/library/version.c.in ${CMAKE_CURRENT
 
 ecbuild_list_add_pattern( LIST fiat_src GLOB *.c *.F* *.cc )
 
-if( NOT HAVE_DR_HOOK_NVTX)
-  ecbuild_list_exclude_pattern( LIST fiat_src REGEX drhook/external/nvtx/* )
-endif()
+ecbuild_list_exclude_pattern( LIST fiat_src REGEX drhook/extensions/*)
 
 set( fiat_src ${fiat_src} PARENT_SCOPE )
 
@@ -71,9 +69,15 @@ ecbuild_add_library( TARGET fiat
 )
 
 if (HAVE_DR_HOOK_NVTX)
-   target_link_libraries     ( fiat PRIVATE ${NVTX_LIBRARIES} )
-   target_include_directories( fiat PRIVATE ${NVTX_INCLUDE_DIRS} )
-   target_compile_definitions( fiat PRIVATE DR_HOOK_HAVE_NVTX=1 )
+    # Files from within DrHook
+    ecbuild_list_add_pattern( LIST fiat_nvtx_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/nvtx)
+    target_sources(fiat PRIVATE ${fiat_nvtx_src})
+    target_include_directories(fiat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/nvtx)
+
+    # Files defined externally
+    target_link_libraries     ( fiat PRIVATE ${NVTX_LIBRARIES} )
+    target_include_directories( fiat PRIVATE ${NVTX_INCLUDE_DIRS} )
+    target_compile_definitions( fiat PRIVATE DR_HOOK_HAVE_NVTX=1 )
 endif()
 
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
