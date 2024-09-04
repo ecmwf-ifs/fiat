@@ -3,16 +3,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "dr_hook_nvtx_map.h"
+#include "dr_hook_nvtx.h"
 
-#define INDENT(n) \
-do {                                    \
-  int __i;                              \
-  for (int __i = 0; __i < (n); __i++)   \
-    printf (" ");                       \
-} while (1)
-
-static uint32_t myadler32 (const unsigned char *data)
+static uint32_t adler32 (const unsigned char *data)
 {
   const uint32_t MOD_ADLER = 65521;
   uint32_t a = 1, b = 0;
@@ -27,24 +20,11 @@ static uint32_t myadler32 (const unsigned char *data)
   return (b << 16) | a;
 }
 
-#ifdef NVTX_VERYVERBOSE
-static const char namestack[256][256];
-static int istack=0;
-#endif
 
-void dr_hook_nvtx_start_ (const char * name)
+void dr_hook_nvtx_start (const char * name)
 {
- if (! dr_hook_nvtx_map_start (name))
-   {
-#ifdef NVTX_VERYVERBOSE
-    INDENT (istack);
-    printf ("Skipped open --- %s\n", name);
-#endif
-    return;
-  }
-
   int hash = 0;
-  int color_id = myadler32 ((const unsigned char*)name);
+  int color_id = adler32 ((const unsigned char*)name);
   int r,g,b;
 
   r=color_id & 0x000000ff;
@@ -68,50 +48,10 @@ void dr_hook_nvtx_start_ (const char * name)
   eventAttrib.messageType   = NVTX_MESSAGE_TYPE_ASCII;
   eventAttrib.message.ascii = name;
 
-#ifdef NVTX_VERYVERBOSE
-  INDENT (istack);
-  printf ("Opening %s\n", name);
-#endif
-
   nvtxRangePushEx (&eventAttrib);
-
-#ifdef NVTX_VERYVERBOSE
-  strncpy (namestack[istack], name, 128);
-  istack++;
-#endif
 
 }
 
-void dr_hook_nvtx_end_ (const char * name)
-{
-
-  if (! dr_hook_nvtx_map_stop ())
-    {
-#ifdef NVTX_VERYVERBOSE
-      INDENT (istack);
-      printf ("Skipped end --- %s\n",name);
-#endif
-      return;
-    }
-
-#ifdef NVTX_VERYVERBOSE
-  istack--;
-  if (istack < 0) 
-    {
-      printf ("NVTX error negative stack\n");
-      abort ();
-    }
-
-  INDENT (istack);
-
-  printf ("Closing %s\n",name);
-
-  if (strcmp (name,namestack[istack])) 
-    {
-      printf ("Error just closed the wrong marker: %s expected: %s\n",name, namestack[istack]);
-      abort ();
-    }
-#endif
-
+void dr_hook_nvtx_end () {
   nvtxRangePop ();
 }

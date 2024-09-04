@@ -82,6 +82,9 @@ static int backtrace(void **buffer, int size) { return 0; }
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dlfcn.h>
+#ifdef DR_HOOK_HAVE_NVTX
+#include "dr_hook_nvtx.h"
+#endif
 
 #include "ec_get_cycles.h"
 static long long int *thread_cycles = NULL;
@@ -319,6 +322,11 @@ static int callpath_indent = callpath_indent_default;
 #define callpath_depth_default 50
 static int callpath_depth = callpath_depth_default;
 static int callpath_packed = 0;
+static int opt_nvtx = 0;
+#define nvtx_SCC_default 10
+static int opt_nvtx_SCC = nvtx_SCC_default;
+#define nvtx_SWT_default 0.0001
+static double opt_nvtx_SWT = nvtx_SWT_default;
 
 static int opt_calltrace = 0;
 static int opt_funcenter = 0;
@@ -471,6 +479,9 @@ typedef struct drhook_key_t {
   long long int mem_maxhwm, mem_maxrss, mem_maxstk, mem_maxpagdelta;
   long long int paging_in;
   unsigned long long int alloc_count, free_count;
+#if defined(DR_HOOK_HAVE_NVTX)
+  unsigned long long int skipped_nvtx_calls;
+#endif
   struct drhook_key_t *next;
 } drhook_key_t;
 
@@ -2478,6 +2489,34 @@ process_options()
     OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_GENCORE_SIGNAL=%d\n",pfx,TIMESTR(tid),FFL,opt_gencore_signal);
   }
 
+  env = getenv("DR_HOOK_NVTX");
+  if (env) {
+    opt_nvtx = atoi(env);
+    OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_NVTX=%d\n",pfx,TIMESTR(tid),FFL,opt_nvtx);
+  }
+
+  if (opt_nvtx) {
+    env = getenv("DR_HOOK_NVTX_SPAM_CALL_COUNT");
+    if (env) {
+      opt_nvtx_SCC = atoi(env);
+
+      if (opt_nvtx_SCC < 0)
+        opt_nvtx_SCC = nvtx_SCC_default;
+
+      OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_NVTX_SPAM_CALL_COUNT=%d\n",pfx,TIMESTR(tid),FFL,opt_nvtx_SCC);
+    }
+
+    env = getenv("DR_HOOK_NVTX_SPAM_WT");
+    if (env) {
+      opt_nvtx_SWT = atof(env);
+
+      if (opt_nvtx_SWT < 0)
+        opt_nvtx_SWT = nvtx_SWT_default;
+
+      OPTPRINT(fp, "%s %s [%s@%s:%g] DR_HOOK_NVTX_SPAM_WT=%g\n", pfx, TIMESTR(tid), FFL, nvtx_SWT_default);
+    }
+  }
+
   newline = 0;
   env = getenv("DR_HOOK_OPT");
   if (env) {
@@ -2786,6 +2825,21 @@ getkey(int tid, const char *name, int name_len,
           keyptr->calls++;
           keyptr->status++;
         }
+#if defined(DR_HOOK_HAVE_NVTX)
+        // Helps filter out wrapper calls that may be noise
+        if (opt_nvtx && drhook_oml_get_thread_num() == 1){
+          // TODO: Is delta_wall_all the correct choice?
+          if (keyptr->calls > opt_nvtx_SCC && keyptr->delta_wall_all < opt_nvtx_SWT) {
+// TODO: This DEBUG actually doesn't work. Need opt_silent added instead
+#ifdef DEBUG
+            fprintf(stderr,"DRHOOK:NVTX: Skipping opening of region %s\n", keyptr->name);
+#endif
+            keyptr->skipped_nvtx_calls++;
+          }
+          else
+            dr_hook_nvtx_start(keyptr->name);
+        }
+#endif
         insert_calltree(tid, keyptr);
         break; /* for (;;) */
       }
@@ -2911,6 +2965,18 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
     if (opt_walltime) keyptr->delta_wall_all   += delta_wall;
     if (opt_cputime)  keyptr->delta_cpu_all    += delta_cpu;
     if (opt_cycles)   keyptr->delta_cycles_all += delta_cycles;
+#if defined(DR_HOOK_HAVE_NVTX)
+    if (opt_nvtx && drhook_oml_get_thread_num() == 1) {
+      if (keyptr->skipped_nvtx_calls > 0) {
+#ifdef DEBUG
+        fprintf(stderr, "DRHOOK:NVTX: Skipping closing of region %s\n", keyptr->name);
+#endif
+        keyptr->skipped_nvtx_calls--;
+      } else {
+        dr_hook_nvtx_end();
+      }
+    }
+#endif
     remove_calltree(tid, keyptr, &delta_wall, &delta_cpu, &delta_cycles);
   }
 }
