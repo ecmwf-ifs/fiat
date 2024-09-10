@@ -327,6 +327,7 @@ static int opt_nvtx = 0;
 static int opt_nvtx_SCC = nvtx_SCC_default;
 #define nvtx_SWT_default 0.0001
 static double opt_nvtx_SWT = nvtx_SWT_default;
+static int opt_strict_regions = 0;
 
 static int opt_calltrace = 0;
 static int opt_funcenter = 0;
@@ -2489,11 +2490,25 @@ process_options()
     OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_GENCORE_SIGNAL=%d\n",pfx,TIMESTR(tid),FFL,opt_gencore_signal);
   }
 
+  env = getenv("DR_HOOK_STRICT_REGIONS");
+  int strict_regions_opt_touched = 0;
+  if (env) {
+    opt_strict_regions = atoi(env);
+    strict_regions_opt_touched = 1;
+  }
+
   env = getenv("DR_HOOK_NVTX");
   if (env) {
     opt_nvtx = atoi(env);
+    opt_strict_regions = opt_strict_regions || opt_nvtx;
+    strict_regions_opt_touched = 1;
+    opt_walltime = 1;
+    opt_calls = 1;
     OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_NVTX=%d\n",pfx,TIMESTR(tid),FFL,opt_nvtx);
   }
+
+  if (strict_regions_opt_touched)
+    OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_STRICT_REGIONS=%d\n",pfx,TIMESTR(tid),FFL,opt_strict_regions);
 
   if (opt_nvtx) {
     env = getenv("DR_HOOK_NVTX_SPAM_CALL_COUNT");
@@ -2828,7 +2843,6 @@ getkey(int tid, const char *name, int name_len,
 #if defined(DR_HOOK_HAVE_NVTX)
         // Helps filter out wrapper calls that may be noise
         if (opt_nvtx && drhook_oml_get_thread_num() == 1){
-          // TODO: Is delta_wall_all the correct choice?
           if (keyptr->calls > opt_nvtx_SCC && keyptr->delta_wall_all < opt_nvtx_SWT) {
 // TODO: This DEBUG actually doesn't work. Need opt_silent added instead
 #ifdef DEBUG
@@ -2865,7 +2879,18 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
   const int sig = SIGABRT;
   const char sl_name[] = "SIGABRT";
   drhook_calltree_t *treeptr = (tid >= 1 && tid <= numthreads) ? thiscall[tid-1] : NULL;
-  if (!treeptr || !treeptr->active || treeptr->keyptr != keyptr) {
+
+  int regions_match = 1;
+  if (opt_strict_regions) {
+    for (int i = 0; i < name_len; i++) {
+      if (name[i] != keyptr->name[i]) {
+        region_correct = 0;
+        break;
+      }
+    }
+  }
+
+  if (!treeptr || !treeptr->active || treeptr->keyptr != keyptr || !regions_match) {
     char *pfx = PREFIX(tid);
     char *s;
     unsigned int hash;
