@@ -7,7 +7,7 @@
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
 
-program drnvtx_ex1
+program fiat_test_drhook_nvtx_basic
 
 use yomhook, only : jphook, dr_hook
 
@@ -15,11 +15,11 @@ implicit none
 
 real(jphook) :: zhook_handle
 
-call dr_hook('drnvtx_ex1',0,zhook_handle)
+call dr_hook('fiat_test_drhook_nvtx_basic',0,zhook_handle)
 
 call sub (0)
 
-call dr_hook('drnvtx_ex1',1,zhook_handle)
+call dr_hook('fiat_test_drhook_nvtx_basic',1,zhook_handle)
 
 contains 
 
@@ -94,5 +94,5 @@ irand = k1 + modulo (x, int (k2-k1+1, 8))
 
 end function
 
-end program drnvtx_ex1
+end program fiat_test_drhook_nvtx_basic
 

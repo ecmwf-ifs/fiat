@@ -1,8 +1,32 @@
-ecbuild_add_executable( TARGET drhook_nvtx_ex1
-  SOURCES drhook_nvtx_ex1.F90 
+# Test basic implementation
+
+ecbuild_add_executable( TARGET drhook_nvtx_basic
+  SOURCES drhook_nvtx_basic.F90
   LIBS fiat
   LINKER_LANGUAGE Fortran
+  CONDITION HAVE_DR_HOOK_NVTX
   NOINSTALL )
 
-add_test (NAME fiat_test_drhook_nvtx_ex1 COMMAND fiat_test_drhook_nvtx_ex1.sh)
+ecbuild_add_test( TARGET fiat_test_drhook_nvtx_basic
+        TYPE SCRIPT
+        COMMAND "nsys"
+        ARGS "profile" "--force-overwrite=true" "--trace=nvtx" "--kill=none" "--output=nsys.drhook_nvtx_basic.qdrep" "./drhook_nvtx_basic"
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_NVTX=1
+        CONDITION HAVE_DR_HOOK_NVTX )
 
+# Test abort on mismatched region names
+
+ecbuild_add_executable( TARGET drhook_nvtx_mismatched_regions
+        SOURCES drhook_nvtx_mismatched_regions.F90
+        LIBS fiat
+        LINKER_LANGUAGE Fortran
+        CONDITION HAVE_DR_HOOK_NVTX
+        NOINSTALL )
+
+ecbuild_add_test( TARGET fiat_test_drhook_nvtx_mismatched_regions
+        TYPE SCRIPT
+        COMMAND "nsys"
+        ARGS "profile" "--force-overwrite=true" "--trace=nvtx" "--kill=none" "--output=nsys.drhook_nvtx_mismatched_regions.qdrep" "./drhook_nvtx_mismatched_regions"
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_NVTX=1
+        PROPERTIES WILL_FAIL TRUE
+        CONDITION HAVE_DR_HOOK_NVTX )
