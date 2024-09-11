@@ -328,6 +328,7 @@ static int opt_nvtx_SCC = nvtx_SCC_default;
 #define nvtx_SWT_default 0.0001
 static double opt_nvtx_SWT = nvtx_SWT_default;
 static int opt_strict_regions = 0;
+static int opt_silent = 1;
 
 static int opt_calltrace = 0;
 static int opt_funcenter = 0;
@@ -2207,16 +2208,18 @@ process_options()
 
   tid = drhook_oml_get_thread_num();
 
-  int silent = 0;
   env = getenv("DR_HOOK_SILENT");
-  silent = env ? atoi(env) : silent;
+  if (env) {
+    opt_silent = atoi(env);
+  }
 
   env = getenv("DR_HOOK_SHOW_PROCESS_OPTIONS");
-  ienv = env ? atoi(env) : silent ? 0 : 1;
+  ienv = env ? atoi(env) : opt_silent ? 0 : 1;
   if (ienv == -1 || ienv == myproc) fp = stderr;
   if (fp) pfx = PREFIX(tid);
 
   if(fp) fprintf(fp,"[EC_DRHOOK:hostname:myproc:omltid:pid:unixtid] [YYYYMMDD:HHMMSS:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",drhook_oml_get_max_threads());
+  OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_SILENT=%d\n",pfx,TIMESTR(tid),FFL,opt_silent);
 
   OPTPRINT(fp,"%s %s [%s@%s:%d] fp = %p\n",pfx,TIMESTR(tid),FFL,(void*)fp);
 
@@ -2844,10 +2847,8 @@ getkey(int tid, const char *name, int name_len,
         // Helps filter out wrapper calls that may be noise
         if (opt_nvtx && drhook_oml_get_thread_num() == 1){
           if (keyptr->calls > opt_nvtx_SCC && keyptr->delta_wall_all < opt_nvtx_SWT) {
-// TODO: This DEBUG actually doesn't work. Need opt_silent added instead
-#ifdef DEBUG
-            fprintf(stderr,"DRHOOK:NVTX: Skipping opening of region %s\n", keyptr->name);
-#endif
+            if (!opt_silent)
+              fprintf(stderr,"DRHOOK:NVTX: Skipping opening of region %s\n", keyptr->name);
             keyptr->skipped_nvtx_calls++;
           }
           else
@@ -2880,17 +2881,11 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
   const char sl_name[] = "SIGABRT";
   drhook_calltree_t *treeptr = (tid >= 1 && tid <= numthreads) ? thiscall[tid-1] : NULL;
 
-  int regions_match = 1;
-  if (opt_strict_regions) {
-    for (int i = 0; i < name_len; i++) {
-      if (name[i] != keyptr->name[i]) {
-        region_correct = 0;
-        break;
-      }
-    }
-  }
+  int regions_mismatch = 0;
+  if (opt_strict_regions)
+    regions_mismatch = strncasecmp(keyptr->name, name, name_len);
 
-  if (!treeptr || !treeptr->active || treeptr->keyptr != keyptr || !regions_match) {
+  if (!treeptr || !treeptr->active || treeptr->keyptr != keyptr || regions_mismatch) {
     char *pfx = PREFIX(tid);
     char *s;
     unsigned int hash;
@@ -2993,9 +2988,8 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
 #if defined(DR_HOOK_HAVE_NVTX)
     if (opt_nvtx && drhook_oml_get_thread_num() == 1) {
       if (keyptr->skipped_nvtx_calls > 0) {
-#ifdef DEBUG
-        fprintf(stderr, "DRHOOK:NVTX: Skipping closing of region %s\n", keyptr->name);
-#endif
+        if (!opt_silent)
+          fprintf(stderr, "DRHOOK:NVTX: Skipping closing of region %s\n", keyptr->name);
         keyptr->skipped_nvtx_calls--;
       } else {
         dr_hook_nvtx_end();
