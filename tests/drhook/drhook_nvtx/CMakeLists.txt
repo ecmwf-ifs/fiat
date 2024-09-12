@@ -39,5 +39,46 @@ ecbuild_add_test( TARGET fiat_test_drhook_nvtx_mismatched_regions
         COMMAND "nsys"
         ARGS "profile" "--force-overwrite=true" "--trace=nvtx" "--kill=none" "--output=nsys.drhook_nvtx_mismatched_regions.qdrep" "./drhook_nvtx_mismatched_regions"
         ENVIRONMENT DR_HOOK=1 DR_HOOK_NVTX=1
-        PROPERTIES WILL_FAIL TRUE
         CONDITION HAVE_DR_HOOK_NVTX )
+
+set_tests_properties(fiat_test_drhook_nvtx_mismatched_regions
+        PROPERTIES WILL_FAIL TRUE )
+
+# Test skip on spammy regions
+
+ecbuild_add_executable( TARGET drhook_nvtx_skip_spam_regions
+        SOURCES drhook_nvtx_skip_spam_regions.F90
+        LIBS fiat
+        LINKER_LANGUAGE Fortran
+        CONDITION HAVE_DR_HOOK_NVTX
+        NOINSTALL )
+
+ecbuild_add_test( TARGET fiat_test_drhook_nvtx_skip_spam_regions
+        TYPE SCRIPT
+        COMMAND "nsys"
+        ARGS "profile" "--force-overwrite=true" "--trace=nvtx" "--kill=none" "--output=nsys.drhook_nvtx_skip_spam_regions.qdrep" "./drhook_nvtx_skip_spam_regions"
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_NVTX=1 DR_HOOK_SILENT=0
+        CONDITION HAVE_DR_HOOK_NVTX )
+
+set_tests_properties(fiat_test_drhook_nvtx_skip_spam_regions
+        PROPERTIES PASS_REGULAR_EXPRESSION "DRHOOK:NVTX: Skipping closing of region foo" PASS_REGULAR_EXPRESSION "DRHOOK:NVTX: Skipping opening of region foo" )
+
+# Test not to skip on spammy regions with long runtimes
+
+ecbuild_add_executable( TARGET drhook_nvtx_no_skip_spam_regions
+        SOURCES drhook_nvtx_no_skip_spam_regions.F90
+        LIBS fiat
+        LINKER_LANGUAGE Fortran
+        CONDITION HAVE_DR_HOOK_NVTX
+        NOINSTALL )
+
+ecbuild_add_test( TARGET fiat_test_drhook_nvtx_no_skip_spam_regions
+        TYPE SCRIPT
+        COMMAND "nsys"
+        ARGS "profile" "--force-overwrite=true" "--trace=nvtx" "--kill=none" "--output=nsys.drhook_nvtx_no_skip_spam_regions.qdrep" "./drhook_nvtx_no_skip_spam_regions"
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_NVTX=1 DR_HOOK_SILENT=0
+
+        CONDITION HAVE_DR_HOOK_NVTX )
+
+set_tests_properties(fiat_test_drhook_nvtx_no_skip_spam_regions
+        PROPERTIES FAIL_REGULAR_EXPRESSION "DRHOOK:NVTX: Skipping closing of region foo" FAIL_REGULAR_EXPRESSION "DRHOOK:NVTX: Skipping opening of region foo" )
