@@ -328,7 +328,7 @@ static int opt_nvtx_SCC = nvtx_SCC_default;
 #define nvtx_SWT_default 0.0001
 static double opt_nvtx_SWT = nvtx_SWT_default;
 static int opt_strict_regions = 0;
-static int opt_silent = 1;
+static int opt_silent = 0;
 
 static int opt_calltrace = 0;
 static int opt_funcenter = 0;
