@@ -25,6 +25,22 @@ ecbuild_add_test( TARGET fiat_test_drhook_nvtx_basic
         ENVIRONMENT DR_HOOK=1 DR_HOOK_NVTX=1
         CONDITION HAVE_DR_HOOK_NVTX )
 
+# Test basic implementation in C
+
+ecbuild_add_executable( TARGET drhook_nvtx_basic_c
+  SOURCES drhook_nvtx_basic_c.c
+  LIBS fiat
+  LINKER_LANGUAGE C
+  CONDITION HAVE_DR_HOOK_NVTX
+  NOINSTALL )
+
+ecbuild_add_test( TARGET fiat_test_drhook_nvtx_basic_c
+        TYPE SCRIPT
+        COMMAND "nsys"
+        ARGS "profile" "--force-overwrite=true" "--trace=nvtx" "--kill=none" "--output=nsys.drhook_nvtx_basic_c.qdrep" "./drhook_nvtx_basic_c"
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_NVTX=1
+        CONDITION HAVE_DR_HOOK_NVTX )
+
 # Test abort on mismatched region names
 
 ecbuild_add_executable( TARGET drhook_nvtx_mismatched_regions
@@ -77,7 +93,6 @@ ecbuild_add_test( TARGET fiat_test_drhook_nvtx_no_skip_spam_regions
         COMMAND "nsys"
         ARGS "profile" "--force-overwrite=true" "--trace=nvtx" "--kill=none" "--output=nsys.drhook_nvtx_no_skip_spam_regions.qdrep" "./drhook_nvtx_no_skip_spam_regions"
         ENVIRONMENT DR_HOOK=1 DR_HOOK_NVTX=1 DR_HOOK_SILENT=0
-
         CONDITION HAVE_DR_HOOK_NVTX )
 
 set_tests_properties(fiat_test_drhook_nvtx_no_skip_spam_regions
