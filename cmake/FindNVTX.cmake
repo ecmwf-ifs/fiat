@@ -40,8 +40,25 @@ if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
         )
     else()
         find_package(CUDAToolkit REQUIRED COMPONENTS CUDA::nvtx3)
-        set (NVTX_LIBRARY "CUDA::nvtx3")
-        #TODO: Implementation for NVTX3
+
+        find_path(NVTX_ROOT
+                NAMES include/nvtx3/nvToolsExt.h
+                HINTS ${CUDAToolkit_LIBRARY_DIR}/..
+                )
+
+        find_path(NVTX_INCLUDE_DIRS
+                NAMES nvToolsExt.h
+                HINTS ${NVTX_ROOT}/include/nvtx3
+                )
+
+        include(FindPackageHandleStandardArgs)
+        find_package_handle_standard_args(NVTX DEFAULT_MSG
+                NVTX_INCLUDE_DIRS
+                )
+
+        mark_as_advanced(
+                NVTX_INCLUDE_DIRS
+        )
     endif()
 
 
