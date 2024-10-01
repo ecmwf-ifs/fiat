@@ -2229,24 +2229,6 @@ process_options()
     OPTPRINT(fp,"%s %s [%s@%s:%d] ATP_IGNORE_SIGTERM=%d\n",pfx,TIMESTR(tid),FFL,atp_ignore_sigterm);
   }
 
-  env = getenv("DR_HOOK_ALLOW_COREDUMP");
-  if (env) {
-    ienv = atoi(env);
-    allow_coredump = (ienv == -1 || ienv == myproc) ? ienv : 0;
-  }
-  OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_ALLOW_COREDUMP=%d\n",pfx,TIMESTR(tid),FFL,allow_coredump);
-#if 0
-  // Postponed until DrHook actully has caught the signal
-  if (allow_coredump) {
-    unsigned long long int hardlimit = 0;
-    int rc = set_corefile_to_hard_limit(&hardlimit,1);
-    if (rc == 0) {
-      OPTPRINT(fp,"%s %s [%s@%s:%d] Hardlimit for core file is now %llu (0x%llx)\n", 
-               pfx,TIMESTR(tid),FFL,hardlimit,hardlimit);
-    }
-  }
-#endif
-
   env = getenv("DR_HOOK_PROFILE");
   if (env) {
     char *s = calloc_drhook(strlen(env) + 15, sizeof(*s));
@@ -2482,6 +2464,25 @@ process_options()
       }
     }
     OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_GENCORE_SIGNAL=%d\n",pfx,TIMESTR(tid),FFL,opt_gencore_signal);
+  }
+
+  env = getenv("DR_HOOK_ALLOW_COREDUMP");
+  if (env) {
+    ienv = atoi(env);
+    allow_coredump = (ienv == -1 || ienv == myproc) ? ienv : 0;
+  }
+
+  /* opt_gencore implies allow_coredump */
+  allow_coredump |= opt_gencore;
+  OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_ALLOW_COREDUMP=%d\n",pfx,TIMESTR(tid),FFL,allow_coredump);
+
+  if (allow_coredump) {
+    unsigned long long int hardlimit = 0;
+    int rc = set_corefile_to_hard_limit(&hardlimit,1);
+    if (rc == 0) {
+      OPTPRINT(fp,"%s %s [%s@%s:%d] Hardlimit for core file is now %llu (0x%llx)\n",
+               pfx,TIMESTR(tid),FFL,hardlimit,hardlimit);
+    }
   }
 
   newline = 0;
