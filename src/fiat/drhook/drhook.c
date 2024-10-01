@@ -558,8 +558,6 @@ static drhook_calltree_t **thiscall = NULL;
 static int signals_set = 0;
 static volatile sig_atomic_t signal_handler_called = 0;
 static volatile sig_atomic_t signal_handler_ignore_atexit = 0;
-static volatile sig_atomic_t unlimited_corefile_retcode = 9999;
-static volatile unsigned long long int saved_corefile_hardlimit = 0;
 static int allow_coredump = 0; /* -1 denotes ALL MPI-tasks, 1..NPES == myproc, 0 = coredump will not be enabled by DrHook at init */
 static drhook_sig_t siglist[1+NSIG] = { 0 };
 static char *a_out = NULL;
@@ -751,7 +749,7 @@ static void dump_hugepages(int enforce, const char *pfx, int tid, int sig, int n
 
 /*--- set_default_handler ---*/
 
-static int set_unlimited_corefile(unsigned long long int *hardlimit, int enforce);
+static int set_corefile_to_hard_limit(unsigned long long int *hardlimit, int enforce);
 
 static int set_default_handler(int sig, int unlimited_corefile, int verbose)
 {
@@ -766,7 +764,7 @@ static int set_default_handler(int sig, int unlimited_corefile, int verbose)
       sigaddset(&sa.sa_mask, some_signal_to_be_blocked); ... just in case
     */
     sigaction(sig, &sa, NULL);
-    if (unlimited_corefile) rc = set_unlimited_corefile(&hardlimit,0); /* unconditionally */
+    if (unlimited_corefile) rc = set_corefile_to_hard_limit(&hardlimit,0); /* unconditionally */
     if (verbose) {
       int tid = drhook_oml_get_thread_num();
       char *pfx = PREFIX(tid);
@@ -1437,7 +1435,7 @@ ignore_signals(int silent)
 #define DRH_GETRLIMIT getrlimit
 #define DRH_SETRLIMIT setrlimit
 
-static int set_unlimited_corefile(unsigned long long int *hardlimit, int enforce)
+static int set_corefile_to_hard_limit(unsigned long long int *hardlimit, int enforce)
 {
   /* 
      Make sure we *only* set soft-limit (not hard-limit) to 0 in our scripts i.e. :
@@ -1446,21 +1444,29 @@ static int set_unlimited_corefile(unsigned long long int *hardlimit, int enforce
         $ ulimit -c 0
      See man ksh or man bash for more
   */
-  int rc = -1;
-  if (enforce || unlimited_corefile_retcode == 9999) { /* Done only once -- or if enforced*/
-    DRH_STRUCT_RLIMIT r;
-    if (DRH_GETRLIMIT(RLIMIT_CORE, &r) == 0) {
-      r.rlim_cur = r.rlim_max;
-      if (DRH_SETRLIMIT(RLIMIT_CORE, &r) == 0) {
-        saved_corefile_hardlimit = r.rlim_cur;
-        rc = 0;
-      }
-    }
-    unlimited_corefile_retcode = rc;
-  }
+  static int previously_set = 0;
+  static volatile unsigned long long int saved_corefile_hardlimit = 0;
+  /*
+   Mirror old behaviour where this either returns the previous successful value
+   or 0 if it was never successfully set
+  */
   if (hardlimit) *hardlimit = saved_corefile_hardlimit;
-  rc = unlimited_corefile_retcode;
-  return rc;
+
+  if (enforce || !previously_set) { /* Done only once -- or if enforced*/
+
+    DRH_STRUCT_RLIMIT r;
+
+    if (DRH_GETRLIMIT(RLIMIT_CORE, &r)) return -1;
+    r.rlim_cur = r.rlim_max;
+
+    if (DRH_SETRLIMIT(RLIMIT_CORE, &r)) return -1;
+
+    saved_corefile_hardlimit = r.rlim_cur;
+    previously_set = 1;
+  }
+
+  if (hardlimit) *hardlimit = saved_corefile_hardlimit;
+  return 0;
 }
 
 static void 
@@ -1472,7 +1478,7 @@ signal_gencore(int sig SIG_EXTRA_ARGS)
       signal(sig, SIG_IGN);
       signal(SIGABRT, SIG_DFL);
       { /* Enable unlimited cores (up to hard-limit) and call abort() --> generates core dump */
-        if (set_unlimited_corefile(NULL,1) == 0) {
+        if (set_corefile_to_hard_limit(NULL,1) == 0) {
           int tid = drhook_oml_get_thread_num();
           char *pfx = PREFIX(tid);
           fprintf(stderr,
@@ -1642,7 +1648,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
                 sig, sl->name, hwm, rss, maxstack, vmpeak, pag, nsigs);
         if (allow_coredump) {
           unsigned long long int hardlimit = 0;
-          int rc = set_unlimited_corefile(&hardlimit,1);
+          int rc = set_corefile_to_hard_limit(&hardlimit,1);
           if (rc == 0) {
             fprintf(stderr,
                     "%s %s [%s@%s:%d] Hardlimit for core file is now %llu (0x%llx)\n",
@@ -2233,7 +2239,7 @@ process_options()
   // Postponed until DrHook actully has caught the signal
   if (allow_coredump) {
     unsigned long long int hardlimit = 0;
-    int rc = set_unlimited_corefile(&hardlimit,1);
+    int rc = set_corefile_to_hard_limit(&hardlimit,1);
     if (rc == 0) {
       OPTPRINT(fp,"%s %s [%s@%s:%d] Hardlimit for core file is now %llu (0x%llx)\n", 
                pfx,TIMESTR(tid),FFL,hardlimit,hardlimit);
