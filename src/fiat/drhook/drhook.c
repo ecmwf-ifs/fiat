@@ -1457,7 +1457,7 @@ static int set_corefile_to_hard_limit(unsigned long long int *hardlimit, int enf
     DRH_STRUCT_RLIMIT r;
 
     if (DRH_GETRLIMIT(RLIMIT_CORE, &r)) return -1;
-    r.rlim_cur = r.rlim_max;
+    if (!r.rlim_cur) r.rlim_cur = r.rlim_max;
 
     if (DRH_SETRLIMIT(RLIMIT_CORE, &r)) return -1;
 
