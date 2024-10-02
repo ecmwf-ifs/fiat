@@ -11,7 +11,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
     set (DEFAULT_DR_HOOK_NVTX ON)
 
     if( ${CMAKE_VERSION} VERSION_LESS "3.25" )
-        find_package(CUDAToolkit REQUIRED COMPONENTS CUDA::nvToolsExt)
+        find_package(CUDAToolkit COMPONENTS CUDA::nvToolsExt)
 
         find_path(NVTX_ROOT
                 NAMES include/nvToolsExt.h
@@ -37,9 +37,9 @@ if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
         mark_as_advanced(
                 NVTX_LIBRARIES
                 NVTX_INCLUDE_DIRS
-        )
+                )
     else()
-        find_package(CUDAToolkit REQUIRED COMPONENTS CUDA::nvtx3)
+        find_package(CUDAToolkit COMPONENTS CUDA::nvtx3)
 
         find_path(NVTX_ROOT
                 NAMES include/nvtx3/nvToolsExt.h
@@ -58,7 +58,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
 
         mark_as_advanced(
                 NVTX_INCLUDE_DIRS
-        )
+                )
     endif()
 
 
