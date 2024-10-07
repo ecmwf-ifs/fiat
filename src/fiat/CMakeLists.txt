@@ -80,7 +80,6 @@ if (HAVE_DR_HOOK_NVTX)
     target_compile_definitions( fiat PRIVATE DR_HOOK_HAVE_NVTX=1 )
     if( CMAKE_VERSION VERSION_LESS 3.25 )
         target_link_libraries     ( fiat PRIVATE ${NVTX_LIBRARIES} )
-        target_compile_definitions( fiat PRIVATE DR_HOOK_NVTX_LEGACY )
     endif()
 endif()
 

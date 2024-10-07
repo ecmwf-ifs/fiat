@@ -9,11 +9,7 @@
  * nor does it submit to any jurisdiction.
  */
 
-#ifdef DR_HOOK_NVTX_LEGACY
 #include <nvToolsExt.h>
-#else
-#include <nvtx3/nvToolsExt.h>
-#endif
 #include <string.h>
 #include <stdlib.h>
 
