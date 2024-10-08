@@ -1,4 +1,5 @@
 # (C) Copyright 2020- ECMWF.
+# (C) Copyright 2024- Meteo-France.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -49,6 +50,12 @@ ecbuild_add_option( FEATURE SINGLE_PRECISION
 ecbuild_add_option( FEATURE WARNINGS
                     DEFAULT ON
                     DESCRIPTION "Add warnings to compiler" )
+
+
+ecbuild_add_option( FEATURE DR_HOOK_NVTX
+                    DEFAULT ${DEFAULT_DR_HOOK_NVTX}
+                    DESCRIPTION "Support for NVTX in DR_HOOK"
+                    REQUIRED_PACKAGES NVTX )
 
 ecbuild_find_package( NAME Realtime QUIET )
 
