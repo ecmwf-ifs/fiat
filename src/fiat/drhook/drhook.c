@@ -81,6 +81,7 @@ static int backtrace(void **buffer, int size) { return 0; }
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#define __USE_GNU
 #include <dlfcn.h>
 
 #include "ec_get_cycles.h"

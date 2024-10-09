@@ -283,6 +283,7 @@ void ec_gethostname(char a[],
 /* ec_coreid(): For checking runtime affinities (not setting them, though) */
 
 #if defined(LINUX) && !defined(__NEC__)
+#define __USE_GNU
 #include <sched.h>
 int sched_getcpu(void);
 #define getcpu() sched_getcpu()

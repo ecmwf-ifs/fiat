@@ -24,6 +24,7 @@
 #include <omp.h>
 #endif
 
+#define __USE_GNU
 #include <sched.h>
 
 static char * getcpumask (char *buffer, size_t size)
