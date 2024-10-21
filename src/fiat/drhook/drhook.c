@@ -335,7 +335,11 @@ static long long int opt_timeline_freq = 1000000; /* How often to print : every 
 static double opt_timeline_MB = 1.0; /* ... rss or curheap jumps up/down by more than this many MBytes (default = 1) : unit MBytes */
 
 static volatile sig_atomic_t opt_gencore = 0;
-static int opt_gencore_signal = 0;
+/* signal 0 might not always be counted, but we can spare sizeof(int) to be careful */
+static int opt_gencore_signals[NSIG + 1];
+static int* opt_gencore_processes;
+static int opt_gencore_user_specified = 0;
+static int opt_gencore_all_procs = 0;
 
 static int opt_random_memstat = 0; /* > 0 if to obtain random memory stats (maxhwm, maxstk) for tid=1. Updated when rand() % opt_random_memstat == 0 */
 
@@ -2115,10 +2119,13 @@ signal_drhook_init(int enforce)
     #endif
   */
   catch_signals(silent); /* Additional signals to be seen by DR_HOOK */
-  if (opt_gencore > 0 && opt_gencore_signal >= 1 && opt_gencore_signal <= NSIG) {
-    drhook_sigfunc_t u;
-    u.func3args = signal_gencore;
-    signal(opt_gencore_signal, u.func1args); /* A facility to dump core */
+  if (opt_gencore) {
+    for (int cur_signal = 0; cur_signal <= NSIG; cur_signal++) {
+      if (!opt_gencore_signals[cur_signal]) continue;
+      drhook_sigfunc_t u;
+      u.func3args = signal_gencore;
+      signal(cur_signal, u.func1args); /* A facility to dump core */
+    }
   }
   signals_set = 1; /* Signals are set now */
 }
@@ -2453,15 +2460,65 @@ process_options()
     opt_gencore = atoi(env);
   }
 
+  int print_gencore_signals = 0;
   if (opt_gencore) {
     OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_GENCORE=%d\n",pfx,TIMESTR(tid),FFL,opt_gencore);
-    
+    /* This is here to not break the previous flags */
     env = getenv("DR_HOOK_GENCORE_SIGNAL");
     if (env) {
       int itmp = atoi(env);
       if (itmp >= 1 && itmp <= NSIG && itmp != SIGABRT) {
-        opt_gencore_signal = itmp;
+        opt_gencore_signals[itmp] = 1;
+        print_gencore_signals = 1;
       }
+    }
+
+    env = getenv("DR_HOOK_GENCORE_SIGNALS");
+    if (env) {
+      print_gencore_signals = 1;
+      const char delim[] = ", \t/";
+      char *s = strdup_drhook(env);
+      char *p = strtok(s,delim);
+
+      while (p) {
+        int itmp = atoi(p);
+        if (1 <= itmp && itmp <= NSIG && itmp != SIGABRT)
+          opt_gencore_signals[itmp] = 1;
+        p = strtok(NULL,delim);
+      }
+      free_drhook(s);
+
+      if (print_gencore_signals) {
+        OPTPRINT(fp, "%s %s [%s@%s:%d] DR_HOOK_GENCORE_SIGNALS=", pfx, TIMESTR(tid), FFL);
+        for (int i = 0; i < NSIG; i++) {
+          OPTPRINT(fp, "%d:%d, ", i, opt_gencore_signals[i]);
+        }
+        OPTPRINT(fp, "%d:%d\n", NSIG, opt_gencore_signals[NSIG]);
+      }
+    }
+
+    env = getenv("DR_HOOK_GENCORE_PROCS");
+    if (env) {
+//      TODO: Is nproc the right size??
+      opt_gencore_processes = calloc_drhook(nproc, sizeof(int));
+      opt_gencore_user_specified = 1;
+      const char delim[] = ", \t/";
+      char *s = strdup_drhook(env);
+      char *p = strtok(s,delim);
+
+      while (p) {
+        int itmp = atoi(p);
+        if (0 <= itmp && itmp < nproc)
+          opt_gencore_processes[itmp] = 1;
+        p = strtok(NULL,delim);
+      }
+      free_drhook(s);
+
+      OPTPRINT(fp, "%s %s [%s@%s:%d] DR_HOOK_GENCORE_PROCS=", pfx, TIMESTR(tid), FFL);
+      for (int i = 0; i < nproc - 1; i++) {
+        OPTPRINT(fp, "%d:%d, ", i, opt_gencore_processes[i]);
+      }
+      OPTPRINT(fp, "%d:%d\n", nproc - 1, opt_gencore_processes[nproc - 1]);
     }
     OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_GENCORE_SIGNAL=%d\n",pfx,TIMESTR(tid),FFL,opt_gencore_signal);
   }
