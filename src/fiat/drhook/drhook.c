@@ -2520,7 +2520,17 @@ process_options()
       }
       OPTPRINT(fp, "%d:%d\n", nproc - 1, opt_gencore_processes[nproc - 1]);
     }
-    OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_GENCORE_SIGNAL=%d\n",pfx,TIMESTR(tid),FFL,opt_gencore_signal);
+
+    /* Super secret flag that enables the fs killing opt_gencore_all_procs option */
+    env = getenv("DR_HOOK_SECRET");
+    if (env) {
+      opt_gencore_all_procs = atoi(env);
+
+      OPTPRINT(fp, "%s %s [%s@%s:%d] WARNING: The following option can easily bring down entire file systems on its own. "
+                   "By enabling this, you are claiming you know what you're doing. If you do not, then disable it IMMEDIATELY!\n",
+               pfx, TIMESTR(tid), FFL);
+      OPTPRINT(fp, "%s %s [%s@%s:%d] DR_HOOK_SECRET=%d\n", pfx, TIMESTR(tid), FFL, opt_gencore_all_procs);
+    }
   }
 
   env = getenv("DR_HOOK_ALLOW_COREDUMP");
