@@ -768,12 +768,14 @@ static int set_default_handler(int sig, int unlimited_corefile, int verbose)
       sigaddset(&sa.sa_mask, some_signal_to_be_blocked); ... just in case
     */
     sigaction(sig, &sa, NULL);
-    if (unlimited_corefile) rc = set_corefile_to_hard_limit(&hardlimit,0); /* unconditionally */
+//  TODO: Is this needed here?
+//    if (unlimited_corefile) rc = set_corefile_to_hard_limit(&hardlimit,0); /* unconditionally */
     if (verbose) {
       int tid = drhook_oml_get_thread_num();
       char *pfx = PREFIX(tid);
       char buf[128] = "";
-      if (unlimited_corefile && rc == 0) snprintf(buf,sizeof(buf)," -- hardlimit for core file is now %llu (0x%llx)", hardlimit, hardlimit);
+//    TODO: Is this needed here?
+//      if (unlimited_corefile && rc == 0) snprintf(buf,sizeof(buf)," -- hardlimit for core file is now %llu (0x%llx)", hardlimit, hardlimit);
       fprintf(stderr,
               "%s %s [%s@%s:%d] "
               "Enabled default signal handler (SIG_DFL) for signal#%d%s\n",
@@ -1476,26 +1478,49 @@ static int set_corefile_to_hard_limit(unsigned long long int *hardlimit, int enf
 static void 
 signal_gencore(int sig SIG_EXTRA_ARGS)
 {
-  if (opt_gencore > 0) { 
-    opt_gencore = 0; /* A tiny chance for a race condition between threads */
-    if (sig == opt_gencore_signal && sig >= 1 && sig <= NSIG) {
-      signal(sig, SIG_IGN);
-      signal(SIGABRT, SIG_DFL);
-      { /* Enable unlimited cores (up to hard-limit) and call abort() --> generates core dump */
-        if (set_corefile_to_hard_limit(NULL,1) == 0) {
-          int tid = drhook_oml_get_thread_num();
-          char *pfx = PREFIX(tid);
-          fprintf(stderr,
-                  "%s %s [%s@%s:%d] Received signal#%d and now calling abort() ...\n",
-                  pfx,TIMESTR(tid),FFL,
-                  sig);
-          LinuxTraceBack(pfx,TIMESTR(tid),NULL);
-          abort(); /* Dump core, too */
+  if (opt_gencore) {
+    if ( sig >= 1 && sig <= NSIG && opt_gencore_signals[sig] ) {
+      /* User has specified procs & I'm that proc
+      * or user hasn't specified procs & either all procs dump or should attempt getting a lock */
+      if ( (opt_gencore_user_specified && opt_gencore_processes[myproc]) ||
+      (!opt_gencore_user_specified && (opt_gencore_all_procs || drhook_use_lockfile)) ) {
+        int fd = -1;
+        if (drhook_use_lockfile)
+          fd = open(drhook_lockfile,O_CREAT|O_WRONLY|O_TRUNC|O_EXCL,S_IRUSR|S_IWUSR);
+
+        /* Allowed through or gotten lock */
+        if (opt_gencore_all_procs || !drhook_use_lockfile || (drhook_use_lockfile && fd >= 0)) {
+
+          /* Ignore whatever signal brought us here (In case other processes get it too),
+           * and restore the default handler for aborts
+           */
+          signal(sig, SIG_IGN);
+          signal(SIGABRT, SIG_DFL);
+          /* If we got through with a file lock, note some details and safely close it */
+          if (fd >= 0) {
+            size_t count = sizeof(myproc);
+            ssize_t sz = write(fd, &myproc, count); // Now we know which MPL-task got the lock (use octal-dump "od" command)
+            close(fd);
+          }
+
+          // TODO: Should set_corefile_to_hard_limit be here? We check it with process_options, but it could change between then and now
+          { /* Enable unlimited cores (up to hard-limit) and call abort() --> generates core dump */
+            if (!set_corefile_to_hard_limit(NULL, 1)) {
+              int tid = drhook_oml_get_thread_num();
+              char *pfx = PREFIX(tid);
+              fprintf(stderr,
+                      "%s %s [%s@%s:%d] Received signal#%d and now calling abort() ...\n",
+                      pfx, TIMESTR(tid), FFL,
+                      sig);
+              LinuxTraceBack(pfx, TIMESTR(tid), NULL);
+              abort(); /* Dump core, too. This should now call the kernel's handler */
+            }
+          }
+          /* Should never end up here */
+          _exit(128 + ABS(sig));
         }
       }
-      /* Should never end up here */
-      _exit(128+ABS(sig));
-    } /* if (sig == opt_gencore_signal && sig >= 1 && sig <= NSIG) */
+    } /* if ( sig >= 1 && sig <= NSIG && opt_gencore_signals[sig] ) */
   }
 }
 
@@ -1650,15 +1675,15 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
                 " %lldMB (maxrss), %lldMB (maxstack), %lldMB (vmpeak), %lld (paging), nsigs = %d\n",
                 pfx,TIMESTR(tid),FFL,
                 sig, sl->name, hwm, rss, maxstack, vmpeak, pag, nsigs);
-        if (allow_coredump) {
-          unsigned long long int hardlimit = 0;
-          int rc = set_corefile_to_hard_limit(&hardlimit,1);
-          if (rc == 0) {
-            fprintf(stderr,
-                    "%s %s [%s@%s:%d] Hardlimit for core file is now %llu (0x%llx)\n",
-                    pfx,TIMESTR(tid),FFL,hardlimit,hardlimit);
-          }
-        }
+//        if (allow_coredump) {
+//          unsigned long long int hardlimit = 0;
+//          int rc = set_corefile_to_hard_limit(&hardlimit,1);
+//          if (rc == 0) {
+//            fprintf(stderr,
+//                    "%s %s [%s@%s:%d] Hardlimit for core file is now %llu (0x%llx)\n",
+//                    pfx,TIMESTR(tid),FFL,hardlimit,hardlimit);
+//          }
+//        }
 
 #if 1
         fprintf(stderr,
