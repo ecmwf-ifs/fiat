@@ -139,6 +139,8 @@ void drhook_papi_readall_(long_long * counterArray){
   drhook_papi_readAll(counterArray);
 }
 
+extern static void *malloc_drhook(size_t size);
+
 /* return 1 if papi can be used after the call */
 int drhook_papi_init(int rank){
   int lib_version;
@@ -215,7 +217,7 @@ int drhook_papi_init(int rank){
   
   if (drhook_papi_rank==0 && !silent) printf("%s\n",pmsg);
 
-  drhook_papi_event_set=malloc(nthreads*sizeof(int));
+  drhook_papi_event_set=malloc_drhook(nthreads*sizeof(int));
 
   int rcout;
   drhook_run_omp_parallel_papi_startup(drhook_papi_event_set,nthreads, &rcout);
