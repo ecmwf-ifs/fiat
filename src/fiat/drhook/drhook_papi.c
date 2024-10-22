@@ -26,7 +26,7 @@ static int papi_counters_count;
 /* function to use for thread id 
    - it should be better than omp_get_thread_num!
 */
-unsigned long safe_thread_num(){
+unsigned long papi_safe_thread_num(){
   return oml_my_thread()-1;
 }
 
@@ -125,9 +125,9 @@ int drhook_papi_readAll(long_long * counterArray){
     printf("DRHOOK:PAPI: Error reading counters, eventset\n");
     exit (1);
   }
-  int err=PAPI_read(drhook_papi_event_set[safe_thread_num()],counterArray);
+  int err=PAPI_read(drhook_papi_event_set[papi_safe_thread_num()],counterArray);
   if (err!=PAPI_OK){
-    printf("DRHOOK:PAPI:PAPI_read: Error reading counters, thread=%ld es=%d %s\n",safe_thread_num(),drhook_papi_event_set[safe_thread_num()],PAPI_strerror(err));
+    printf("DRHOOK:PAPI:PAPI_read: Error reading counters, thread=%ld es=%d %s\n",papi_safe_thread_num(),drhook_papi_event_set[papi_safe_thread_num()],PAPI_strerror(err));
   }
 #if defined(DEBUG)
   drhook_papi_print("readAll:",counterArray,0);
@@ -201,7 +201,7 @@ int drhook_papi_init(int rank){
 
   int nthreads=oml_get_max_threads();
 
-  paperr=PAPI_thread_init(safe_thread_num);
+  paperr=PAPI_thread_init(papi_safe_thread_num);
   
   if( paperr != PAPI_OK ){
     snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Error, thread init failed (%s)",PAPI_strerror(paperr));
@@ -233,7 +233,7 @@ int drhook_papi_init(int rank){
 }
 
 int dr_hook_papi_start_threads(int* events){
-  int thread=safe_thread_num();
+  int thread=papi_safe_thread_num();
   int papiErr;
   char pmsg[STD_MSG_LEN];
 
