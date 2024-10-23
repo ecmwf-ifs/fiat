@@ -1075,10 +1075,11 @@ remove_calltree(int tid, drhook_key_t *keyptr,
         drhook_key_t *parent_keyptr = treeptr->prev->keyptr;
         if (parent_keyptr) { /* extra security */
 #if defined(DR_HOOK_HAVE_PAPI)
-        drhook_papi_add(NULL,
-          parent_keyptr->delta_counters_child,
-          delta_counters
-        );
+          if (opt_papi)
+            drhook_papi_add(NULL,
+              parent_keyptr->delta_counters_child,
+              delta_counters
+            );
 #endif
           if (opt_walltime) {
             parent_keyptr->delta_wall_child += (*delta_wall);
@@ -2925,7 +2926,7 @@ getkey(int tid, const char *name, int name_len,
         if (opt_cputime) keyptr->cpu_in  = cputime ? *cputime : CPUTIME();
         if (opt_cycles) keyptr->cycles_in  = cycles ? *cycles : ec_get_cycles();
 #if defined(DR_HOOK_HAVE_PAPI)
-        drhook_papi_readAll(keyptr->counters_in);
+        if (opt_papi) drhook_papi_readAll(keyptr->counters_in);
 #endif
         if (any_memstat) memstat(keyptr,&tid,1);
         if (opt_calls) {
@@ -3045,11 +3046,6 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
   else if (tid >= 1 && tid <= numthreads) {
     double delta_wall = 0;
     double delta_cpu  = 0;
-    long_long * delta_counters = NULL;
-#if defined(DR_HOOK_HAVE_PAPI)
-    delta_counters=alloca(drhook_papi_num_counters() * sizeof(long_long) );
-    drhook_papi_bzero(delta_counters);
-#endif
     long long int delta_cycles  = 0;
     if (any_memstat) memstat(keyptr,&tid,0);
     if (opt_calls)   keyptr->status--;
@@ -3090,9 +3086,14 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
       }
     }
 #endif
+    long_long * delta_counters = NULL;
 #if defined(DR_HOOK_HAVE_PAPI)
-    drhook_papi_subtract(delta_counters, NULL , keyptr->counters_in);
-    drhook_papi_add(NULL,   keyptr->delta_counters_all, delta_counters);
+    if (opt_papi) {
+      delta_counters = alloca(drhook_papi_num_counters() * sizeof(long_long));
+      drhook_papi_bzero(delta_counters);
+      drhook_papi_subtract(delta_counters, NULL, keyptr->counters_in);
+      drhook_papi_add(NULL, keyptr->delta_counters_all, delta_counters);
+    }
 #endif
     remove_calltree(tid, keyptr, &delta_wall, &delta_cpu, &delta_cycles, delta_counters);
   }
@@ -3221,7 +3222,8 @@ itself(drhook_key_t *keyptr_self,
       if (opt_wallprof) keyptr->wall_in = walltime ? *walltime : WALLTIME();
       else              keyptr->cpu_in = cputime ? *cputime : CPUTIME();
 #if defined(DR_HOOK_HAVE_PAPI)
-      drhook_papi_readAll(keyptr->counters_in);
+      if (opt_papi)
+        drhook_papi_readAll(keyptr->counters_in);
 #endif
       keyptr->calls++;
     }
@@ -3238,14 +3240,15 @@ itself(drhook_key_t *keyptr_self,
       if (delta_time) *delta_time = delta;
 
 #if defined(DR_HOOK_HAVE_PAPI)
+      if (opt_papi) {
+        long_long cntrs_delta[NPAPICNTRS];
 
-      long_long cntrs_delta[NPAPICNTRS];
+        /* cntrs_delta = current - counters_in */
+        drhook_papi_subtract(cntrs_delta, NULL, keyptr->counters_in);
 
-      /* cntrs_delta = current - counters_in */
-      drhook_papi_subtract(cntrs_delta, NULL, keyptr->counters_in);
-
-      /* keyptr->delta_counters_all += cntrs_delta */
-      drhook_papi_add(NULL, keyptr->delta_counters_all,cntrs_delta);
+        /* keyptr->delta_counters_all += cntrs_delta */
+        drhook_papi_add(NULL, keyptr->delta_counters_all,cntrs_delta);
+      }
 #endif
 
     }
@@ -3540,8 +3543,10 @@ c_drhook_check_watch_(const char *where,
 /*** PUBLIC ***/
 #if defined(DR_HOOK_HAVE_PAPI)
 #define PAPIREAD \
-  long_long cntrs[NPAPICNTRS]; \
-  drhook_papi_readAll(cntrs)
+  if (opt_papi) {                \
+    long_long cntrs[NPAPICNTRS]; \
+    drhook_papi_readAll(cntrs)   \
+  }
 #else
 #define PAPIREAD /*NOOP*/
 #endif
@@ -3636,7 +3641,7 @@ c_drhook_init_(const char *progname,
     drhook_delete_lockfile();
   }
 #if defined(DR_HOOK_HAVE_PAPI)
-  drhook_papi_init(myproc -1);
+  if (opt_papi) drhook_papi_init(myproc -1);
 #endif
 
 }
@@ -4435,6 +4440,9 @@ c_drhook_print_(const int *ftnunitno,
           while (keyptr) {
             if (keyptr->name && (keyptr->status == 0 || signal_handler_called)) {
 #if defined(DR_HOOK_HAVE_PAPI)
+              /* No point slowing down this code with an if (opt_papi)
+               * as it can be called by signal_drhook(). This would just be
+               * processing zeros anyway as we only use calloc() for keys */
               drhook_papi_subtract(p->counter_self,
                 keyptr->delta_counters_all,
                 keyptr->delta_counters_child
