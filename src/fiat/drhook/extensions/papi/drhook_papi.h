@@ -1,6 +1,5 @@
 #ifndef DRHOOK_PAPI
 #define DRHOOK_PAPI
-#if defined(DR_HOOK_HAVE_PAPI)
 
 #include <papi.h>
 
@@ -36,5 +35,4 @@ void drhook_papi_print(char * s,long_long* a,int header);
 
 #else
 #define long_long long long
-#endif
 #endif

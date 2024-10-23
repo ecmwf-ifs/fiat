@@ -1,4 +1,3 @@
-#if defined(DR_HOOK_HAVE_PAPI)
 #include "drhook_papi.h"
 #include <stdio.h>
 #include <stdbool.h>
@@ -329,5 +328,3 @@ int dr_hook_papi_start_threads(int* events){
   
   return 1;
 }
-  
-#endif
