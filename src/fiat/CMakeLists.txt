@@ -1,4 +1,5 @@
 # (C) Copyright 2020- ECMWF.
+# (C) Copyright 2024- Meteo-France.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -44,6 +45,9 @@ endif()
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/library/version.c.in ${CMAKE_CURRENT_BINARY_DIR}/version.c @ONLY )
 
 ecbuild_list_add_pattern( LIST fiat_src GLOB *.c *.F* *.cc )
+
+ecbuild_list_exclude_pattern( LIST fiat_src REGEX drhook/extensions/*)
+
 set( fiat_src ${fiat_src} PARENT_SCOPE )
 
 ecbuild_add_library( TARGET fiat
@@ -65,6 +69,19 @@ ecbuild_add_library( TARGET fiat
         $<INSTALL_INTERFACE:include/fiat>
 )
 
+if (HAVE_DR_HOOK_NVTX)
+    # Files from within DrHook
+    ecbuild_list_add_pattern( LIST fiat_nvtx_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/nvtx)
+    target_sources(fiat PRIVATE ${fiat_nvtx_src})
+    target_include_directories(fiat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/nvtx)
+
+    # Files defined externally
+    target_include_directories( fiat PRIVATE ${NVTX_INCLUDE_DIRS} )
+    target_compile_definitions( fiat PRIVATE DR_HOOK_HAVE_NVTX=1 )
+    if( CMAKE_VERSION VERSION_LESS 3.25 )
+        target_link_libraries     ( fiat PRIVATE ${NVTX_LIBRARIES} )
+    endif()
+endif()
 
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
   # Following should not be necessary; 

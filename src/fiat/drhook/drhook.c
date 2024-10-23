@@ -82,6 +82,9 @@ static int backtrace(void **buffer, int size) { return 0; }
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dlfcn.h>
+#ifdef DR_HOOK_HAVE_NVTX
+#include "dr_hook_nvtx.h"
+#endif
 
 #include "ec_get_cycles.h"
 #include "drhook_papi.h"
@@ -321,6 +324,13 @@ static int callpath_indent = callpath_indent_default;
 #define callpath_depth_default 50
 static int callpath_depth = callpath_depth_default;
 static int callpath_packed = 0;
+static int opt_nvtx = 0;
+#define nvtx_SCC_default 10
+static int opt_nvtx_SCC = nvtx_SCC_default;
+#define nvtx_SWT_default 0.0001
+static double opt_nvtx_SWT = nvtx_SWT_default;
+static int opt_strict_regions = 0;
+static int opt_silent = 0;
 
 static int opt_calltrace = 0;
 static int opt_funcenter = 0;
@@ -480,6 +490,9 @@ typedef struct drhook_key_t {
 #endif
 
   unsigned long long int alloc_count, free_count;
+#if defined(DR_HOOK_HAVE_NVTX)
+  unsigned long long int skipped_nvtx_calls;
+#endif
   struct drhook_key_t *next;
 } drhook_key_t;
 
@@ -1062,10 +1075,10 @@ remove_calltree(int tid, drhook_key_t *keyptr,
         drhook_key_t *parent_keyptr = treeptr->prev->keyptr;
         if (parent_keyptr) { /* extra security */
 #if defined(DR_HOOK_HAVE_PAPI)
-    drhook_papi_add(NULL,
-      parent_keyptr->delta_counters_child,
-      delta_counters
-      );
+        drhook_papi_add(NULL,
+          parent_keyptr->delta_counters_child,
+          delta_counters
+        );
 #endif
           if (opt_walltime) {
             parent_keyptr->delta_wall_child += (*delta_wall);
@@ -2231,16 +2244,18 @@ process_options()
 
   tid = drhook_oml_get_thread_num();
 
-  int silent = 0;
   env = getenv("DR_HOOK_SILENT");
-  silent = env ? atoi(env) : silent;
+  if (env) {
+    opt_silent = atoi(env);
+  }
 
   env = getenv("DR_HOOK_SHOW_PROCESS_OPTIONS");
-  ienv = env ? atoi(env) : silent ? 0 : 1;
+  ienv = env ? atoi(env) : opt_silent ? 0 : 1;
   if (ienv == -1 || ienv == myproc) fp = stderr;
   if (fp) pfx = PREFIX(tid);
 
   if(fp) fprintf(fp,"[EC_DRHOOK:hostname:myproc:omltid:pid:unixtid] [YYYYMMDD:HHMMSS:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",drhook_oml_get_max_threads());
+  OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_SILENT=%d\n",pfx,TIMESTR(tid),FFL,opt_silent);
 
   OPTPRINT(fp,"%s %s [%s@%s:%d] fp = %p\n",pfx,TIMESTR(tid),FFL,(void*)fp);
 
@@ -2514,6 +2529,48 @@ process_options()
     OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_GENCORE_SIGNAL=%d\n",pfx,TIMESTR(tid),FFL,opt_gencore_signal);
   }
 
+  env = getenv("DR_HOOK_STRICT_REGIONS");
+  int strict_regions_opt_touched = 0;
+  if (env) {
+    opt_strict_regions = atoi(env);
+    strict_regions_opt_touched = 1;
+  }
+
+  env = getenv("DR_HOOK_NVTX");
+  if (env) {
+    opt_nvtx = atoi(env);
+    opt_strict_regions = opt_strict_regions || opt_nvtx;
+    strict_regions_opt_touched = 1;
+    opt_walltime = 1;
+    opt_calls = 1;
+    OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_NVTX=%d\n",pfx,TIMESTR(tid),FFL,opt_nvtx);
+  }
+
+  if (strict_regions_opt_touched)
+    OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_STRICT_REGIONS=%d\n",pfx,TIMESTR(tid),FFL,opt_strict_regions);
+
+  if (opt_nvtx) {
+    env = getenv("DR_HOOK_NVTX_SPAM_CALL_COUNT");
+    if (env) {
+      opt_nvtx_SCC = atoi(env);
+
+      if (opt_nvtx_SCC < 0)
+        opt_nvtx_SCC = nvtx_SCC_default;
+
+      OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_NVTX_SPAM_CALL_COUNT=%d\n",pfx,TIMESTR(tid),FFL,opt_nvtx_SCC);
+    }
+
+    env = getenv("DR_HOOK_NVTX_SPAM_WT");
+    if (env) {
+      opt_nvtx_SWT = atof(env);
+
+      if (opt_nvtx_SWT < 0)
+        opt_nvtx_SWT = nvtx_SWT_default;
+
+      OPTPRINT(fp, "%s %s [%s@%s:%g] DR_HOOK_NVTX_SPAM_WT=%g\n", pfx, TIMESTR(tid), FFL, nvtx_SWT_default);
+    }
+  }
+
   newline = 0;
   env = getenv("DR_HOOK_OPT");
   if (env) {
@@ -2649,7 +2706,7 @@ process_options()
         opt_callpath = 1;
         OPTPRINT(fp,"%s%s",comma,"CALLPATH"); comma = ",";
       } else {
-        printf("DrHook: Note - no match for HOOK_OPT : %s\n",p);
+        printf("DrHook: Warning - no match for HOOK_OPT : %s\n",p);
       }
       p = strtok(NULL,delim);
     }
@@ -2875,6 +2932,18 @@ getkey(int tid, const char *name, int name_len,
           keyptr->calls++;
           keyptr->status++;
         }
+#if defined(DR_HOOK_HAVE_NVTX)
+        // Helps filter out wrapper calls that may be noise
+        if (opt_nvtx && drhook_oml_get_thread_num() == 1){
+          if (keyptr->calls > opt_nvtx_SCC && keyptr->delta_wall_all < opt_nvtx_SWT) {
+            if (!opt_silent)
+              fprintf(stderr,"DRHOOK:NVTX: Skipping opening of region %s\n", keyptr->name);
+            keyptr->skipped_nvtx_calls++;
+          }
+          else
+            dr_hook_nvtx_start(keyptr->name);
+        }
+#endif
         insert_calltree(tid, keyptr);
         break; /* for (;;) */
       }
@@ -2900,7 +2969,12 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
   const int sig = SIGABRT;
   const char sl_name[] = "SIGABRT";
   drhook_calltree_t *treeptr = (tid >= 1 && tid <= numthreads) ? thiscall[tid-1] : NULL;
-  if (!treeptr || !treeptr->active || treeptr->keyptr != keyptr) {
+
+  int regions_mismatch = 0;
+  if (opt_strict_regions)
+    regions_mismatch = strncasecmp(keyptr->name, name, name_len);
+
+  if (!treeptr || !treeptr->active || treeptr->keyptr != keyptr || regions_mismatch) {
     char *pfx = PREFIX(tid);
     char *s;
     unsigned int hash;
@@ -2971,7 +3045,7 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
   else if (tid >= 1 && tid <= numthreads) {
     double delta_wall = 0;
     double delta_cpu  = 0;
-    long_long * delta_counters=NULL;
+    long_long * delta_counters = NULL;
 #if defined(DR_HOOK_HAVE_PAPI)
     delta_counters=alloca(drhook_papi_num_counters() * sizeof(long_long) );
     drhook_papi_bzero(delta_counters);
@@ -3005,11 +3079,22 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
     if (opt_walltime) keyptr->delta_wall_all   += delta_wall;
     if (opt_cputime)  keyptr->delta_cpu_all    += delta_cpu;
     if (opt_cycles)   keyptr->delta_cycles_all += delta_cycles;
+#if defined(DR_HOOK_HAVE_NVTX)
+    if (opt_nvtx && drhook_oml_get_thread_num() == 1) {
+      if (keyptr->skipped_nvtx_calls > 0) {
+        if (!opt_silent)
+          fprintf(stderr, "DRHOOK:NVTX: Skipping closing of region %s\n", keyptr->name);
+        keyptr->skipped_nvtx_calls--;
+      } else {
+        dr_hook_nvtx_end();
+      }
+    }
+#endif
 #if defined(DR_HOOK_HAVE_PAPI)
     drhook_papi_subtract(delta_counters, NULL , keyptr->counters_in);
     drhook_papi_add(NULL,   keyptr->delta_counters_all, delta_counters);
 #endif
-    remove_calltree(tid, keyptr, &delta_wall, &delta_cpu, &delta_cycles,delta_counters);
+    remove_calltree(tid, keyptr, &delta_wall, &delta_cpu, &delta_cycles, delta_counters);
   }
 }
 
@@ -4591,7 +4676,7 @@ c_drhook_print_(const int *ftnunitno,
         fprintf(fp, "\n");
 
         cumul = 0;
-        for (j = 0; j < nprof; ) {
+        for (j=0; j<nprof; ) {
           int cluster_size = clusize[p->cluster];
           if (p->pc < percent_limit)
             break;
