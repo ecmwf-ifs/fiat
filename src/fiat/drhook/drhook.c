@@ -810,8 +810,7 @@ static int set_default_handler(int sig, int unlimited_corefile, int verbose)
 
 /*--- malloc_drhook ---*/
 
-static void *
-malloc_drhook(size_t size)
+void *malloc_drhook(size_t size)
 {
   size_t size1 = MAX(1,size);
   void *p = malloc(size1);

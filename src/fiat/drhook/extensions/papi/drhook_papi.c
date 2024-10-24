@@ -138,7 +138,7 @@ void drhook_papi_readall_(long_long * counterArray){
   drhook_papi_readAll(counterArray);
 }
 
-extern static void *malloc_drhook(size_t size);
+extern void *malloc_drhook(size_t size);
 
 /* return 1 if papi can be used after the call */
 int drhook_papi_init(int rank){
