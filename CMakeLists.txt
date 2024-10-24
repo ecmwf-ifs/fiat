@@ -55,7 +55,6 @@ ecbuild_add_option( FEATURE WARNINGS
                     DEFAULT ON
                     DESCRIPTION "Add warnings to compiler" )
 
-
 ecbuild_add_option( FEATURE DR_HOOK_NVTX
                     DEFAULT ${DEFAULT_DR_HOOK_NVTX}
                     DESCRIPTION "Support for NVTX in DR_HOOK"

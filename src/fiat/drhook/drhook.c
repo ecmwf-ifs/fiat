@@ -484,9 +484,9 @@ typedef struct drhook_key_t {
   long long int paging_in;
 
 #if defined(DR_HOOK_HAVE_PAPI)
-  long_long counters_in[NPAPICNTRS];
-  long_long delta_counters_all[NPAPICNTRS];
-  long_long delta_counters_child[NPAPICNTRS];
+  long_long counters_in[MAXNPAPICNTRS];
+  long_long delta_counters_all[MAXNPAPICNTRS];
+  long_long delta_counters_child[MAXNPAPICNTRS];
 #endif
 
   unsigned long long int alloc_count, free_count;
@@ -521,8 +521,8 @@ typedef struct drhook_prof_t {
   double total;
   double self;
 #if defined(DR_HOOK_HAVE_PAPI)
-  long_long counter_tot[NPAPICNTRS];
-  long_long counter_self[NPAPICNTRS];
+  long_long counter_tot[MAXNPAPICNTRS];
+  long_long counter_self[MAXNPAPICNTRS];
 #endif
   unsigned long long int calls;
   double percall_ms_self;
@@ -3241,7 +3241,7 @@ itself(drhook_key_t *keyptr_self,
 
 #if defined(DR_HOOK_HAVE_PAPI)
       if (opt_papi) {
-        long_long cntrs_delta[NPAPICNTRS];
+        long_long cntrs_delta[MAXNPAPICNTRS];
 
         /* cntrs_delta = current - counters_in */
         drhook_papi_subtract(cntrs_delta, NULL, keyptr->counters_in);
@@ -3544,8 +3544,8 @@ c_drhook_check_watch_(const char *where,
 #if defined(DR_HOOK_HAVE_PAPI)
 #define PAPIREAD \
   if (opt_papi) {                \
-    long_long cntrs[NPAPICNTRS]; \
-    drhook_papi_readAll(cntrs)   \
+    long_long cntrs[MAXNPAPICNTRS]; \
+    drhook_papi_readAll(cntrs);   \
   }
 #else
 #define PAPIREAD /*NOOP*/
