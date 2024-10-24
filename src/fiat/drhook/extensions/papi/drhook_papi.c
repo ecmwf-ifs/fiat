@@ -219,7 +219,7 @@ int drhook_papi_init(int rank){
   drhook_papi_event_set=malloc_drhook(nthreads*sizeof(int));
 
   int rcout;
-  drhook_run_omp_parallel_papi_startup(drhook_papi_event_set,nthreads, &rcout);
+  drhook_run_omp_parallel_papi_startup(drhook_papi_event_set, nthreads, &rcout);
   if (rcout)
     return 0;
 

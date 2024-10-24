@@ -76,7 +76,7 @@ end subroutine drhook_run_omp_parallel_get_cycles
 
 #if defined(DR_HOOK_HAVE_PAPI)
 
-subroutine drhook_run_omp_parallel_papi_startup(events,n, rcOut) bind(c)
+subroutine drhook_run_omp_parallel_papi_startup(events, n, rcOut) bind(c)
   use, intrinsic :: iso_c_binding, only : c_char, c_int, c_double
   use drhook_papi_interface
   use OML_MOD
@@ -89,14 +89,14 @@ subroutine drhook_run_omp_parallel_papi_startup(events,n, rcOut) bind(c)
   INTEGER  :: myThread
   INTEGER  :: nThreads
 
-  myThread=OML_MY_THREAD()-1
   nThreads=OML_GET_MAX_THREADS()
   rcOut=0
-  !$OMP PARALLEL
+  !$OMP PARALLEL PRIVATE(myThread,rc) SHARED(rcOut)
+  myThread=OML_MY_THREAD()-1
   DO thread=0,nThreads-1
      if (thread==myThread) then
         rc=dr_hook_papi_start_threads(events)
-        if (rc==0)rcOut=1
+        if (rc==0) rcOut=1
      end if
      !$OMP BARRIER
   END DO
