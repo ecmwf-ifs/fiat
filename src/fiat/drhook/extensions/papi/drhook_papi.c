@@ -1,3 +1,13 @@
+/*
+ * (C) Copyright 2024- ECMWF.
+ *
+ * This software is licensed under the terms of the Apache Licence Version 2.0
+ * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+ * In applying this licence, ECMWF does not waive the privileges and immunities
+ * granted to it by virtue of its status as an intergovernmental organisation
+ * nor does it submit to any jurisdiction.
+ */
+
 #include "drhook_papi.h"
 #include <stdio.h>
 #include <stdbool.h>
@@ -20,7 +30,7 @@ int    drhook_papi_rank=0; /* C style! */
 
 static int papi_counter_event_codes[MAXNPAPICNTRS];
 static char* papi_counter_names[MAXNPAPICNTRS];
-static int papi_counters_count;
+static int papi_counters_count = 0;
 
 /* function to use for thread id 
    - it should be better than omp_get_thread_num!
