@@ -13,11 +13,11 @@
 module drhook_papi_interface
 #if defined(DR_HOOK_HAVE_PAPI)
   interface
-     function dr_hook_papi_start_threads ( events) bind ( c )
+     function drhook_papi_start_threads ( events) bind ( c )
        use, intrinsic :: iso_c_binding, only : c_int
-       integer(kind=c_int) :: dr_hook_papi_start_threads
+       integer(kind=c_int) :: drhook_papi_start_threads
        integer(kind=c_int), intent(inout) :: events(*)
-     end function dr_hook_papi_start_threads
+     end function drhook_papi_start_threads
   end interface
 #endif
 end module drhook_papi_interface
@@ -95,7 +95,7 @@ subroutine drhook_run_omp_parallel_papi_startup(events, n, rcOut) bind(c)
   myThread=OML_MY_THREAD()-1
   DO thread=0,nThreads-1
      if (thread==myThread) then
-        rc=dr_hook_papi_start_threads(events)
+        rc=drhook_papi_start_threads(events)
         if (rc==0) rcOut=1
      end if
      !$OMP BARRIER

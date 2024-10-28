@@ -231,7 +231,7 @@ int drhook_papi_init(int rank){
   return 1;
 }
 
-int dr_hook_papi_start_threads(int* events){
+int drhook_papi_start_threads(int* events){
   int thread=papi_safe_thread_num();
   int papiErr;
   char pmsg[STD_MSG_LEN];
