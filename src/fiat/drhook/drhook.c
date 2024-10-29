@@ -2759,6 +2759,10 @@ process_options()
           p++;
         }
         p = strtok(s,delim);
+        if (p && fp) {
+          fprintf(fp,"%s %s [%s@%s:%d]",pfx,TIMESTR(tid),FFL);
+          newline = 1;
+        }
         for (int i = 0; p && i < drhook_papi_max_num_counters();  p = strtok(NULL,delim), i++) {
           drhook_papi_add_counter_name(strdup_drhook(p));
           OPTPRINT(fp,"%s%s",comma,p); comma = ",";
