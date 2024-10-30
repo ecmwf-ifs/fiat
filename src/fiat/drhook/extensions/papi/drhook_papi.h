@@ -18,6 +18,7 @@
 int drhook_papi_init(int rank);
 int drhook_papi_num_counters();
 int drhook_papi_max_num_counters();
+int drhook_papi_max_name_len();
 void drhook_papi_counter_name(int c, char* event_name);
 void drhook_papi_add_counter_name(const char* counter_name);
 long_long drhook_papi_read(int counterId);
