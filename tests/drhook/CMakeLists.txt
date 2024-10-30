@@ -86,7 +86,7 @@ if (HAVE_DR_HOOK_NVTX)
   add_subdirectory(drhook_nvtx)
 endif ()
 
-  # PAPI
-  if (HAVE_DR_HOOK_PAPI)
-    add_subdirectory(drhook_papi)
-  endif ()
+# PAPI
+if (HAVE_DR_HOOK_PAPI)
+  add_subdirectory(drhook_papi)
+endif ()

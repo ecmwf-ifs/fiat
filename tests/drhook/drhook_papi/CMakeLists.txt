@@ -64,9 +64,11 @@ ecbuild_add_test( TARGET fiat_test_drhook_papi_mpi_valid_csv
         ENVIRONMENT DR_HOOK=1 DR_HOOK_OPT=COUNTERS
         CONDITION HAVE_DR_HOOK_PAPI AND HAVE_MPI )
 
-set_tests_properties(fiat_test_drhook_papi_mpi_valid_csv
-        PROPERTIES DEPENDS fiat_test_drhook_papi_mpi
-        PASS_REGULAR_EXPRESSION "5" )
+if (HAVE_MPI)
+    set_tests_properties(fiat_test_drhook_papi_mpi_valid_csv
+            PROPERTIES DEPENDS fiat_test_drhook_papi_mpi
+            PASS_REGULAR_EXPRESSION "5" )
+endif()
 
 # Test user specified output file names
 
