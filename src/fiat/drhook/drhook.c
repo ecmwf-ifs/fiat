@@ -2028,11 +2028,11 @@ signal_drhook_init(int enforce)
   char *env = getenv("DR_HOOK_SILENT");
   int silent = env ? atoi(env) : 0;
   int j;
-  dr_hook_procinfo_(&myproc, &nproc);
-  if (myproc < 1) myproc = 1; /* Just to enable output as if myproc was == 1 */
+  int mpi_init;
+  dr_hook_procinfo_(&myproc, &nproc, &mpi_init);
   /* Signals may not yet been set, since MPI not initialized
-     Only enforce-parameter can enforce to set these => no output on myproc=1 */
-  if (!enforce && (myproc < 1 || nproc < 0)) return;
+     Enforce parameter for setting signals regardless of MPI state */
+  if (!enforce && !mpi_init) return;
   if (signals_set) return; /* Extra safety */
   /* To present sumpini.F90 (f.ex.) initializing DrHook-signals in case of
      DR_HOOK was turned off (=0), then set also export DR_HOOK_INIT_SIGNALS=0 */
