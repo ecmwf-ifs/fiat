@@ -2938,7 +2938,7 @@ getkey(int tid, const char *name, int name_len,
         }
 #if defined(DR_HOOK_HAVE_NVTX)
         // Helps filter out wrapper calls that may be noise
-        if (opt_nvtx && drhook_oml_get_thread_num() == 1){
+        if (opt_nvtx && tid == 1){
           if (keyptr->calls > opt_nvtx_SCC && keyptr->delta_wall_all < opt_nvtx_SWT) {
             if (!opt_silent)
               fprintf(stderr,"DRHOOK:NVTX: Skipping opening of region %s\n", keyptr->name);
