@@ -7,9 +7,9 @@
 # nor does it submit to any jurisdiction.
 
 if( HAVE_TESTS )
-
+set (MPI_OPTS "" CACHE STRING "system depended srun or mpirun options (partition, time, account, ...)")
 if( HAVE_MPI AND MPIEXEC )
-  set( LAUNCH ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 1 )
+  set( LAUNCH ${MPIEXEC} ${MPI_OPTS} ${MPIEXEC_NUMPROC_FLAG} 1 )
 else()
   set( LAUNCH ${CMAKE_CROSSCOMPILING_EMULATOR} )
 endif()
@@ -162,6 +162,26 @@ add_test(NAME fiat_test_abor1
       "-DEXECUTABLE=$<TARGET_FILE:fiat-test-abor1>"
       "-DPASS_REGULAR_EXPRESSION=ABOR1.*aborting from OpenMP parallel region"
       -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
+
+#-----------------------------------------------------------------------------------------
+# Test fiat_test_mpl_alltoallv
+#
+#
+
+ecbuild_add_executable(
+    TARGET  fiat-test-mpl-alltoallv-no-output
+    SOURCES test_mpl_alltoallv_no_output.F90 
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran
+    NOINSTALL )
+
+set(LAUNCH2  ${MPIEXEC} ${MPI_OPTS} ${MPIEXEC_NUMPROC_FLAG} 2)
+add_test(NAME fiat_test_mpl_alltoallv_no_output
+         COMMAND ${CMAKE_COMMAND}
+         "-DEXECUTABLE=$<TARGET_FILE:fiat-test-mpl-alltoallv-no-output>"
+         "-DLAUNCH=${LAUNCH2}"
+         -P ${CMAKE_CURRENT_SOURCE_DIR}/test_mpl_alltoallv_no_output.cmake )
+
 
 # ----------------------------------------------------------------------------------------
 # Test installation of fiat is working
