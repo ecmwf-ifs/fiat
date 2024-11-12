@@ -2029,7 +2029,7 @@ signal_drhook_init(int enforce)
   int silent = env ? atoi(env) : 0;
   int j;
   int mpi_init;
-  dr_hook_procinfo_(&myproc, &nproc, &mpi_init);
+  c_dr_hook_procinfo(&myproc, &nproc, &mpi_init);
   /* Signals may not yet been set, since MPI not initialized
      Enforce parameter for setting signals regardless of MPI state */
   if (!enforce && !mpi_init) return;
