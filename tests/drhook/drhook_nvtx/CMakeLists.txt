@@ -57,8 +57,10 @@ ecbuild_add_test( TARGET fiat_test_drhook_nvtx_mismatched_regions
         ENVIRONMENT DR_HOOK=1 DR_HOOK_NVTX=1
         CONDITION HAVE_DR_HOOK_NVTX )
 
-set_tests_properties(fiat_test_drhook_nvtx_mismatched_regions
-        PROPERTIES WILL_FAIL TRUE )
+if (TEST fiat_test_drhook_nvtx_mismatched_regions)
+    set_tests_properties(fiat_test_drhook_nvtx_mismatched_regions
+            PROPERTIES WILL_FAIL TRUE )
+endif()
 
 # Test skip on spammy regions
 
@@ -76,8 +78,10 @@ ecbuild_add_test( TARGET fiat_test_drhook_nvtx_skip_spam_regions
         ENVIRONMENT DR_HOOK=1 DR_HOOK_NVTX=1 DR_HOOK_SILENT=0
         CONDITION HAVE_DR_HOOK_NVTX )
 
-set_tests_properties(fiat_test_drhook_nvtx_skip_spam_regions
-        PROPERTIES PASS_REGULAR_EXPRESSION "DRHOOK:NVTX: Skipping closing of region foo" PASS_REGULAR_EXPRESSION "DRHOOK:NVTX: Skipping opening of region foo" )
+if (TEST fiat_test_drhook_nvtx_skip_spam_regions)
+    set_tests_properties(fiat_test_drhook_nvtx_skip_spam_regions
+            PROPERTIES PASS_REGULAR_EXPRESSION "DRHOOK:NVTX: Skipping closing of region foo" PASS_REGULAR_EXPRESSION "DRHOOK:NVTX: Skipping opening of region foo" )
+endif()
 
 # Test not to skip on spammy regions with long runtimes
 
@@ -95,5 +99,7 @@ ecbuild_add_test( TARGET fiat_test_drhook_nvtx_no_skip_spam_regions
         ENVIRONMENT DR_HOOK=1 DR_HOOK_NVTX=1 DR_HOOK_SILENT=0
         CONDITION HAVE_DR_HOOK_NVTX )
 
-set_tests_properties(fiat_test_drhook_nvtx_no_skip_spam_regions
-        PROPERTIES FAIL_REGULAR_EXPRESSION "DRHOOK:NVTX: Skipping closing of region foo" FAIL_REGULAR_EXPRESSION "DRHOOK:NVTX: Skipping opening of region foo" )
+if (TEST fiat_test_drhook_nvtx_no_skip_spam_regions)
+    set_tests_properties(fiat_test_drhook_nvtx_no_skip_spam_regions
+            PROPERTIES FAIL_REGULAR_EXPRESSION "DRHOOK:NVTX: Skipping closing of region foo" FAIL_REGULAR_EXPRESSION "DRHOOK:NVTX: Skipping opening of region foo" )
+endif()

@@ -24,4 +24,3 @@ program drhook_papi_user_counters
   call dr_hook('drhook_papi_user_counters', 1, zhook_handle)
 
 end program drhook_papi_user_counters
-

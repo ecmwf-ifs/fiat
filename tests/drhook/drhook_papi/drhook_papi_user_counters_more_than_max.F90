@@ -24,4 +24,3 @@ program drhook_papi_user_counters_more_than_max
   call dr_hook('drhook_papi_user_counters_more_than_max', 1, zhook_handle)
 
 end program drhook_papi_user_counters_more_than_max
-

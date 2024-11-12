@@ -22,8 +22,10 @@ ecbuild_add_test( TARGET fiat_test_drhook_papi_basic
         ENVIRONMENT DR_HOOK=1 DR_HOOK_OPT=COUNTERS
         CONDITION HAVE_DR_HOOK_PAPI )
 
-set_tests_properties(fiat_test_drhook_papi_basic
-        PROPERTIES PASS_REGULAR_EXPRESSION "Writing counter information of proc#1 into file" )
+if (TEST fiat_test_drhook_papi_basic)
+    set_tests_properties(fiat_test_drhook_papi_basic
+            PROPERTIES PASS_REGULAR_EXPRESSION "Writing counter information of proc#1 into file" )
+endif()
 
 
 ecbuild_add_test( TARGET fiat_test_drhook_papi_basic_valid_csv
@@ -34,9 +36,11 @@ ecbuild_add_test( TARGET fiat_test_drhook_papi_basic_valid_csv
         ENVIRONMENT DR_HOOK=1 DR_HOOK_OPT=COUNTERS
         CONDITION HAVE_DR_HOOK_PAPI )
 
-set_tests_properties(fiat_test_drhook_papi_basic_valid_csv
-        PROPERTIES DEPENDS fiat_test_drhook_papi_basic
-        FAIL_REGULAR_EXPRESSION "no matches found" )
+if (TEST fiat_test_drhook_papi_basic_valid_csv)
+    set_tests_properties(fiat_test_drhook_papi_basic_valid_csv
+            PROPERTIES DEPENDS fiat_test_drhook_papi_basic
+            FAIL_REGULAR_EXPRESSION "no matches found" )
+endif()
 
 # Test MPI implementation
 
@@ -64,7 +68,7 @@ ecbuild_add_test( TARGET fiat_test_drhook_papi_mpi_valid_csv
         ENVIRONMENT DR_HOOK=1 DR_HOOK_OPT=COUNTERS
         CONDITION HAVE_DR_HOOK_PAPI AND HAVE_MPI )
 
-if (HAVE_MPI)
+if (TEST fiat_test_drhook_papi_mpi_valid_csv)
     set_tests_properties(fiat_test_drhook_papi_mpi_valid_csv
             PROPERTIES DEPENDS fiat_test_drhook_papi_mpi
             PASS_REGULAR_EXPRESSION "5" )
@@ -92,9 +96,11 @@ ecbuild_add_test( TARGET fiat_test_drhook_papi_user_filename_valid_csv
         ENVIRONMENT DR_HOOK=1 DR_HOOK_OPT=COUNTERS
         CONDITION HAVE_DR_HOOK_PAPI )
 
-set_tests_properties(fiat_test_drhook_papi_user_filename_valid_csv
-        PROPERTIES DEPENDS fiat_test_drhook_papi_user_filename
-        FAIL_REGULAR_EXPRESSION "no matches found" )
+if (TEST fiat_test_drhook_papi_user_filename_valid_csv)
+    set_tests_properties(fiat_test_drhook_papi_user_filename_valid_csv
+            PROPERTIES DEPENDS fiat_test_drhook_papi_user_filename
+            FAIL_REGULAR_EXPRESSION "no matches found" )
+endif()
 
 # Test user specified counters
 
@@ -110,8 +116,10 @@ ecbuild_add_test( TARGET fiat_test_drhook_papi_user_counters
         ENVIRONMENT DR_HOOK=1 DR_HOOK_OPT=COUNTERS DR_HOOK_PAPI_COUNTERS=PAPI_TOT_INS DR_HOOK_PROFILE=fiat_test_drhook_papi_user_counters
         CONDITION HAVE_DR_HOOK_PAPI )
 
-set_tests_properties(fiat_test_drhook_papi_user_counters
-        PROPERTIES PASS_REGULAR_EXPRESSION "PAPI_TOT_INS" )
+if (TEST fiat_test_drhook_papi_user_counters)
+    set_tests_properties(fiat_test_drhook_papi_user_counters
+            PROPERTIES PASS_REGULAR_EXPRESSION "PAPI_TOT_INS" )
+endif()
 
 # Test user specified counters going over max allowed
 
@@ -127,5 +135,7 @@ ecbuild_add_test( TARGET fiat_test_drhook_papi_user_counters_more_than_max
         ENVIRONMENT DR_HOOK=1 DR_HOOK_OPT=COUNTERS DR_HOOK_PAPI_COUNTERS=PAPI_TOT_CYC,PAPI_FP_OPS,PAPI_L1_DCA,PAPI_L2_DCM,PAPI_TOT_INS DR_HOOK_PROFILE=drhook_papi_user_counters_more_than_max
         CONDITION HAVE_DR_HOOK_PAPI )
 
-set_tests_properties(fiat_test_drhook_papi_user_counters_more_than_max
-        PROPERTIES FAIL_REGULAR_EXPRESSION "PAPI_TOT_INS" )
+if (TEST fiat_test_drhook_papi_user_counters_more_than_max)
+    set_tests_properties(fiat_test_drhook_papi_user_counters_more_than_max
+            PROPERTIES FAIL_REGULAR_EXPRESSION "PAPI_TOT_INS" )
+endif()
