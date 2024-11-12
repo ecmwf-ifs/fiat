@@ -29,7 +29,7 @@ int    drhook_papi_state=drhook_papi_notstarted;
 int    drhook_papi_rank=0; /* C style! */
 
 static int papi_counter_event_codes[MAXNPAPICNTRS];
-static char* papi_counter_names[MAXNPAPICNTRS];
+static const char* papi_counter_names[MAXNPAPICNTRS];
 static int papi_counters_count = 0;
 
 /* function to use for thread id 
@@ -234,7 +234,7 @@ int drhook_papi_init(int rank){
     return 0;
 
   for (int i=0; i < drhook_papi_max_num_counters(); i++)
-    free(papi_counter_names[i]);
+    free((void *) papi_counter_names[i]);
 
   drhook_papi_state=drhook_papi_running;
   if (drhook_papi_rank==0 && !silent) printf("DRHOOK:PAPI: Initialisation sucess\n");
