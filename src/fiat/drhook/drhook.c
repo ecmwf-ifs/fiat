@@ -4040,6 +4040,7 @@ c_drhook_print_(const int *ftnunitno,
                 )
 {
   static int first_time = 0;
+  static int reported_open_regions = 0;
   int tid = (thread_id && (*thread_id >= 1) && (*thread_id <= numthreads))
     ? *thread_id : drhook_oml_get_thread_num();
   int mytid = drhook_oml_get_thread_num();
@@ -4289,6 +4290,11 @@ c_drhook_print_(const int *ftnunitno,
                 cycles[t] += self_cycles;
               }
               nprof++;
+            } else if (keyptr->name && keyptr->status > 0 && !reported_open_regions) {
+              fprintf(stderr,
+                      "%s %s [%s@%s:%d] WARNING: Region '%s' was never closed or stopped by a signal (Opened %d time(s) without closing). No output will be produced for this region.\n",
+                      pfx,TIMESTR(tid),FFL, keyptr->name, keyptr->status);
+              reported_open_regions = 1;
             }
             keyptr = keyptr->next;
           } /* while (keyptr && keyptr->status == 0) */
@@ -4611,6 +4617,11 @@ c_drhook_print_(const int *ftnunitno,
               tot[t] += self;
               maxseen_tot[t] = MAX(maxseen_tot[t], keyptr->mem_seenmax);
               nprof++;
+            } else if (keyptr->name && keyptr->status > 0 && !reported_open_regions) {
+              fprintf(stderr,
+                      "%s %s [%s@%s:%d] WARNING: Region '%s' was never closed or stopped by a signal (Opened %d time(s) without closing). No output will be produced for this region.\n",
+                      pfx,TIMESTR(tid),FFL, keyptr->name, keyptr->status);
+              reported_open_regions = 1;
             }
             keyptr = keyptr->next;
           } /* while (keyptr && keyptr->status == 0) */
