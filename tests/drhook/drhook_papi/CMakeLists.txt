@@ -32,14 +32,13 @@ ecbuild_add_test( TARGET fiat_test_drhook_papi_basic_valid_csv
         TYPE SCRIPT
         # Just making sure it's not an empty file
         COMMAND "find"
-        ARGS "." "-name" "drhook.prof.0.csv" "-type" "f" "-size" "+100c"
-        ENVIRONMENT DR_HOOK=1 DR_HOOK_OPT=COUNTERS
+        ARGS "." "-name" "drhook.prof.1.csv" "-type" "f" "-size" "+100c"
         CONDITION HAVE_DR_HOOK_PAPI )
 
 if (TEST fiat_test_drhook_papi_basic_valid_csv)
     set_tests_properties(fiat_test_drhook_papi_basic_valid_csv
             PROPERTIES DEPENDS fiat_test_drhook_papi_basic
-            FAIL_REGULAR_EXPRESSION "no matches found" )
+            PASS_REGULAR_EXPRESSION "drhook.prof.1.csv" )
 endif()
 
 # Test MPI implementation
@@ -54,7 +53,7 @@ ecbuild_add_executable( TARGET drhook_papi_mpi
 ecbuild_add_test( TARGET fiat_test_drhook_papi_mpi
         COMMAND drhook_papi_mpi
         MPI 5
-        ENVIRONMENT DR_HOOK=1 DR_HOOK_OPT=COUNTERS
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_OPT=COUNTERS DR_HOOK_PROFILE=fiat_test_drhook_papi_mpi
         CONDITION HAVE_DR_HOOK_PAPI AND HAVE_MPI )
 
 
@@ -64,8 +63,7 @@ ecbuild_add_test( TARGET fiat_test_drhook_papi_mpi_valid_csv
         # We have to do this weird thing with bash so that we can
         # use a redirect. CMake tests are really basic...
         COMMAND "bash"
-        ARGS "-c" "find . -name 'drhook.prof.[1-5].csv' -type f -size +100c | wc -l"
-        ENVIRONMENT DR_HOOK=1 DR_HOOK_OPT=COUNTERS
+        ARGS "-c" "find . -name 'fiat_test_drhook_papi_mpi.[1-5].csv' -type f -size +100c | wc -l"
         CONDITION HAVE_DR_HOOK_PAPI AND HAVE_MPI )
 
 if (TEST fiat_test_drhook_papi_mpi_valid_csv)
@@ -93,13 +91,12 @@ ecbuild_add_test( TARGET fiat_test_drhook_papi_user_filename_valid_csv
         # Just making sure it's not an empty file
         COMMAND "find"
         ARGS "." "-name" "fiat_test_drhook_papi_user_filename.1.csv" "-type" "f"
-        ENVIRONMENT DR_HOOK=1 DR_HOOK_OPT=COUNTERS
         CONDITION HAVE_DR_HOOK_PAPI )
 
 if (TEST fiat_test_drhook_papi_user_filename_valid_csv)
     set_tests_properties(fiat_test_drhook_papi_user_filename_valid_csv
             PROPERTIES DEPENDS fiat_test_drhook_papi_user_filename
-            FAIL_REGULAR_EXPRESSION "no matches found" )
+            PASS_REGULAR_EXPRESSION "fiat_test_drhook_papi_user_filename.1.csv" )
 endif()
 
 # Test user specified counters
