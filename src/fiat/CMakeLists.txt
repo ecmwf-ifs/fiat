@@ -73,6 +73,7 @@ if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
 endif()
 
 target_compile_definitions( fiat PRIVATE ${FIAT_DEFINITIONS} )
+target_compile_definitions( fiat PRIVATE fiat_GIT_SHA1="${fiat_GIT_SHA1}" )
 
 if( HAVE_FCKIT )
     target_link_libraries( fiat PRIVATE fckit )

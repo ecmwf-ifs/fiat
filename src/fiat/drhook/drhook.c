@@ -2244,6 +2244,7 @@ process_options()
 
   if(fp) fprintf(fp,"[EC_DRHOOK:hostname:myproc:omltid:pid:unixtid] [YYYYMMDD:HHMMSS:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",drhook_oml_get_max_threads());
 
+  OPTPRINT(fp,"%s %s [%s@%s:%d] Built from commit %s\n",pfx,TIMESTR(tid),FFL,BUILD_GIT_HASH);
   OPTPRINT(fp,"%s %s [%s@%s:%d] fp = %p\n",pfx,TIMESTR(tid),FFL,(void*)fp);
 
   env = getenv("ATP_ENABLED");
