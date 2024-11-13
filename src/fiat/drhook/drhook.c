@@ -1463,13 +1463,6 @@ static int set_unlimited_corefile(unsigned long long int *hardlimit, int enforce
   return rc;
 }
 
-int get_mkdir_lock(const char* path) {
-  //  Anyone can do anything to the directory
-  //  Hopefully should prevent immovable folders
-  mode_t mode = S_IRWXU | S_IRWXG | S_IRWXO;
-  return mkdir(path, mode);
-}
-
 static void 
 signal_gencore(int sig SIG_EXTRA_ARGS)
 {
