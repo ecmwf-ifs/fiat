@@ -20,9 +20,23 @@ end subroutine
 
 #define FAIL(msg) call fail_impl(msg,__LINE__)
 
+subroutine work1(r)
+  implicit none
+  integer, intent(out) :: r
+
+  real a(100000)
+  call  random_number(a)
+  if (any(a < 0.0) ) then
+    r =1
+  else
+    r =0
+  endif
+end subroutine work1
+
+
 program test_mpl
 use ec_parkind, only : jpim
-use mpl_module, only: mpl_init, mpl_end, mpl_rank, linitmpi_via_mpl, mpl_alltoallv
+use mpl_module, only: mpl_init, mpl_end, mpl_rank, linitmpi_via_mpl, mpl_alltoallv, JP_NON_BLOCKING_STANDARD, mpl_wait
 
 implicit none
 
@@ -30,6 +44,7 @@ integer(jpim) :: nprocs
 logical :: verbose = .false.
 integer, allocatable :: sbuf(:), rbuf(:), scounts(:), rcounts(:)
 integer i,j
+character(len=256) msg
 
 call mpl_init(KPROCS=nprocs,ldinfo=verbose,ldenv=.true.)
 
@@ -46,15 +61,42 @@ do i=1,nprocs
 enddo
 rcounts(:)=mpl_rank
 
-call mpl_alltoallv(sbuf,scounts,rbuf,rcounts)
+call do_alltoallv("blocking")
 
-do i=1,nprocs,mpl_rank
-  if ( any(rbuf(i:i+mpl_rank-1) /= i) ) then
-    write(0,*) "test failed on mpl_rank", mpl_rank, rbuf
-  endif
-enddo
+call do_alltoallv("nonblocking")
 
 call mpl_end(ldmeminfo=verbose)
 ! Note that with mpi_serial meminfo will not be printed regardless of ldmeminfo
 
+contains
+
+  subroutine do_alltoallv(mode)
+    implicit none
+    character(len=*), intent(in) :: mode
+
+    integer request, i, j, res
+
+    select case(mode)
+    case("blocking")
+      call mpl_alltoallv(sbuf,scounts,rbuf,rcounts)
+    case("nonblocking")
+      ! trying to get a random failure
+      do j=1,133
+        call mpl_alltoallv(sbuf,scounts,rbuf,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request)
+        call work1(res)
+        if ( res > 0 ) write(0,*) "error in  work1 non-blocking alltoallv" ! this should not happen ever"
+        call mpl_wait(request)
+      enddo 
+    end select
+
+    do i=1,nprocs,mpl_rank
+      if ( any(rbuf(i:i+mpl_rank-1) /= i) ) then
+        write(0,*) trim(mode)//" alltoall test test failed on mpl_rank", mpl_rank, rbuf
+      endif
+    enddo  
+   
+  end subroutine do_alltoallv
+
 end program
+
+
