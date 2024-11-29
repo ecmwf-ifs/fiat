@@ -1,8 +1,8 @@
 module linked_list_mod
-  use, intrinsic :: ISO_C_BINDING, only : C_PTR, C_NULL_PTR
+  !use, intrinsic :: ISO_C_BINDING, only : C_PTR, C_NULL_PTR
   implicit none
   private
-  public :: node_type, list_manager
+  public :: list_manager
   
   type :: displacements
      integer, allocatable :: send(:)
@@ -11,16 +11,17 @@ module linked_list_mod
      type(displacements), pointer :: prev
    contains
      procedure :: initialize
-     procedure :: cleanup
+     !procedure :: cleanup
   end type displacements
 
   ! List manager type to handle list operations
   type :: list_manager
-     type(displacemets), pointer :: head => null()
+     type(displacements), pointer :: head => null()
      integer :: list_size = 0
    contains
      procedure :: append
-     procedure :: remove_last
+     procedure :: remove_first
+     procedure :: remove_req
      procedure :: clear_list
      procedure :: print_list
   end type list_manager
@@ -28,11 +29,11 @@ module linked_list_mod
 contains
   
   subroutine initialize(this, send, recv, req)
-    class(displacemets), intent(inout) :: this
+    class(displacements), intent(inout) :: this
     integer, intent(in) :: send(:), recv(:)
     integer, intent(in) :: req
         
-    allocate(this%send(size(send)),this%recv(size(recv))
+    allocate(this%send(size(send)),this%recv(size(recv)))
     this%send = send
     this%recv = recv
     this%req = req
@@ -55,28 +56,28 @@ contains
     subroutine append(this, send, recv, req)
       class(list_manager), intent(inout) :: this
       integer, intent(in) :: send(:), recv(:), req
-      type(displacemets), pointer :: new_node
+      type(displacements), pointer :: new_node
 
       allocate(new_node)
-      new_node%init(send,recv,req)
+      call new_node%initialize(send,recv,req)
         
-        ! If list is empty, set head and tail
-        if (.not. associated(this%head)) then
-            this%head => new_node
-        else
-            ! Link to existing list
-            new_node%prev => this%head
-            this%head => new_node
-        end if
+      ! If list is empty, set head and tail
+      if (.not. associated(this%head)) then
+          this%head => new_node
+      else
+        ! Link to existing list
+        new_node%prev => this%head
+        this%head => new_node
+      end if
         
         ! Increment list size
-        this%list_size = this%list_size + 1
+      this%list_size = this%list_size + 1
     end subroutine append
 
     ! Remove first node from the list
     subroutine remove_first(this)
         class(list_manager), intent(inout) :: this
-        type(displacemets), pointer :: temp
+        type(displacements), pointer :: temp
         
         if (.not. associated(this%head)) return
         
@@ -84,7 +85,7 @@ contains
         temp => this%head
         
         ! Move head to next node
-        this%head => this%head%next
+        this%head => this%head%prev
         
         ! Cleanup the removed node
         !call temp%cleanup() needed?
@@ -95,29 +96,31 @@ contains
         
     end subroutine remove_first
 
+    
     subroutine remove_req(this,req)
       implicit none
       class(list_manager), intent(inout) :: this
       integer, intent(in) :: req
-      type(displacemets), pointer :: tmp, tmp_
+      type(displacements), pointer :: current, current_
       
-      tmp => this%head
-      do while ( associated(tmp%prev))
-         if (tmp%req == req) then
-            if ( associated(this%head, tmp) ) then
+      current => this%head
+      do while (associated(current))
+         if (current%req == req) then
+            if ( associated(this%head, current) ) then
+               current_ => this%head
                this%head => this%head%prev
-               deallocate(this%head)
+               deallocate(current_)
                this%list_size = this%list_size - 1
                exit
             else
-               tmp_%prev => tmp%prev
-               deallocate(tmp)
+               current_%prev => current%prev
+               deallocate(current)
                this%list_size = this%list_size - 1
                exit
             end if
          else
-            tmp_ => tmp
-            tmp => tmp%prev
+            current_ => current
+            current => current%prev
          end if
       enddo
       
@@ -136,17 +139,14 @@ contains
     ! Print list contents (for debugging)
     subroutine print_list(this)
         class(list_manager), intent(in) :: this
-        type(node_type), pointer :: current
+        type(displacements), pointer :: current
         
         current => this%head
         do while(associated(current))
-            if (allocated(current%real_data)) then
-                print *, "Real data:", current%real_data
-            end if
-            if (allocated(current%int_data)) then
-                print *, "Integer data:", current%int_data
-            end if
-            current => current%next
+           write(*,*) 'send displs', current%send
+           write(*,*) 'recv displs', current%recv
+           write(*,*) 'request    ', current%req
+           current => current%prev
         end do
     end subroutine print_list
 end module linked_list_mod

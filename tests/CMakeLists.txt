@@ -182,6 +182,24 @@ add_test(NAME fiat_test_mpl_alltoallv_no_output
          "-DLAUNCH=${LAUNCH2}"
          -P ${CMAKE_CURRENT_SOURCE_DIR}/test_mpl_alltoallv_no_output.cmake )
 
+#-----------------------------------------------------------------------------------------
+# Test test_linked_list
+#
+#
+
+ecbuild_add_executable(
+    TARGET  fiat-test-linked-list-no-output
+    SOURCES test_linked_list_no_output.F90
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran
+    NOINSTALL )
+
+add_test(NAME fiat_test_linked_list_no_output
+         COMMAND ${CMAKE_COMMAND}
+         "-DEXECUTABLE=$<TARGET_FILE:fiat-test-linked-list-no-output>"
+         "-DLAUNCH=${LAUNCH}"
+         -P ${CMAKE_CURRENT_SOURCE_DIR}/test_linked_list_no_output.cmake )
+
 
 # ----------------------------------------------------------------------------------------
 # Test installation of fiat is working
