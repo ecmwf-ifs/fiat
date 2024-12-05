@@ -1,13 +1,13 @@
 module linked_list_mod
-  !use, intrinsic :: ISO_C_BINDING, only : C_PTR, C_NULL_PTR
+  use ec_parkind, only : jpim
   implicit none
   private
   public :: list_manager
   
   type :: displacements
-     integer, allocatable :: send(:)
-     integer, allocatable :: recv(:)
-     integer :: req
+     integer(kind=jpim), allocatable :: send(:)
+     integer(kind=jpim), allocatable :: recv(:)
+     integer(kind=jpim) :: req
      type(displacements), pointer :: prev
    contains
      procedure :: initialize
@@ -151,25 +151,3 @@ contains
     end subroutine print_list
 end module linked_list_mod
 
-!!$program test_linked_list
-!!$    use linked_list_module
-!!$    implicit none
-!!$    
-!!$    type(list_manager) :: my_list
-!!$    type(node_type), target :: node1, node2
-!!$    
-!!$    ! Initialize nodes
-!!$    call node1%initialize(real_input=[1.1, 2.2, 3.3], int_input=[1, 2,
-!!$3])
-!!$    call node2%initialize(real_input=[4.4, 5.5], int_input=[4, 5])
-!!$    
-!!$    ! Append nodes to list
-!!$    call my_list%append(node1)
-!!$    call my_list%append(node2)
-!!$    
-!!$    ! Print list contents
-!!$    call my_list%print_list()
-!!$    
-!!$    ! Clean up list
-!!$    call my_list%clear_list()
-!!$end program test_linked_list
