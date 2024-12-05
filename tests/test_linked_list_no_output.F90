@@ -26,13 +26,15 @@ program main
   req = 2
 
   call list%append(send,recv,req)
-
-  call list%print_list()
+  if ( list%list_size /= 2 .or. list%head%req /= 2 &
+       .or. list%head%send(1) /= 2 .or. list%head%recv(1) /= 2) FAIL("append 2 nodes failed")
+  !call list%print_list()
+  !write(*,*) '+++++++++++++++++++++++++++++++'
 
   call list%remove_first()
-
-  call list%print_list()
-
+  if ( list%list_size /= 1 .or. list%head%req /= 1 &
+       .or. list%head%send(1) /=1 .or. list%head%recv(1) /=1) FAIL("head remove failed")
+      
   call list%append(send,recv,req)
   
   send = 4
@@ -40,11 +42,13 @@ program main
   req = 4
 
   call list%append(send,recv,req)
-
   call list%remove_req(2)
+  if ( list%list_size /= 2 .or. list%head%req /= 4 ) FAIL("try to remove non-existent request failed")
   
-  call list%print_list()
+  call list%remove_req(1)
+  if ( list%list_size /= 1 .or. list%head%req /= 4 ) FAIL("try to remove inner node failed")
   
   call list%clear_list()
+  if ( associated(list%head) .or. list%list_size /=0 ) FAIL("clear list failed")
 
 end program main
