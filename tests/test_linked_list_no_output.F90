@@ -9,12 +9,13 @@ end subroutine
 #define FAIL(msg) call fail_impl(msg,__LINE__)
 
 program main
-  use linked_list_mod
+  use linked_list_mod!, only : displ_array_list => list
 
   integer send(1), recv(1), req
 
-  type(list_manager) :: list 
+  type(list_manager), pointer :: list => displ_array_list 
 
+  
   send = 1
   recv = 1
   req = 1
@@ -51,4 +52,5 @@ program main
   call list%clear_list()
   if ( associated(list%head) .or. list%list_size /=0 ) FAIL("clear list failed")
 
+  
 end program main
