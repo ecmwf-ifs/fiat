@@ -2,7 +2,6 @@ module linked_list_mod
   use ec_parkind, only : jpim
   implicit none
   private
-  public :: list_manager
   
   type :: displacements
      integer(kind=jpim), allocatable :: send(:)
@@ -15,7 +14,7 @@ module linked_list_mod
   end type displacements
 
   ! List manager type to handle list operations
-  type :: list_manager
+  type, public :: list_manager
      type(displacements), pointer :: head => null()
      integer :: list_size = 0
    contains
@@ -26,6 +25,8 @@ module linked_list_mod
      procedure :: print_list
   end type list_manager
 
+  TYPE(LIST_MANAGER),PUBLIC, TARGET :: DISPL_ARRAY_LIST
+  
 contains
   
   subroutine initialize(this, send, recv, req)
