@@ -13,7 +13,7 @@ if [[ $HOSTNAME =~ leonardo ]] ; then
   export ecbuild_ROOT=../ecbuild
   export fckit_ROOT=../fckit
 
-else
+elif [[ $HOSTNAME =~ uan ]] ; then
   # lumi
   ml LUMI/24.03
   ml partition/C
@@ -24,5 +24,8 @@ else
   #export CC=
   #export FC=<path-to-Fortran-compiler>
   #export CXX=<path-to-C++-compiler> 
+elif [[ $HOSTNAME =~ syla-laptop ]] ; then
+  export ecbuild_ROOT=../ecbuild
+  export fckit_ROOT=../fckit
 fi
 set +x
