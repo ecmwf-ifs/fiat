@@ -1,4 +1,4 @@
-set -x
+#set -x
 if [[ $HOSTNAME =~ leonardo ]] ; then
   echo "on Leonardo"
   #ml purge
@@ -12,6 +12,7 @@ if [[ $HOSTNAME =~ leonardo ]] ; then
   ml
   export ecbuild_ROOT=../ecbuild
   export fckit_ROOT=../fckit
+  export FC=ifort
 
 elif [[ $HOSTNAME =~ uan ]] ; then
   # lumi

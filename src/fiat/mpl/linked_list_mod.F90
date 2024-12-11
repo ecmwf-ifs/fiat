@@ -89,7 +89,7 @@ contains
       else
         ! continue the initialisation, recv and send may be passed in different sector of the code
         tmp => this%head%prev
-        call this%head%initialize(req,recv,send,copy)
+        call this%head%initialize(req,send,recv,copy)
         this%head%prev => tmp ! initialise sets head%prev => null()
       end if
     end if
