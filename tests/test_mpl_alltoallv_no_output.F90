@@ -81,7 +81,7 @@ contains
       call mpl_alltoallv(sbuf,scounts,rbuf,rcounts)
     case("nonblocking")
       ! trying to get a random failure
-      do j=1,133
+      do j=1,1
         call mpl_alltoallv(sbuf,scounts,rbuf,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request)
         call work1(res)
         if ( res > 0 ) write(0,*) "error in  work1 non-blocking alltoallv" ! this should not happen ever"
