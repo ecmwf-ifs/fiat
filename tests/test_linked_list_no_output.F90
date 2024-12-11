@@ -37,8 +37,6 @@ program main
   if ( list%list_size /= 1 .or. list%head%req /= 1 &
        .or. list%head%send(1) /=1 .or. list%head%recv(1) /=1) FAIL("head remove failed")
       
-  call list%append(req, send, recv, copy=.true.)
-  
   send = 4
   recv = 4
   req = 4
@@ -54,8 +52,8 @@ program main
   recv = 5
   req = 5
 
-  call list%append(req,send,copy=copy)
-  call list%append(req,recv,copy=copy)
+  call list%append(req,send=send,copy=copy)
+  call list%append(req,recv=recv,copy=copy)
   if ( list%list_size /= 2 .or. list%head%send(1) /= 5 &
     .or. list%head%recv(1) /= 5 ) FAIL("try one update in two steps failed")
   
