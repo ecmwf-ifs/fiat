@@ -1,6 +1,5 @@
 module linked_list_mod
   use ec_parkind, only : jpim
-  !use mpl_mpif, only : mpi_request_null
   implicit none
   private
 
@@ -32,12 +31,13 @@ contains
 
   subroutine initialize(this, req, send, recv, copy)
     class(displacements), intent(inout) :: this
-    integer(kind=jpim), intent(in) :: req
+    integer(kind=jpim), optional, intent(in) :: req
     integer(kind=jpim), optional, intent(in) :: send(:), recv(:)
-    logical, optional, intent(in) :: copy ! initialisation may be done by pointer
+    logical, optional, intent(in) :: copy ! if not present initialisation is done by pointer
 
-
-    this%req = req
+    if ( present(req)) then
+      this%req = req
+    end if
     if (present(send)) then
       allocate(this%send(size(send)))
       if (present(copy)) this%send = send
@@ -50,23 +50,12 @@ contains
   end subroutine initialize
 
 
-!!$    subroutine cleanup(this)
-!!$      class(node_type), intent(inout) :: this
-!!$        
-!!$        ! Deallocate arrays if allocated
-!!$        if (allocated(this%real_data)) deallocate(this%real_data)
-!!$        if (allocated(this%int_data)) deallocate(this%int_data)
-!!$        
-!!$        ! Reset C pointer
-!!$        this%c_ptr = C_NULL_PTR
-!!$    end subroutine cleanup
-
   ! Append a new node to the list
-  subroutine append(this, req, send, recv,copy)
+  subroutine append(this, req, send, recv, copy, no_new_node)
     class(list_manager), intent(inout) :: this
-    integer(kind=jpim), intent(in) :: req
+    integer(kind=jpim), optional, intent(in) :: req
     integer(kind=jpim), optional, intent(in) :: send(:), recv(:)
-    logical, optional, intent(in) :: copy
+    logical, optional, intent(in) :: copy, no_new_node
     type(displacements), pointer :: new_node, tmp
 
 
@@ -78,8 +67,8 @@ contains
       ! Increment list size
       this%list_size = this%list_size + 1
     else
-      ! allocate new node only if called a with new request
-      if ( req /= this%head%req ) then
+      ! add new not if no_new_node is not present
+      if ( .not. present(no_new_node) ) then
         allocate(new_node)
         call new_node%initialize(req,send,recv,copy)
         new_node%prev => this%head

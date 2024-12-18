@@ -53,7 +53,7 @@ program main
   req = 5
 
   call list%append(req,send=send,copy=copy)
-  call list%append(req,recv=recv,copy=copy)
+  call list%append(req,recv=recv,copy=copy,no_new_node=.true.)
   if ( list%list_size /= 2 .or. list%head%send(1) /= 5 &
     .or. list%head%recv(1) /= 5 ) FAIL("try one update in two steps failed")
   
