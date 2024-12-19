@@ -3,13 +3,18 @@ module linked_list_mod
   implicit none
   private
 
-  type,public :: displacements
+  type,private :: displacements
     integer(kind=jpim) :: req
+    integer(kind=jpim) :: nproc = 0
     integer(kind=jpim), allocatable :: send(:)
     integer(kind=jpim), allocatable :: recv(:)
     type(displacements), pointer :: prev
   contains
     procedure :: initialize
+    procedure :: get_send
+    procedure :: get_recv
+    procedure :: get_req
+    procedure :: get_nproc
     !procedure :: cleanup
   end type displacements
 
@@ -29,48 +34,113 @@ module linked_list_mod
 
 contains
 
-  subroutine initialize(this, req, send, recv, copy)
-    class(displacements), intent(inout) :: this
-    integer(kind=jpim), optional, intent(in) :: req
-    integer(kind=jpim), optional, intent(in) :: send(:), recv(:)
-    logical, optional, intent(in) :: copy ! if not present initialisation is done by pointer
+  subroutine initialize(this, req, nproc, send_pt, recv_pt, ierr)
+    class(displacements), target, intent(inout) :: this
+    integer(kind=jpim), optional, intent(in) :: req, nproc
+    integer(kind=jpim), optional, intent(out) :: ierr
+    integer(kind=jpim), pointer, optional, intent(out) :: send_pt(:), recv_pt(:)
 
+    ! error codes
+    ! 1 - nproc = 0 at alloc stage
+    ! 2 - nproc in this call has a different value from previpus call 
+    if(present(ierr)) then
+      ierr = 0
+    end if
+    
     if ( present(req)) then
       this%req = req
     end if
-    if (present(send)) then
-      allocate(this%send(size(send)))
-      if (present(copy)) this%send = send
+    
+    if (present(nproc)) then
+      if ( this%nproc == 0 ) then
+        this%nproc = nproc
+      else
+        ! guard against accidental change of nproc in the case
+        ! of a subsequent call to the constructor
+        if ( nproc /= this%nproc .and. present (ierr)) then
+          ierr = 2
+        end if
+      end if
     end if
-    if (present(recv)) then
-      allocate(this%recv(size(recv)))
-      if(present(copy)) this%recv=recv
+    
+    if (present(send_pt)) then
+      if (this%nproc > 0 ) then 
+        allocate(this%send(this%nproc))
+        send_pt => this%send
+      else
+        if ( present(ierr)) ierr = 1
+      end if
     end if
+    
+    if (present(recv_pt)) then
+     if (this%nproc > 0 ) then 
+        allocate(this%recv(this%nproc))
+        recv_pt => this%recv
+      else
+        if ( present(ierr)) ierr = 1
+      end if
+    end if
+
     this%prev => null()
+
   end subroutine initialize
 
+  
+  function get_send(this) result(r)
+    implicit none
+    class(displacements), intent(inout) :: this
+    integer(kind=jpim), allocatable ::  r(:)
+
+    r = this%send
+  end function get_send
+
+  function get_recv(this) result(r)
+    implicit none
+    class(displacements), intent(inout) :: this
+    integer(kind=jpim), allocatable :: r(:)
+    
+    r = this%recv
+  end function get_recv
+  
+  function get_req(this) result(r)
+    implicit none
+    class(displacements), intent(inout) :: this
+    integer(kind=jpim) r
+    
+    r = this%req
+  end function get_req
+
+  function get_nproc(this) result(r)
+    implicit none
+    class(displacements), intent(inout) :: this
+    integer(kind=jpim) r
+    
+    r = this%nproc
+  end function get_nproc
+  
 
   ! Append a new node to the list
-  subroutine append(this, req, send, recv, copy, no_new_node)
+  subroutine append(this, req, nproc, send_pt, recv_pt, no_new_node, ierr)
     class(list_manager), intent(inout) :: this
-    integer(kind=jpim), optional, intent(in) :: req
-    integer(kind=jpim), optional, intent(in) :: send(:), recv(:)
-    logical, optional, intent(in) :: copy, no_new_node
+    integer(kind=jpim), optional, intent(in) :: req, nproc
+    integer(kind=jpim), pointer, optional, intent(out) :: send_pt(:), recv_pt(:)
+    logical, optional, intent(in) :: no_new_node ! the value of this var is irrelevant, the logic tests if they are present or not
+    integer(kind=jpim), optional, intent(out) :: ierr
     type(displacements), pointer :: new_node, tmp
 
 
     ! If list is empty, set head
     if (.not. associated(this%head)) then
       allocate(new_node)
-      call new_node%initialize(req,send,recv,copy)
+      call new_node%initialize(req,nproc,send_pt,recv_pt,ierr)
       this%head => new_node
       ! Increment list size
       this%list_size = this%list_size + 1
     else
-      ! add new not if no_new_node is not present
+      ! add new a node if no_new_node is not present
       if ( .not. present(no_new_node) ) then
         allocate(new_node)
-        call new_node%initialize(req,send,recv,copy)
+        call new_node%initialize(req,nproc,send_pt,recv_pt,ierr)
         new_node%prev => this%head
         this%head => new_node
         ! Increment list size
@@ -78,7 +148,7 @@ contains
       else
         ! continue the initialisation, recv and send may be passed in different sector of the code
         tmp => this%head%prev
-        call this%head%initialize(req,send,recv,copy)
+        call this%head%initialize(req,nproc,send_pt,recv_pt,ierr)
         this%head%prev => tmp ! initialise sets head%prev => null()
       end if
     end if
