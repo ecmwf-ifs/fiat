@@ -3,16 +3,27 @@ if [[ $HOSTNAME =~ leonardo ]] ; then
   echo "on Leonardo"
   #ml purge
   # Load modules
-  ml intel-oneapi-compilers/2023.2.1
-  ml intel-oneapi-mkl/2023.2.0
-  ml intel-oneapi-tbb/2021.10.0
-  ml use /leonardo/pub/userexternal/lanton00/spack-0.21.0-05/modules
-  #ml spack
-  ml openmpi/4.1.6--intel--2021.10.0
+  ml purge
+  case ${comp:-intel} in
+  intel)
+    ml intel-oneapi-compilers/2023.2.1
+    ml intel-oneapi-mkl/2023.2.0
+    ml intel-oneapi-tbb/2021.10.0
+    ml use /leonardo/pub/userexternal/lanton00/spack-0.21.0-05/modules
+    #ml spack
+    ml openmpi/4.1.6--intel--2021.10.0
+    export FC=ifort
+    ;;
+  nvhpc)
+    ml nvhpc/24.3  hpcx/2.18.1--binary openmpi/4.1.6--nvhpc--24.3 
+    ;;
+  *)
+    echo "unknown comp" ; exit 1
+    ;;
+  esac
   ml
   export ecbuild_ROOT=../ecbuild
   export fckit_ROOT=../fckit
-  export FC=ifort
 
 elif [[ $HOSTNAME =~ uan ]] ; then
   # lumi
