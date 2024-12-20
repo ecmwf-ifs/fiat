@@ -10,14 +10,16 @@ end subroutine
 
 program main
   use linked_list_mod
+  implicit none
 
   integer, pointer :: send_pt(:), recv_pt(:)
   integer, allocatable :: send(:), recv(:)
   integer req, nproc, ierr
   logical copy
 
-  type(list_manager), pointer :: list => displ_array_list 
+  type(list_manager), pointer :: list => null()
 
+  list => displ_array_list 
 
   ! keep it simple
   nproc = 1
