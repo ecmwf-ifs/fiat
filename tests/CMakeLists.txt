@@ -164,42 +164,34 @@ add_test(NAME fiat_test_abor1
       -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
 
 #-----------------------------------------------------------------------------------------
-# Test fiat_test_mpl_alltoallv
+# Test _mpl_alltoallv
 #
 #
 
 ecbuild_add_executable(
-    TARGET  fiat-test-mpl-alltoallv-no-output
-    SOURCES test_mpl_alltoallv_no_output.F90 
+    TARGET  alltoallv
+    SOURCES alltoallv.F90 
     LIBS    fiat
     LINKER_LANGUAGE Fortran
     NOINSTALL )
 
-set(LAUNCH2  ${MPIEXEC} ${MPI_OPTS} ${MPIEXEC_NUMPROC_FLAG} 2)
-add_test(NAME fiat_test_mpl_alltoallv_no_output
-         COMMAND ${CMAKE_COMMAND}
-         "-DEXECUTABLE=$<TARGET_FILE:fiat-test-mpl-alltoallv-no-output>"
-         "-DLAUNCH=${LAUNCH2}"
-         -P ${CMAKE_CURRENT_SOURCE_DIR}/test_mpl_alltoallv_no_output.cmake )
-
+ecbuild_add_test( TARGET fiat_test_alltoallv
+                  COMMAND alltoallv
+                  MPI 2)
 #-----------------------------------------------------------------------------------------
-# Test test_linked_list
+# Test linked_list needed for the non-blocking collectives 
 #
 #
 
 ecbuild_add_executable(
-    TARGET  fiat-test-linked-list-no-output
-    SOURCES test_linked_list_no_output.F90
+    TARGET  linked_list
+    SOURCES linked_list.F90
     LIBS    fiat
     LINKER_LANGUAGE Fortran
     NOINSTALL )
 
-add_test(NAME fiat_test_linked_list_no_output
-         COMMAND ${CMAKE_COMMAND}
-         "-DEXECUTABLE=$<TARGET_FILE:fiat-test-linked-list-no-output>"
-         "-DLAUNCH=${LAUNCH}"
-         -P ${CMAKE_CURRENT_SOURCE_DIR}/test_linked_list_no_output.cmake )
-
+ecbuild_add_test( TARGET fiat_test_linked_list
+                  COMMAND linked_list)
 
 # ----------------------------------------------------------------------------------------
 # Test installation of fiat is working
