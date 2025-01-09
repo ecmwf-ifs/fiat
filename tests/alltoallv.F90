@@ -10,18 +10,19 @@
 !
 ! Simple Test program
 !
-subroutine fail_impl(msg,line)
+subroutine fail_impl(msg,file,line)
   use mpl_module, only : mpl_abort
-  character(*) :: msg
+  character(*) :: msg, file
   integer :: line
-  write(0,'(A,I0,A)') "TEST FAILED in test_mpl_alltoallv_no_output.F90 @ line ",line," :"
+  
+  write(0,'(A,A,A,I0,A)') "TEST FAILED in ", file,  "@ line ",line," :"
   write(0,*) msg
 
   call mpl_abort()
   
 end subroutine
 
-#define FAIL(msg) call fail_impl(msg,__LINE__)
+#define FAIL(msg) call fail_impl(msg,__FILE__,__LINE__)
 
 subroutine work1(r)
   implicit none
@@ -48,7 +49,7 @@ logical :: verbose = .false.
 integer(jpim), allocatable :: sbuf(:), rbuf(:), scounts(:), rcounts(:)
 real(jprm), allocatable :: sbufr(:), rbufr(:)
 real(jprd), allocatable :: sbufd(:), rbufd(:)
-integer i,j
+integer i,j,k
 character(len=256) msg
 
 call mpl_init(KPROCS=nprocs,ldinfo=verbose,ldenv=.true.)
@@ -62,11 +63,13 @@ allocate(sbuf((nprocs*(nprocs+1))/2),rbuf(nprocs*mpl_rank),&
      sbufd((nprocs*(nprocs+1))/2),rbufd(nprocs*mpl_rank),&
      scounts(nprocs),rcounts(nprocs))
 
+k=1
 do i=1,nprocs
   do j=1,i
-    sbuf (i+j-1) = mpl_rank
-    sbufr(i+j-1) = mpl_rank
-    sbufd(i+j-1) = mpl_rank
+    sbuf (k) = mpl_rank
+    sbufr(k) = mpl_rank
+    sbufd(k) = mpl_rank
+    k=k+1
   enddo
   scounts(i)=i
 enddo
@@ -87,28 +90,39 @@ contains
 
     character(len=128) :: msg
     
-    integer request_i, request_r, request_d, i, j, res
+    integer request_i, request_r, request_d, i, j, k, res
     integer sdispl(nprocs), rdispl(nprocs)
 
     select case(mode)
     case("blocking")
+      !sdispl(1)=0
+      !rdispl(1)=0
+      !do i=2,nprocs
+      !  sdispl(i)=sdispl(i-1)+scounts(i-1)
+      !  rdispl(i)=rdispl(i-1)+rcounts(i-1)
+      !enddo
+      !call mpl_alltoallv(sbuf,scounts,rbuf,rcounts,sdispl, rdispl)
       call mpl_alltoallv(sbuf,scounts,rbuf,rcounts)
       call mpl_alltoallv(sbufr,scounts,rbufr,rcounts)
       call mpl_alltoallv(sbufd,scounts,rbufd,rcounts)
 
-      do i=1,nprocs,mpl_rank
-        if ( any(rbuf(i:i+mpl_rank-1) /= i) ) then
+      k=1
+      do i=1,size(rbuf),mpl_rank
+        if ( any(rbuf(i:i+mpl_rank-1) /= k) ) then
+          write(0,*) 'send ', mpl_rank, scounts, sdispl, sbuf
+          write(0,*) 'recv ', mpl_rank, rcounts, rdispl
           write(msg,*) trim(mode)//" int alltoall test test failed on mpl_rank", mpl_rank, rbuf
           FAIL(msg)
         endif
-        if ( any(nint(rbufr(i:i+mpl_rank-1)) /= i) ) then
+        if ( any(nint(rbufr(i:i+mpl_rank-1)) /= k) ) then
           write(msg,*) trim(mode)//" real alltoall test test failed on mpl_rank", mpl_rank, rbuf
           FAIL(msg)
         endif
-        if ( any(nint(rbufd(i:i+mpl_rank-1)) /= i) ) then
+        if ( any(nint(rbufd(i:i+mpl_rank-1)) /= k) ) then
           write(msg,*) trim(mode)//" double alltoall test test failed on mpl_rank", mpl_rank, rbuf
           FAIL(msg)
         endif
+        k=k+1
       enddo
       
     case("nonblocking")
@@ -124,19 +138,21 @@ contains
         call mpl_wait(request_i)
       enddo
 
-      do i=1,nprocs,mpl_rank
-        if ( any(rbuf(i:i+mpl_rank-1) /= i) ) then
+      k = 1
+      do i=1,size(rbuf),mpl_rank
+        if ( any(rbuf(i:i+mpl_rank-1) /= k) ) then
           write(msg,*) trim(mode)//" int alltoall test failed on mpl_rank", mpl_rank, rbuf
           FAIL(msg)
         endif
-        if ( any(nint(rbufr(i:i+mpl_rank-1)) /= i) ) then
+        if ( any(nint(rbufr(i:i+mpl_rank-1)) /= k) ) then
           write(msg,*) trim(mode)//" real alltoall test failed on mpl_rank", mpl_rank, rbuf
           FAIL(msg)
         endif
-        if ( any(nint(rbufd(i:i+mpl_rank-1)) /= i) ) then
+        if ( any(nint(rbufd(i:i+mpl_rank-1)) /= k) ) then
           write(msg,*) trim(mode)//" double alltoall test failed on mpl_rank", mpl_rank, rbuf
           FAIL(msg)
         endif
+        k = k+1
       enddo
 
       ! test with displacement arguments
@@ -145,7 +161,7 @@ contains
       rdispl(1)=0
       do i=2,nprocs
         sdispl(i)=sdispl(i-1)+scounts(i-1)
-        rdispl(i)=sdispl(i-1)+rcounts(i-1)
+        rdispl(i)=rdispl(i-1)+rcounts(i-1)
       enddo
 
       call mpl_alltoallv(sbuf, scounts, rbuf, rcounts, sdispl, rdispl, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
@@ -153,11 +169,13 @@ contains
       if ( res > 0 ) write(0,*) "error in  work1 non-blocking alltoallv" ! this should not happen ever !!!
       call mpl_wait(request_i)
       
+      k=1
       do i=1,nprocs,mpl_rank     
-        if ( any(rbuf(i:i+mpl_rank-1) /= i) ) then
+        if ( any(rbuf(i:i+mpl_rank-1) /= k) ) then
           write(msg,*) trim(mode)//" int alltoall test with displ args failed on mpl_rank", mpl_rank, rbuf
           FAIL(msg)
         endif
+        k=k+1
       enddo
       
     end select
