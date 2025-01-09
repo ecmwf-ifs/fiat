@@ -164,7 +164,7 @@ add_test(NAME fiat_test_abor1
       -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
 
 #-----------------------------------------------------------------------------------------
-# Test _mpl_alltoallv
+# Tests:  fiat_test_alltoallv
 #
 #
 
@@ -172,6 +172,7 @@ ecbuild_add_executable(
     TARGET  alltoallv
     SOURCES alltoallv.F90 
     LIBS    fiat
+    FFLAGS $<$<Fortran_COMPILER_ID:GNU>:-ffree-line-length-none>
     LINKER_LANGUAGE Fortran
     NOINSTALL )
 
@@ -179,9 +180,9 @@ ecbuild_add_test( TARGET fiat_test_alltoallv
                   COMMAND alltoallv
                   MPI 2)
 #-----------------------------------------------------------------------------------------
-# Test linked_list needed for the non-blocking collectives 
+# Tests: fiat_test_linked_list
 #
-#
+# test the linled_list needed for the non-blocking collectives 
 
 ecbuild_add_executable(
     TARGET  linked_list

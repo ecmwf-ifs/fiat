@@ -54,8 +54,8 @@ character(len=256) msg
 
 call mpl_init(KPROCS=nprocs,ldinfo=verbose,ldenv=.true.)
 
-if( nprocs <= 1 )            FAIL("nprocs must be > 1")
-if( mpl_rank < 0 .or. mpl_rank > nprocs  )          FAIL("mpl_rank must be >= 1 and <= nprocs")
+if( nprocs <= 1 ) FAIL("nprocs must be > 1")
+if( mpl_rank < 0 .or. mpl_rank > nprocs  ) FAIL("mpl_rank must be >= 1 and <= nprocs")
 if( .not. linitmpi_via_mpl ) FAIL("linitmpi_via_mpl must be True")
 
 allocate(sbuf((nprocs*(nprocs+1))/2),rbuf(nprocs*mpl_rank),&
