@@ -33,9 +33,9 @@ if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
 endif()
 
 if( CMAKE_Fortran_COMPILER_ID MATCHES "GNU" )
-  ecbuild_add_fortran_flags( -ffree-line-length-none )
+  ecbuild_add_fortran_flags( -ffree-line-length-none NO_FAIL )
   if( CMAKE_Fortran_COMPILER_VERSION GREATER_EQUAL 10 )
-      ecbuild_add_fortran_flags( -fallow-argument-mismatch )
+      ecbuild_add_fortran_flags( -fallow-argument-mismatch NO_FAIL )
   endif()
 endif()
 
