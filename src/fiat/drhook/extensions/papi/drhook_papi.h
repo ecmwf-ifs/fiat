@@ -44,6 +44,4 @@ void drhook_papi_bzero(long_long* a);
 
 void drhook_papi_print(char* s, long_long* a, int header);
 
-#else
-#define long_long long long
 #endif

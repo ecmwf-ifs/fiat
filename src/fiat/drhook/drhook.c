@@ -82,12 +82,19 @@ static int backtrace(void **buffer, int size) { return 0; }
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dlfcn.h>
+
+// Extension headers
 #ifdef DR_HOOK_HAVE_NVTX
 #include "dr_hook_nvtx.h"
 #endif
+#ifdef DR_HOOK_HAVE_PAPI
+#include "drhook_papi.h"
+#else
+// This type is in the signature of remove_calltree()
+#define long_long long long
+#endif
 
 #include "ec_get_cycles.h"
-#include "drhook_papi.h"
 static long long int *thread_cycles = NULL;
 
 int drhook_lhook = 1; // NOTE: A global variable !!
