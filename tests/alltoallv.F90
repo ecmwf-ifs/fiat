@@ -55,7 +55,7 @@ character(len=256) msg
 call mpl_init(KPROCS=nprocs,ldinfo=verbose,ldenv=.true.)
 
 if( nprocs <= 1 ) FAIL("nprocs must be > 1")
-if( mpl_rank < 0 .or. mpl_rank > nprocs  ) FAIL("mpl_rank must be >= 1 and <= nprocs")
+if( mpl_rank < 1 .or. mpl_rank > nprocs  ) FAIL("mpl_rank must be >= 1 and <= nprocs")
 if( .not. linitmpi_via_mpl ) FAIL("linitmpi_via_mpl must be True")
 
 allocate(sbuf((nprocs*(nprocs+1))/2),rbuf(nprocs*mpl_rank),&
@@ -109,17 +109,17 @@ contains
       k=1
       do i=1,size(rbuf),mpl_rank
         if ( any(rbuf(i:i+mpl_rank-1) /= k) ) then
-          write(0,*) 'send ', mpl_rank, scounts, sdispl, sbuf
-          write(0,*) 'recv ', mpl_rank, rcounts, rdispl
+          !write(0,*) 'send ', mpl_rank, scounts, sdispl, sbuf
+          !write(0,*) 'recv ', mpl_rank, rcounts, rdispl
           write(msg,*) trim(mode)//" int alltoall test test failed on mpl_rank", mpl_rank, rbuf
           FAIL(msg)
         endif
         if ( any(nint(rbufr(i:i+mpl_rank-1)) /= k) ) then
-          write(msg,*) trim(mode)//" real alltoall test test failed on mpl_rank", mpl_rank, rbuf
+          write(msg,*) trim(mode)//" real alltoall test test failed on mpl_rank", mpl_rank, rbufr
           FAIL(msg)
         endif
         if ( any(nint(rbufd(i:i+mpl_rank-1)) /= k) ) then
-          write(msg,*) trim(mode)//" double alltoall test test failed on mpl_rank", mpl_rank, rbuf
+          write(msg,*) trim(mode)//" double alltoall test test failed on mpl_rank", mpl_rank, rbufd
           FAIL(msg)
         endif
         k=k+1

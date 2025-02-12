@@ -180,6 +180,23 @@ ecbuild_add_test( TARGET fiat_test_alltoallv
                   COMMAND alltoallv
                   MPI 2)
 #-----------------------------------------------------------------------------------------
+# Tests:  fiat_test_gatherv
+#
+#
+
+ecbuild_add_executable(
+    TARGET  gatherv
+    SOURCES gatherv.F90 
+    LIBS    fiat
+    FFLAGS $<$<Fortran_COMPILER_ID:GNU>:-ffree-line-length-none>
+    LINKER_LANGUAGE Fortran
+    NOINSTALL )
+
+ecbuild_add_test( TARGET fiat_test_gatherv
+                  COMMAND gatherv
+                  MPI 2)
+#-----------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------
 # Tests: fiat_test_linked_list
 #
 # test the linled_list needed for the non-blocking collectives 
