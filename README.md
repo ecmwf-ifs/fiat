@@ -82,13 +82,11 @@ Optionally, tests can be run to check succesful compilation, when the feature TE
 
     $ ctest
 
-Reporting Bugs
-==============
-
-TODO
 
 Contributing
 ============
 
-TODO
+Contributions to fiat are welcome. 
+In order to do so, please open an issue where a feature request or bug can be discussed. 
+Then create a pull request with your contribution and sign the [contributors license agreement (CLA)](https://bol-claassistant.ecmwf.int/ecmwf-ifs/fiat).
 
