@@ -121,6 +121,15 @@ ecbuild_add_test(
     LINKER_LANGUAGE Fortran )
 
 # ----------------------------------------------------------------------------------------
+# Tests: fiat_test_byteswap
+
+ecbuild_add_test(
+    TARGET  fiat_test_byteswap
+    SOURCES test_byteswap.F90
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran )
+
+# ----------------------------------------------------------------------------------------
 # Tests: fiat_test_mpl_no_output
 #   ensures that no output is generated in this test upon mpl_init() and mpl_end()
 
