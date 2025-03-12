@@ -51,8 +51,8 @@ CONTAINS
 
     if (is_little_endian()) then
       do i=1,3
-        write(hex(i),'(Z8.8)') buffer(i)
-        write(hex_BE(i),'(Z8.8)') buffer_BE(i)
+        write(hex(i),'(Z8.8)') transfer(buffer(i),0)
+        write(hex_BE(i),'(Z8.8)') transfer(buffer_BE(i),0)
         write(0,*) "   ", hex(i), " --> " , hex_BE(i)
       enddo
       if (any(hex_BE /= ["4E61BC00","15EC6501","D2760F02"])) then
@@ -79,8 +79,8 @@ CONTAINS
 
     if (is_little_endian()) then
       do i=1,3
-        write(hex(i),'(Z16.16)') buffer(i)
-        write(hex_BE(i),'(Z16.16)') buffer_BE(i)
+        write(hex(i),'(Z16.16)') transfer(buffer(i),0_c_long)
+        write(hex_BE(i),'(Z16.16)') transfer(buffer_BE(i),0_c_long)
         write(0,*) "   ", hex(i), " --> " , hex_BE(i)
       enddo
       if (any(hex_BE /= ["4EF330A64B9BB601","158185D6405A4103","D20A6F122119CC04"])) then
@@ -105,8 +105,8 @@ CONTAINS
 
     if (is_little_endian()) then
       do i=1,3
-        write(hex(i),'(Z8.8)') buffer(i)
-        write(hex_BE(i),'(Z8.8)') buffer_BE(i)
+        write(hex(i),'(Z8.8)') transfer(buffer(i),0)
+        write(hex_BE(i),'(Z8.8)') transfer(buffer_BE(i),0)
         write(0,*) "   ", hex(i), " --> " , hex_BE(i)
       enddo
       if (any(hex_BE /= ["B6F39D3F","7B141640","1B2F5D40"])) then
@@ -133,8 +133,8 @@ CONTAINS
 
     if (is_little_endian()) then
       do i=1,3
-        write(hex(i),'(Z16.16)') buffer(i)
-        write(hex_BE(i),'(Z16.16)') buffer_BE(i)
+        write(hex(i),'(Z16.16)') transfer(buffer(i),0_c_long)
+        write(hex_BE(i),'(Z16.16)') transfer(buffer_BE(i),0_c_long)
         write(0,*) "   ", hex(i), " --> " , hex_BE(i)
       enddo
       if (any(hex_BE /= ["F2518C42CAC0F33F","EABCBD4CF3C30240","238D69FF80A70B40"])) then
@@ -163,8 +163,8 @@ CONTAINS
 
     if (is_little_endian()) then
       do i=1,3
-        write(hex(i),'(Z8.8)') buffer(i)
-        write(hex_BE(i),'(Z8.8)') buffer_BE(i)
+        write(hex(i),'(Z8.8)') transfer(buffer(i),0)
+        write(hex_BE(i),'(Z8.8)') transfer(buffer_BE(i),0)
         write(0,*) "   ", hex(i), " --> " , hex_BE(i)
       enddo
       if (any(hex_BE /= ["4E61BC00","15EC6501","D2760F02"])) then
@@ -195,8 +195,8 @@ CONTAINS
 
     if (is_little_endian()) then
       do i=1,3
-        write(hex(i),'(Z16.16)') buffer(i)
-        write(hex_BE(i),'(Z16.16)') buffer_BE(i)
+        write(hex(i),'(Z16.16)') transfer(buffer(i),0_c_long)
+        write(hex_BE(i),'(Z16.16)') transfer(buffer_BE(i),0_c_long)
         write(0,*) "   ", hex(i), " --> " , hex_BE(i)
       enddo
       if (any(hex_BE /= ["4EF330A64B9BB601","158185D6405A4103","D20A6F122119CC04"])) then
@@ -225,8 +225,8 @@ CONTAINS
 
     if (is_little_endian()) then
       do i=1,3
-        write(hex(i),'(Z8.8)') buffer(i)
-        write(hex_BE(i),'(Z8.8)') buffer_BE(i)
+        write(hex(i),'(Z8.8)') transfer(buffer(i),0)
+        write(hex_BE(i),'(Z8.8)') transfer(buffer_BE(i),0)
         write(0,*) "   ", hex(i), " --> " , hex_BE(i)
       enddo
       if (any(hex_BE /= ["B6F39D3F","7B141640","1B2F5D40"])) then
@@ -257,8 +257,8 @@ CONTAINS
 
     if (is_little_endian()) then
       do i=1,3
-        write(hex(i),'(Z16.16)') buffer(i)
-        write(hex_BE(i),'(Z16.16)') buffer_BE(i)
+        write(hex(i),'(Z16.16)') transfer(buffer(i),0_c_long)
+        write(hex_BE(i),'(Z16.16)') transfer(buffer_BE(i),0_c_long)
         write(0,*) "   ", hex(i), " --> " , hex_BE(i)
       enddo
       if (any(hex_BE /= ["F2518C42CAC0F33F","EABCBD4CF3C30240","238D69FF80A70B40"])) then
