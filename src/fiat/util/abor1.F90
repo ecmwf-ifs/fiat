@@ -75,9 +75,13 @@ SUBROUTINE ABOR1(CDTEXT)
   !! Tracebacks will be printed if possible
   !! All processes will be terminated in parallel MPI context
 
+USE EC_PARKIND  ,ONLY : JPIM
+
 IMPLICIT NONE
 CHARACTER(LEN=*), INTENT(IN) :: CDTEXT
-CALL ABOR1FL("",0,CDTEXT)
+INTEGER(KIND=JPIM) :: ILINENUM
+ILINENUM=0_JPIM
+CALL ABOR1FL("",ILINENUM,CDTEXT)
 END SUBROUTINE ABOR1
 
 
