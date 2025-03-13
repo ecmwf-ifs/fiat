@@ -10,19 +10,19 @@
 !
 ! Simple Test program
 !
-subroutine fail_impl(msg,file,line)
+subroutine fail_impl(msg,line)
   use mpl_module, only : mpl_abort
-  character(*) :: msg, file
+  character(*) :: msg
   integer :: line
   
-  write(0,'(A,A,A,I0,A)') "TEST FAILED in ", file,  "@ line ",line," :"
+  write(0,'(A,I0,A)') "TEST FAILED in gatherv.F90 @ line ",line," :"
   write(0,*) msg
 
   call mpl_abort()
   
 end subroutine
 
-#define FAIL(msg) call fail_impl(msg,__FILE__,__LINE__)
+#define FAIL(msg) call fail_impl(msg,__LINE__)
 
 subroutine work1(r)
   implicit none
@@ -50,6 +50,8 @@ integer(jpim), allocatable :: sbuf(:), rbuf(:), rcounts(:)
 integer(jpim) :: scounts
 real(jprm), allocatable :: sbufr(:), rbufr(:)
 real(jprd), allocatable :: sbufd(:), rbufd(:)
+character(len=6) :: sbufc
+character(len=6), allocatable ::  rbufc(:)
 integer i,j,k, kroot
 character(len=256) msg
 
@@ -63,11 +65,16 @@ allocate(sbuf(mpl_rank),rbuf((nprocs*(nprocs+1))/2+nprocs),&
     sbufr(mpl_rank),rbufr((nprocs*(nprocs+1))/2+nprocs), &
     sbufd(mpl_rank),rbufd((nprocs*(nprocs+1))/2+nprocs),&
     rcounts(nprocs))
-
+!allocate(character(len=mpl_rank) :: sbufc)
+allocate(rbufc(nprocs))
 
 sbuf  = mpl_rank
 sbufr = mpl_rank
 sbufd = mpl_rank
+do i=1,len(sbufc)
+  sbufc(i:i) = char(ichar('a')+mod(mpl_rank-1,26))
+  !print*,sbufc(i:i), mpl_rank
+enddo
 scounts=mpl_rank
 do i=1,nprocs
   rcounts(i)=i
@@ -90,13 +97,15 @@ contains
 
     character(len=128) :: msg
     
-    integer request_i, request_r, request_d, i, j, k, res
-    integer rdispl(nprocs)
+    integer request_i, request_r, request_d, request_c, i, j, k, res
+    integer rdispl(nprocs), rcounts_c(nprocs)
 
     select case(mode)
     case("blocking")
       call mpl_gatherv(sbuf,kroot,rbuf,rcounts)
       call mpl_gatherv(sbufr,kroot,rbufr,rcounts)
+      rcounts_c=6
+      call mpl_gatherv(sbufc,kroot,rbufc,rcounts_c)
       if (mpl_rank == kroot) then
         call mpl_gatherv(sbufd,kroot,rbufd,rcounts)
       else
@@ -105,14 +114,24 @@ contains
     case("nonblocking")
       ! trying to get a random failure
       do j=1,1
-        call mpl_gatherv(sbuf,kroot,rbuf,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
-        call mpl_gatherv(sbufr,kroot,rbufr,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_r)
-        call mpl_gatherv(sbufd,kroot,rbufd,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_d)
-        call work1(res)
-        if ( res > 0 ) write(0,*) "error in  work1 non-blocking alltoallv" ! this should not happen ever !!!
+        if (mpl_rank == kroot ) then
+          call mpl_gatherv(sbuf,kroot,rbuf,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
+          call mpl_gatherv(sbufr,kroot,rbufr,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_r)
+          call mpl_gatherv(sbufd,kroot,rbufd,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_d)
+          rcounts_c=6 ! 
+          call mpl_gatherv(sbufc,kroot,rbufc,rcounts_c, KMP_TYPE = JP_NON_BLOCKING_STANDARD,KREQUEST=request_c)
+        else
+          call mpl_gatherv(sbuf,kroot, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
+          call mpl_gatherv(sbufr,kroot, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_r)
+          call mpl_gatherv(sbufd,kroot, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_d)
+          call mpl_gatherv(sbufc,kroot, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_c)
+        endif
+          call work1(res)
+        if ( res > 0 ) write(0,*) "error in work1 non-blocking alltoallv" ! this should not happen ever !!!
         call mpl_wait(request_r)
         call mpl_wait(request_d)
         call mpl_wait(request_i)
+        call mpl_wait(request_c)
       enddo
     end select
     ! test values
@@ -132,6 +151,10 @@ contains
         if ( any(nint(rbufd(k:k+i-1)) /= i) ) then
           write(msg,*) trim(mode)//" double alltoall test test failed on mpl_rank", mpl_rank, rbufd
           FAIL(msg)
+        endif
+        if ( rbufc(i)(1:1) /= char(ichar('a')+mod(i-1,26)) ) then
+              write(msg,*) trim(mode)//" char alltoall test test failed on mpl_rank", mpl_rank, rbufc(i)
+            FAIL(msg)
         endif
         k=k+i
       enddo
