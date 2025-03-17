@@ -10,6 +10,18 @@
 
 ! These functions are to be used within drhook C methods, to avoid having OMP pragmas there.
 
+module drhook_papi_interface
+#if defined(DR_HOOK_HAVE_PAPI)
+  interface
+     function drhook_papi_start_threads ( events) bind ( c )
+       use, intrinsic :: iso_c_binding, only : c_int
+       integer(kind=c_int) :: drhook_papi_start_threads
+       integer(kind=c_int), intent(inout) :: events(*)
+     end function drhook_papi_start_threads
+  end interface
+#endif
+end module drhook_papi_interface
+
 subroutine drhook_run_omp_parallel_ipfstr(NTIDS, FUNC, CDSTR)
 ! Usage:
 ! ------
@@ -61,3 +73,34 @@ ICYCLES = ec_get_cycles()
 NCYCLES(IOMPTID) = ICYCLES - NCYCLES(IOMPTID)
 !$OMP END PARALLEL
 end subroutine drhook_run_omp_parallel_get_cycles
+
+#if defined(DR_HOOK_HAVE_PAPI)
+
+subroutine drhook_run_omp_parallel_papi_startup(events, n, rcOut) bind(c)
+  use, intrinsic :: iso_c_binding, only : c_char, c_int, c_double
+  use drhook_papi_interface
+  use OML_MOD
+  implicit none
+  INTEGER(KIND=C_INT), INTENT(INOUT) :: Events(n)
+  INTEGER(KIND=C_INT), VALUE, INTENT(IN) :: n
+  INTEGER(KIND=C_INT)  :: thread
+  INTEGER(KIND=C_INT)  :: rc
+  INTEGER(KIND=C_INT), INTENT(OUT)  :: rcOut
+  INTEGER  :: myThread
+  INTEGER  :: nThreads
+
+  nThreads=OML_GET_MAX_THREADS()
+  rcOut=0
+  !$OMP PARALLEL PRIVATE(myThread,rc) SHARED(rcOut)
+  myThread=OML_MY_THREAD()-1
+  DO thread=0,nThreads-1
+     if (thread==myThread) then
+        rc=drhook_papi_start_threads(events)
+        if (rc==0) rcOut=1
+     end if
+     !$OMP BARRIER
+  END DO
+  !$OMP END PARALLEL
+
+end subroutine drhook_run_omp_parallel_papi_startup
+#endif

@@ -151,7 +151,7 @@ int report_init(int periodicreport){
 
     rc = (num = PAPI_num_counters());
     if (rc != PAPI_OK) {
-      PAPI_perror(rc, "PAPI_num_counters", strlen("PAPI_num_counters"));
+      PAPI_perror("PAPI_num_counters");
     }
 
     //fprintf(stderr,"PAPI_num_counters = %d\n",num);
@@ -348,10 +348,12 @@ void common_inits()
        //initialize PAPI counters without periodic reporting
       fprintf(stderr,"Calling report_init(0)\n");
       init_error=report_init(0);
-      if (init_error) fprintf(stderr,
-			      "Unable to init PAPI counters (init_error=%d) : %s\n",
-			      init_error,
-			      PAPI_strerror(init_error));
+      if (init_error)
+        fprintf(stderr,
+          "Unable to init PAPI counters (init_error=%d) : %s\n",
+          init_error,
+          PAPI_strerror(init_error)
+        );
     }
 }
 

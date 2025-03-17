@@ -187,7 +187,7 @@ dr_hook_prt_(const int *ftnunitno,
              , int s_len);
 
 extern void
-dr_hook_procinfo_(int *myproc, int *nproc);
+c_dr_hook_procinfo(int *myproc, int *nproc, int *mpi_init);
 
 #ifdef __cplusplus
 } // extern "C"
