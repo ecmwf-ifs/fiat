@@ -39,11 +39,7 @@ add_test(NAME fiat_test_abort_exception_handler
   -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
 endif()
 
-
 add_subdirectory( drhook )
-
-
-
 
 # ----------------------------------------------------------------------------------------
 # Test: fiat_test_drhook_no_output
@@ -121,6 +117,15 @@ ecbuild_add_test(
 ecbuild_add_test(
     TARGET  fiat_test_bytes_io 
     SOURCES test_bytes_io.F90 
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran )
+
+# ----------------------------------------------------------------------------------------
+# Tests: fiat_test_byteswap
+
+ecbuild_add_test(
+    TARGET  fiat_test_byteswap
+    SOURCES test_byteswap.F90
     LIBS    fiat
     LINKER_LANGUAGE Fortran )
 

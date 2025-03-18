@@ -1,4 +1,5 @@
 # (C) Copyright 2020- ECMWF.
+# (C) Copyright 2024- Meteo-France.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -40,15 +41,29 @@ ecbuild_add_option( FEATURE DR_HOOK_MULTI_PRECISION_HANDLES
 
 ecbuild_add_option( FEATURE DOUBLE_PRECISION
                     DEFAULT ON
-                    DESCRIPTION "Compilation of parkind_dp" )
+                    DESCRIPTION "Support for Double Precision" )
 
 ecbuild_add_option( FEATURE SINGLE_PRECISION
                     DEFAULT ON
-                    DESCRIPTION "Compilation of parkind_sp" )
+                    DESCRIPTION "Support for Single Precision" )
+
+ecbuild_add_option( FEATURE DUMMY_MPI_HEADER
+                    DEFAULT ON
+                    DESCRIPTION "[DANGEROUS] Install a dummy MPI header" )
 
 ecbuild_add_option( FEATURE WARNINGS
                     DEFAULT ON
                     DESCRIPTION "Add warnings to compiler" )
+
+if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
+    set (DEFAULT_DR_HOOK_NVTX ON)
+else()
+    set (DEFAULT_DR_HOOK_NVTX OFF)
+endif()
+ecbuild_add_option( FEATURE DR_HOOK_NVTX
+                    DEFAULT ${DEFAULT_DR_HOOK_NVTX}
+                    DESCRIPTION "Support for NVTX in DR_HOOK"
+                    REQUIRED_PACKAGES NVTX )
 
 ecbuild_find_package( NAME Realtime QUIET )
 

@@ -66,8 +66,11 @@ Extra options can be added to the `cmake` command to control the build:
 
  - `-DCMAKE_BUILD_TYPE=<Debug|RelWithDebInfo|Release|Bit>` default=RelWithDebInfo (typically `-O2 -g`)
  - `-DENABLE_TESTS=<ON|OFF>` 
+ - `-DENABLE_SINGLE_PRECISION=<ON|OFF>` default=ON
+ - `-DENABLE_DOUBLE_PRECISION=<ON|OFF>` default=ON
  - `-DENABLE_MPI=<ON|OFF>` 
  - `-DENABLE_OMP=<ON|OFF>`
+ - `-DENABLE_DUMMY_MPI_HEADER=<ON|OFF>` default=ON
  - `-DCMAKE_INSTALL_PREFIX=<install-prefix>`
 
 More options to control compilation flags, only when defaults are not sufficient
@@ -82,13 +85,11 @@ Optionally, tests can be run to check succesful compilation, when the feature TE
 
     $ ctest
 
-Reporting Bugs
-==============
-
-TODO
 
 Contributing
 ============
 
-TODO
+Contributions to fiat are welcome. 
+In order to do so, please open an issue where a feature request or bug can be discussed. 
+Then create a pull request with your contribution and sign the [contributors license agreement (CLA)](https://bol-claassistant.ecmwf.int/ecmwf-ifs/fiat).
 
