@@ -55,7 +55,11 @@ ecbuild_add_option( FEATURE WARNINGS
                     DEFAULT ON
                     DESCRIPTION "Add warnings to compiler" )
 
-
+if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
+    set (DEFAULT_DR_HOOK_NVTX ON)
+else()
+    set (DEFAULT_DR_HOOK_NVTX OFF)
+endif()
 ecbuild_add_option( FEATURE DR_HOOK_NVTX
                     DEFAULT ${DEFAULT_DR_HOOK_NVTX}
                     DESCRIPTION "Support for NVTX in DR_HOOK"
