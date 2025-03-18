@@ -9,7 +9,11 @@
  * nor does it submit to any jurisdiction.
  */
 
+#if HAVE_NVTX3
+#include <nvtx3/nvToolsExt.h>
+#else
 #include <nvToolsExt.h>
+#endif
 #include <string.h>
 #include <stdlib.h>
 
