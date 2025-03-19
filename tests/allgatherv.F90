@@ -181,7 +181,8 @@ contains
        case("blocking")
          call mpl_allgatherv(mpl_rank,rbuf,rcounts,ksendcount=mod(mpl_rank+1,2))
        case("nonblocking")
-         call mpl_allgatherv(mpl_rank,rbuf,rcounts,ksendcount=mod(mpl_rank+1,2),KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
+         call mpl_allgatherv(mpl_rank,rbuf,rcounts,ksendcount=mod(mpl_rank+1,2), &
+            KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
          call mpl_wait(request_i)
       end select
       do i=1,nprocs/2

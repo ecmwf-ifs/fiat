@@ -167,80 +167,46 @@ add_test(NAME fiat_test_abor1
 # Tests:  fiat_test_alltoallv
 #
 #
-
-ecbuild_add_executable(
-    TARGET  alltoallv
-    SOURCES alltoallv.F90 
-    LIBS    fiat
-    FFLAGS $<$<Fortran_COMPILER_ID:GNU>:-ffree-line-length-none>
-    LINKER_LANGUAGE Fortran
-    NOINSTALL )
-
 ecbuild_add_test( TARGET fiat_test_alltoallv
-                  COMMAND alltoallv
-                  MPI 2)
+    SOURCES alltoallv.F90
+    LIBS     fiat
+    LINKER_LANGUAGE Fortran
+    MPI 2)
 #-----------------------------------------------------------------------------------------
 # Tests:  fiat_test_gatherv
 #
 #
-
-ecbuild_add_executable(
-    TARGET  gatherv
+ecbuild_add_test( TARGET fiat_test_gatherv
     SOURCES gatherv.F90 
     LIBS    fiat
-    FFLAGS $<$<Fortran_COMPILER_ID:GNU>:-ffree-line-length-none>
     LINKER_LANGUAGE Fortran
-    NOINSTALL )
-
-ecbuild_add_test( TARGET fiat_test_gatherv
-                  COMMAND gatherv
-                  MPI 2)
+    MPI 2)
 #-----------------------------------------------------------------------------------------
 # Tests:  fiat_test_allgatherv
 #
 #
-
-ecbuild_add_executable(
-    TARGET  allgatherv
+ecbuild_add_test( TARGET fiat_test_allgatherv
     SOURCES allgatherv.F90 
     LIBS    fiat
-    FFLAGS $<$<Fortran_COMPILER_ID:GNU>:-ffree-line-length-none>
     LINKER_LANGUAGE Fortran
-    NOINSTALL )
-
-ecbuild_add_test( TARGET fiat_test_allgatherv
-                  COMMAND allgatherv
-                  MPI 2)                  
+    MPI 2)                  
 #-----------------------------------------------------------------------------------------
 # Tests:  fiat_test_scatterv
 #
 #
-
-ecbuild_add_executable(
-  TARGET  scatterv
-  SOURCES scatterv.F90 
-  LIBS    fiat
-  FFLAGS $<$<Fortran_COMPILER_ID:GNU>:-ffree-line-length-none>
-  LINKER_LANGUAGE Fortran
-  NOINSTALL )
-
 ecbuild_add_test( TARGET fiat_test_scatterv
-                COMMAND scatterv
-                MPI 2)
+    SOURCES scatterv.F90 
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran
+    MPI 2)
 #-----------------------------------------------------------------------------------------
 # Tests: fiat_test_linked_list
 #
 # test the linled_list needed for the non-blocking collectives 
-
-ecbuild_add_executable(
-    TARGET  linked_list
+ecbuild_add_test( TARGET fiat_test_linked_list
     SOURCES linked_list.F90
     LIBS    fiat
-    LINKER_LANGUAGE Fortran
-    NOINSTALL )
-
-ecbuild_add_test( TARGET fiat_test_linked_list
-                  COMMAND linked_list)
+    LINKER_LANGUAGE Fortran)
 
 # ----------------------------------------------------------------------------------------
 # Test installation of fiat is working
