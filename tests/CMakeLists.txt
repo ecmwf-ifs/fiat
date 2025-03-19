@@ -196,6 +196,22 @@ ecbuild_add_test( TARGET fiat_test_gatherv
                   COMMAND gatherv
                   MPI 2)
 #-----------------------------------------------------------------------------------------
+# Tests:  fiat_test_allgatherv
+#
+#
+
+ecbuild_add_executable(
+    TARGET  allgatherv
+    SOURCES allgatherv.F90 
+    LIBS    fiat
+    FFLAGS $<$<Fortran_COMPILER_ID:GNU>:-ffree-line-length-none>
+    LINKER_LANGUAGE Fortran
+    NOINSTALL )
+
+ecbuild_add_test( TARGET fiat_test_allgatherv
+                  COMMAND allgatherv
+                  MPI 2)                  
+#-----------------------------------------------------------------------------------------
 # Tests:  fiat_test_scatterv
 #
 #
