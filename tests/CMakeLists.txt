@@ -203,8 +203,8 @@ ecbuild_add_test( TARGET fiat_test_scatterv
 # Tests: fiat_test_linked_list
 #
 # test the linled_list needed for the non-blocking collectives 
-ecbuild_add_test( TARGET fiat_test_linked_list
-    SOURCES linked_list.F90
+ecbuild_add_test( TARGET fiat_test_displs_container
+    SOURCES displs_container.F90
     LIBS    fiat
     LINKER_LANGUAGE Fortran)
 

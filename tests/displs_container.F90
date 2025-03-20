@@ -9,7 +9,7 @@ end subroutine
 #define FAIL(msg) call fail_impl(msg,__LINE__)
 
 program main
-  use linked_list_mod
+  use mpl_displs_container_mod
   implicit none
 
   integer, pointer :: send_pt(:), recv_pt(:)
@@ -19,7 +19,7 @@ program main
 
   type(list_manager), pointer :: list => null()
 
-  list => displ_array_list 
+  list => yddispls_list
 
   ! keep it simple
   nproc = 1
