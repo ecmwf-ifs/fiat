@@ -1,4 +1,56 @@
+! (C) Copyright 2005- ECMWF.
+! (C) Copyright 2013- Meteo-France.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
 MODULE MPL_DISPLS_CONTAINER_MOD
+
+!**** MPL_DISPLS_CONTAINER_MOD - Container for the displacements arrays
+
+!     Purpose.
+!     --------
+!     This module provides a container for the displacements arrays
+!     used in the non-blocking collectives when they are not provided by the caller routine.
+!
+!**   Interface.
+!     ----------
+!        CALL YDDISPLS%APPEND(REQ, NPROC, SEND_PT, RECV_PT, NO_NEW_NODE)
+
+!        Input optional arguments :
+!        -------------------------
+!           REQ      -  Request ID
+!           NPROC    -  Number of processes in communicator
+!           NO_NEW_NODE - If present, the new node is not created, the current node is updated
+
+!        Output optional arguments :
+!        -------------------------
+!           RECV_PT  -  Pointer to the recv displacements array
+!           SEND_PT  -  Pointer to the send displacements array
+
+!**   Interface.
+!     ----------
+!        CALL YDDISPLS%REMOVE_REQ(REQ)
+
+!        Input required arguments :
+!        -------------------------
+!           REQ      -  Request ID whose associate node to be removed
+
+!**   Interface.
+!     ----------
+!        CALL YDDISPLS%TEST_REQ()
+
+!     Author.
+!     -------
+!        L. Anton
+
+   !     Modifications.
+   !     --------------
+   !        Original: 2025-04-01
+
    USE EC_PARKIND, ONLY : JPIM
    USE MPL_MESSAGE_MOD, ONLY : MPL_MESSAGE
    IMPLICIT NONE
@@ -25,11 +77,15 @@ MODULE MPL_DISPLS_CONTAINER_MOD
       PROCEDURE :: APPEND
       PROCEDURE :: REMOVE_FIRST
       PROCEDURE :: REMOVE_REQ
+      PROCEDURE :: TEST_REQ
       PROCEDURE :: CLEAR_LIST
       PROCEDURE :: PRINT_LIST
    END TYPE LIST_MANAGER
 
    LOGICAL :: LLABORT = .TRUE.
+   INTEGER, PARAMETER :: TEST_SIZE = 100 ! limit above which
+   ! try to reduce the size
+   ! of the linked list by applying MPI_TEST to each request
 
    TYPE(LIST_MANAGER),PUBLIC, TARGET :: YDDISPLS_LIST ! the only instance of the list manager
 
@@ -189,6 +245,33 @@ CONTAINS
       ENDDO
    END SUBROUTINE REMOVE_REQ
 
+   SUBROUTINE TEST_REQ(THIS)
+      ! This is ment to be used in mpl_waitall because
+      ! testing each request could be expensive
+      ! Typically, the for non-bloking collectives
+      ! the programmer should use mpl_wait.
+      USE MPI
+      IMPLICIT NONE
+      CLASS(LIST_MANAGER), INTENT(INOUT) :: THIS
+      TYPE(DISPLACEMENTS), POINTER :: CURRENT, TMP
+      INTEGER :: IERR
+      LOGICAL :: LLFLAG
+
+      IF (THIS%LIST_SIZE > TEST_SIZE) THEN
+         CURRENT => THIS%HEAD
+         DO WHILE(ASSOCIATED(CURRENT))
+            CALL mpi_test(CURRENT%REQ, LLFLAG, MPI_STATUS_IGNORE, IERR)
+            IF (LLFLAG) THEN
+               TMP => CURRENT%PREV
+               CALL THIS%REMOVE_REQ(CURRENT%REQ)
+               CURRENT => TMP
+            ELSE
+               CURRENT => CURRENT%PREV
+            END IF
+         END DO
+      END IF
+
+   END SUBROUTINE TEST_REQ
 
    SUBROUTINE CLEAR_LIST(THIS)
       CLASS(LIST_MANAGER), INTENT(INOUT) :: THIS
