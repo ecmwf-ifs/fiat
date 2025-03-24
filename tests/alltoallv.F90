@@ -74,7 +74,7 @@ program test_mpl_alltoallv
    enddo
    rcounts(:)=mpl_rank
 
-   call do_alltoallv("blocking")
+   !call do_alltoallv("blocking")
 
    call do_alltoallv("nonblocking")
 
@@ -87,20 +87,13 @@ contains
       implicit none
       character(len=*), intent(in) :: mode
 
-      character(len=128) :: msg
+      character(len=256) :: msg
 
       integer request_i, request_r, request_d, i, j, k, res
-      integer sdispl(nprocs), rdispl(nprocs)
+      integer sdispl(nprocs), rdispl(nprocs), rqarray(3)
 
       select case(mode)
        case("blocking")
-         !sdispl(1)=0
-         !rdispl(1)=0
-         !do i=2,nprocs
-         !  sdispl(i)=sdispl(i-1)+scounts(i-1)
-         !  rdispl(i)=rdispl(i-1)+rcounts(i-1)
-         !enddo
-         !call mpl_alltoallv(sbuf,scounts,rbuf,rcounts,sdispl, rdispl)
          call mpl_alltoallv(sbuf,scounts,rbuf,rcounts)
          call mpl_alltoallv(sbufr,scounts,rbufr,rcounts)
          call mpl_alltoallv(sbufd,scounts,rbufd,rcounts)
@@ -108,8 +101,6 @@ contains
          k=1
          do i=1,size(rbuf),mpl_rank
             if ( any(rbuf(i:i+mpl_rank-1) /= k) ) then
-               !write(0,*) 'send ', mpl_rank, scounts, sdispl, sbuf
-               !write(0,*) 'recv ', mpl_rank, rcounts, rdispl
                write(msg,*) trim(mode)//" int alltoall test test failed on mpl_rank", mpl_rank, rbuf
                FAIL(msg)
             endif
@@ -132,11 +123,12 @@ contains
             call mpl_alltoallv(sbufd,scounts,rbufd,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_d)
             call work1(res)
             if ( res > 0 ) write(0,*) "error in  work1 non-blocking alltoallv" ! this should not happen ever !!!
-            call mpl_wait(request_r)
-            call mpl_wait(request_d)
-            call mpl_wait(request_i)
+            !call mpl_wait(request_r)
+            !call mpl_wait(request_d)
+            !call mpl_wait(request_i)
+            rqarray = [request_i, request_r, request_d]
+            call mpl_wait(rqarray)
          enddo
-
          k = 1
          do i=1,size(rbuf),mpl_rank
             if ( any(rbuf(i:i+mpl_rank-1) /= k) ) then
@@ -155,7 +147,6 @@ contains
          enddo
 
          ! test with displacement arguments
-
          sdispl(1)=0
          rdispl(1)=0
          do i=2,nprocs

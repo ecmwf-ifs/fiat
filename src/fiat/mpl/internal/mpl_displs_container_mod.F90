@@ -53,6 +53,7 @@ MODULE MPL_DISPLS_CONTAINER_MOD
 
    USE EC_PARKIND, ONLY : JPIM
    USE MPL_MESSAGE_MOD, ONLY : MPL_MESSAGE
+   USE MPL_DATA_MODULE, ONLY : MPL_ERRUNIT, MPL_RANK
    IMPLICIT NONE
    PRIVATE
 
@@ -76,16 +77,26 @@ MODULE MPL_DISPLS_CONTAINER_MOD
    CONTAINS
       PROCEDURE :: APPEND
       PROCEDURE :: REMOVE_FIRST
-      PROCEDURE :: REMOVE_REQ
-      PROCEDURE :: TEST_REQ
+      PROCEDURE :: REMOVE_REQ1
+      PROCEDURE :: REMOVE_REQS
       PROCEDURE :: CLEAR_LIST
       PROCEDURE :: PRINT_LIST
+      GENERIC :: REMOVE_REQ => REMOVE_REQ1, REMOVE_REQS
    END TYPE LIST_MANAGER
 
+   TYPE, PRIVATE :: DISPLS_PT
+      TYPE(DISPLACEMENTS), POINTER :: D
+   END TYPE DISPLS_PT
+
    LOGICAL :: LLABORT = .TRUE.
-   INTEGER, PARAMETER :: TEST_SIZE = 100 ! limit above which
-   ! try to reduce the size
+   INTEGER, PARAMETER :: TEST_SIZE = 1! limit above which
+   ! mpl_wait will try to reduce the size
    ! of the linked list by applying MPI_TEST to each request
+
+   !INTERFACE REMOVE_REQ
+   !   MODULE PROCEDURE REMOVE_REQ1
+   !   MODULE PROCEDURE REMOVE_REQS
+   !END INTERFACE REMOVE_REQ
 
    TYPE(LIST_MANAGER),PUBLIC, TARGET :: YDDISPLS_LIST ! the only instance of the list manager
 
@@ -201,6 +212,11 @@ CONTAINS
             THIS%HEAD%PREV => TMP
          END IF
       END IF
+
+      IF (THIS%LIST_SIZE > TEST_SIZE) THEN
+         WRITE(MPL_ERRUNIT,*) 'WARNING: rank ', MPL_RANK, 'The displacements list size ', &
+         & THIS%LIST_SIZE, ' > ', TEST_SIZE
+      END IF
    END SUBROUTINE APPEND
 
    SUBROUTINE REMOVE_FIRST(THIS)
@@ -217,7 +233,7 @@ CONTAINS
    END SUBROUTINE REMOVE_FIRST
 
 
-   SUBROUTINE REMOVE_REQ(THIS,REQ)
+   SUBROUTINE REMOVE_REQ1(THIS,REQ)
       IMPLICIT NONE
       CLASS(LIST_MANAGER), INTENT(INOUT) :: THIS
       INTEGER, INTENT(IN) :: REQ
@@ -243,35 +259,46 @@ CONTAINS
             CURRENT => CURRENT%PREV
          END IF
       ENDDO
-   END SUBROUTINE REMOVE_REQ
+   END SUBROUTINE REMOVE_REQ1
 
-   SUBROUTINE TEST_REQ(THIS)
-      ! This is ment to be used in mpl_waitall because
-      ! testing each request could be expensive
-      ! Typically, the for non-bloking collectives
-      ! the programmer should use mpl_wait.
-      USE MPI
+   SUBROUTINE REMOVE_REQS(THIS,REQ)
       IMPLICIT NONE
       CLASS(LIST_MANAGER), INTENT(INOUT) :: THIS
+      INTEGER, INTENT(IN) :: REQ(:)
       TYPE(DISPLACEMENTS), POINTER :: CURRENT, TMP
-      INTEGER :: IERR
-      LOGICAL :: LLFLAG
+      TYPE(DISPLS_PT), ALLOCATABLE :: PT(:)
+      INTEGER :: I,J, LISTSZ
 
-      IF (THIS%LIST_SIZE > TEST_SIZE) THEN
-         CURRENT => THIS%HEAD
-         DO WHILE(ASSOCIATED(CURRENT))
-            CALL mpi_test(CURRENT%REQ, LLFLAG, MPI_STATUS_IGNORE, IERR)
-            IF (LLFLAG) THEN
-               TMP => CURRENT%PREV
-               CALL THIS%REMOVE_REQ(CURRENT%REQ)
-               CURRENT => TMP
-            ELSE
-               CURRENT => CURRENT%PREV
+      LISTSZ = THIS%LIST_SIZE
+      write(*,*) 'TEST_REQ: list size ', THIS%LIST_SIZE
+      ALLOCATE(PT(0:LISTSZ))
+      CURRENT => THIS%HEAD
+      DO I=THIS%LIST_SIZE,1,-1
+         PT(I)%D => CURRENT
+         CURRENT => THIS%HEAD%PREV
+      END DO
+      PT(0)%D => NULL()
+      write(*,*) 'TEST_REQ: reqs ', req, (PT(J)%D%REQ, j=1,3)
+
+      DO J=1,THIS%LIST_SIZE
+         DO I=1,SIZE(REQ)
+            IF (REQ(I) == PT(J)%D%REQ) THEN
+               IF (J < THIS%LIST_SIZE) THEN
+                  PT(J+1)%D%PREV => PT(J)%D%PREV
+               ELSE
+                  THIS%HEAD => PT(J-1)%D
+               END IF
+               DEALLOCATE(PT(J)%D)
+               PT(J)%D => NULL()
+               LISTSZ = LISTSZ - 1
+               EXIT
             END IF
          END DO
-      END IF
-
-   END SUBROUTINE TEST_REQ
+      END DO
+      THIS%LIST_SIZE = LISTSZ
+      DEALLOCATE(PT)
+      write(*,*) 'TEST_REQ: list size ', THIS%LIST_SIZE
+   END SUBROUTINE REMOVE_REQS
 
    SUBROUTINE CLEAR_LIST(THIS)
       CLASS(LIST_MANAGER), INTENT(INOUT) :: THIS

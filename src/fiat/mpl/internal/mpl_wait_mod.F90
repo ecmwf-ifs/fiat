@@ -96,6 +96,7 @@ CONTAINS
       INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KERROR
       INTEGER(KIND=JPIM) :: IWAITERR,ICOUNTERR,JL,IREQLEN,ICOUNT,IW
       INTEGER(KIND=JPIM) :: IWAIT_STATUS(MPI_STATUS_SIZE,SIZE(KREQUEST))
+      INTEGER(KIND=JPIM) :: IREQUEST(SIZE(KREQUEST))
       LOGICAL :: LLABORT
       LLABORT=.TRUE.
       IWAITERR=0
@@ -105,6 +106,7 @@ CONTAINS
       & CDMESSAGE='MPL_WAITS: MPL NOT INITIALISED ',LDABORT=LLABORT)
 
       IREQLEN=SIZE(KREQUEST)
+      IREQUEST(:) = KREQUEST(:)
 #ifndef MPI1
       CALL MPI_WAITALL(IREQLEN,KREQUEST,IWAIT_STATUS,IWAITERR)
 #else
@@ -139,15 +141,9 @@ CONTAINS
          CALL MPL_MESSAGE(ICOUNTERR,'MPL_WAITS_COUNT',CDSTRING,LDABORT=LLABORT)
       ENDIF
 
-      ! For non-blocking collectives, the single request version
-      ! of mpl_wait is expected to be used.
-      ! But if the the array version is used, it could be expensive to
-      ! check the status of each request in the list (the request arrays can have O(100) elements).
-      ! Moreover, in most cases the request arrays are for point to point
-      ! communication which does not need to store the displacements in mpl_container.
-      ! So, in order to avoid an accidental growth of the linked list
-      ! we remove here the requests for the acomplished communication in the linked list.
-      CALL YDDISPLS_LIST%TEST_REQ()
+      ! DELETE THE NON-BLOCKING COLLECTIVES DISPLACEMENTS ARRAYS
+      write(0,*) 'MPL_WAITS: Removing requests from the list'
+      CALL YDDISPLS_LIST%REMOVE_REQ(IREQUEST)
 
       RETURN
    END SUBROUTINE MPL_WAITS
@@ -167,6 +163,7 @@ CONTAINS
       INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KERROR
       INTEGER(KIND=JPIM) :: IWAITERR,ICOUNTERR,JL,IREQLEN,ICOUNT
       INTEGER(KIND=JPIM) :: IWAIT_STATUS(MPI_STATUS_SIZE)
+      INTEGER(KIND=JPIM) :: IREQUEST
       LOGICAL :: LLABORT
       LLABORT=.TRUE.
       IWAITERR=0
@@ -175,10 +172,11 @@ CONTAINS
       IF(MPL_NUMPROC < 1) CALL MPL_MESSAGE( &
       & CDMESSAGE='MPL_WAIT: MPL NOT INITIALISED ',LDABORT=LLABORT)
 
+      IREQUEST=KREQUEST
       CALL MPI_WAIT(KREQUEST,IWAIT_STATUS,IWAITERR)
 
       ! DELETE THE NON-BLOCKING COLLECTIVES DISPLACEMENTS ARRAYS, IF THE WAIT IS ON THEM
-      CALL YDDISPLS_LIST%REMOVE_REQ(KREQUEST)
+      CALL YDDISPLS_LIST%REMOVE_REQ(IREQUEST)
 
       IF(PRESENT(KOUNT))THEN
          IF (.not.PRESENT(KBYTES)) THEN
