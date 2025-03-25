@@ -84,19 +84,10 @@ MODULE MPL_DISPLS_CONTAINER_MOD
       GENERIC :: REMOVE_REQ => REMOVE_REQ1, REMOVE_REQS
    END TYPE LIST_MANAGER
 
-   TYPE, PRIVATE :: DISPLS_PT
-      TYPE(DISPLACEMENTS), POINTER :: D
-   END TYPE DISPLS_PT
-
    LOGICAL :: LLABORT = .TRUE.
-   INTEGER, PARAMETER :: TEST_SIZE = 20! limit above which
-   ! mpl_wait will try to reduce the size
-   ! of the linked list by applying MPI_TEST to each request
-
-   !INTERFACE REMOVE_REQ
-   !   MODULE PROCEDURE REMOVE_REQ1
-   !   MODULE PROCEDURE REMOVE_REQS
-   !END INTERFACE REMOVE_REQ
+   INTEGER, PARAMETER :: TEST_SIZE = 20!
+   ! Drop a warning if the linked list size exceeds this value
+   ! It is not expected to have a large number of active displacements in the list
 
    TYPE(LIST_MANAGER),PUBLIC, TARGET :: YDDISPLS_LIST ! the only instance of the list manager
 
@@ -239,6 +230,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: REQ
       TYPE(DISPLACEMENTS), POINTER :: CURRENT, CURRENT_
 
+      call print_list(this)
       CURRENT => THIS%HEAD
       DO WHILE (ASSOCIATED(CURRENT))
          IF (CURRENT%REQ == REQ) THEN
@@ -246,14 +238,12 @@ CONTAINS
                CURRENT_ => THIS%HEAD
                THIS%HEAD => THIS%HEAD%PREV
                DEALLOCATE(CURRENT_)
-               THIS%LIST_SIZE = THIS%LIST_SIZE - 1
-               EXIT
             ELSE
                CURRENT_%PREV => CURRENT%PREV
                DEALLOCATE(CURRENT)
-               THIS%LIST_SIZE = THIS%LIST_SIZE - 1
-               EXIT
             END IF
+            THIS%LIST_SIZE = THIS%LIST_SIZE - 1
+            EXIT
          ELSE
             CURRENT_ => CURRENT
             CURRENT => CURRENT%PREV
@@ -265,38 +255,37 @@ CONTAINS
       IMPLICIT NONE
       CLASS(LIST_MANAGER), INTENT(INOUT) :: THIS
       INTEGER, INTENT(IN) :: REQ(:)
-      TYPE(DISPLACEMENTS), POINTER :: CURRENT, TMP
-      TYPE(DISPLS_PT), ALLOCATABLE :: PT(:)
-      INTEGER :: I,J, LISTSZ
+      TYPE(DISPLACEMENTS), POINTER :: CURRENT, CURRENT_, TMP
+      INTEGER(KIND=JPIM) :: I
+      LOGICAL :: LLFOUND
 
       IF (THIS%LIST_SIZE == 0) RETURN
-
-      LISTSZ = THIS%LIST_SIZE
-      ALLOCATE(PT(0:LISTSZ))
       CURRENT => THIS%HEAD
-      DO I=THIS%LIST_SIZE,1,-1
-         PT(I)%D => CURRENT
-         CURRENT => CURRENT%PREV
-      END DO
-      PT(0)%D => NULL()
-
-      DO J=1,THIS%LIST_SIZE
+      DO WHILE (ASSOCIATED(CURRENT))
+         LLFOUND = .FALSE.
          DO I=1,SIZE(REQ)
-            IF (REQ(I) == PT(J)%D%REQ) THEN
-               IF (J < THIS%LIST_SIZE) THEN
-                  PT(J+1)%D%PREV => PT(J)%D%PREV
+            IF (REQ(I) == CURRENT%REQ) THEN
+               IF ( ASSOCIATED(THIS%HEAD, CURRENT) ) THEN
+                  TMP => THIS%HEAD
+                  THIS%HEAD => THIS%HEAD%PREV
+                  CURRENT => THIS%HEAD
+                  DEALLOCATE(TMP)
                ELSE
-                  THIS%HEAD => PT(J-1)%D
+                  CURRENT_%PREV => CURRENT%PREV
+                  TMP => CURRENT
+                  CURRENT => CURRENT%PREV
+                  DEALLOCATE(TMP)
                END IF
-               DEALLOCATE(PT(J)%D)
-               PT(J)%D => NULL()
-               LISTSZ = LISTSZ - 1
+               LLFOUND = .TRUE.
+               THIS%LIST_SIZE = THIS%LIST_SIZE - 1
                EXIT
             END IF
          END DO
-      END DO
-      THIS%LIST_SIZE = LISTSZ
-      DEALLOCATE(PT)
+         IF (.NOT. LLFOUND) THEN
+            CURRENT_ => CURRENT
+            CURRENT => CURRENT%PREV
+         END IF
+      ENDDO
    END SUBROUTINE REMOVE_REQS
 
    SUBROUTINE CLEAR_LIST(THIS)
@@ -313,12 +302,15 @@ CONTAINS
       TYPE(DISPLACEMENTS), POINTER :: CURRENT
 
       CURRENT => THIS%HEAD
+      WRITE(*,*)'-----------------'
+      WRITE(*,*) 'Rank', MPL_RANK, 'List size ', THIS%LIST_SIZE
       DO WHILE(ASSOCIATED(CURRENT))
          WRITE(*,*) 'REQUEST    ', CURRENT%REQ
          IF (ALLOCATED(CURRENT%SEND)) WRITE(*,*) 'SEND DISPLS', CURRENT%SEND
          IF (ALLOCATED(CURRENT%RECV)) WRITE(*,*) 'RECV DISPLS', CURRENT%RECV
          CURRENT => CURRENT%PREV
       END DO
+      WRITE(*,*)'-----------------'
    END SUBROUTINE PRINT_LIST
 
 END MODULE MPL_DISPLS_CONTAINER_MOD
