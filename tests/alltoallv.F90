@@ -124,10 +124,10 @@ contains
             call work1(res)
             if ( res > 0 ) write(0,*) "error in  work1 non-blocking alltoallv" ! this should not happen ever !!!
             !call mpl_wait(request_r)
-            !call mpl_wait(request_d)
+            call mpl_wait(request_d)
             !call mpl_wait(request_i)
             rqarray = [request_i, request_r, request_d]
-            call mpl_wait(rqarray)
+            call mpl_wait(rqarray(1:2))
          enddo
          k = 1
          do i=1,size(rbuf),mpl_rank

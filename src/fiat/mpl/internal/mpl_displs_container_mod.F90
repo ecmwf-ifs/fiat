@@ -89,7 +89,7 @@ MODULE MPL_DISPLS_CONTAINER_MOD
    END TYPE DISPLS_PT
 
    LOGICAL :: LLABORT = .TRUE.
-   INTEGER, PARAMETER :: TEST_SIZE = 1! limit above which
+   INTEGER, PARAMETER :: TEST_SIZE = 20! limit above which
    ! mpl_wait will try to reduce the size
    ! of the linked list by applying MPI_TEST to each request
 
@@ -269,16 +269,16 @@ CONTAINS
       TYPE(DISPLS_PT), ALLOCATABLE :: PT(:)
       INTEGER :: I,J, LISTSZ
 
+      IF (THIS%LIST_SIZE == 0) RETURN
+
       LISTSZ = THIS%LIST_SIZE
-      write(*,*) 'TEST_REQ: list size ', THIS%LIST_SIZE
       ALLOCATE(PT(0:LISTSZ))
       CURRENT => THIS%HEAD
       DO I=THIS%LIST_SIZE,1,-1
          PT(I)%D => CURRENT
-         CURRENT => THIS%HEAD%PREV
+         CURRENT => CURRENT%PREV
       END DO
       PT(0)%D => NULL()
-      write(*,*) 'TEST_REQ: reqs ', req, (PT(J)%D%REQ, j=1,3)
 
       DO J=1,THIS%LIST_SIZE
          DO I=1,SIZE(REQ)
@@ -297,7 +297,6 @@ CONTAINS
       END DO
       THIS%LIST_SIZE = LISTSZ
       DEALLOCATE(PT)
-      write(*,*) 'TEST_REQ: list size ', THIS%LIST_SIZE
    END SUBROUTINE REMOVE_REQS
 
    SUBROUTINE CLEAR_LIST(THIS)
