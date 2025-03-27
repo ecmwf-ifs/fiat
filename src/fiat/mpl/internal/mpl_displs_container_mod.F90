@@ -254,15 +254,32 @@ CONTAINS
    SUBROUTINE REMOVE_REQS(THIS,REQ)
       IMPLICIT NONE
       CLASS(LIST_MANAGER), INTENT(INOUT) :: THIS
-      INTEGER, INTENT(IN) :: REQ(:)
+      INTEGER(KIND=JPIM), INTENT(IN) :: REQ(:)
+
+      INTEGER(KIND=JPIM), PARAMETER :: IMAX_WARNINGS  = 10
+      INTEGER(KIND=JPIM), SAVE :: IWARNING = 0
       TYPE(DISPLACEMENTS), POINTER :: CURRENT, CURRENT_, TMP
       INTEGER(KIND=JPIM) :: I
       LOGICAL :: LLFOUND
 
       IF (THIS%LIST_SIZE == 0) RETURN
+
+      ! This subroutine could be expensive if the request array is large
+      ! This could happen if non-blocking collectives request are mixed
+      ! point to point non-blocking requests
+      ! The application programmer should avoid this by using different
+      ! call to mpl_wait for the different types of requests
+      IF (IWARNING < IMAX_WARNINGS) THEN
+         WRITE(MPL_ERRUNIT,*) 'WARNING: rank ', MPL_RANK, 'REMOVE_REQ call with a request array of size ', &
+         & SIZE(REQ)
+         IWARNING = IWARNING + 1
+      END IF
+
       CURRENT => THIS%HEAD
       DO WHILE (ASSOCIATED(CURRENT))
          LLFOUND = .FALSE.
+         ! this loop order will pass unnecessarly over the removed requests
+         ! but it does not scan the list multiple times
          DO I=1,SIZE(REQ)
             IF (REQ(I) == CURRENT%REQ) THEN
                IF ( ASSOCIATED(THIS%HEAD, CURRENT) ) THEN
