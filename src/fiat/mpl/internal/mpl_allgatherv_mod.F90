@@ -342,7 +342,6 @@ CONTAINS
       ELSE
          IRECVCOUNTS(:) = 1
       ENDIF
-!IF(PRESENT(KSENDCOUNT)) WRITE(*,*) 'ALLGATHERV_SCALAR', IRECVCOUNTS
 !--------- Preamble repeated for threadsafe--------------
 #include "mpl_allgatherv_preamble.i90"
 !--------- End of Preamble --------------
