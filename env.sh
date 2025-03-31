@@ -39,5 +39,11 @@ elif [[ $HOSTNAME =~ uan ]] ; then
 elif [[ $HOSTNAME =~ syla-laptop ]] ; then
   export ecbuild_ROOT=../ecbuild
   export fckit_ROOT=../fckit
+elif [[ $HOSTNAME =~ a[abcd]6 ]] ; then
+  export ecbuild_ROOT=../ecbuild
+  export fckit_ROOT=../fckit
+  ml pi
+  ml hpcx-openmpi
+  ml
 fi
 set +x

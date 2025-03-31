@@ -230,7 +230,6 @@ CONTAINS
       INTEGER, INTENT(IN) :: REQ
       TYPE(DISPLACEMENTS), POINTER :: CURRENT, CURRENT_
 
-      call print_list(this)
       CURRENT => THIS%HEAD
       DO WHILE (ASSOCIATED(CURRENT))
          IF (CURRENT%REQ == REQ) THEN
@@ -264,16 +263,18 @@ CONTAINS
 
       IF (THIS%LIST_SIZE == 0) RETURN
 
-      ! This subroutine could be expensive if the request array is large
+      ! This subroutine could be expensive if the requests array is large
       ! This could happen if non-blocking collectives request are mixed
       ! point to point non-blocking requests
       ! The application programmer should avoid this by using different
       ! call to mpl_wait for the different types of requests
       IF (IWARNING < IMAX_WARNINGS) THEN
-         WRITE(MPL_ERRUNIT,*) 'WARNING: rank ', MPL_RANK, 'REMOVE_REQ call with a request array of size ', &
-         & SIZE(REQ)
-         IWARNING = IWARNING + 1
-      END IF
+         IF (SIZE(REQ) > MAX(INT(0.1 * THIS%HEAD%NPROC), 10)) THEN
+            WRITE(MPL_ERRUNIT,*) 'WARNING: rank ', MPL_RANK, 'REMOVE_REQ called with a request array of size ', &
+               & SIZE(REQ)
+            IWARNING = IWARNING + 1
+        ENDIF
+      ENDIF
 
       CURRENT => THIS%HEAD
       DO WHILE (ASSOCIATED(CURRENT))
