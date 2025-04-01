@@ -47,8 +47,6 @@ program test_mpl_allgatherv
    integer(jpim) :: nprocs
    logical :: verbose = .false.
 
-   character(len=256) msg
-
    call mpl_init(KPROCS=nprocs,ldinfo=verbose,ldenv=.true.)
 
    if( nprocs <= 1 ) FAIL("nprocs must be > 1")
