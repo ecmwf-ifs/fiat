@@ -47,6 +47,8 @@ program test_mpl_allgatherv
    integer(jpim) :: nprocs
    logical :: verbose = .false.
 
+   character(len=256) msg
+
    call mpl_init(KPROCS=nprocs,ldinfo=verbose,ldenv=.true.)
 
    if( nprocs <= 1 ) FAIL("nprocs must be > 1")
@@ -157,15 +159,15 @@ contains
          if ( any(rbuf(k:k+i-1) /= i) ) then
             !write(0,*) 'send ', mpl_rank, scounts, sbuf
             !write(0,*) 'recv ', mpl_rank, rcounts, rdispl
-            write(msg,*) trim(mode)//" int allgatherv test test failed on mpl_rank", mpl_rank, rbuf
+            write(msg,*) trim(mode)//" int allgatherv test failed on mpl_rank", mpl_rank, rbuf
             FAIL(msg)
          endif
          if ( any(nint(rbufr(k:k+i-1)) /= i) ) then
-            write(msg,*) trim(mode)//" real allgatherv test test failed on mpl_rank", mpl_rank, rbufr
+            write(msg,*) trim(mode)//" real allgatherv test failed on mpl_rank", mpl_rank, rbufr
             FAIL(msg)
          endif
          if ( any(nint(rbufd(k:k+i-1)) /= i) ) then
-            write(msg,*) trim(mode)//" double allgatherv test test failed on mpl_rank", mpl_rank, rbufd
+            write(msg,*) trim(mode)//" double allgatherv test failed on mpl_rank", mpl_rank, rbufd
             FAIL(msg)
          endif
          k=k+i+1
@@ -185,7 +187,7 @@ contains
       end select
       do i=1,nprocs/2
          if ( rbuf(i) /= 2*i) then
-            write(msg,*) trim(mode)//" int_scalar allgatherv test test failed on mpl_rank", mpl_rank, rbuf
+            write(msg,*) trim(mode)//" int_scalar allgatherv test failed on mpl_rank", mpl_rank, rbuf
             FAIL(msg)
          endif
       enddo

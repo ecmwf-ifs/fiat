@@ -14,7 +14,8 @@ program main
 
    integer, pointer :: send_pt(:), recv_pt(:)
    integer, allocatable :: send(:), recv(:)
-   integer req, nproc
+   integer i, req, r1, r2, nproc
+   integer,allocatable :: aux(:)
    logical copy
 
    type(list_manager), pointer :: list => null()
@@ -60,13 +61,34 @@ program main
    if ( list%list_size /= 1 .or. list%head%get_req() /= 4 ) FAIL("try to remove inner node failed")
 
    req = 5
-   call list%append(nproc=nproc,send_pt=send_pt)
-   call list%append(recv_pt=recv_pt,no_new_node=.true.)
-   call list%append(req=req,no_new_node=.true.)
+   call list%append(knproc=nproc,ksend_pt=send_pt)
+   call list%append(krecv_pt=recv_pt,no_new_node=.true.)
+   call list%append(kreq=req,no_new_node=.true.)
    if ( list%list_size /= 2 .or. list%head%get_req() /=5) FAIL("try one update in two steps failed")
 
    call list%clear_list()
    if ( associated(list%head) .or. list%list_size /=0 ) FAIL("clear list failed")
 
+   ! remove two consecutive nodes
+   do i=1,10
+      call list%append(i)
+   enddo
+   r1=7
+   r2=8
+   call list%remove_req(r2)
+   call list%remove_req(r1)
+   if (list%list_size /= 8) FAIL("remove two consecutive nodes failed 1")
+   allocate(aux(10))
+
+   do i = 10,1,-1
+      if(i == r1 .or. i == r2) cycle
+      aux(i) = list%head%get_req()
+      call list%remove_first()
+   enddo
+   if (associated(list%head)) FAIL("remove two consecutive nodes failed 2")
+   do i=1,10
+      if (i == r1 .or. i == r2) cycle
+      if (aux(i) /= i) FAIL("remove two consecutive nodes failed 3")
+   enddo
 
 end program main

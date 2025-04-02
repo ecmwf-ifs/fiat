@@ -85,28 +85,28 @@ MODULE MPL_DISPLS_CONTAINER_MOD
    END TYPE LIST_MANAGER
 
    LOGICAL :: LLABORT = .TRUE.
-   INTEGER, PARAMETER :: TEST_SIZE = 20!
+   INTEGER, PARAMETER :: ITEST_SIZE = 20!
    ! Drop a warning if the linked list size exceeds this value
    ! It is not expected to have a large number of active displacements in the list
 
-   TYPE(LIST_MANAGER),PUBLIC, TARGET :: YDDISPLS_LIST ! the only instance of the list manager
+   TYPE(LIST_MANAGER),PUBLIC,TARGET :: YDDISPLS_LIST ! the only instance of the list manager
 
 CONTAINS
 
-   SUBROUTINE INITIALIZE(THIS, REQ, NPROC, SEND_PT, RECV_PT)
+   SUBROUTINE INITIALIZE(THIS, KREQ, KNPROC, KSEND_PT, KRECV_PT)
       CLASS(DISPLACEMENTS), TARGET, INTENT(INOUT) :: THIS
-      INTEGER(KIND=JPIM), INTENT(IN), OPTIONAL :: REQ, NPROC
-      INTEGER(KIND=JPIM), POINTER, INTENT(OUT), OPTIONAL :: SEND_PT(:), RECV_PT(:)
+      INTEGER(KIND=JPIM), INTENT(IN), OPTIONAL :: KREQ, KNPROC
+      INTEGER(KIND=JPIM), POINTER, INTENT(OUT), OPTIONAL :: KSEND_PT(:), KRECV_PT(:)
 
-      IF ( PRESENT(REQ)) THEN
-         THIS%REQ = REQ
+      IF ( PRESENT(KREQ)) THEN
+         THIS%REQ = KREQ
       END IF
 
-      IF (PRESENT(NPROC)) THEN
+      IF (PRESENT(KNPROC)) THEN
          IF ( THIS%NPROC == 0 ) THEN
-            THIS%NPROC = NPROC
+            THIS%NPROC = KNPROC
          ELSE
-            IF ( NPROC /= THIS%NPROC) THEN
+            IF ( KNPROC /= THIS%NPROC) THEN
                CALL MPL_MESSAGE(CDMESSAGE=&
                & 'MPL_DISPLS_CONTAINER_MOD:&
                & Trying to update nproc > 0',&
@@ -115,10 +115,10 @@ CONTAINS
          END IF
       END IF
 
-      IF (PRESENT(SEND_PT)) THEN
+      IF (PRESENT(KSEND_PT)) THEN
          IF (THIS%NPROC > 0 ) THEN
             ALLOCATE(THIS%SEND(THIS%NPROC))
-            SEND_PT => THIS%SEND
+            KSEND_PT => THIS%SEND
          ELSE
             CALL MPL_MESSAGE(CDMESSAGE=&
             & 'MPL_DISPLS_CONTAINER_MOD:&
@@ -127,10 +127,10 @@ CONTAINS
          END IF
       END IF
 
-      IF (PRESENT(RECV_PT)) THEN
+      IF (PRESENT(KRECV_PT)) THEN
          IF (THIS%NPROC > 0 ) THEN
             ALLOCATE(THIS%RECV(THIS%NPROC))
-            RECV_PT => THIS%RECV
+            KRECV_PT => THIS%RECV
          ELSE
             CALL MPL_MESSAGE(CDMESSAGE=&
             & 'MPL_DISPLS_CONTAINER_MOD:&
@@ -177,83 +177,99 @@ CONTAINS
    END FUNCTION GET_NPROC
 
 
-   SUBROUTINE APPEND(THIS, REQ, NPROC, SEND_PT, RECV_PT, NO_NEW_NODE)
+   SUBROUTINE APPEND(THIS, KREQ, KNPROC, KSEND_PT, KRECV_PT, NO_NEW_NODE)
       CLASS(LIST_MANAGER), INTENT(INOUT) :: THIS
-      INTEGER(KIND=JPIM), INTENT(IN), OPTIONAL :: REQ, NPROC
-      INTEGER(KIND=JPIM), POINTER, INTENT(OUT), OPTIONAL :: SEND_PT(:), RECV_PT(:)
+      INTEGER(KIND=JPIM), INTENT(IN), OPTIONAL :: KREQ, KNPROC
+      INTEGER(KIND=JPIM), POINTER, INTENT(OUT), OPTIONAL :: KSEND_PT(:), KRECV_PT(:)
       LOGICAL, INTENT(IN), OPTIONAL :: NO_NEW_NODE
-      TYPE(DISPLACEMENTS), POINTER :: NEW_NODE, TMP
+      TYPE(DISPLACEMENTS), POINTER :: YLNEW_NODE, YLTMP
+      LOGICAL :: LLNEW_NODE
+
+      IF(PRESENT(NO_NEW_NODE)) THEN
+         LLNEW_NODE = .NOT. NO_NEW_NODE
+      ELSE
+         LLNEW_NODE = .TRUE.
+      ENDIF
 
       IF (.NOT. ASSOCIATED(THIS%HEAD)) THEN
-         ALLOCATE(NEW_NODE)
-         CALL NEW_NODE%INITIALIZE(REQ,NPROC,SEND_PT,RECV_PT)
-         THIS%HEAD => NEW_NODE
+         IF (.NOT. LLNEW_NODE) THEN
+            CALL MPL_MESSAGE(CDMESSAGE=&
+            & 'MPL_DISPLS_CONTAINER_MOD:&
+            &  APPEND called with NO_NEW_NODE=.TRUE.&
+            &  but the internal linked list is empty',&
+            & LDABORT=LLABORT)
+         END IF
+         ALLOCATE(YLNEW_NODE)
+         CALL YLNEW_NODE%INITIALIZE(KREQ,KNPROC,KSEND_PT,KRECV_PT)
+         THIS%HEAD => YLNEW_NODE
          THIS%LIST_SIZE = THIS%LIST_SIZE + 1
       ELSE
-         IF ( .NOT. PRESENT(NO_NEW_NODE) ) THEN
-            ALLOCATE(NEW_NODE)
-            CALL NEW_NODE%INITIALIZE(REQ,NPROC,SEND_PT,RECV_PT)
-            NEW_NODE%PREV => THIS%HEAD
-            THIS%HEAD => NEW_NODE
+         IF (LLNEW_NODE) THEN
+            ALLOCATE(YLNEW_NODE)
+            CALL YLNEW_NODE%INITIALIZE(KREQ,KNPROC,KSEND_PT,KRECV_PT)
+            YLNEW_NODE%PREV => THIS%HEAD
+            THIS%HEAD => YLNEW_NODE
             THIS%LIST_SIZE = THIS%LIST_SIZE + 1
          ELSE
             ! Update the curent head
-            TMP => THIS%HEAD%PREV ! initialise sets prev to NULL
-            CALL THIS%HEAD%INITIALIZE(REQ,NPROC,SEND_PT,RECV_PT)
-            THIS%HEAD%PREV => TMP
+            YLTMP => THIS%HEAD%PREV ! initialise sets prev to NULL
+            CALL THIS%HEAD%INITIALIZE(KREQ,KNPROC,KSEND_PT,KRECV_PT)
+            THIS%HEAD%PREV => YLTMP
          END IF
       END IF
 
-      IF (THIS%LIST_SIZE > TEST_SIZE) THEN
+      IF (THIS%LIST_SIZE > ITEST_SIZE) THEN
          WRITE(MPL_ERRUNIT,*) 'WARNING: rank ', MPL_RANK, 'The displacements list size ', &
-         & THIS%LIST_SIZE, ' > ', TEST_SIZE
+         & THIS%LIST_SIZE, ' > ', ITEST_SIZE
       END IF
    END SUBROUTINE APPEND
 
    SUBROUTINE REMOVE_FIRST(THIS)
       CLASS(LIST_MANAGER), INTENT(INOUT) :: THIS
-      TYPE(DISPLACEMENTS), POINTER :: TEMP
+      TYPE(DISPLACEMENTS), POINTER :: TMP
 
       IF (.NOT. ASSOCIATED(THIS%HEAD)) RETURN
 
-      TEMP => THIS%HEAD
+      TMP => THIS%HEAD
       THIS%HEAD => THIS%HEAD%PREV
-      DEALLOCATE(TEMP)
+      DEALLOCATE(TMP)
       THIS%LIST_SIZE = THIS%LIST_SIZE - 1
 
    END SUBROUTINE REMOVE_FIRST
 
 
-   SUBROUTINE REMOVE_REQ1(THIS,REQ)
+   SUBROUTINE REMOVE_REQ1(THIS,KREQ)
       IMPLICIT NONE
       CLASS(LIST_MANAGER), INTENT(INOUT) :: THIS
-      INTEGER, INTENT(IN) :: REQ
-      TYPE(DISPLACEMENTS), POINTER :: CURRENT, CURRENT_
+      INTEGER, INTENT(IN) :: KREQ
+      TYPE(DISPLACEMENTS), POINTER :: YLCURRENT, YLCURRENT_, YLTMP
 
-      CURRENT => THIS%HEAD
-      DO WHILE (ASSOCIATED(CURRENT))
-         IF (CURRENT%REQ == REQ) THEN
-            IF ( ASSOCIATED(THIS%HEAD, CURRENT) ) THEN
-               CURRENT_ => THIS%HEAD
+      YLCURRENT => THIS%HEAD
+      DO WHILE (ASSOCIATED(YLCURRENT))
+         IF (YLCURRENT%REQ == KREQ) THEN
+            IF ( ASSOCIATED(THIS%HEAD, YLCURRENT) ) THEN
+               YLTMP => THIS%HEAD
                THIS%HEAD => THIS%HEAD%PREV
-               DEALLOCATE(CURRENT_)
+               YLCURRENT => THIS%HEAD
             ELSE
-               CURRENT_%PREV => CURRENT%PREV
-               DEALLOCATE(CURRENT)
+               YLTMP => YLCURRENT
+               YLCURRENT => YLCURRENT%PREV
+               YLCURRENT_%PREV => YLCURRENT
             END IF
+            DEALLOCATE(YLTMP)
             THIS%LIST_SIZE = THIS%LIST_SIZE - 1
             EXIT
          ELSE
-            CURRENT_ => CURRENT
-            CURRENT => CURRENT%PREV
+            YLCURRENT_ => YLCURRENT
+            YLCURRENT => YLCURRENT%PREV
          END IF
       ENDDO
    END SUBROUTINE REMOVE_REQ1
 
-   SUBROUTINE REMOVE_REQS(THIS,REQ)
+   SUBROUTINE REMOVE_REQS(THIS,KREQ)
       IMPLICIT NONE
       CLASS(LIST_MANAGER), INTENT(INOUT) :: THIS
-      INTEGER(KIND=JPIM), INTENT(IN) :: REQ(:)
+      INTEGER(KIND=JPIM), INTENT(IN) :: KREQ(:)
 
       INTEGER(KIND=JPIM), PARAMETER :: IMAX_WARNINGS  = 10
       INTEGER(KIND=JPIM), SAVE :: IWARNING = 0
@@ -269,11 +285,11 @@ CONTAINS
       ! The application programmer should avoid this by using different
       ! call to mpl_wait for the different types of requests
       IF (IWARNING < IMAX_WARNINGS) THEN
-         IF (SIZE(REQ) > MAX(INT(0.1 * THIS%HEAD%NPROC), 10)) THEN
+         IF (SIZE(KREQ) > MAX(INT(0.1 * THIS%HEAD%NPROC), 10)) THEN
             WRITE(MPL_ERRUNIT,*) 'WARNING: rank ', MPL_RANK, 'REMOVE_REQ called with a request array of size ', &
-               & SIZE(REQ)
+            & SIZE(KREQ)
             IWARNING = IWARNING + 1
-        ENDIF
+         ENDIF
       ENDIF
 
       CURRENT => THIS%HEAD
@@ -281,20 +297,19 @@ CONTAINS
          LLFOUND = .FALSE.
          ! this loop order will pass unnecessarly over the removed requests
          ! but it does not scan the list multiple times
-         DO I=1,SIZE(REQ)
-            IF (REQ(I) == CURRENT%REQ) THEN
+         DO I=1,SIZE(KREQ)
+            IF (KREQ(I) == CURRENT%REQ) THEN
                IF ( ASSOCIATED(THIS%HEAD, CURRENT) ) THEN
                   TMP => THIS%HEAD
                   THIS%HEAD => THIS%HEAD%PREV
                   CURRENT => THIS%HEAD
-                  DEALLOCATE(TMP)
                ELSE
                   CURRENT_%PREV => CURRENT%PREV
                   TMP => CURRENT
                   CURRENT => CURRENT%PREV
-                  DEALLOCATE(TMP)
                END IF
                LLFOUND = .TRUE.
+               DEALLOCATE(TMP)
                THIS%LIST_SIZE = THIS%LIST_SIZE - 1
                EXIT
             END IF
