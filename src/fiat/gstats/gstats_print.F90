@@ -453,11 +453,6 @@ ELSEIF(LSTATS) THEN
            IF(NUMRECV(JNUM) /= 0) THEN
              AVGRECVLEN=RECVBYTES(JNUM)*1.E-3_JPRD/NUMRECV(JNUM)
            ELSE
-             AVGSENDLEN=0.0_JPRD
-           ENDIF
-           IF(NUMRECV(JNUM) /= 0) THEN
-             AVGRECVLEN=RECVBYTES(JNUM)*1.E-3_JPRD/NUMRECV(JNUM)
-           ELSE
              AVGRECVLEN=0.0_JPRD
            ENDIF
            WRITE(KULOUT,'(I6,1X,A40,f6.1,2(I8,3F8.1))') &
