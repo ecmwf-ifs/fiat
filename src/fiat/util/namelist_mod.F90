@@ -1,5 +1,12 @@
 MODULE NAMELIST_MOD
 
+! This module contains namelist utilities, especially subroutines/function to
+! position on the requested namelist "block" to read variables.
+!
+! To the legacy POSNAM and POSNAME subroutines from IAL (IFS-ARPEGE-LAM),
+! a POSNAMEF function is added to enable a shorter syntax:
+! IF (POSNAMEF(KULNAM, CDNAML, ...) == 0) READ(KULNAM, NAML)
+
 IMPLICIT NONE
 
 PUBLIC :: POSNAME, POSNAM, POSNAMEF
@@ -112,7 +119,7 @@ IF (LHOOK) CALL DR_HOOK('POSNAME',1,ZHOOK_HANDLE)
 END SUBROUTINE POSNAME
 
 
-FUNCTION POSNAMEF(KULNAM, CDNAML, LDNOREWIND, LDFATAL, LDVERBOSE) RESULT(ISTAT)
+FUNCTION POSNAMEF(KULNAM, CDNAML, LDNOREWIND, LDFATAL, LDVERBOSE, KULOUT) RESULT(ISTAT)
 !**** *POSNAMEF* - function to position namelist file for reading and return error code
 !                  if namelist is not found
 
@@ -122,7 +129,7 @@ FUNCTION POSNAMEF(KULNAM, CDNAML, LDNOREWIND, LDFATAL, LDVERBOSE) RESULT(ISTAT)
 
 !**   Interface.
 !     ----------
-!        IF (POSNAMEF(KULNAM, CDNAML, ...) == 0) READ(KULNAM, CDNAML)
+!        IF (POSNAMEF(KULNAM, CDNAML, ...) == 0) READ(KULNAM, NAML)
 
 !        Explicit arguments :     KULNAM - file unit number (input)
 !        --------------------     CDNAML - namelist name    (input)
@@ -133,6 +140,7 @@ FUNCTION POSNAMEF(KULNAM, CDNAML, LDNOREWIND, LDFATAL, LDVERBOSE) RESULT(ISTAT)
 !                                 LDFATAL - to call ABOR1 in case of error
 !                                   (other than NAMELIST not present in file)
 !                                 LDVERBOSE - verbosity
+!                                 KULOUT - output unit for verbosity
 
 USE EC_PARKIND, ONLY : JPIM
 USE EC_LUN, ONLY : NULOUT
@@ -145,25 +153,30 @@ CHARACTER(LEN=*),   INTENT(IN) :: CDNAML
 LOGICAL,OPTIONAL,   INTENT(IN) :: LDNOREWIND
 LOGICAL,OPTIONAL,   INTENT(IN) :: LDFATAL
 LOGICAL,OPTIONAL,   INTENT(IN) :: LDVERBOSE
+INTEGER(KIND=JPIM),OPTIONAL, INTENT(IN) :: KULOUT
 
 INTEGER(KIND=JPIM) :: ISTAT
 CHARACTER(LEN=256) :: CLFILE
 LOGICAL :: LLNOREWIND
 LOGICAL :: LLFATAL
 LOGICAL :: LLVERBOSE
+INTEGER :: ILULOUT
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 
 IF (LHOOK) CALL DR_HOOK('POSNAMEF',0,ZHOOK_HANDLE)
-
+! defaults
 LLNOREWIND = .FALSE.
 LLFATAL = .TRUE.
 LLVERBOSE = .TRUE.
+ILULOUT = NULOUT
+! optional arguments
 IF (PRESENT(LDNOREWIND)) LLNOREWIND = LDNOREWIND
 IF (PRESENT(LDFATAL)) LLFATAL = LDFATAL
 IF (PRESENT(LDVERBOSE)) LLVERBOSE = LDVERBOSE
+IF (PRESENT(KULOUT)) ILULOUT = KULOUT
 
 CLFILE=""
 
@@ -178,7 +191,7 @@ IF (CLFILE == "") THEN
     WRITE(CLFILE,'(''fort.'',I2)') KULNAM
   ENDIF
 ENDIF
-IF (LLVERBOSE) WRITE(NULOUT,"('Reading namelist ',A,' from ',A)") CDNAML,TRIM(CLFILE)
+IF (LLVERBOSE) WRITE(ILULOUT,"('Reading namelist ',A,' from ',A)") CDNAML,TRIM(CLFILE)
 
 CALL POSNAME (KULNAM, CDNAML, ISTAT, LDNOREWIND=LLNOREWIND)
 
