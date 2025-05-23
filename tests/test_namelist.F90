@@ -31,23 +31,23 @@ integer           :: ivalue = 0
 real              :: rvalue = 0.0
 character(len=80) :: cvalue = ''
 
-character(len=*),parameter :: cexisting = 'NAMBLOCK2'
-character(len=*),parameter :: cnonexisting = 'NAM_NONEXISTING'
+character(len=*),parameter :: cpresent = 'NAMBLOCK2'
+character(len=*),parameter :: cnonpresent = 'NAM_NONPRESENT'
 namelist/NAMBLOCK2/lvalue,ivalue,rvalue,cvalue
-namelist/NAM_NONEXISTING/lvalue,ivalue,rvalue,cvalue
+namelist/NAM_NONPRESENT/lvalue,ivalue,rvalue,cvalue
 
 call write_namelist()
 
 open(kulnam, file=cfile)
 
-call test_posnamef_existing()
-call test_posnamef_nonexisting()
-call test_posnam_existing()
-call test_posnam_nonexisting()
+call test_posnamef_present()
+call test_posnamef_nonpresent()
+call test_posnam_present()
+call test_posnam_nonpresent()
 close(kulnam)
 ! checking it also works with a closed kulnam,
 ! guessing filename (fort.kulnam) and opening it
-call test_posnam_existing()
+call test_posnam_present()
 
 contains
 
@@ -74,36 +74,36 @@ write(iunit,*) '/'
 close(iunit)
 end subroutine write_namelist
 
-subroutine test_posnamef_existing()
+subroutine test_posnamef_present()
 implicit none
 
-if (posnamef(kulnam, cexisting, ldfatal=.false., ldverbose=.true.) == 0) read(kulnam, NAMBLOCK2)
+if (posnamef(kulnam, cpresent, ldfatal=.false., ldverbose=.true.) == 0) read(kulnam, NAMBLOCK2)
 
 if (lvalue .neqv. lvalue_check) FAIL("LVALUE")
 if (ivalue /= ivalue_check) FAIL("IVALUE")
 if (rvalue /= rvalue_check) FAIL("RVALUE")
 if (trim(cvalue) /= trim(cvalue_check)) FAIL("CVALUE")
-end subroutine test_posnamef_existing
+end subroutine test_posnamef_present
 
-subroutine test_posnamef_nonexisting()
+subroutine test_posnamef_nonpresent()
 implicit none
-if (posnamef(kulnam, cnonexisting, ldfatal=.false., ldverbose=.true.) == 0) then
-  read(kulnam, NAM_NONEXISTING)
+if (posnamef(kulnam, cnonpresent, ldfatal=.false., ldverbose=.true.) == 0) then
+  read(kulnam, NAM_NONPRESENT)
 else
   print*,'This should not be printed'
 endif
-end subroutine test_posnamef_nonexisting
+end subroutine test_posnamef_nonpresent
 
-subroutine test_posnam_existing()
+subroutine test_posnam_present()
 implicit none
-call posnam(kulnam, cexisting)
+call posnam(kulnam, cpresent)
 read(kulnam, NAMBLOCK2)
-end subroutine test_posnam_existing
+end subroutine test_posnam_present
 
-subroutine test_posnam_nonexisting()
+subroutine test_posnam_nonpresent()
 implicit none
-call posnam(kulnam, cnonexisting)  ! should call abor1
-end subroutine test_posnam_nonexisting
+call posnam(kulnam, cnonpresent)  ! should call abor1
+end subroutine test_posnam_nonpresent
 
 subroutine fail_impl(msg,line)
     character(*) :: msg

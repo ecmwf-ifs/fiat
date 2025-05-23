@@ -175,7 +175,7 @@ ecbuild_add_executable(
 add_test(NAME fiat_test_namelist
       COMMAND ${CMAKE_COMMAND}
       "-DEXECUTABLE=$<TARGET_FILE:fiat_test_namelist>"
-      "-DPASS_REGULAR_EXPRESSION=ABOR1.*POSNAM:CANNOT LOCATE NAM_NONEXISTING"
+      "-DPASS_REGULAR_EXPRESSION=ABOR1.*POSNAM:CANNOT LOCATE NAM_NONPRESENT"
       -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
 
 # ----------------------------------------------------------------------------------------
