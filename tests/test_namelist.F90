@@ -18,6 +18,7 @@ program test_namelist
 use namelist_mod
 implicit none
 
+character(len=*),parameter :: cfile = 'fort.4'
 logical,parameter          :: lvalue_check = .true.
 integer,parameter          :: ivalue_check = 12
 real,parameter             :: rvalue_check = 0.12
@@ -35,14 +36,44 @@ character(len=*),parameter :: cnonexisting = 'NAM_NONEXISTING'
 namelist/NAMBLOCK2/lvalue,ivalue,rvalue,cvalue
 namelist/NAM_NONEXISTING/lvalue,ivalue,rvalue,cvalue
 
-open(kulnam, file='../share/fiat/util/namelist_example')  ! cwd is build/tests, file is in build/share/...
+call write_namelist()
+
+open(kulnam, file=cfile)
 
 call test_posnamef_existing()
 call test_posnamef_nonexisting()
 call test_posnam_existing()
 call test_posnam_nonexisting()
+close(kulnam)
+! checking it also works with a closed kulnam,
+! guessing filename (fort.kulnam) and opening it
+call test_posnam_existing()
 
 contains
+
+subroutine write_namelist()
+implicit none
+integer :: iunit = 4
+logical :: lexist
+inquire(file=cfile, exist=lexist)
+if (lexist) then
+  print*, "Removing", cfile
+  call unlink(cfile)
+endif
+open(iunit, file=cfile, status='NEW')
+write(iunit,*) '&NAMBLOCK1'
+write(iunit,*) '/'
+write(iunit,*) '&NAMBLOCK2'
+write(iunit,*) '  LVALUE=.TRUE.,'
+write(iunit,*) '  RVALUE=0.12,'
+write(iunit,*) '  IVALUE=12,'
+write(iunit,*) '  CVALUE="NONE",'
+write(iunit,*) '/'
+write(iunit,*) '&NAMBLOCK3'
+write(iunit,*) '/'
+close(iunit)
+end subroutine write_namelist
+
 subroutine test_posnamef_existing()
 implicit none
 
