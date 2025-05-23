@@ -164,6 +164,15 @@ add_test(NAME fiat_test_abor1
       -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
 
 # ----------------------------------------------------------------------------------------
+# Tests: fiat_test_namelist
+
+ecbuild_add_test(
+    TARGET  fiat_test_namelist
+    SOURCES test_namelist.F90
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran )
+
+# ----------------------------------------------------------------------------------------
 # Test installation of fiat is working
 
 configure_file( test-install.sh.in ${CMAKE_CURRENT_BINARY_DIR}/test-install.sh @ONLY )
