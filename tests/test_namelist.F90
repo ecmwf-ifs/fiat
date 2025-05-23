@@ -31,7 +31,7 @@ real              :: rvalue = 0.0
 character(len=80) :: cvalue = ''
 
 character(len=*),parameter :: cexisting = 'NAMBLOCK2'
-character(len=*),parameter :: cnonexisting = 'nonexisting'
+character(len=*),parameter :: cnonexisting = 'NAM_NONEXISTING'
 namelist/NAMBLOCK2/lvalue,ivalue,rvalue,cvalue
 namelist/NAM_NONEXISTING/lvalue,ivalue,rvalue,cvalue
 
@@ -39,7 +39,8 @@ open(kulnam, file='../share/fiat/util/namelist_example')  ! cwd is build/tests, 
 
 call test_posnamef_existing()
 call test_posnamef_nonexisting()
-call test_posnam()
+call test_posnam_existing()
+call test_posnam_nonexisting()
 
 contains
 subroutine test_posnamef_existing()
@@ -55,17 +56,23 @@ end subroutine test_posnamef_existing
 
 subroutine test_posnamef_nonexisting()
 implicit none
-
-if (posnamef(kulnam, cnonexisting, ldfatal=.false., ldverbose=.true.) == 0) read(kulnam, NAM_NONEXISTING)
-
+if (posnamef(kulnam, cnonexisting, ldfatal=.false., ldverbose=.true.) == 0) then
+  read(kulnam, NAM_NONEXISTING)
+else
+  print*,'This should not be printed'
+endif
 end subroutine test_posnamef_nonexisting
 
-subroutine test_posnam()
+subroutine test_posnam_existing()
 implicit none
-
 call posnam(kulnam, cexisting)
 read(kulnam, NAMBLOCK2)
-end subroutine test_posnam
+end subroutine test_posnam_existing
+
+subroutine test_posnam_nonexisting()
+implicit none
+call posnam(kulnam, cnonexisting)  ! should call abor1
+end subroutine test_posnam_nonexisting
 
 subroutine fail_impl(msg,line)
     character(*) :: msg

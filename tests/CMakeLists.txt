@@ -166,11 +166,17 @@ add_test(NAME fiat_test_abor1
 # ----------------------------------------------------------------------------------------
 # Tests: fiat_test_namelist
 
-ecbuild_add_test(
+ecbuild_add_executable(
     TARGET  fiat_test_namelist
     SOURCES test_namelist.F90
     LIBS    fiat
-    LINKER_LANGUAGE Fortran )
+    LINKER_LANGUAGE Fortran
+    NOINSTALL )
+add_test(NAME fiat_test_namelist
+      COMMAND ${CMAKE_COMMAND}
+      "-DEXECUTABLE=$<TARGET_FILE:fiat_test_namelist>"
+      "-DPASS_REGULAR_EXPRESSION=ABOR1.*POSNAM:CANNOT LOCATE NAM_NONEXISTING"
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
 
 # ----------------------------------------------------------------------------------------
 # Test installation of fiat is working
