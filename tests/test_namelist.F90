@@ -16,6 +16,9 @@
 
 program test_namelist
 use namelist_mod
+#ifdef NAGFOR
+use f90_unix_dir, only: unlink
+#endif
 implicit none
 
 character(len=*),parameter :: cfile = 'fort.4'
