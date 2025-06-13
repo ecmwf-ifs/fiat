@@ -200,7 +200,7 @@ ecbuild_add_test( TARGET fiat_test_scatterv
     LINKER_LANGUAGE Fortran
     MPI 2)
 #-----------------------------------------------------------------------------------------
-# Tests: fiat_test_linked_list
+# Tests: fiat_test_displs_container
 #
 # test the linled_list needed for the non-blocking collectives 
 ecbuild_add_test( TARGET fiat_test_displs_container
