@@ -179,6 +179,7 @@ do i=1,nprocs
 enddo
 select case(mode)
  case("blocking")
+  call mpl_allgatherv(mpl_rank,rbuf(1:nprocs)) ! the simplest no correctness test just interface functionality
   call mpl_allgatherv(mpl_rank,rbuf,rcounts,ksendcount=mod(mpl_rank+1,2))
  case("nonblocking")
   call mpl_allgatherv(mpl_rank,rbuf,rcounts,ksendcount=mod(mpl_rank+1,2), &
