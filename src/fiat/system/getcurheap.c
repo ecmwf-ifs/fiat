@@ -93,8 +93,14 @@ resetmaxloc()
 }
 
 void
-
 setheapcheck_()
 {
   heapcheck=1;
+}
+
+// Unused function, works around warning of unused heapcheck variable
+int
+getheapcheck_()
+{
+  return heapcheck;
 }

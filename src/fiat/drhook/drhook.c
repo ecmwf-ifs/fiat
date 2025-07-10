@@ -2221,7 +2221,8 @@ process_options()
   if(fp) fprintf(fp,"[EC_DRHOOK:hostname:myproc:omltid:pid:unixtid] [YYYYMMDD:HHMMSS:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",drhook_oml_get_max_threads());
   OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_SILENT=%d\n",pfx,TIMESTR(tid),FFL,opt_silent);
 
-  OPTPRINT(fp,"%s %s [%s@%s:%d] fp = %p\n",pfx,TIMESTR(tid),FFL,(void*)fp);
+  void* fp_alias = (void*)fp; // Pass alias to avoid warning "passing argument 1 to ‘restrict’-qualified parameter aliases with argument 8"
+  OPTPRINT(fp,"%s %s [%s@%s:%d] fp = %p\n",pfx,TIMESTR(tid),FFL,fp_alias);
 
   env = getenv("ATP_ENABLED");
   atp_enabled = env ? atoi(env) : 0;
@@ -2531,7 +2532,7 @@ process_options()
       if (opt_nvtx_SWT < 0)
         opt_nvtx_SWT = nvtx_SWT_default;
 
-      OPTPRINT(fp, "%s %s [%s@%s:%g] DR_HOOK_NVTX_SPAM_WT=%g\n", pfx, TIMESTR(tid), FFL, nvtx_SWT_default);
+      OPTPRINT(fp, "%s %s [%s@%s:%d] DR_HOOK_NVTX_SPAM_WT=%g\n", pfx, TIMESTR(tid), FFL, nvtx_SWT_default);
     }
   }
 
