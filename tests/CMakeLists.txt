@@ -7,10 +7,11 @@
 # nor does it submit to any jurisdiction.
 
 if( HAVE_TESTS )
-
 set( CMAKE_Fortran_MODULE_DIRECTORY "" )
+
 if( HAVE_MPI AND MPIEXEC )
-  set( LAUNCH ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 1 )
+  set (MPI_OPTS "" CACHE STRING "system depended srun or mpirun options (partition, time, account, ...)")
+  set( LAUNCH ${MPIEXEC} ${MPI_OPTS} ${MPIEXEC_NUMPROC_FLAG} 1 )
 else()
   set( LAUNCH ${CMAKE_CROSSCOMPILING_EMULATOR} )
 endif()
@@ -180,6 +181,51 @@ add_test(NAME fiat_test_abor1
       "-DEXECUTABLE=$<TARGET_FILE:fiat-test-abor1>"
       "-DPASS_REGULAR_EXPRESSION=ABOR1.*aborting from OpenMP parallel region"
       -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
+
+#-----------------------------------------------------------------------------------------
+# Tests:  fiat_test_alltoallv
+#
+#
+ecbuild_add_test( TARGET fiat_test_alltoallv
+    SOURCES alltoallv.F90
+    LIBS     fiat
+    LINKER_LANGUAGE Fortran
+    MPI 2)
+#-----------------------------------------------------------------------------------------
+# Tests:  fiat_test_gatherv
+#
+#
+ecbuild_add_test( TARGET fiat_test_gatherv
+    SOURCES gatherv.F90 
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran
+    MPI 2)
+#-----------------------------------------------------------------------------------------
+# Tests:  fiat_test_allgatherv
+#
+#
+ecbuild_add_test( TARGET fiat_test_allgatherv
+    SOURCES allgatherv.F90 
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran
+    MPI 2)                  
+#-----------------------------------------------------------------------------------------
+# Tests:  fiat_test_scatterv
+#
+#
+ecbuild_add_test( TARGET fiat_test_scatterv
+    SOURCES scatterv.F90 
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran
+    MPI 2)
+#-----------------------------------------------------------------------------------------
+# Tests: fiat_test_displs_container
+#
+# test the linled_list needed for the non-blocking collectives 
+ecbuild_add_test( TARGET fiat_test_displs_container
+    SOURCES displs_container.F90
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran)
 
 # ----------------------------------------------------------------------------------------
 # Tests: fiat_test_namelist
