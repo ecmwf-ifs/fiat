@@ -8,6 +8,7 @@
 
 if( HAVE_TESTS )
 
+set( CMAKE_Fortran_MODULE_DIRECTORY "" )
 if( HAVE_MPI AND MPIEXEC )
   set( LAUNCH ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 1 )
 else()
@@ -126,6 +127,23 @@ ecbuild_add_test(
 ecbuild_add_test(
     TARGET  fiat_test_byteswap
     SOURCES test_byteswap.F90
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran )
+
+# ----------------------------------------------------------------------------------------
+# Tests: fiat_test_checksum_c
+
+ecbuild_add_test(
+    TARGET  fiat_test_checksum_c 
+    SOURCES test_checksum.c
+    LIBS    fiat )
+
+# ----------------------------------------------------------------------------------------
+# Tests: fiat_test_checksum
+
+ecbuild_add_test(
+    TARGET  fiat_test_checksum
+    SOURCES test_checksum.F90
     LIBS    fiat
     LINKER_LANGUAGE Fortran )
 
