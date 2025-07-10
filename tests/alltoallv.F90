@@ -74,103 +74,109 @@ do i=1,nprocs
 enddo
 rcounts(:)=mpl_rank
 
- !call do_alltoallv("blocking")
-
-call do_alltoallv("nonblocking")
+call do_alltoallv_blocking()
+call do_alltoallv_nonblocking()
 
 call mpl_end(ldmeminfo=verbose)
 ! Note that with mpi_serial meminfo will not be printed regardless of ldmeminfo
 
 contains
 
-subroutine do_alltoallv(mode)
+subroutine do_alltoallv_blocking
 implicit none
-character(len=*), intent(in) :: mode
 
 character(len=256) :: msg
 
 integer request_i, request_r, request_d, i, j, k, res
 integer sdispl(nprocs), rdispl(nprocs), rqarray(3)
 
-select case(mode)
- case("blocking")
-  call mpl_alltoallv(sbuf,scounts,rbuf,rcounts)
-  call mpl_alltoallv(sbufr,scounts,rbufr,rcounts)
-  call mpl_alltoallv(sbufd,scounts,rbufd,rcounts)
+if (mpl_rank == 1) write(0,*) "test nonblocking"
 
-  k=1
-  do i=1,size(rbuf),mpl_rank
-    if ( any(rbuf(i:i+mpl_rank-1) /= k) ) then
-      write(msg,*) trim(mode)//" int alltoall test test failed on mpl_rank", mpl_rank, rbuf
-      FAIL(msg)
-    endif
-    if ( any(nint(rbufr(i:i+mpl_rank-1)) /= k) ) then
-      write(msg,*) trim(mode)//" real alltoall test test failed on mpl_rank", mpl_rank, rbufr
-      FAIL(msg)
-    endif
-    if ( any(nint(rbufd(i:i+mpl_rank-1)) /= k) ) then
-      write(msg,*) trim(mode)//" double alltoall test test failed on mpl_rank", mpl_rank, rbufd
-      FAIL(msg)
-    endif
-    k=k+1
-  enddo
+call mpl_alltoallv(sbuf,scounts,rbuf,rcounts)
+call mpl_alltoallv(sbufr,scounts,rbufr,rcounts)
+call mpl_alltoallv(sbufd,scounts,rbufd,rcounts)
 
- case("nonblocking")
-  ! trying to get a random failure
-  do j=1,1
-    call mpl_alltoallv(sbuf,scounts,rbuf,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
-    call mpl_alltoallv(sbufr,scounts,rbufr,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_r)
-    call mpl_alltoallv(sbufd,scounts,rbufd,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_d)
-    call work1(res)
-    if ( res > 0 ) write(0,*) "error in  work1 non-blocking alltoallv" ! this should not happen ever !!!
-    !call mpl_wait(request_r)
-    call mpl_wait(request_d)
-    !call mpl_wait(request_i)
-    rqarray = [request_i, request_r, request_d]
-    call mpl_wait(rqarray(1:2))
-  enddo
-  k = 1
-  do i=1,size(rbuf),mpl_rank
-    if ( any(rbuf(i:i+mpl_rank-1) /= k) ) then
-      write(msg,*) trim(mode)//" int alltoall test failed on mpl_rank", mpl_rank, rbuf
-      FAIL(msg)
-    endif
-    if ( any(nint(rbufr(i:i+mpl_rank-1)) /= k) ) then
-      write(msg,*) trim(mode)//" real alltoall test failed on mpl_rank", mpl_rank, rbuf
-      FAIL(msg)
-    endif
-    if ( any(nint(rbufd(i:i+mpl_rank-1)) /= k) ) then
-      write(msg,*) trim(mode)//" double alltoall test failed on mpl_rank", mpl_rank, rbuf
-      FAIL(msg)
-    endif
-    k = k+1
-  enddo
+k=1
+do i=1,size(rbuf),mpl_rank
+  if ( any(rbuf(i:i+mpl_rank-1) /= k) ) then
+    write(msg,*) "blocking int alltoall test test failed on mpl_rank", mpl_rank, rbuf
+    FAIL(msg)
+  endif
+  if ( any(nint(rbufr(i:i+mpl_rank-1)) /= k) ) then
+    write(msg,*) "blocking real alltoall test test failed on mpl_rank", mpl_rank, rbufr
+    FAIL(msg)
+  endif
+  if ( any(nint(rbufd(i:i+mpl_rank-1)) /= k) ) then
+    write(msg,*) "blocking double alltoall test test failed on mpl_rank", mpl_rank, rbufd
+    FAIL(msg)
+  endif
+  k=k+1
+enddo
 
-  ! test with displacement arguments
-  sdispl(1)=0
-  rdispl(1)=0
-  do i=2,nprocs
-    sdispl(i)=sdispl(i-1)+scounts(i-1)
-    rdispl(i)=rdispl(i-1)+rcounts(i-1)
-  enddo
+end subroutine do_alltoallv_blocking
 
-  call mpl_alltoallv(sbuf, scounts, rbuf, rcounts, sdispl, rdispl, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
+subroutine do_alltoallv_nonblocking()
+implicit none
+
+character(len=256) :: msg
+
+integer request_i, request_r, request_d, i, j, k, res
+integer sdispl(nprocs), rdispl(nprocs), rqarray(3)
+
+if (mpl_rank == 1) write(0,*) "test nonblocking"
+
+! trying to get a random failure
+do j=1,1
+  call mpl_alltoallv(sbuf,scounts,rbuf,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
+  call mpl_alltoallv(sbufr,scounts,rbufr,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_r)
+  call mpl_alltoallv(sbufd,scounts,rbufd,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_d)
   call work1(res)
   if ( res > 0 ) write(0,*) "error in  work1 non-blocking alltoallv" ! this should not happen ever !!!
-  call mpl_wait(request_i)
+  !call mpl_wait(request_r)
+  call mpl_wait(request_d)
+  !call mpl_wait(request_i)
+  rqarray = [request_i, request_r, request_d]
+  call mpl_wait(rqarray(1:2))
+enddo
+k = 1
+do i=1,size(rbuf),mpl_rank
+  if ( any(rbuf(i:i+mpl_rank-1) /= k) ) then
+    write(msg,*) "nonblocking int alltoall test failed on mpl_rank", mpl_rank, rbuf
+    FAIL(msg)
+  endif
+  if ( any(nint(rbufr(i:i+mpl_rank-1)) /= k) ) then
+    write(msg,*) "nonblocking real alltoall test failed on mpl_rank", mpl_rank, rbuf
+    FAIL(msg)
+  endif
+  if ( any(nint(rbufd(i:i+mpl_rank-1)) /= k) ) then
+    write(msg,*) "nonblocking double alltoall test failed on mpl_rank", mpl_rank, rbuf
+    FAIL(msg)
+  endif
+  k = k+1
+enddo
 
-  k=1
-  do i=1,nprocs,mpl_rank
-    if ( any(rbuf(i:i+mpl_rank-1) /= k) ) then
-      write(msg,*) trim(mode)//" int alltoall test with displ args failed on mpl_rank", mpl_rank, rbuf
-      FAIL(msg)
-    endif
-    k=k+1
-  enddo
+! test with displacement arguments
+sdispl(1)=0
+rdispl(1)=0
+do i=2,nprocs
+  sdispl(i)=sdispl(i-1)+scounts(i-1)
+  rdispl(i)=rdispl(i-1)+rcounts(i-1)
+enddo
 
-end select
+call mpl_alltoallv(sbuf, scounts, rbuf, rcounts, sdispl, rdispl, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
+call work1(res)
+if ( res > 0 ) write(0,*) "error in  work1 non-blocking alltoallv" ! this should not happen ever !!!
+call mpl_wait(request_i)
 
-end subroutine do_alltoallv
+k=1
+do i=1,nprocs,mpl_rank
+  if ( any(rbuf(i:i+mpl_rank-1) /= k) ) then
+    write(msg,*) "nonblocking int alltoall test with displ args failed on mpl_rank", mpl_rank, rbuf
+    FAIL(msg)
+  endif
+  k=k+1
+enddo
+end subroutine do_alltoallv_nonblocking
 
 end program test_mpl_alltoallv
 
