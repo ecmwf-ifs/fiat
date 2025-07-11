@@ -86,7 +86,7 @@ if (HAVE_DR_HOOK_ROCTX)
     ecbuild_list_add_pattern( LIST fiat_roctx_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/roctx)
     target_sources(fiat PRIVATE ${fiat_roctx_src})
     target_include_directories(fiat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/roctx)
-    target_compile_definitions(fiat PRIVATE DR_HOOK_HAVE_ROCTX=1 )
+    target_compile_definitions(fiat PRIVATE DR_HOOK_HAVE_ROCTX=1 HAVE_ROCPROFILER_SDK_ROCTX=${HAVE_ROCPROFILER_SDK_ROCTX})
 
     # Link with ROCTX
     target_link_libraries     (fiat PRIVATE ${ROCTX_LIBRARIES})

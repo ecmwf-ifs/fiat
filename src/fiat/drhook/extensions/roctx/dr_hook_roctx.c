@@ -9,7 +9,7 @@
  * nor does it submit to any jurisdiction.
  */
 
-#ifdef HAVE_ROCPROFILER_SDK_ROCTX
+#if HAVE_ROCPROFILER_SDK_ROCTX
 #include <rocprofiler-sdk-roctx/roctx.h>
 #else
 #include <roctx.h>
