@@ -81,6 +81,19 @@ if (HAVE_DR_HOOK_NVTX)
     target_include_directories(fiat PRIVATE ${NVTX_INCLUDE_DIRS})
 endif()
 
+if (HAVE_DR_HOOK_ROCTX)
+    # Files from within DrHook
+    ecbuild_list_add_pattern( LIST fiat_roctx_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/roctx)
+    target_sources(fiat PRIVATE ${fiat_roctx_src})
+    target_include_directories(fiat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/roctx)
+    target_compile_definitions(fiat PRIVATE DR_HOOK_HAVE_ROCTX=1 )
+
+    # Link with ROCTX
+    target_link_libraries     (fiat PRIVATE ${ROCTX_LIBRARIES})
+    target_include_directories(fiat PRIVATE ${ROCTX_INCLUDE_DIRS})
+endif()
+
+
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
   # Following should not be necessary; 
   # Probably a bug in the M1 prerelease of gfortran 10.2.0.4

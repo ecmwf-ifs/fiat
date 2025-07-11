@@ -27,6 +27,9 @@ ecbuild_info( "    MPIEXEC                   : [${MPIEXEC}]" )
 if( HAVE_DR_HOOK_NVTX )
 ecbuild_info( "NVTX_LIBRARIES                : [${NVTX_LIBRARIES}]" )
 endif()
+if( HAVE_DR_HOOK_ROCTX )
+ecbuild_info( "ROCTX_LIBRARIES                : [${ROCTX_LIBRARIES}]" )
+endif()
 
 ecbuild_info( "---------------------------------------------------------" )
 

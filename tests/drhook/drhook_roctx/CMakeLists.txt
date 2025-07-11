@@ -1,0 +1,99 @@
+#
+# (C) Copyright 2024- ECMWF.
+# (C) Copyright 2024- Meteo-France.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+#
+
+# Test basic implementation
+
+ecbuild_add_executable( TARGET drhook_roctx_basic
+  SOURCES drhook_roctx_basic.F90
+  LIBS fiat
+  LINKER_LANGUAGE Fortran
+  CONDITION HAVE_DR_HOOK_ROCTX
+  NOINSTALL )
+
+ecbuild_add_test( TARGET fiat_test_drhook_roctx_basic
+        TYPE SCRIPT
+        COMMAND "rocprofv3"
+	ARGS --marker-trace --output-file rocprofv3.drhook_roctx_basic --output-format pftrace -- ./drhook_roctx_basic
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1
+        CONDITION HAVE_DR_HOOK_ROCTX )
+
+# Test basic implementation in C
+
+ecbuild_add_executable( TARGET drhook_roctx_basic_c
+  SOURCES drhook_roctx_basic_c.c
+  LIBS fiat
+  LINKER_LANGUAGE C
+  CONDITION HAVE_DR_HOOK_ROCTX
+  NOINSTALL )
+
+ecbuild_add_test( TARGET fiat_test_drhook_roctx_basic_c
+        TYPE SCRIPT
+        COMMAND "rocprofv3"
+        ARGS --marker-trace --output-file rocprofv3.drhook_roctx_basic_c --output-format pftrace -- ./drhook_roctx_basic_c
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1
+        CONDITION HAVE_DR_HOOK_ROCTX )
+
+# Test abort on mismatched region names
+
+# ecbuild_add_executable( TARGET drhook_roctx_mismatched_regions
+#         SOURCES drhook_roctx_mismatched_regions.F90
+#         LIBS fiat
+#         LINKER_LANGUAGE Fortran
+#         CONDITION HAVE_DR_HOOK_ROCTX
+#         NOINSTALL )
+
+# ecbuild_add_test( TARGET fiat_test_drhook_roctx_mismatched_regions
+#         TYPE SCRIPT
+#         COMMAND "rocprofv3"
+#         ARGS --marker-trace --output-file rocprofv3.drhook_roctx_mismatched_regions --output-format pftrace -- ./drhook_roctx_mismatched_regions
+#         ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1
+#         CONDITION HAVE_DR_HOOK_ROCTX )
+
+# set_tests_properties(fiat_test_drhook_roctx_mismatched_regions
+#         PROPERTIES WILL_FAIL TRUE )
+
+# Test skip on spammy regions
+
+ecbuild_add_executable( TARGET drhook_roctx_skip_spam_regions
+        SOURCES drhook_roctx_skip_spam_regions.F90
+        LIBS fiat
+        LINKER_LANGUAGE Fortran
+        CONDITION HAVE_DR_HOOK_ROCTX
+        NOINSTALL )
+
+ecbuild_add_test( TARGET fiat_test_drhook_roctx_skip_spam_regions
+        TYPE SCRIPT
+        COMMAND "rocprofv3"
+        ARGS --marker-trace --output-file rocprofv3.drhook_roctx_skip_spam_regions --output-format pftrace -- ./drhook_roctx_skip_spam_regions
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1 DR_HOOK_SILENT=0
+        CONDITION HAVE_DR_HOOK_ROCTX )
+
+set_tests_properties(fiat_test_drhook_roctx_skip_spam_regions
+        PROPERTIES PASS_REGULAR_EXPRESSION "DRHOOK:ROCTX: Skipping closing of region foo" PASS_REGULAR_EXPRESSION "DRHOOK:ROCTX: Skipping opening of region foo" )
+
+# Test not to skip on spammy regions with long runtimes
+
+ecbuild_add_executable( TARGET drhook_roctx_no_skip_spam_regions
+        SOURCES drhook_roctx_no_skip_spam_regions.F90
+        LIBS fiat
+        LINKER_LANGUAGE Fortran
+        CONDITION HAVE_DR_HOOK_ROCTX
+        NOINSTALL )
+
+ecbuild_add_test( TARGET fiat_test_drhook_roctx_no_skip_spam_regions
+        TYPE SCRIPT
+        COMMAND "rocprofv3"
+        ARGS --marker-trace --output-file rocprofv3.drhook_roctx_no_skip_spam_regions --output-format pftrace -- ./drhook_roctx_no_skip_spam_regions
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1 DR_HOOK_SILENT=0
+        CONDITION HAVE_DR_HOOK_ROCTX )
+
+set_tests_properties(fiat_test_drhook_roctx_no_skip_spam_regions
+        PROPERTIES FAIL_REGULAR_EXPRESSION "DRHOOK:ROCTX: Skipping closing of region foo" FAIL_REGULAR_EXPRESSION "DRHOOK:ROCTX: Skipping opening of region foo" )
