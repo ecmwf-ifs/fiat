@@ -6,10 +6,13 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+# Used to switch between NVTX3 and nvToolsExt
 set(HAVE_NVTX3 0)
+
 set(NVTX_REQUIRED_VARIABLES NVTX_LIBRARIES)
 
-if( ${CMAKE_VERSION} VERSION_LESS "3.20" )
+# FindCUDAToolkit was only added in 3.17, so less than that requires manual searching
+if( ${CMAKE_VERSION} VERSION_LESS "3.17" )
     find_path(NVTX_ROOT
         NAMES include/nvToolsExt.h
         HINTS ENV NVTX_ROOT CUDA_ROOT ENV CUDA_ROOT ENV NVHPC_CUDA_HOME ENV CUDA_DIR)
@@ -25,6 +28,7 @@ if( ${CMAKE_VERSION} VERSION_LESS "3.20" )
 
     list(APPEND NVTX_REQUIRED_VARIABLES NVTX_INCLUDE_DIRS)
 
+# nvToolsExt has been deprecated since CMake version 3.25
 elseif( ${CMAKE_VERSION} VERSION_LESS "3.25" )
 
     find_package(CUDAToolkit COMPONENTS CUDA::nvToolsExt)
@@ -32,9 +36,12 @@ elseif( ${CMAKE_VERSION} VERSION_LESS "3.25" )
         set(NVTX_LIBRARIES CUDA::nvToolsExt)
     endif()
 
+# Preferred, most up to date method
 else()
 
     find_package(CUDAToolkit COMPONENTS CUDA::nvtx3)
+    # Although we may have the nvtx3 target in CMake 3.25+,
+    # it's not guaranteed we have CUDA 10.0+ (that actually impliments it)
     if( TARGET CUDA::nvtx3 )
         set(NVTX_LIBRARIES CUDA::nvtx3)
         set(HAVE_NVTX3 1)
@@ -48,5 +55,4 @@ else()
 endif()
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(NVTX REQUIRED_VARIABLES ${NVTX_REQUIRED_VARS} )
-
+find_package_handle_standard_args(NVTX REQUIRED_VARS ${NVTX_REQUIRED_VARIABLES})
