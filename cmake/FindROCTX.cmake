@@ -41,8 +41,5 @@ else()
     endif()
 endif()
 
-if ( HAVE_ROCTX OR HAVE_ROCPROFILER_SDK_ROCTX )
-    include(FindPackageHandleStandardArgs)
-    find_package_handle_standard_args(ROCTX REQUIRED_VARIABLES ${ROCTX_REQUIRED_VARIABLES} )
-endif()
-
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(ROCTX REQUIRED_VARIABLES ${ROCTX_REQUIRED_VARIABLES} )
