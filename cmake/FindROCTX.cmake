@@ -6,7 +6,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-set( HAVE_ROCTX 0 )
 set( HAVE_ROCPROFILER_SDK_ROCTX 0)	
 set(ROCTX_REQUIRED_VARIABLES ROCTX_LIBRARIES)
 
@@ -30,13 +29,9 @@ if( NOT rocprofiler-sdk-roctx_FOUND )
     
     ecbuild_info("roctx libraries : ${ROCTX_LIBRARIES}")
     ecbuild_info("roctx include dirs : ${ROCTX_INCLUDE_DIRS}")
-    if ( ROCTX_LIBRARIES AND ROCTX_INCLUDE_DIRS ) 
-        set( HAVE_ROCTX 1 )
-    endif()
 else()
     if( TARGET ${rocprofiler-sdk-roctx_LIBRARIES} )
         set(ROCTX_LIBRARIES ${rocprofiler-sdk-roctx_LIBRARIES})
-        set( HAVE_ROCTX 1 )
         set( HAVE_ROCPROFILER_SDK_ROCTX 1)
     endif()
 endif()
