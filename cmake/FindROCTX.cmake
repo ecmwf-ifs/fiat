@@ -9,7 +9,7 @@
 set( HAVE_ROCPROFILER_SDK_ROCTX 0)	
 set( ROCTX_REQUIRED_VARIABLES ROCTX_LIBRARIES )
 
-find_package( rocprofiler-sdk-roctx CONFIG REQUIRED PATHS ${ROCM_PATH}/lib )
+find_package( rocprofiler-sdk-roctx CONFIG PATHS ${ROCM_PATH}/lib )
 if( NOT rocprofiler-sdk-roctx_FOUND )
     ecbuild_info( "rocprofiler-sdk-roctx libraries not found" )
     if ( NOT DEFINED ROCM_PATH OR NOT ROCM_PATH_FOUND )
