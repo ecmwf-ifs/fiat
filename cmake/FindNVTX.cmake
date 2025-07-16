@@ -39,12 +39,15 @@ elseif( ${CMAKE_VERSION} VERSION_LESS "3.25" )
 # Preferred, most up to date method
 else()
 
+    # CMake 3.25+ defines the NVTX3 target
     find_package(CUDAToolkit COMPONENTS CUDA::nvtx3)
-    # Although we may have the nvtx3 target in CMake 3.25+,
-    # it's not guaranteed we have CUDA 10.0+ (that actually implements it)
+    # While we've guaranteed CMake supports the NVTX3 target, the CUDA
+    # version needs to be 10.0+ to actually implement it
     if( TARGET CUDA::nvtx3 )
         set(NVTX_LIBRARIES CUDA::nvtx3)
         set(HAVE_NVTX3 1)
+    # Else fallback to searching for the older nvToolsExt.
+    # If this also fails, `find_package_handle_standard_args` will tell the user
     else()
         find_package(CUDAToolkit COMPONENTS CUDA::nvToolsExt)
         if (TARGET CUDA::nvToolsExt)
