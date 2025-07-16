@@ -42,11 +42,20 @@ module ec_checksum_mod
 !        Original: 2025-07-04
 !
 !     ------------------------------------------------------------------
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int32_t, c_int16_t, c_char
-  implicit none
+use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int32_t, c_int16_t, c_char
+implicit none
 
 private
 public :: fletcher16_type, fletcher16, fletcher16_hex
+
+#define fletcher16_digest_t c_int16_t
+#ifdef __NVCOMPILER
+#if __NVCOMPILER_MAJOR__ <= 22
+! Workaround an internal compiler error in function digest()
+#undef  fletcher16_digest_t
+#define fletcher16_digest_t c_int32_t
+#endif
+#endif
 
 type :: fletcher16_type
   integer(c_int32_t) :: handle = 0
@@ -425,16 +434,15 @@ subroutine fletcher16_update_int64_r5(this, array)
 end subroutine
 
 function fletcher16__digest(this) result(digest)
-  use, intrinsic :: iso_c_binding, only : c_int16_t
   class(fletcher16_type), intent(in) :: this
-  integer(c_int16_t) :: digest
+  integer(fletcher16_digest_t) :: digest
   digest = c_ec_checksum_fletcher16_digest(this%handle)
 end function
 
 function fletcher16__digest_hex(this) result(digest)
   class(fletcher16_type), intent(in) :: this
   character(len=4) :: digest
-  digest = to_hex(this%digest())
+  digest = to_hex_16(int(this%digest(),c_int16_t))
 end function
 
 
