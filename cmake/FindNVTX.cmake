@@ -41,7 +41,7 @@ else()
 
     find_package(CUDAToolkit COMPONENTS CUDA::nvtx3)
     # Although we may have the nvtx3 target in CMake 3.25+,
-    # it's not guaranteed we have CUDA 10.0+ (that actually impliments it)
+    # it's not guaranteed we have CUDA 10.0+ (that actually implements it)
     if( TARGET CUDA::nvtx3 )
         set(NVTX_LIBRARIES CUDA::nvtx3)
         set(HAVE_NVTX3 1)
