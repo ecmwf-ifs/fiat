@@ -11,8 +11,10 @@ set(HAVE_NVTX3 0)
 
 set(NVTX_REQUIRED_VARIABLES NVTX_LIBRARIES)
 
-# FindCUDAToolkit was only added in 3.17, so less than that requires manual searching
-if( ${CMAKE_VERSION} VERSION_LESS "3.17" )
+# Despite FindCUDAToolkit being added in 3.17, it doesn't seem to work
+# on ECMWF's HPC. It seems to be a bug as this is resolved in 3.20.
+# So less than 3.20 requires manual searching
+if( ${CMAKE_VERSION} VERSION_LESS "3.20" )
     find_path(NVTX_ROOT
         NAMES include/nvToolsExt.h
         HINTS ENV NVTX_ROOT CUDA_ROOT ENV CUDA_ROOT ENV NVHPC_CUDA_HOME ENV CUDA_DIR)
