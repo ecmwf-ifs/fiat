@@ -43,22 +43,22 @@ ecbuild_add_test( TARGET fiat_test_drhook_roctx_basic_c
 
 # Test abort on mismatched region names
 
-# ecbuild_add_executable( TARGET drhook_roctx_mismatched_regions
-#         SOURCES drhook_roctx_mismatched_regions.F90
-#         LIBS fiat
-#         LINKER_LANGUAGE Fortran
-#         CONDITION HAVE_DR_HOOK_ROCTX
-#         NOINSTALL )
+ecbuild_add_executable( TARGET drhook_roctx_mismatched_regions
+        SOURCES drhook_roctx_mismatched_regions.F90
+        LIBS fiat
+        LINKER_LANGUAGE Fortran
+        CONDITION HAVE_DR_HOOK_ROCTX
+        NOINSTALL )
 
-# ecbuild_add_test( TARGET fiat_test_drhook_roctx_mismatched_regions
-#         TYPE SCRIPT
-#         COMMAND "rocprofv3"
-#         ARGS --marker-trace --output-file rocprofv3.drhook_roctx_mismatched_regions --output-format pftrace -- ./drhook_roctx_mismatched_regions
-#         ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1
-#         CONDITION HAVE_DR_HOOK_ROCTX )
+ecbuild_add_test( TARGET fiat_test_drhook_roctx_mismatched_regions
+        TYPE SCRIPT
+        COMMAND "rocprofv3"
+        ARGS --marker-trace --output-file rocprofv3.drhook_roctx_mismatched_regions --output-format pftrace -- ./drhook_roctx_mismatched_regions
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1
+        CONDITION HAVE_DR_HOOK_ROCTX )
 
-# set_tests_properties(fiat_test_drhook_roctx_mismatched_regions
-#         PROPERTIES WILL_FAIL TRUE )
+set_tests_properties(fiat_test_drhook_roctx_mismatched_regions
+        PROPERTIES WILL_FAIL TRUE )
 
 # Test skip on spammy regions
 
