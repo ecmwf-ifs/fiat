@@ -21,40 +21,8 @@
 
 #include "dr_hook_roctx.h"
 
-static uint32_t adler32 (const unsigned char *data)
-{
-  const uint32_t MOD_ADLER = 65521;
-  uint32_t a = 1, b = 0;
-  size_t index;
-
-  for (index = 0; data[index] != 0; ++index)
-    {
-      a = (a + data[index]*2) % MOD_ADLER;
-      b = (b + a) % MOD_ADLER;
-    }
-
-  return (b << 16) | a;
-}
-
-
 void dr_hook_roctx_start (const char * name)
 {
-  int hash = 0;
-  int color_id = adler32 ((const unsigned char*)name);
-  int r,g,b;
-
-  r=color_id & 0x000000ff;
-  g=(color_id & 0x000ff000) >> 12;
-  b=(color_id & 0x0ff00000) >> 20;
-
-  if (r<64 & g<64 & b<64) 
-    {
-      r=r*3;
-      g=g*3+64;
-      b=b*4;
-    }
-
-  color_id = 0xff000000 | (r << 16) | (g << 8) | (b);
   roctxRangePush(name);
 
 }
