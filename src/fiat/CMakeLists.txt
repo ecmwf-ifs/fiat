@@ -102,13 +102,6 @@ endif()
 
 if( HAVE_OMP )
     target_link_libraries( fiat PRIVATE OpenMP::OpenMP_Fortran )
-    if( CMAKE_Fortran_COMPILER_ID MATCHES Cray )
-        # Propagate flags as link options for downstream targets. Only required for Cray
-        target_link_options( fiat PUBLIC 
-              $<$<LINK_LANGUAGE:Fortran>:SHELL:${OpenMP_Fortran_FLAGS}>
-              $<$<LINK_LANGUAGE:C>:SHELL:${OpenMP_Fortran_FLAGS}>
-              $<$<LINK_LANGUAGE:CXX>:SHELL:${OpenMP_Fortran_FLAGS}> )
-    endif()
 endif()
 
 fiat_target_ignore_missing_symbols( TARGET fiat SYMBOLS
