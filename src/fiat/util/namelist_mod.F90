@@ -137,8 +137,9 @@ FUNCTION POSNAMEF(KULNAM, CDNAML, LDNOREWIND, LDFATAL, LDVERBOSE, KULOUT) RESULT
 !                                   reading an array of structures of arbitrary
 !                                   length from a namelist, by repeated use of
 !                                   the same group name.
-!                                 LDFATAL - to call ABOR1 in case of error
-!                                   (other than NAMELIST not present in file)
+!                                 LDFATAL - to call ABOR1 in case CDNAML not present in file
+!                                   The default value is .TRUE. or can be defined via env var
+!                                   POSNAMEF_DEFAULT_FATAL=0
 !                                 LDVERBOSE - verbosity
 !                                 KULOUT - output unit for verbosity
 
@@ -159,6 +160,7 @@ INTEGER(KIND=JPIM) :: ISTAT
 CHARACTER(LEN=256) :: CLFILE
 LOGICAL :: LLNOREWIND
 LOGICAL :: LLFATAL
+CHARACTER(LEN=256) :: CLFATAL
 LOGICAL :: LLVERBOSE
 INTEGER :: ILULOUT
 
@@ -169,7 +171,12 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('POSNAMEF',0,ZHOOK_HANDLE)
 ! defaults
 LLNOREWIND = .FALSE.
-LLFATAL = .TRUE.
+CALL GET_ENVIRONMENT_VARIABLE('POSNAMEF_DEFAULT_FATAL',CLFATAL)
+IF (TRIM(CLFATAL) == '' .OR. TRIM(CLFATAL) == '1') THEN
+  LLFATAL = .TRUE.
+ELSE
+  LLFATAL = .FALSE.
+ENDIF
 LLVERBOSE = .TRUE.
 ILULOUT = NULOUT
 ! optional arguments
