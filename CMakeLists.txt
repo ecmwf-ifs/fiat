@@ -51,6 +51,15 @@ ecbuild_add_option( FEATURE DUMMY_MPI_HEADER
                     DEFAULT ON
                     DESCRIPTION "[DANGEROUS] Install a dummy MPI header" )
 
+ecbuild_add_option( FEATURE MPL_F77_DEPRECATED
+         	    DESCRIPTION "Compile deprecated mpif.h MPL instead of MPI_F08 version"
+	            REQUIRED_PACKAGES "MPI COMPONENTS Fortran"
+	            DEFAULT OFF )
+
+ecbuild_add_option( FEATURE MPL_CHECK_CONTIG
+         	    DESCRIPTION "Enable runtime check of contiguity of array arguments passed to MPL routines"
+	            DEFAULT OFF )
+
 ecbuild_add_option( FEATURE WARNINGS
                     DEFAULT ON
                     DESCRIPTION "Add warnings to compiler" )

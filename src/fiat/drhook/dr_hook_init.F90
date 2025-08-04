@@ -102,6 +102,10 @@ SUBROUTINE DR_HOOK_ASSERT_MPI_INITIALIZED_()
     ENDIF
   ENDIF
   IF (LMPI_REQUIRED) THEN
+#ifdef NO_MPI_SUPPORT
+      CALL ABOR1FL( "dr_hook_init.F90", __LINE__, &
+        & "Application is requesting MPI, but FIAT compiled *without* MPI support" )
+#endif
     CALL MPI_INITIALIZED(LMPI_INITIALIZED,IERR)
     IF( IERR /= 0 ) THEN
       CALL ABOR1FL( "dr_hook_init.F90", __LINE__, &
