@@ -140,7 +140,7 @@ endif()
 
 if( HAVE_MPI )
     target_link_libraries( fiat PUBLIC ${MPI_Fortran_LIBRARIES} )
-    target_include_directories( fiat PRIVATE ${MPI_Fortran_INCLUDE_DIRS} )
+    target_include_directories( fiat PUBLIC ${MPI_Fortran_INCLUDE_DIRS} )
 else()
     target_link_libraries( fiat PRIVATE  mpi_serial )
 endif()
