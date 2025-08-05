@@ -44,8 +44,40 @@ if( NOT fiat_VERSION_PATCH )
 endif()
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/library/version.c.in ${CMAKE_CURRENT_BINARY_DIR}/version.c @ONLY )
 
-ecbuild_list_add_pattern( LIST fiat_src GLOB *.c *.F* *.cc )
+ecbuild_list_add_pattern( LIST fiat_src GLOB
+    drhook/*.c drhook/*.F*
+    ecsort/*.c ecsort/*.F*
+    gstats/*.F*
+    library/*.c
+    oml/*.F*
+    system/*.c system/*.F* system/*.cc
+    util/*.c util/*.F*
+    )
 
+# Two MPL interface styles
+# - DEPRECATED F77 based interface, relies on mpif.h, can't take non-contiguous arrays
+# - MPI_F08 based interface, relies on mpi_f08 module
+# NB : both interfaces can be compiled without MPI, and then link to mpi_serial library
+if( HAVE_MPI AND NOT MPI_Fortran_HAVE_F08_MODULE )
+    ecbuild_info( "MPI present, but no MPI-F08 support so building F77 MPL" )
+    set( HAVE_MPL_F77_DEPRECATED TRUE )
+endif()
+
+if( HAVE_MPL_F77_DEPRECATED)
+    ecbuild_list_add_pattern( LIST fiat_src GLOB
+      "mpl/internal_deprecated/*.c" "mpl/internal_deprecated/*.F*"
+      "mpl/mpl_module.F90" "mpl/mpl_bindc.F90" )
+    ecbuild_info( "FIAT building with *deprecated* F77 (mpif.h) MPL interface" )
+else()
+    ecbuild_list_add_pattern( LIST fiat_src GLOB
+      "mpl/internal_f08/*.c" "mpl/internal_f08/*.F*"
+      "mpl/mpl_module.F90" "mpl/mpl_bindc.F90" )
+    if( HAVE_MPI )
+        ecbuild_info( "Not compiling mpi_f08_dummy_mod, because MPI is found" )
+        ecbuild_list_exclude_pattern( LIST fiat_src REGEX mpl/internal_f08/mpi_f08_dummy_mod.F90 )
+    endif()
+    ecbuild_info( "FIAT building with MPI_F08 MPL interface" )
+endif()
 ecbuild_list_exclude_pattern( LIST fiat_src REGEX drhook/extensions/*)
 
 set( fiat_src ${fiat_src} PARENT_SCOPE )
@@ -87,6 +119,19 @@ if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
   target_compile_definitions( fiat PRIVATE $<$<COMPILE_LANG_AND_ID:Fortran,GNU>:__APPLE__>)
 endif()
 
+if( NOT HAVE_MPI )
+    # define a preprocessor macro to improve messaging in dr_hook_init
+    target_compile_definitions( fiat PRIVATE NO_MPI_SUPPORT)
+endif()
+
+if( HAVE_MPL_F77_DEPRECATED)
+    target_compile_definitions( fiat PRIVATE MPL_F77_DEPRECATED )
+endif()
+
+if( HAVE_MPL_CHECK_CONTIG)
+    target_compile_definitions( fiat PRIVATE MPL_CHECK_CONTIG )
+endif()
+
 target_compile_definitions( fiat PRIVATE ${FIAT_DEFINITIONS} )
 
 if( HAVE_FCKIT )
@@ -95,7 +140,7 @@ endif()
 
 if( HAVE_MPI )
     target_link_libraries( fiat PUBLIC ${MPI_Fortran_LIBRARIES} )
-    target_include_directories( fiat PRIVATE ${MPI_Fortran_INCLUDE_DIRS} )
+    target_include_directories( fiat PUBLIC ${MPI_Fortran_INCLUDE_DIRS} )
 else()
     target_link_libraries( fiat PRIVATE  mpi_serial )
 endif()
