@@ -2579,6 +2579,9 @@ process_options()
     }
   }
 
+if (strict_regions_opt_touched)
+    OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_STRICT_REGIONS=%d\n",pfx,TIMESTR(tid),FFL,opt_strict_regions);
+
   newline = 0;
   env = getenv("DR_HOOK_OPT");
   if (env) {
