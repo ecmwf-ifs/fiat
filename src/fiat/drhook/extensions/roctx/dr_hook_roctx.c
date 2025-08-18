@@ -15,10 +15,6 @@
 #include <roctx.h>
 #endif
 
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-
 #include "dr_hook_roctx.h"
 
 void dr_hook_roctx_start (const char * name)

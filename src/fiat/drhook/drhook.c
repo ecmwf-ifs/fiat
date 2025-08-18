@@ -2522,9 +2522,6 @@ process_options()
     OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_NVTX=%d\n",pfx,TIMESTR(tid),FFL,opt_nvtx);
   }
 
-  if (strict_regions_opt_touched)
-    OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_STRICT_REGIONS=%d\n",pfx,TIMESTR(tid),FFL,opt_strict_regions);
-
   if (opt_nvtx) {
     env = getenv("DR_HOOK_NVTX_SPAM_CALL_COUNT");
     if (env) {
@@ -2579,7 +2576,7 @@ process_options()
     }
   }
 
-if (strict_regions_opt_touched)
+  if (strict_regions_opt_touched)
     OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_STRICT_REGIONS=%d\n",pfx,TIMESTR(tid),FFL,opt_strict_regions);
 
   newline = 0;
