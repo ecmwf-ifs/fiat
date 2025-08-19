@@ -87,6 +87,9 @@ static int backtrace(void **buffer, int size) { return 0; }
 #ifdef DR_HOOK_HAVE_NVTX
 #include "dr_hook_nvtx.h"
 #endif
+#ifdef DR_HOOK_HAVE_ROCTX
+#include "dr_hook_roctx.h"
+#endif
 #ifdef DR_HOOK_HAVE_PAPI
 #include "drhook_papi.h"
 #else
@@ -336,6 +339,11 @@ static int opt_nvtx = 0;
 static int opt_nvtx_SCC = nvtx_SCC_default;
 #define nvtx_SWT_default 0.0001
 static double opt_nvtx_SWT = nvtx_SWT_default;
+static int opt_roctx = 0;
+#define roctx_SCC_default 10
+static int opt_roctx_SCC = roctx_SCC_default;
+#define roctx_SWT_default 0.0001
+static double opt_roctx_SWT = roctx_SWT_default;
 static int opt_strict_regions = 0;
 static int opt_silent = 0;
 
@@ -499,6 +507,9 @@ typedef struct drhook_key_t {
   unsigned long long int alloc_count, free_count;
 #if defined(DR_HOOK_HAVE_NVTX)
   unsigned long long int skipped_nvtx_calls;
+#endif
+#if defined(DR_HOOK_HAVE_ROCTX)
+  unsigned long long int skipped_roctx_calls;
 #endif
   struct drhook_key_t *next;
 } drhook_key_t;
@@ -1070,7 +1081,7 @@ insert_calltree(int tid, drhook_key_t *keyptr)
 static void
 remove_calltree(int tid, drhook_key_t *keyptr,
                 const double *delta_wall, const double *delta_cpu,
-                const long long int *delta_cycles,long_long * delta_counters
+                const long long int *delta_cycles, long_long * delta_counters
                 )
 {
   if (tid >= 1 && tid <= numthreads) {
@@ -2264,9 +2275,8 @@ process_options()
   if(fp) fprintf(fp,"[EC_DRHOOK:hostname:myproc:omltid:pid:unixtid] [YYYYMMDD:HHMMSS:walltime] [function@file:lineno] -- Max OpenMP threads = %d\n",drhook_oml_get_max_threads());
   OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_SILENT=%d\n",pfx,TIMESTR(tid),FFL,opt_silent);
 
-  // Compiler gets concerned that we may be reading and writing to fp otherwise...
-  void *definitely_not_fp = (void*)fp;
-  OPTPRINT(fp,"%s %s [%s@%s:%d] fp = %p\n",pfx,TIMESTR(tid),FFL,definitely_not_fp);
+  void* fp_alias = (void*)fp; // Pass alias to avoid warning "passing argument 1 to ‘restrict’-qualified parameter aliases with argument 8"
+  OPTPRINT(fp,"%s %s [%s@%s:%d] fp = %p\n",pfx,TIMESTR(tid),FFL,fp_alias);
 
   env = getenv("ATP_ENABLED");
   atp_enabled = env ? atoi(env) : 0;
@@ -2555,9 +2565,6 @@ process_options()
     OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_NVTX=%d\n",pfx,TIMESTR(tid),FFL,opt_nvtx);
   }
 
-  if (strict_regions_opt_touched)
-    OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_STRICT_REGIONS=%d\n",pfx,TIMESTR(tid),FFL,opt_strict_regions);
-
   if (opt_nvtx) {
     env = getenv("DR_HOOK_NVTX_SPAM_CALL_COUNT");
     if (env) {
@@ -2579,6 +2586,41 @@ process_options()
       OPTPRINT(fp, "%s %s [%s@%s:%d] DR_HOOK_NVTX_SPAM_WT=%g\n", pfx, TIMESTR(tid), FFL, nvtx_SWT_default);
     }
   }
+
+  env = getenv("DR_HOOK_ROCTX");
+  if (env) {
+    opt_roctx = atoi(env);
+    opt_strict_regions = opt_strict_regions || opt_roctx;
+    strict_regions_opt_touched = 1;
+    opt_walltime = 1;
+    opt_calls = 1;
+    OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_ROCTX=%d\n",pfx,TIMESTR(tid),FFL,opt_roctx);
+  }
+
+  if (opt_roctx) {
+    env = getenv("DR_HOOK_ROCTX_SPAM_CALL_COUNT");
+    if (env) {
+      opt_roctx_SCC = atoi(env);
+
+      if (opt_roctx_SCC < 0)
+        opt_roctx_SCC = roctx_SCC_default;
+
+      OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_ROCTX_SPAM_CALL_COUNT=%d\n",pfx,TIMESTR(tid),FFL,opt_roctx_SCC);
+    }
+
+    env = getenv("DR_HOOK_ROCTX_SPAM_WT");
+    if (env) {
+      opt_roctx_SWT = atof(env);
+
+      if (opt_roctx_SWT < 0)
+        opt_roctx_SWT = roctx_SWT_default;
+
+      OPTPRINT(fp, "%s %s [%s@%s:%d] DR_HOOK_ROCTX_SPAM_WT=%g\n", pfx, TIMESTR(tid), FFL, roctx_SWT_default);
+    }
+  }
+
+  if (strict_regions_opt_touched)
+    OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_STRICT_REGIONS=%d\n",pfx,TIMESTR(tid),FFL,opt_strict_regions);
 
   newline = 0;
   env = getenv("DR_HOOK_OPT");
@@ -2957,6 +2999,18 @@ getkey(int tid, const char *name, int name_len,
             dr_hook_nvtx_start(keyptr->name);
         }
 #endif
+#if defined(DR_HOOK_HAVE_ROCTX)
+        // Helps filter out wrapper calls that may be noise
+        if (opt_roctx && drhook_oml_get_thread_num() == 1){
+          if (keyptr->calls > opt_roctx_SCC && keyptr->delta_wall_all < opt_roctx_SWT) {
+            if (!opt_silent)
+              fprintf(stderr,"DRHOOK:ROCTX: Skipping opening of region %s\n", keyptr->name);
+            keyptr->skipped_roctx_calls++;
+          }
+          else
+            dr_hook_roctx_start(keyptr->name);
+        }
+#endif
         insert_calltree(tid, keyptr);
         break; /* for (;;) */
       }
@@ -3098,6 +3152,18 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
       }
     }
 #endif
+#if defined(DR_HOOK_HAVE_ROCTX)
+    if (opt_roctx && drhook_oml_get_thread_num() == 1) {
+      if (keyptr->skipped_roctx_calls > 0) {
+        if (!opt_silent)
+          fprintf(stderr, "DRHOOK:ROCTX: Skipping closing of region %s\n", keyptr->name);
+        keyptr->skipped_roctx_calls--;
+      } else {
+        dr_hook_roctx_end();
+      }
+    }
+#endif
+
     long_long * delta_counters = NULL;
 #if defined(DR_HOOK_HAVE_PAPI)
     if (opt_papi) {
@@ -3116,7 +3182,7 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
 static void
 init_drhook(int ntids)
 {
- if (numthreads == 0 || !keydata || !calltree || !keyself || !overhead || !curkeyptr || !cstk) {
+  if (numthreads == 0 || !keydata || !calltree || !keyself || !overhead || !curkeyptr || !cstk) {
     int j;
     if (pid == -1) { /* Ensure that called just once */
       {

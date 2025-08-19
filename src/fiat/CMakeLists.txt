@@ -29,13 +29,13 @@ endif()
 
 if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
   ## To disable checking of argument correctness of dummy mpi symbols
-  ecbuild_add_fortran_flags( -nowarn nointerfaces )
+  ecbuild_add_fortran_flags( -nowarn nointerfaces NO_FAIL )
 endif()
 
 if( CMAKE_Fortran_COMPILER_ID MATCHES "GNU" )
-  ecbuild_add_fortran_flags( -ffree-line-length-none )
+  ecbuild_add_fortran_flags( -ffree-line-length-none NO_FAIL )
   if( CMAKE_Fortran_COMPILER_VERSION GREATER_EQUAL 10 )
-      ecbuild_add_fortran_flags( -fallow-argument-mismatch )
+      ecbuild_add_fortran_flags( -fallow-argument-mismatch NO_FAIL )
   endif()
 endif()
 
@@ -74,26 +74,35 @@ if (HAVE_DR_HOOK_NVTX)
     ecbuild_list_add_pattern( LIST fiat_nvtx_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/nvtx)
     target_sources(fiat PRIVATE ${fiat_nvtx_src})
     target_include_directories(fiat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/nvtx)
+    target_compile_definitions(fiat PRIVATE DR_HOOK_HAVE_NVTX=1 HAVE_NVTX3=${HAVE_NVTX3} )
 
-    # Files defined externally
-    target_include_directories( fiat PRIVATE ${NVTX_INCLUDE_DIRS} )
-    target_compile_definitions( fiat PRIVATE DR_HOOK_HAVE_NVTX=1 )
-    if( CMAKE_VERSION VERSION_LESS 3.25 )
-        target_link_libraries     ( fiat PRIVATE ${NVTX_LIBRARIES} )
-    endif()
+    # Link with NVTX
+    target_link_libraries     (fiat PRIVATE ${NVTX_LIBRARIES})
+    target_include_directories(fiat PRIVATE ${NVTX_INCLUDE_DIRS})
 endif()
 
+if (HAVE_DR_HOOK_ROCTX)
+    # Files from within DrHook
+    ecbuild_list_add_pattern( LIST fiat_roctx_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/roctx)
+    target_sources(fiat PRIVATE ${fiat_roctx_src})
+    target_include_directories(fiat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/roctx)
+    target_compile_definitions(fiat PRIVATE DR_HOOK_HAVE_ROCTX=1 HAVE_ROCPROFILER_SDK_ROCTX=${HAVE_ROCPROFILER_SDK_ROCTX})
+
+    # Link with ROCTX
+    target_link_libraries     (fiat PRIVATE ${ROCTX_LIBRARIES})
+    target_include_directories(fiat PRIVATE ${ROCTX_INCLUDE_DIRS})
+endif()
 
 if (HAVE_DR_HOOK_PAPI)
     # Files from within DrHook
     ecbuild_list_add_pattern( LIST fiat_papi_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/papi)
     target_sources(fiat PRIVATE ${fiat_papi_src})
     target_include_directories(fiat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/papi)
+    target_compile_definitions(fiat PRIVATE DR_HOOK_HAVE_PAPI=1)
 
     # Files defined externally
     target_link_libraries      ( fiat PRIVATE ${PAPI_LIBRARIES} )
     target_include_directories ( fiat PRIVATE ${PAPI_INCLUDE_DIRS} )
-    target_compile_definitions ( fiat PRIVATE DR_HOOK_HAVE_PAPI=1 )
 endif()
 
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
@@ -116,7 +125,7 @@ else()
 endif()
 
 if( HAVE_OMP )
-  target_link_libraries( fiat PRIVATE OpenMP::OpenMP_Fortran )
+    target_link_libraries( fiat PRIVATE OpenMP::OpenMP_Fortran )
 endif()
 
 fiat_target_ignore_missing_symbols( TARGET fiat SYMBOLS

@@ -32,63 +32,90 @@ jobs:
         build_type: [Release,Debug]
         name:
           - linux gnu-10
-          - linux clang-12
-          - linux nvhpc-24.3
+          - linux gnu-12
+          - linux gnu-14
+          - linux clang-18
+          - linux intel
           - linux intel-classic
+          - linux nvhpc-25.1
           - macos
 
         include:
 
           - name: linux gnu-10
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             compiler: gnu-10
             compiler_cc: gcc-10
             compiler_cxx: g++-10
             compiler_fc: gfortran-10
             caching: true
+            coverage: false
 
-          - name: linux clang-12
-            os: ubuntu-20.04
-            compiler: clang-12
-            compiler_cc: clang-12
-            compiler_cxx: clang++-12
+          - name: linux gnu-12
+            os: ubuntu-22.04
+            compiler: gnu-10
+            compiler_cc: gcc-10
+            compiler_cxx: g++-10
             compiler_fc: gfortran-10
             caching: true
+            coverage: true
 
-          - name: linux clang-12
-            build_type: Release
-            os: ubuntu-20.04
-            compiler: clang-12
-            compiler_cc: clang-12
-            compiler_cxx: clang++-12
-            compiler_fc: gfortran-10
+          - name: linux gnu-14
+            os: ubuntu-24.04
+            compiler: gnu-14
+            compiler_cc: gcc-14
+            compiler_cxx: g++-14
+            compiler_fc: gfortran-14
             caching: true
+            coverage: false
 
-          - name: linux nvhpc-24.3
-            os: ubuntu-20.04
-            compiler: nvhpc-24.3
-            compiler_cc: nvc
-            compiler_cxx: nvc++
-            compiler_fc: nvfortran
-            cmake_options: -DCMAKE_CXX_FLAGS=--diag_suppress177
-            caching: false
+          - name: linux clang-18
+            os: ubuntu-24.04
+            compiler: clang-18
+            compiler_cc: clang-18
+            compiler_cxx: clang++-18
+            compiler_fc: gfortran-14
+            caching: true
+            coverage: false
+
+          - name : linux intel
+            os: ubuntu-24.04
+            compiler: intel
+            compiler_cc: icx
+            compiler_cxx: icpx
+            compiler_fc: ifx
+            caching: true
+            coverage: false
 
           - name : linux intel-classic
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             compiler: intel-classic
             compiler_cc: icc
             compiler_cxx: icpc
             compiler_fc: ifort
             caching: true
+            coverage: false
+
+          - name: linux nvhpc-25.1
+            os: ubuntu-24.04
+            compiler: nvhpc-25.1
+            compiler_cc: nvc
+            compiler_cxx: nvc++
+            compiler_fc: nvfortran
+            cmake_options: -DCMAKE_CXX_FLAGS=--diag_suppress177
+            caching: true
+            coverage: false
 
           - name: macos
             # Xcode compiler requires empty environment variables, so we pass null (~) here
-            os: macos-13
-            compiler: clang-14
+            os: macos-14
+            compiler: clang-15
             compiler_cc: ~
             compiler_cxx: ~
             compiler_fc: gfortran-13
             caching: true
+            coverage: false
+            cmake_options: -DMPI_SLOTS=4
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -111,17 +138,9 @@ jobs:
 
         printenv
 
-    - name: Cache Dependencies
-      # There seems to be a problem with cached NVHPC dependencies, leading to SIGILL perhaps due to slightly different architectures
-      if: matrix.caching
-      id: deps-cache
-      uses: pat-s/always-upload-cache@v2.1.5
-      with:
-        path: ${{ env.DEPS_DIR }}
-        key: deps-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ env.CACHE_SUFFIX }}
 
-    # Free up disk space for nvhpc
     - name: Free Disk Space (Ubuntu)
+      # Free up disk space for nvhpc
       uses: jlumbroso/free-disk-space@main
       if: contains( matrix.compiler, 'nvhpc' )
       continue-on-error: true
@@ -135,15 +154,23 @@ jobs:
         android: true
         dotnet: true
         haskell: true
-        large-packages: true
-        docker-images: true
+        large-packages: false # takes too long
+        docker-images: false # takes too long
         swap-storage: true
+
+    - name: Retrieve cached dependencies
+      if: matrix.caching
+      id: deps-restore-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.DEPS_DIR }}
+        key: deps-${{ matrix.os }}-${{ matrix.compiler }}-${{ env.CACHE_SUFFIX }}
 
     - name: Install NVHPC compiler
       if: contains( matrix.compiler, 'nvhpc' )
       shell: bash -eux {0}
       run: |
-        ${FIAT_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc
+        ${FIAT_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc --version 25.1
         source /opt/nvhpc/env.sh
         echo "${NVHPC_DIR}/compilers/bin"                   >> $GITHUB_PATH
         echo "NVHPC_ROOT=${NVHPC_DIR}"                      >> $GITHUB_ENV
@@ -162,12 +189,23 @@ jobs:
       shell: bash -eux {0}
       run: |
         FCFLAGS=-fPIC CFLAGS=-fPIC FFLAGS=-fPIC ${FIAT_TOOLS}/install-mpi.sh --mpi openmpi --prefix  ${DEPS_DIR}/openmpi
+        if [[ "${{ matrix.os }}" =~ macos ]]; then
+           echo "CACHE_SUFFIX=${CACHE_SUFFIX}-mpi_$(mpirun --version | head -1 | awk '{print $4}')" >> $GITHUB_ENV
+        fi
         [ -f ${DEPS_DIR}/openmpi/env.sh ] && source ${DEPS_DIR}/openmpi/env.sh
         [ -z ${MPI_HOME+x} ] || echo "MPI_HOME=${MPI_HOME}" >> $GITHUB_ENV
 
+    - name: Save cached dependencies
+      # There seems to be a problem with cached NVHPC dependencies, leading to SIGILL perhaps due to slightly different architectures
+      if: matrix.caching && matrix.build_type == 'Debug'
+      id: deps-save-cache
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.DEPS_DIR }}
+        key: ${{ steps.deps-restore-cache.outputs.cache-primary-key }}
+
     - name: Set Build & Test Environment
       run: |
-
         # Add mpirun to path for testing
         [ -z ${MPI_HOME+x} ] || echo "${MPI_HOME}/bin" >> $GITHUB_PATH
 
@@ -176,7 +214,7 @@ jobs:
       id: build-test
       uses: ecmwf-actions/build-package@v2
       with:
-        self_coverage: true
+        self_coverage: ${{ matrix.coverage }}
         force_build: true
         cache_suffix: "${{ matrix.build_type }}-${{ env.CACHE_SUFFIX }}"
         recreate_cache: ${{ matrix.caching == false }}
