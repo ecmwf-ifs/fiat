@@ -65,6 +65,12 @@ ecbuild_add_option( FEATURE DR_HOOK_NVTX
                     DESCRIPTION "Support for NVTX in DR_HOOK"
                     REQUIRED_PACKAGES NVTX )
 
+set (DEFAULT_DR_HOOK_ROCTX OFF)
+ecbuild_add_option( FEATURE DR_HOOK_ROCTX
+                    DEFAULT ${DEFAULT_DR_HOOK_ROCTX}
+                    DESCRIPTION "Support for ROCTX in DR_HOOK"
+                    REQUIRED_PACKAGES ROCTX )
+
 ecbuild_find_package( NAME Realtime QUIET )
 
 ### Sources
