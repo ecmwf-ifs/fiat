@@ -18,6 +18,7 @@ extern "C" {
 #endif
 
 typedef long long int oml_lock_t; /* i.e. 64-bit integer */
+typedef void (*oml_function_t)(void*);
 
 int  oml_my_thread();         // Equivalent to omp_get_thread_num() + 1
 int  oml_get_max_threads();   // Equivalent to omp_get_max_threads()
@@ -27,6 +28,7 @@ int  oml_in_parallel();
 void oml_set_debug(int);
 int  oml_get_debug();
 void oml_init_lock();
+void oml_destroy_lock();
 void oml_init_lockid(oml_lock_t*);
 void oml_init_lockid_with_name(oml_lock_t*, const char* name);
 void oml_set_lock();
@@ -35,6 +37,8 @@ void oml_unset_lock();
 void oml_unset_lockid(oml_lock_t*);
 int  oml_test_lock();
 int  oml_test_lockid(oml_lock_t*);
+void oml_run_parallel(oml_function_t function, void* args);
+void oml_barrier();
 
 #ifdef __cplusplus
 } // extern "C"
