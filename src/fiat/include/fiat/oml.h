@@ -20,6 +20,7 @@ extern "C" {
 typedef long long int oml_lock_t; /* i.e. 64-bit integer */
 typedef void (*oml_function_t)(void*);
 
+int  oml_get_thread_num();    // Equivalent to omp_get_thread_num()
 int  oml_my_thread();         // Equivalent to omp_get_thread_num() + 1
 int  oml_get_max_threads();   // Equivalent to omp_get_max_threads()
 int  oml_get_num_threads();   // Equivalent to omp_get_num_threads()
