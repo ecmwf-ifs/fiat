@@ -85,3 +85,13 @@ ecbuild_add_test( TARGET fiat_test_drhook_ex5
 if (HAVE_DR_HOOK_NVTX)
   add_subdirectory(drhook_nvtx)
 endif ()
+
+# ROCTX
+if (HAVE_DR_HOOK_ROCTX)
+  add_subdirectory(drhook_roctx)
+endif ()
+
+# PAPI
+if (HAVE_DR_HOOK_PAPI)
+  add_subdirectory(drhook_papi)
+endif ()

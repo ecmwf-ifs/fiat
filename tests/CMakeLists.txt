@@ -8,8 +8,11 @@
 
 if( HAVE_TESTS )
 
+set( CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} )
+
 if( HAVE_MPI AND MPIEXEC )
-  set( LAUNCH ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 1 )
+  set (MPI_OPTS "" CACHE STRING "system depended srun or mpirun options (partition, time, account, ...)")
+  set( LAUNCH ${MPIEXEC} ${MPI_OPTS} ${MPIEXEC_NUMPROC_FLAG} 1 )
 else()
   set( LAUNCH ${CMAKE_CROSSCOMPILING_EMULATOR} )
 endif()
@@ -101,6 +104,46 @@ set_tests_properties(fiat_test_drhook_fortran PROPERTIES
     ENVIRONMENT "MPL=0;DR_HOOK_ASSERT_MPI_INITIALIZED=0;DR_HOOK_OPT=NOPROPAGATE_SIGNALS"
     PASS_REGULAR_EXPRESSION "EC_DRHOOK.*\[DrHookCallTree\]" )
 
+
+# ----------------------------------------------------------------------------------------
+# Tests: fiat_test_drhook_counters
+
+if( HAVE_DR_HOOK_PAPI )
+  ecbuild_add_test(TARGET fiat_test_drhook_counters
+    SOURCES test_drhook_counters.F90
+            test_drhook_counters_stream.F90
+            test_drhook_counters_gemm.F90
+    LIBS    fiat
+    ENVIRONMENT "DR_HOOK_ASSERT_MPI_INITIALIZED=0;FIAT_UNIT_TEST=1"
+    )
+  target_compile_definitions( fiat_test_drhook_counters PRIVATE OMP )
+  if( NOT HAVE_MPI )
+    target_compile_definitions( fiat_test_drhook_counters PRIVATE NOMPI )
+  endif()
+
+  if( CMAKE_Fortran_COMPILER_ID MATCHES Intel )
+    set_source_files_properties(test_drhook_counters_stream.F90
+      PROPERTIES COMPILE_OPTIONS "-qopt-prefetch-distance=64,12;-qopt-streaming-cache-evict=0;-qopt-streaming-stores always;-qopt-zmm-usage=high")
+  endif()
+
+  find_package( OpenMP COMPONENTS Fortran )
+  if( TARGET OpenMP::OpenMP_Fortran )
+    target_link_libraries( fiat_test_drhook_counters OpenMP::OpenMP_Fortran )
+  endif()
+  if( NOT BLAS_LIBRARIES )
+    find_package( MKL QUIET )
+    if( MKL_LIBRARIES )
+      set( BLAS_LIBRARIES ${MKL_LIBRARIES} )
+    else()
+      find_package( BLAS QUIET )
+    endif()
+  endif()
+  if( BLAS_LIBRARIES )
+    target_link_libraries( fiat_test_drhook_counters ${BLAS_LIBRARIES} )
+    target_compile_definitions( fiat_test_drhook_counters PUBLIC HAVE_BLAS )
+  endif()
+endif()
+
 # ----------------------------------------------------------------------------------------
 # Tests: fiat_test_ec_args_fortran
 
@@ -126,6 +169,23 @@ ecbuild_add_test(
 ecbuild_add_test(
     TARGET  fiat_test_byteswap
     SOURCES test_byteswap.F90
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran )
+
+# ----------------------------------------------------------------------------------------
+# Tests: fiat_test_checksum_c
+
+ecbuild_add_test(
+    TARGET  fiat_test_checksum_c 
+    SOURCES test_checksum.c
+    LIBS    fiat )
+
+# ----------------------------------------------------------------------------------------
+# Tests: fiat_test_checksum
+
+ecbuild_add_test(
+    TARGET  fiat_test_checksum
+    SOURCES test_checksum.F90
     LIBS    fiat
     LINKER_LANGUAGE Fortran )
 
@@ -161,6 +221,66 @@ add_test(NAME fiat_test_abor1
       COMMAND ${CMAKE_COMMAND}
       "-DEXECUTABLE=$<TARGET_FILE:fiat-test-abor1>"
       "-DPASS_REGULAR_EXPRESSION=ABOR1.*aborting from OpenMP parallel region"
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
+
+#-----------------------------------------------------------------------------------------
+# Tests:  fiat_test_alltoallv
+#
+#
+ecbuild_add_test( TARGET fiat_test_alltoallv
+    SOURCES alltoallv.F90
+    LIBS     fiat
+    LINKER_LANGUAGE Fortran
+    MPI 2)
+#-----------------------------------------------------------------------------------------
+# Tests:  fiat_test_gatherv
+#
+#
+ecbuild_add_test( TARGET fiat_test_gatherv
+    SOURCES gatherv.F90 
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran
+    MPI 2)
+#-----------------------------------------------------------------------------------------
+# Tests:  fiat_test_allgatherv
+#
+#
+ecbuild_add_test( TARGET fiat_test_allgatherv
+    SOURCES allgatherv.F90 
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran
+    MPI 2)                  
+#-----------------------------------------------------------------------------------------
+# Tests:  fiat_test_scatterv
+#
+#
+ecbuild_add_test( TARGET fiat_test_scatterv
+    SOURCES scatterv.F90 
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran
+    MPI 2)
+#-----------------------------------------------------------------------------------------
+# Tests: fiat_test_displs_container
+#
+# test the linled_list needed for the non-blocking collectives 
+ecbuild_add_test( TARGET fiat_test_displs_container
+    SOURCES displs_container.F90
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran)
+
+# ----------------------------------------------------------------------------------------
+# Tests: fiat_test_namelist
+
+ecbuild_add_executable(
+    TARGET  fiat_test_namelist
+    SOURCES test_namelist.F90
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran
+    NOINSTALL )
+add_test(NAME fiat_test_namelist
+      COMMAND ${CMAKE_COMMAND}
+      "-DEXECUTABLE=$<TARGET_FILE:fiat_test_namelist>"
+      "-DPASS_REGULAR_EXPRESSION=ABOR1.*POSNAM:CANNOT LOCATE NAM_NONPRESENT"
       -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
 
 # ----------------------------------------------------------------------------------------
