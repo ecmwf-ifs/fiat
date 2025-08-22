@@ -144,19 +144,13 @@ void linux_bind_ (int * prank, int * psize)
 {
   const int rank = *prank;
   const int size = *psize;
-  FILE* fp;
-  size_t len = 0;
-  char buffer[1024];
-  char* buf = buffer;
-  const char* linux_bind_txt;
-
-  linux_bind_txt = getenv ("EC_LINUX_BIND");
+  const char* linux_bind_txt = getenv ("EC_LINUX_BIND");
 
   if (linux_bind_txt == NULL) {
     linux_bind_txt = LINUX_BIND_TXT;
   }
 
-  fp = fopen (linux_bind_txt, "r");
+  FILE* fp = fopen (linux_bind_txt, "r");
 
   if (fp == NULL) {
       // Willem Deconinck: Commented out as this pollutes logs
@@ -164,17 +158,23 @@ void linux_bind_ (int * prank, int * psize)
       return;
   }
 
+  size_t len = 1024;
+  char* buf = (char*) malloc( len );
+
   for (int i = 0; i < rank+1; i++) {
     if (getline (&buf, &len, fp) == -1) {
       fprintf (stderr, "Unexpected end of file while reading '%s' on rank %d (linux_bind.c:%d)\n", linux_bind_txt, rank, __LINE__);
       fclose (fp);
+      free (buf);
       return;
     }
   }
-  fclose (fp);
 
   function_linux_bind_parallel_args_t args = {.linux_bind_txt=linux_bind_txt, .buf=buf, .rank=rank};
   oml_run_parallel (function_linux_bind_parallel, &args);
+
+  fclose (fp);
+  free (buf);
 }
 
 #else
