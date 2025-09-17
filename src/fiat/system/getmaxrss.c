@@ -14,7 +14,11 @@ typedef  long long int  ll_t;
 ll_t
 getmaxrss_()
 {
-  const ll_t scaler = 1024; /* in kilobytes */
+#ifdef __APPLE__
+  const ll_t scaler = 1;    /* ru_maxrss is defined in bytes */
+#else
+  const ll_t scaler = 1024; /* ru_maxrss is defened in kilobytes */
+#endif
   ll_t rc = 0;
   struct rusage r;
   rc = getrusage(RUSAGE_SELF, &r);
