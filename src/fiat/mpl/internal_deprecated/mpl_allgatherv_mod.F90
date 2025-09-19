@@ -132,7 +132,7 @@ ENDIF
 IRECVCOUNT = SIZE(PRECVBUF)
 
 !--------- Preamble repeated for threadsafe--------------
-include "mpl_allgatherv_preamble.i90"
+#include "mpl_allgatherv_preamble.i90"
 !--------- End of Preamble --------------
 
 
