@@ -31,6 +31,7 @@ ecbuild_add_option( FEATURE MPI
                     REQUIRED_PACKAGES "MPI COMPONENTS Fortran" )
 
 ecbuild_add_option( FEATURE DR_HOOK_PAPI
+                    DEFAULT OFF
                     DESCRIPTION "Support for HW counters in DR_HOOK via PAPI"
                     REQUIRED_PACKAGES "PAPI")
 
