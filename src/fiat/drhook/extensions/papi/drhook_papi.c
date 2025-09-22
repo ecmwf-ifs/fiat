@@ -281,17 +281,18 @@ int drhook_papi_start_threads(int* events){
       snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Error, add_event failed: %d (%s)",papiErr,PAPI_strerror(papiErr));
       printf("%s\n",pmsg);
       if (papiErr == PAPI_EINVAL)
-        printf("Invalid argument\n");
+        printf("Invalid argument. ");
       else if (papiErr == PAPI_ENOMEM)
-        printf("Out of memory\n");
+        printf("Out of memory. ");
       else if (papiErr == PAPI_ENOEVST)
-        printf("EventSet does not exist\n");
+        printf("EventSet does not exist. ");
       else if (papiErr == PAPI_EISRUN)
-        printf("EventSet is running\n");
+        printf("EventSet is running. ");
       else if (papiErr == PAPI_ECNFLCT)
-        printf("Conflict\n");
+        printf("Conflict. ");
       else if (papiErr == PAPI_ENOEVNT)
-        printf("Preset not available\n");
+        printf("Preset not available. ");
+      printf("This is an error within PAPI and not DrHook. DrHook is only reporting the error it received.\n");
       return 0;
     }
     else {
