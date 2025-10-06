@@ -90,8 +90,12 @@ void drhook_papi_subtract(long_long* a, long_long* b, long_long* c){
   if (b==NULL || c==NULL){
     long_long * tmp=alloca(drhook_papi_num_counters() * sizeof(long_long));
     drhook_papi_readAll(tmp);
-    if (b==NULL)b=tmp;
-    if (c==NULL)c=tmp;
+    if (b==NULL) {
+      b=tmp;
+    }
+    if (c==NULL) {
+      c=tmp;
+    }
   }
   for (int i=0;i<drhook_papi_num_counters();i++){
     /*    printf("papi_subtract_from_current: %d %lld - %lld = %lld\n",i,b[i],c[i],b[i]-c[i]);*/
@@ -102,7 +106,9 @@ void drhook_papi_subtract(long_long* a, long_long* b, long_long* c){
 /* a = b + c 
 if a==NULL,  b=b+c */
 void drhook_papi_add(long_long* a,long_long* b, long_long* c){
-  if (a==NULL) a=b;
+  if (a==NULL) {
+    a=b;
+  }
   for (int i=0;i<drhook_papi_num_counters();i++){
     /*printf("papi_add: %d %lld + %lld = %lld \n",i,b[i],c[i],b[i]+c[i]);*/
     a[i]=b[i]+c[i];
@@ -157,12 +163,16 @@ int drhook_papi_init(int rank){
   int paperr=-1;
   char *env;
 
-  if (drhook_papi_state==drhook_papi_running) return 1;
-  if (drhook_papi_state==drhook_papi_failed) return 0;
+  if (drhook_papi_state==drhook_papi_running) {
+    return 1;
+  }
+  if (drhook_papi_state==drhook_papi_failed) {
+    return 0;
+  }
 
   drhook_papi_rank=rank;
 
-  if (oml_in_parallel()){
+  if (oml_in_parallel()) {
     printf("DRHOOK:PAPI: Error, tried to initialise from a parallel region :-(\n");
     return 0;
   }
@@ -171,7 +181,7 @@ int drhook_papi_init(int rank){
   silent = env ? atoi(env) : silent;
   
   paperr=PAPI_library_init(PAPI_VER_CURRENT);
-  if (paperr != PAPI_VER_CURRENT){
+  if (paperr != PAPI_VER_CURRENT) {
     snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI:PAPI_library_init: ret code=%d version loaded =%d ", paperr,PAPI_VER_CURRENT);
     printf("%s\n",pmsg);
     if (paperr > 0) {
@@ -212,7 +222,7 @@ int drhook_papi_init(int rank){
 
   paperr=PAPI_thread_init(papi_safe_thread_num);
   
-  if( paperr != PAPI_OK ){
+  if( paperr != PAPI_OK ) {
     snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Error, thread init failed (%s)",PAPI_strerror(paperr));
     printf("%s\n",pmsg);
     return 0;
@@ -224,20 +234,26 @@ int drhook_papi_init(int rank){
            PAPI_VERSION_REVISION( lib_version ),
            nthreads);
   
-  if (drhook_papi_rank==0 && !silent) printf("%s\n",pmsg);
+  if (drhook_papi_rank==0 && !silent) {
+    printf("%s\n",pmsg);
+  }
 
   drhook_papi_event_set=malloc_drhook(nthreads*sizeof(int));
 
   int rcout;
   drhook_run_omp_parallel_papi_startup(drhook_papi_event_set, nthreads, &rcout);
-  if (rcout)
+  if (rcout) {
     return 0;
+  }
 
-  for (int i=0; i < drhook_papi_max_num_counters(); i++)
+  for (int i=0; i < drhook_papi_max_num_counters(); i++) {
     free((void *) papi_counter_names[i]);
+  }
 
   drhook_papi_state=drhook_papi_running;
-  if (drhook_papi_rank==0 && !silent) printf("DRHOOK:PAPI: Initialisation sucess\n");
+  if (drhook_papi_rank==0 && !silent) {
+    printf("DRHOOK:PAPI: Initialisation sucess\n");
+  }
   return 1;
 }
 
@@ -259,7 +275,7 @@ int drhook_papi_start_threads(int* events){
   if (!silent && drhook_papi_rank==0 && thread==0)
     printf("DRHOOK:PAPI: Attempting to add events to event set:\n");
 
-  for (int counter=0; counter < drhook_papi_num_counters(); counter ++){
+  for (int counter=0; counter < drhook_papi_num_counters(); counter ++) {
     int eventCode;
 
     if (!silent && drhook_papi_rank==0 && thread==0) {
@@ -280,18 +296,25 @@ int drhook_papi_start_threads(int* events){
     if (papiErr!=PAPI_OK){
       snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Error, add_event failed: %d (%s)",papiErr,PAPI_strerror(papiErr));
       printf("%s\n",pmsg);
-      if (papiErr == PAPI_EINVAL)
-        printf("Invalid argument\n");
-      else if (papiErr == PAPI_ENOMEM)
-        printf("Out of memory\n");
-      else if (papiErr == PAPI_ENOEVST)
-        printf("EventSet does not exist\n");
-      else if (papiErr == PAPI_EISRUN)
-        printf("EventSet is running\n");
-      else if (papiErr == PAPI_ECNFLCT)
-        printf("Conflict\n");
-      else if (papiErr == PAPI_ENOEVNT)
-        printf("Preset not available\n");
+      if (papiErr == PAPI_EINVAL) {
+        printf("Invalid argument. ");
+      }
+      else if (papiErr == PAPI_ENOMEM) {
+        printf("Out of memory. ");
+      }
+      else if (papiErr == PAPI_ENOEVST) {
+        printf("EventSet does not exist. ");
+      }
+      else if (papiErr == PAPI_EISRUN) {
+        printf("EventSet is running. ");
+      }
+      else if (papiErr == PAPI_ECNFLCT) {
+        printf("Conflict. ");
+      }
+      else if (papiErr == PAPI_ENOEVNT) {
+        printf("Preset not available. ");
+      }
+      printf("This is an error within PAPI and not DrHook. DrHook is only reporting the error it received.\n");
       return 0;
     }
     else {
@@ -319,7 +342,7 @@ int drhook_papi_start_threads(int* events){
   }
 #endif
   
-  if (number != drhook_papi_num_counters()){
+  if (number != drhook_papi_num_counters()) {
     snprintf(pmsg,STD_MSG_LEN,"DRHOOK:PAPI: Error checking events - expected=%d got=%d",drhook_papi_num_counters(),number);
     printf("%s\n",pmsg);
   }
