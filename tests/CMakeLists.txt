@@ -114,6 +114,7 @@ if( HAVE_DR_HOOK_PAPI )
             test_drhook_counters_stream.F90
             test_drhook_counters_gemm.F90
     LIBS    fiat
+    LINKER_LANGUAGE Fortran
     ENVIRONMENT "DR_HOOK_ASSERT_MPI_INITIALIZED=0;FIAT_UNIT_TEST=1"
     )
   target_compile_definitions( fiat_test_drhook_counters PRIVATE OMP )
