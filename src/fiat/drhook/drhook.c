@@ -194,6 +194,7 @@ static int drhook_trapfpe = 1;
 static int drhook_trapfpe_invalid = 1;
 static int drhook_trapfpe_divbyzero = 1;
 static int drhook_trapfpe_overflow = 1;
+static int drhook_trapfpe_supported = 1;
 
 #if (defined(LINUX) || defined(__APPLE__)) && !defined(CYGWIN)
 
@@ -3205,6 +3206,8 @@ init_drhook(int ntids)
       process_options();
       set_timed_kill();
       drhook_lhook = 1;
+      // if a processor is not trapping FPE, we need to use drhook regions instead
+      if (drhook_trapfpe && fegetexcept() == 0) { drhook_trapfpe_supported = 0; }
     }
     if (!keydata) {
       keydata = malloc_drhook(sizeof(**keydata) * ntids);
@@ -3913,7 +3916,7 @@ static void fpe_check_abort_message(const char *excname, int i) {
 }
 
 void dr_hook_fpe_check(int i) {
-  if (drhook_trapfpe == 0) return;
+  if (drhook_trapfpe == 0 || drhook_trapfpe_supported == 1) return;
 
   int raised = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
 
