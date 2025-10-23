@@ -60,7 +60,7 @@ ecbuild_list_add_pattern( LIST fiat_src GLOB
 # NB : both interfaces can be compiled without MPI, and then link to mpi_serial library
 if( HAVE_MPI AND NOT MPI_Fortran_HAVE_F08_MODULE )
     ecbuild_info( "MPI present, but no MPI-F08 support so building F77 MPL" )
-    set( HAVE_MPL_F77_DEPRECATED TRUE )
+    set( HAVE_MPL_F77_DEPRECATED 1 )
 endif()
 
 if( HAVE_MPL_F77_DEPRECATED)
