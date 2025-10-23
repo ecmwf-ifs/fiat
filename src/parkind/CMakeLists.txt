@@ -18,10 +18,6 @@ foreach( prec sp dp )
               parkind2.F90
     )
 
-    if( EC_OS_BITS EQUAL "64" )
-      target_compile_definitions( ${target} PRIVATE ADDRESS64 )
-    endif()
-
     fiat_target_fortran_module_directory(
       TARGET            ${target}
       MODULE_DIRECTORY  ${CMAKE_BINARY_DIR}/module/${target}
