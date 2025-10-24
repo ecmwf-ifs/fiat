@@ -214,7 +214,7 @@ subroutine fletcher16_reset(this)
 end subroutine
 
 subroutine fletcher16_update_real32_r1(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_float
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_float
   class(fletcher16_type), intent(inout) :: this
   real(c_float), contiguous, target, intent(in) :: array(:)
   integer(c_size_t) :: array_size
@@ -225,7 +225,7 @@ subroutine fletcher16_update_real32_r1(this, array)
 end subroutine
 
 subroutine fletcher16_update_real32_r2(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_float
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_float
   class(fletcher16_type), intent(inout) :: this
   real(c_float), contiguous, target, intent(in) :: array(:,:)
   integer(c_size_t) :: array_size
@@ -236,7 +236,7 @@ subroutine fletcher16_update_real32_r2(this, array)
 end subroutine
 
 subroutine fletcher16_update_real32_r3(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_float
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_float
   class(fletcher16_type), intent(inout) :: this
   real(c_float), contiguous, target, intent(in) :: array(:,:,:)
   integer(c_size_t) :: array_size
@@ -247,7 +247,7 @@ subroutine fletcher16_update_real32_r3(this, array)
 end subroutine
 
 subroutine fletcher16_update_real32_r4(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_float
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_float
   class(fletcher16_type), intent(inout) :: this
   real(c_float), contiguous, target, intent(in) :: array(:,:,:,:)
   integer(c_size_t) :: array_size
@@ -258,7 +258,7 @@ subroutine fletcher16_update_real32_r4(this, array)
 end subroutine
 
 subroutine fletcher16_update_real32_r5(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_float
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_float
   class(fletcher16_type), intent(inout) :: this
   real(c_float), contiguous, target, intent(in) :: array(:,:,:,:,:)
   integer(c_size_t) :: array_size
@@ -269,7 +269,7 @@ subroutine fletcher16_update_real32_r5(this, array)
 end subroutine
 
 subroutine fletcher16_update_real64_r1(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_double
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_double
   class(fletcher16_type), intent(inout) :: this
   real(c_double), contiguous, target, intent(in) :: array(:)
   integer(c_size_t) :: array_size
@@ -280,7 +280,7 @@ subroutine fletcher16_update_real64_r1(this, array)
 end subroutine
 
 subroutine fletcher16_update_real64_r2(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_double
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_double
   class(fletcher16_type), intent(inout) :: this
   real(c_double), contiguous, target, intent(in) :: array(:,:)
   integer(c_size_t) :: array_size
@@ -291,7 +291,7 @@ subroutine fletcher16_update_real64_r2(this, array)
 end subroutine
 
 subroutine fletcher16_update_real64_r3(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_double
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_double
   class(fletcher16_type), intent(inout) :: this
   real(c_double), contiguous, target, intent(in) :: array(:,:,:)
   integer(c_size_t) :: array_size
@@ -302,7 +302,7 @@ subroutine fletcher16_update_real64_r3(this, array)
 end subroutine
 
 subroutine fletcher16_update_real64_r4(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_double
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_double
   class(fletcher16_type), intent(inout) :: this
   real(c_double), contiguous, target, intent(in) :: array(:,:,:,:)
   integer(c_size_t) :: array_size
@@ -313,7 +313,7 @@ subroutine fletcher16_update_real64_r4(this, array)
 end subroutine
 
 subroutine fletcher16_update_real64_r5(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_double
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_double
   class(fletcher16_type), intent(inout) :: this
   real(c_double), contiguous, target, intent(in) :: array(:,:,:,:,:)
   integer(c_size_t) :: array_size
@@ -324,7 +324,7 @@ subroutine fletcher16_update_real64_r5(this, array)
 end subroutine
 
 subroutine fletcher16_update_int32_r1(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_int32_t
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_int32_t
   class(fletcher16_type), intent(inout) :: this
   integer(c_int32_t), contiguous, target, intent(in) :: array(:)
   integer(c_size_t) :: array_size
@@ -335,7 +335,7 @@ subroutine fletcher16_update_int32_r1(this, array)
 end subroutine
 
 subroutine fletcher16_update_int32_r2(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_int32_t
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_int32_t
   class(fletcher16_type), intent(inout) :: this
   integer(c_int32_t), contiguous, target, intent(in) :: array(:,:)
   integer(c_size_t) :: array_size
@@ -346,7 +346,7 @@ subroutine fletcher16_update_int32_r2(this, array)
 end subroutine
 
 subroutine fletcher16_update_int32_r3(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_int32_t
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_int32_t
   class(fletcher16_type), intent(inout) :: this
   integer(c_int32_t), contiguous, target, intent(in) :: array(:,:,:)
   integer(c_size_t) :: array_size
@@ -357,7 +357,7 @@ subroutine fletcher16_update_int32_r3(this, array)
 end subroutine
 
 subroutine fletcher16_update_int32_r4(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_int32_t
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_int32_t
   class(fletcher16_type), intent(inout) :: this
   integer(c_int32_t), contiguous, target, intent(in) :: array(:,:,:,:)
   integer(c_size_t) :: array_size
@@ -368,7 +368,7 @@ subroutine fletcher16_update_int32_r4(this, array)
 end subroutine
 
 subroutine fletcher16_update_int32_r5(this, array)
-  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_int64_t, c_loc, c_sizeof, c_int32_t
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_size_t, c_loc, c_sizeof, c_int32_t
   class(fletcher16_type), intent(inout) :: this
   integer(c_int32_t), contiguous, target, intent(in) :: array(:,:,:,:,:)
   integer(c_size_t) :: array_size
