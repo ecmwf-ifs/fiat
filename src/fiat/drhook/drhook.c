@@ -3803,7 +3803,7 @@ c_drhook_watch_(const int *onoff,
 
 /*=== c_drhook_start_ ===*/
 
-void fpe_check(int i);
+void dr_hook_fpe_check(int i);
 void
 c_drhook_start_(const char *name,
                 const int *thread_id,
@@ -3851,7 +3851,7 @@ c_drhook_start_(const char *name,
     /* Single precision : The variable "*key" is treated like max 4-byte entity -- "an index" */
     (void) callstack(*thread_id, key, u.keyptr);
   }
-  fpe_check(1);
+  dr_hook_fpe_check(1);
   ITSELF_1;
   if (opt_calltrace) {
     drhook_oml_set_lock();
@@ -3915,7 +3915,7 @@ static void fpe_check_abort_message(const char *excname, int i) {
   }
 }
 
-void fpe_check(int i) {
+void dr_hook_fpe_check(int i) {
   if (drhook_trapfpe == 0 || drhook_trapfpe_supported == 1) return;
 
   int raised = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
@@ -3938,10 +3938,10 @@ void fpe_check(int i) {
   feclearexcept(FE_ALL_EXCEPT);
 }
 
-void fpe_check_(int *i) {
-  fpe_check(*i);
+void dr_hook_fpe_check_(int *i) {
+  dr_hook_fpe_check(*i);
 }
-void fpe_clear_() {
+void dr_hook_fpe_clear_() {
   feclearexcept(FE_ALL_EXCEPT);
 }
 
@@ -3967,7 +3967,7 @@ c_drhook_end_(const char *name,
     /* Single precision : The variable "*key" is treated like max 4-byte entity -- "an index" */
     u.keyptr = callstack(*thread_id, (void *)key, NULL);
   }
-  fpe_check(-1);
+  dr_hook_fpe_check(-1);
   /*
   if (opt_calltrace) {
     drhook_oml_set_lock();
