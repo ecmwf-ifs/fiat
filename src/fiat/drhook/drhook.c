@@ -194,6 +194,8 @@ static int drhook_trapfpe = 1;
 static int drhook_trapfpe_invalid = 1;
 static int drhook_trapfpe_divbyzero = 1;
 static int drhook_trapfpe_overflow = 1;
+static int drhook_trapfpe_hw_support = 1;
+static int drhook_trapfpe_flag_mask = 0;
 
 #if (defined(LINUX) || defined(__APPLE__)) && !defined(CYGWIN)
 
@@ -2085,6 +2087,15 @@ signal_drhook_init(int enforce)
       drhook_run_omp_parallel_ipfstr_(&ntids,set_ec_drhook_label,hostname,hlen);
     }
   }
+
+  // Not all platforms, e.g. Nvidia's Grace, support trapping FPEs,
+  // so we have to check if trapping is enabled
+  int prev_enabled_exceptions = fegetexcept();
+  drhook_trapfpe_hw_support = feenableexcept(FE_ALL_EXCEPT) != -1;
+  // Even if we failed above, we should still try to restore the flags
+  feenableexcept(prev_enabled_exceptions);
+  fedisableexcept(~prev_enabled_exceptions);
+
   process_options();
   for (j=1; j<=NSIG; j++) { /* Initialize */
     drhook_sig_t *sl = &siglist[j];
@@ -2092,6 +2103,16 @@ signal_drhook_init(int enforce)
     sl->active = 0;
     sl->ignore_atexit = 0;
   }
+
+// TODO: Move to options & then the message can be done in options when we check the relevant option
+  if (!silent && !drhook_trapfpe_hw_support) {
+    fprintf(stderr, "DRHOOK: WARNING: Hardware FPEs are not supported. DrHook is checking per region instead.\n");
+  }
+  drhook_trapfpe_flag_mask =
+      (drhook_trapfpe_invalid   ? FE_INVALID   : 0) |
+      (drhook_trapfpe_divbyzero ? FE_DIVBYZERO : 0) |
+      (drhook_trapfpe_overflow  ? FE_OVERFLOW  : 0);
+
   ignore_signals(silent); /* These signals will not be handled by DR_HOOK */
   restore_default_signals(silent); /* These signals will be restored with SIG_DFL status (regardless if to-be-caught with DrHook or ATP or anyhing else) */
   SETSIG(SIGABRT,0); /* Good to be first */
@@ -2948,6 +2969,27 @@ getkey(int tid, const char *name, int name_len,
 {
   drhook_key_t *keyptr = NULL;
   if (tid >= 1 && tid <= numthreads) {
+    if (drhook_trapfpe == 1 && !drhook_trapfpe_hw_support) {
+      int raised = fetestexcept(drhook_trapfpe_flag_mask);
+      if (raised & FE_INVALID) {
+        fprintf(stderr, "DRHOOK: Abort invalid\n");
+      }
+
+      if (raised & FE_DIVBYZERO) {
+        fprintf(stderr, "DRHOOK: Abort divbyzero\n");
+      }
+
+      if (raised & FE_OVERFLOW) {
+        fprintf(stderr, "DRHOOK: Abort overflow\n");
+      }
+
+      if (raised) {
+        fprintf(stderr, "DRHOOK: Aborting from SW FPE raised on entry of region '%s'!\n", name);
+//        TODO: Should we raise a sigfpe instead?
+        DRHOOK_ABORT();
+      }
+    }
+
     unsigned int hash, fullhash;
     if (opt_trim) name = trim(name, &name_len);
     hash = hashfunc(name, name_len);
@@ -3141,6 +3183,28 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
     DRHOOK_ABORT();
   }
   else if (tid >= 1 && tid <= numthreads) {
+
+    if (drhook_trapfpe == 1 && !drhook_trapfpe_hw_support) {
+      int raised = fetestexcept(drhook_trapfpe_flag_mask);
+      if (raised & FE_INVALID) {
+        fprintf(stderr, "DRHOOK: Abort invalid\n");
+      }
+
+      if (raised & FE_DIVBYZERO) {
+        fprintf(stderr, "DRHOOK: Abort divbyzero\n");
+      }
+
+      if (raised & FE_OVERFLOW) {
+        fprintf(stderr, "DRHOOK: Abort overflow\n");
+      }
+
+      if (raised) {
+        fprintf(stderr, "DRHOOK: Aborting from SW FPE raised on exit of region '%s'!\n", name);
+//        TODO: Should we raise a sigfpe instead?
+        DRHOOK_ABORT();
+      }
+    }
+
     double delta_wall = 0;
     double delta_cpu  = 0;
     long long int delta_cycles  = 0;
