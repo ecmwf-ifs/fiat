@@ -3208,6 +3208,10 @@ init_drhook(int ntids)
       drhook_lhook = 1;
       // if a processor is not trapping FPE, we need to use drhook regions instead
       if (drhook_trapfpe && fegetexcept() == 0) { drhook_trapfpe_supported = 0; }
+#if defined(__APPLE__) && defined(__arm64__)
+      // WIP
+      drhook_trapfpe_supported = 1;
+#endif
     }
     if (!keydata) {
       keydata = malloc_drhook(sizeof(**keydata) * ntids);
