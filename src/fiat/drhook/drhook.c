@@ -194,6 +194,7 @@ static int drhook_trapfpe = 1;
 static int drhook_trapfpe_invalid = 1;
 static int drhook_trapfpe_divbyzero = 1;
 static int drhook_trapfpe_overflow = 1;
+static int drhook_trapfpe_supported = 1;
 
 #if (defined(LINUX) || defined(__APPLE__)) && !defined(CYGWIN)
 
@@ -3205,6 +3206,12 @@ init_drhook(int ntids)
       process_options();
       set_timed_kill();
       drhook_lhook = 1;
+      // if a processor is not trapping FPE, we need to use drhook regions instead
+      if (drhook_trapfpe && fegetexcept() == 0) { drhook_trapfpe_supported = 0; }
+#if defined(__APPLE__) && defined(__arm64__)
+      // WIP
+      drhook_trapfpe_supported = 1;
+#endif
     }
     if (!keydata) {
       keydata = malloc_drhook(sizeof(**keydata) * ntids);
@@ -3800,6 +3807,7 @@ c_drhook_watch_(const int *onoff,
 
 /*=== c_drhook_start_ ===*/
 
+void dr_hook_fpe_check(int i);
 void
 c_drhook_start_(const char *name,
                 const int *thread_id,
@@ -3847,6 +3855,7 @@ c_drhook_start_(const char *name,
     /* Single precision : The variable "*key" is treated like max 4-byte entity -- "an index" */
     (void) callstack(*thread_id, key, u.keyptr);
   }
+  dr_hook_fpe_check(1);
   ITSELF_1;
   if (opt_calltrace) {
     drhook_oml_set_lock();
@@ -3897,6 +3906,49 @@ c_drhook_start_(const char *name,
   if (opt_random_memstat > 0) random_memstat(*thread_id,0);
 }
 
+
+static void fpe_check_abort_message(const char *excname, int i) {
+  if (i == 1) {
+    fprintf(stderr, "[received %s]: Aborting... On Entry\n", excname);
+  } else if (i == -1) {
+    fprintf(stderr, "[received %s]: Aborting... On Exit\n", excname);
+  } else if (i == 0) {
+    fprintf(stderr, "[received %s]: Aborting...\n", excname);
+  } else {
+    fprintf(stderr, "[received %s]: Aborting... %i\n", excname, i);
+  }
+}
+
+void dr_hook_fpe_check(int i) {
+  if (drhook_trapfpe == 0 || drhook_trapfpe_supported == 1) return;
+
+  int raised = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
+
+  if (drhook_trapfpe_invalid && (raised & FE_INVALID)) {
+    fpe_check_abort_message("FE_INVALID", i);
+    DRHOOK_ABORT();
+  }
+
+  if (drhook_trapfpe_divbyzero && (raised & FE_DIVBYZERO)) {
+    fpe_check_abort_message("FE_DIVBYZERO", i);
+    DRHOOK_ABORT();
+  }
+
+  if (drhook_trapfpe_overflow && (raised & FE_OVERFLOW)) {
+    fpe_check_abort_message("FE_OVERFLOW", i);
+    DRHOOK_ABORT();
+  }
+
+  feclearexcept(FE_ALL_EXCEPT);
+}
+
+void dr_hook_fpe_check_(int *i) {
+  dr_hook_fpe_check(*i);
+}
+void dr_hook_fpe_clear_() {
+  feclearexcept(FE_ALL_EXCEPT);
+}
+
 /*=== c_drhook_end_ ===*/
 
 void
@@ -3919,6 +3971,7 @@ c_drhook_end_(const char *name,
     /* Single precision : The variable "*key" is treated like max 4-byte entity -- "an index" */
     u.keyptr = callstack(*thread_id, (void *)key, NULL);
   }
+  dr_hook_fpe_check(-1);
   /*
   if (opt_calltrace) {
     drhook_oml_set_lock();
