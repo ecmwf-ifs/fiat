@@ -60,10 +60,6 @@ ecbuild_add_option( FEATURE MPL_F77_DEPRECATED
                     DESCRIPTION "Compile deprecated mpif.h MPL instead of MPI_F08 version"
                     REQUIRED_PACKAGES "MPI COMPONENTS Fortran"
                     DEFAULT OFF )
-if (NOT HAVE_MPI AND NOT HAVE_MPL_F77_DEPRECATED)
-    ecbuild_warn("Dummy implementation mpi_serial does not support MPI_F08; Turning MPL_F77_DEPRECATED feature ON")
-    set (HAVE_MPL_F77_DEPRECATED 1)
-endif()
 
 ecbuild_add_option( FEATURE MPL_CHECK_CONTIG
                     DESCRIPTION "Enable runtime check of contiguity of array arguments passed to MPL routines"
