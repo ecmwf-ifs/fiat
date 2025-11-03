@@ -12,7 +12,7 @@ MODULE MPI_F08
 
 INTEGER :: MPI_UNDEFINED, MPI_MAX_ERROR_STRING, MPI_ANY_TAG, MPI_ANY_SOURCE, &
  &         MPI_IDENT, MPI_CONGRUENT, MPI_SIMILAR, MPI_THREAD_SINGLE, MPI_THREAD_MULTIPLE, &
- &         MPI_MODE_RDONLY, MPI_MODE_WRONLY, MPI_MODE_CREATE, MPI_TYPE_SIZE
+ &         MPI_MODE_RDONLY, MPI_MODE_WRONLY, MPI_MODE_CREATE
 
 !! dummy type definitions
 !!========================
@@ -59,6 +59,11 @@ TYPE(MPI_REQUEST)  :: MPI_REQUEST_NULL
 TYPE(MPI_COMM)     :: MPI_COMM_WORLD, MPI_COMM_NULL
 
 TYPE(MPI_INFO)     :: MPI_INFO_NULL
+
+!! symbols defined in mpi_serial library, and picked up via a 'USE MPL_MPIF' important statement
+!!==============================================================================================
+
+EXTERNAL :: MPI_COMM_SIZE, MPI_TYPE_SIZE, MPI_ALLREDUCE, MPI_COMM_CREATE, MPI_COMM_GROUP
 
 END MODULE MPI_F08
 
