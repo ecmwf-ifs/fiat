@@ -9,5 +9,6 @@
 !
 
 MODULE MPL_MPIF
-USE MPI_F08
+#include "mpif.h"
 END MODULE MPL_MPIF
+

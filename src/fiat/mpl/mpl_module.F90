@@ -22,7 +22,7 @@ MODULE MPL_MODULE
 !    all routines which wish to call MPL routines must contain:
 !    USE MPL_MODULE
 
-USE MPL_MPIF
+USE MPL_MPI
 USE MPL_DATA_MODULE
 USE MPL_INIT_MOD
 USE MPL_BUFFER_METHOD_MOD

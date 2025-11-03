@@ -12,7 +12,7 @@
 !! Please include "mpl.h" for the C interfaces
 
 FUNCTION FORTRAN_MPI_ABORT(KRC) BIND(C,NAME="fortran_mpi_abort") RESULT(IRET)
-    USE MPL_MPIF, ONLY : MPI_COMM_WORLD
+    USE MPL_MPI, ONLY : MPI_COMM_WORLD
     IMPLICIT NONE
     INTEGER,INTENT(IN),VALUE :: KRC
     INTEGER :: IRET
