@@ -29,6 +29,7 @@ PRIVATE :: JPRD, JPIM
 !              start of timing event
 ! LDETAILED_STATS - TRUE for more detail in output
 ! LXML_STATS - TRUE for stats output in XML
+! LCSV_STATS - TRUE for stats output in CSV per rank
 ! LSTATS_OMP - TRUE for gathering timing statistics on OpenMP regions
 !                 1001-1999
 ! LSTATS_COMMS - TRUE for gathering detailed timing of Message passing
@@ -71,6 +72,7 @@ LOGICAL :: LSTATS_ALLOC = .FALSE.
 LOGICAL :: LSTATSCPU = .TRUE.
 LOGICAL :: LSYNCSTATS = .FALSE.
 LOGICAL :: LXML_STATS = .FALSE.
+LOGICAL :: LCSV_STATS = .FALSE.
 LOGICAL :: LDETAILED_STATS = .TRUE.
 LOGICAL :: LBARRIER_STATS = .FALSE.
 LOGICAL :: LBARRIER_STATS2 = .FALSE.
