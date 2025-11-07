@@ -8,7 +8,7 @@
 ! nor does it submit to any jurisdiction.
 !
 
-MODULE MPL_MPIF
-#include "mpif.h"
-END MODULE MPL_MPIF
+MODULE MPL_MPI
+USE MPI_F08
+END MODULE MPL_MPI
 

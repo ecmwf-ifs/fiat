@@ -48,7 +48,7 @@ MODULE MPL_MESSAGE_MOD
 
 !     ------------------------------------------------------------------
 
-USE MPL_MPIF,        ONLY : MPI_MAX_ERROR_STRING
+USE MPL_MPI,         ONLY : MPI_MAX_ERROR_STRING
 USE MPL_DATA_MODULE, ONLY : MPL_UNIT, MPL_RANK
 USE MPL_ABORT_MOD,   ONLY : MPL_ABORT
 
