@@ -208,6 +208,23 @@ add_test(NAME fiat_test_mpl_no_output
          -P ${CMAKE_CURRENT_SOURCE_DIR}/test_mpl_no_output.cmake )
 
 # ----------------------------------------------------------------------------------------
+# Tests: fiat_test_mpl_split_comm
+#   test that MPL split communicator functionality works
+
+ecbuild_add_executable(
+    TARGET  fiat-test-mpl-split-comm
+    SOURCES test_mpl_split_comm.F90
+    LIBS    fiat
+    LINKER_LANGUAGE Fortran
+    NOINSTALL )
+
+ecbuild_add_test(
+    TARGET fiat_test_mpl_split_comm
+    COMMAND fiat-test-mpl-split-comm
+    CONDITION HAVE_MPI
+    MPI 4 )
+
+# ----------------------------------------------------------------------------------------
 # Tests: fiat_test_abor1
 #
 # Test abor1 function, and check the error message is printed
