@@ -232,6 +232,7 @@ ecbuild_add_test( TARGET fiat_test_alltoallv
     SOURCES alltoallv.F90
     LIBS     fiat
     LINKER_LANGUAGE Fortran
+    CONDITION HAVE_MPI
     MPI 2)
 #-----------------------------------------------------------------------------------------
 # Tests:  fiat_test_gatherv
@@ -241,6 +242,7 @@ ecbuild_add_test( TARGET fiat_test_gatherv
     SOURCES gatherv.F90 
     LIBS    fiat
     LINKER_LANGUAGE Fortran
+    CONDITION HAVE_MPI
     MPI 2)
 #-----------------------------------------------------------------------------------------
 # Tests:  fiat_test_allgatherv
@@ -250,6 +252,7 @@ ecbuild_add_test( TARGET fiat_test_allgatherv
     SOURCES allgatherv.F90 
     LIBS    fiat
     LINKER_LANGUAGE Fortran
+    CONDITION HAVE_MPI
     MPI 2)                  
 #-----------------------------------------------------------------------------------------
 # Tests:  fiat_test_scatterv
@@ -259,6 +262,7 @@ ecbuild_add_test( TARGET fiat_test_scatterv
     SOURCES scatterv.F90 
     LIBS    fiat
     LINKER_LANGUAGE Fortran
+    CONDITION HAVE_MPI
     MPI 2)
 #-----------------------------------------------------------------------------------------
 # Tests: fiat_test_displs_container
