@@ -99,6 +99,12 @@ add_subdirectory(tests)
 
 ### Export
 
+if (fiat_HAVE_MPL_F77_DEPRECATED)
+set (fiat_HAVE_MPL_F08 0)
+else()
+set (fiat_HAVE_MPL_F08 1)
+endif()
+
 ecbuild_install_project( NAME fiat )
 
 ecbuild_print_summary()

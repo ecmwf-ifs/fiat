@@ -17,6 +17,8 @@ set( fiat_HAVE_OMP    @fiat_HAVE_OMP@ )
 set( fiat_HAVE_FCKIT  @fiat_HAVE_FCKIT@ )
 set( fiat_HAVE_SINGLE_PRECISION   @fiat_HAVE_SINGLE_PRECISION@ )
 set( fiat_HAVE_DOUBLE_PRECISION   @fiat_HAVE_DOUBLE_PRECISION@ )
+set( fiat_HAVE_MPL_F08 @fiat_HAVE_MPL_F08@ )
+
 set( fiat_SOURCE_FILENAMES      @fiat_SOURCE_FILENAMES@ )
 
 if( fiat_HAVE_OMP AND NOT TARGET OpenMP::OpenMP_Fortran )
