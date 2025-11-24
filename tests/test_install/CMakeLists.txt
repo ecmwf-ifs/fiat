@@ -12,6 +12,8 @@ project( fiat_test_install VERSION 0.0.0 LANGUAGES Fortran )
 
 find_package( fiat REQUIRED )
 
+message("fiat_HAVE_MPL_F08: ${fiat_HAVE_MPL_F08}")
+
 if( TARGET parkind_dp )
 ecbuild_add_executable( TARGET  main_dp
                         SOURCES main.F90

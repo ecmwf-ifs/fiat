@@ -16,6 +16,15 @@ foreach( lang ${langs} )
   set( EC_${lang}_FLAGS "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${CMAKE_BUILD_TYPE_CAPS}}" )
 endforeach()
 
+set (MPL_BACKEND "")
+if (HAVE_MPI)
+  if (HAVE_MPL_F77_DEPRECATED)
+    set(MPL_BACKEND " (backend=mpif)")
+  else()
+    set(MPL_BACKEND " (backend=mpi_f08)")
+  endif()
+endif()
+
 configure_file( ${tool}.in ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/${tool} @ONLY )
 
 file(COPY ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/${tool}
