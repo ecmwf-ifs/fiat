@@ -35,6 +35,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <time.h>
+#include <sched.h>
 #include <sys/syscall.h>
 
 #include "raise.h"
