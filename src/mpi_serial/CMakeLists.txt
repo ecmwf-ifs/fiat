@@ -12,10 +12,12 @@ ecbuild_add_library( TARGET mpi_serial
   TYPE STATIC
   SOURCES
             mpi_abort.F
+            mpi_abort_f08.F
             mpi_allgatherv.F
             mpi_allreduce.F
             mpi_alltoallv.F
             mpi_barrier.F
+            mpi_barrier_f08.F
             mpi_bcast.F
             mpi_bsend.F
             mpi_buffer_attach.F
@@ -26,10 +28,14 @@ ecbuild_add_library( TARGET mpi_serial
             mpi_cart_sub.F
             mpi_comm_compare.F
             mpi_comm_create.F
+            mpi_comm_create_f08.F
             mpi_comm_free.F
             mpi_comm_group.F
+            mpi_comm_group_f08.F
             mpi_comm_rank.F
+            mpi_comm_rank_f08.F
             mpi_comm_size.F
+            mpi_comm_size_f08.F
             mpi_comm_split.F
             mpi_end.F
             mpi_error_string.F
@@ -47,6 +53,7 @@ ecbuild_add_library( TARGET mpi_serial
             mpi_file_write_shared.F
             mpi_finalize.F
             mpi_finalized.F
+            mpi_f08_compile_constants.F
             mpi_gather.F
             mpi_gatherv.F
             mpi_get_count.F
@@ -61,6 +68,7 @@ ecbuild_add_library( TARGET mpi_serial
             mpi_init.F
             mpi_init_thread.F
             mpi_initialized.F
+            mpi_initialized_f08.F
             mpi_iprobe.F
             mpi_irecv.F
             mpi_iscatter.F
@@ -68,8 +76,10 @@ ecbuild_add_library( TARGET mpi_serial
             mpi_isend.F
             mpi_probe.F
             mpi_recv.F
+            mpi_recv_f08ts.F
             mpi_scatterv.F
             mpi_send.F
+            mpi_send_f08ts.F
             mpi_ssend.F
             mpi_testsome.F
             mpi_type_size.F
