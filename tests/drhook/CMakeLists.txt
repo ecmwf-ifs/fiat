@@ -2,25 +2,25 @@ find_package( CMath )
 
 ecbuild_add_executable( TARGET drhook_ex1
   SOURCES drhook_ex1.F90 
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE Fortran
   NOINSTALL )
 
 ecbuild_add_executable( TARGET drhook_ex2
   SOURCES drhook_ex2.F90 
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE Fortran
   NOINSTALL )
 
 ecbuild_add_executable( TARGET drhook_ex3
   SOURCES drhook_ex3.F90 
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE Fortran
   NOINSTALL )
 
 ecbuild_add_executable( TARGET drhook_ex4
   SOURCES drhook_ex4.c
-  LIBS fiat ${CMATH_LIBRARIES}
+  LIBS ${fiatlib} ${CMATH_LIBRARIES}
   LINKER_LANGUAGE C
   NOINSTALL )
 if( CMAKE_C_COMPILER_ID MATCHES "PGI|NVHPC" )
@@ -29,7 +29,7 @@ endif()
 
 ecbuild_add_executable( TARGET drhook_ex5
   SOURCES drhook_ex5.F90
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE Fortran
   NOINSTALL )
 
