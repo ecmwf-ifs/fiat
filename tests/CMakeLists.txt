@@ -284,6 +284,18 @@ add_test(NAME fiat_test_namelist
       -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
 
 # ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
+# Tests: test_gstats_fortran (only gstats print csv so far)
+ecbuild_add_test(
+    TARGET  test_gstats_fortran
+    SOURCES test_gstats_fortran.F90 
+    LIBS    fiat ${OMP} ${FCKIT_LIB}
+    LINKER_LANGUAGE Fortran
+    DEFINITIONS ${FCKIT_DEFINITIONS}
+    )
+# ----------------------------------------------------------------------------------------
+
 # Test installation of fiat is working
 
 configure_file( test-install.sh.in ${CMAKE_CURRENT_BINARY_DIR}/test-install.sh @ONLY )
