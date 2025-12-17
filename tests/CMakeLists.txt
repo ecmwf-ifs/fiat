@@ -290,9 +290,8 @@ add_test(NAME fiat_test_namelist
 ecbuild_add_test(
     TARGET  test_gstats_fortran
     SOURCES test_gstats_fortran.F90 
-    LIBS    fiat ${OMP} ${FCKIT_LIB}
+    LIBS    fiat
     LINKER_LANGUAGE Fortran
-    DEFINITIONS ${FCKIT_DEFINITIONS}
     )
 # ----------------------------------------------------------------------------------------
 

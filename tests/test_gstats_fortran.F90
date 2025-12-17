@@ -8,9 +8,6 @@
 PROGRAM TEST_GSTATS
     USE OML_MOD
     USE MPL_MODULE
-    #ifdef WITH_FCKIT
-    USE FCKIT_MODULE
-    #endif
     IMPLICIT NONE
     
     INTEGER :: NPROC, MYPROC, KLEN
@@ -18,15 +15,14 @@ PROGRAM TEST_GSTATS
     KLEN = 2
 
     CALL TEST_INIT()
-    
+    CALL GSTATS(0,0)
     CALL GSTATS(1,0)
     CALL WORK_SECTION_1()
     CALL GSTATS(1,1)
-    
     CALL GSTATS(2,0)
     CALL WORK_SECTION_2()
     CALL GSTATS(2,1)
-    
+    CALL GSTATS(0,1)
     CALL GSTATS_PRINT(0,AVEARRAY, KLEN)
 
     CALL TEST_END()
@@ -68,24 +64,14 @@ PROGRAM TEST_GSTATS
       LOGICAL :: LDSTATS_OMP, LDSTATS_COMMS, LDSTATS_MEM
       LOGICAL :: LDSTATS_ALLOC, LDTRACE_STATS, LDXML_STATS
       INTEGER :: KSTATS_MEM, KTRACE_STATS, KPRNT_STATS
+      
+      NPROC=1
+      MYPROC=1
     
       ! INITIALIZE ENVIRONMENT
-      IF ( MPL() ) THEN
-         CALL MPL_INIT(LDINFO=.TRUE.)
-         NPROC = MPL_NUMPROC
-         MYPROC = MPL_RANK
-    #ifdef WITH_FCKIT
-      ELSEIF ( FCKIT() ) THEN
-         CALL FCKIT_MAIN%INIT()
-         NPROC = FCKIT_MPI%SIZE()
-         MYPROC = FCKIT_MPI%RANK() + 1
-    #else
-      ELSE
-         NPROC = 1
-         MYPROC = 1
-    #endif
-      END IF
-    
+      CALL MPL_INIT(LDINFO=.TRUE.)
+      NPROC = MPL_NUMPROC
+      MYPROC = MPL_RANK
       ! ENABLE DETAILED GSTATS → CSV OUTPUT
       LDSTATS          = .TRUE.
       LDSTATSCPU       = .FALSE.
@@ -113,6 +99,7 @@ PROGRAM TEST_GSTATS
            LDSTATS_OMP, LDSTATS_COMMS, LDSTATS_MEM, KSTATS_MEM, LDSTATS_ALLOC, &
            LDTRACE_STATS, KTRACE_STATS, KPRNT_STATS, LDXML_STATS )
       CALL GSTATS_PSUT
+      CALL GSTATS_LABEL(0, " ", "TOTAL EXECUTION")
       CALL GSTATS_LABEL(1, "CAT 1","WORK 1")
       CALL GSTATS_LABEL(2, "CAT 1","WORK 2")
 
@@ -120,34 +107,8 @@ PROGRAM TEST_GSTATS
     ! ---------------------------------------------------------------------
     
     SUBROUTINE TEST_END
-      IF ( MPL() ) THEN
-         CALL MPL_END(LDMEMINFO=.FALSE.)
-      END IF
+      CALL MPL_END(LDMEMINFO=.FALSE.)
     END SUBROUTINE TEST_END
-    ! ---------------------------------------------------------------------
-    
-    FUNCTION MPL() RESULT(LMPL)
-      LOGICAL :: LMPL
-      CHARACTER(LEN=512) :: ENV
-      CALL GET_ENVIRONMENT_VARIABLE("MPL",ENV)
-      IF (ENV == '0') THEN
-         LMPL = .FALSE.
-      ELSE
-         LMPL = .TRUE.
-      END IF
-    END FUNCTION MPL
-    ! ---------------------------------------------------------------------
-    
-    FUNCTION FCKIT() RESULT(LFCKIT)
-      LOGICAL :: LFCKIT
-      CHARACTER(LEN=512) :: ENV
-      CALL GET_ENVIRONMENT_VARIABLE("FCKIT",ENV)
-      IF (ENV == '0') THEN
-         LFCKIT = .FALSE.
-      ELSE
-         LFCKIT = .TRUE.
-      END IF
-    END FUNCTION FCKIT
     ! ---------------------------------------------------------------------
     
     SUBROUTINE CHECK_OUTPUT
