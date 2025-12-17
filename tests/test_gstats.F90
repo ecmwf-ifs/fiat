@@ -6,13 +6,11 @@
 ! AND DOES NOT SUBMIT TO ANY JURISDICTION.
 
 PROGRAM TEST_GSTATS
-    USE OML_MOD
-    USE MPL_MODULE
+    USE YOMGSTATS, ONLY : JPMAXSTAT
+    USE EC_PARKIND, ONLY : JPRD
+    USE EC_LUN, ONLY : NULOUT
     IMPLICIT NONE
-    
-    INTEGER :: NPROC, MYPROC, KLEN
-    REAL :: AVEARRAY(2)
-    KLEN = 2
+    REAL(JPRD) :: AVEARRAY(0:JPMAXSTAT)
 
     CALL TEST_INIT()
     CALL GSTATS(0,0)
@@ -23,21 +21,20 @@ PROGRAM TEST_GSTATS
     CALL WORK_SECTION_2()
     CALL GSTATS(2,1)
     CALL GSTATS(0,1)
-    CALL GSTATS_PRINT(0,AVEARRAY, KLEN)
+    CALL GSTATS_PRINT(NULOUT,AVEARRAY, JPMAXSTAT)
 
-    CALL TEST_END()
-    
     ! CHECK THAT THE CSV FILE EXISTS
     CALL CHECK_OUTPUT()
-    
-    CONTAINS
+    CALL TEST_END()
+
+CONTAINS
     
     ! ---------------------------------------------------------------------
     SUBROUTINE WORK_SECTION_1
       IMPLICIT NONE
-      REAL :: X
+      REAL(JPRD) :: X
       INTEGER :: I
-      X = 0.0
+      X = 0.0_JPRD
       DO I = 1, 5000000
          X = X + SIN(REAL(I))
       END DO
@@ -46,33 +43,48 @@ PROGRAM TEST_GSTATS
     
     SUBROUTINE WORK_SECTION_2
       IMPLICIT NONE
-      REAL :: X
+      REAL(JPRD) :: X
       INTEGER :: I
       X = 1.0
       DO I = 1, 4000000
-         X = X * 1.0000001
+         X = X * 1.0000001_JPRD
       END DO
     END SUBROUTINE WORK_SECTION_2
     ! ---------------------------------------------------------------------
     
     SUBROUTINE TEST_INIT
-      USE EC_ENV_MOD, ONLY : EC_SETENV
-    
-      INTEGER :: KPROC, KMYPROC, KPRCIDS
+      USE MPL_MODULE, ONLY : MPL_RANK, MPL_NUMPROC, MPL_INIT
+      USE EC_LUN, ONLY : NULOUT
+
+      INTEGER :: KPROC, KMYPROC, JPROC
+      INTEGER, ALLOCATABLE :: KPRCIDS(:)
       LOGICAL :: LDSTATS, LDSTATSCPU, LDSYNCSTATS
       LOGICAL :: LDDETAILED_STATS, LDBARRIER_STATS, LDBARRIER_STATS2
       LOGICAL :: LDSTATS_OMP, LDSTATS_COMMS, LDSTATS_MEM
       LOGICAL :: LDSTATS_ALLOC, LDTRACE_STATS, LDXML_STATS, LDCSV_STATS
       INTEGER :: KSTATS_MEM, KTRACE_STATS, KPRNT_STATS
-      
-      NPROC=1
-      MYPROC=1
-    
+      LOGICAL :: LUSE_MPI
+
+#include "gstats_setup.intfb.h"
+
       ! INITIALIZE ENVIRONMENT
-      CALL MPL_INIT(LDINFO=.TRUE.)
-      NPROC = MPL_NUMPROC
-      MYPROC = MPL_RANK
-      ! ENABLE DETAILED GSTATS → CSV OUTPUT
+      LUSE_MPI = DETECT_MPIRUN()
+      KPROC   = 1
+      KMYPROC = 1
+      IF (LUSE_MPI) THEN
+        CALL MPL_INIT(LDINFO=.TRUE.)
+        KMYPROC = MPL_RANK
+        KPROC   = MPL_NUMPROC
+      ENDIF
+      IF (KMYPROC == 1) THEN
+        WRITE(0,*) "LUSE_MPI: ", LUSE_MPI
+        WRITE(0,*) "NPROC:    ", KPROC
+      ELSE
+        ! All other ranks set EC_LUN's NULOUT to /dev/null
+        OPEN(UNIT=NULOUT, FILE='/dev/null')
+      ENDIF
+      ALLOCATE(KPRCIDS(KPROC))
+
       LDSTATS          = .TRUE.
       LDSTATSCPU       = .FALSE.
       LDSYNCSTATS      = .FALSE.
@@ -86,39 +98,48 @@ PROGRAM TEST_GSTATS
       LDSTATS_ALLOC    = .FALSE.
       LDTRACE_STATS    = .FALSE.
       KTRACE_STATS     = 0
-      KPRNT_STATS      = NPROC
+      KPRNT_STATS      = KPROC
       LDXML_STATS      = .FALSE.
       LDCSV_STATS      = .TRUE.
-    
-      KPROC   = NPROC
-      KMYPROC = MYPROC
-      KPRCIDS = 0
+      DO JPROC = 1, KPROC
+        KPRCIDS(JPROC) = JPROC
+      ENDDO
 
       CALL GSTATS_SETUP( KPROC, KMYPROC, KPRCIDS, &
            LDSTATS, LDSTATSCPU, LDSYNCSTATS, LDDETAILED_STATS, &
            LDBARRIER_STATS, LDBARRIER_STATS2, &
            LDSTATS_OMP, LDSTATS_COMMS, LDSTATS_MEM, KSTATS_MEM, LDSTATS_ALLOC, &
            LDTRACE_STATS, KTRACE_STATS, KPRNT_STATS, LDXML_STATS, LDCSV_STATS )
+      CALL GSTATS_LABEL(0, "   ", "TOTAL EXECUTION")
+      CALL GSTATS_LABEL(1, "CAT 1", "WORK 1") ! Note that second argument will be truncated to 3 chars
+      CALL GSTATS_LABEL(2, "CAT 1", "WORK 2") ! Note that second argument will be truncated to 3 chars
       CALL GSTATS_PSUT
-      CALL GSTATS_LABEL(0, " ", "TOTAL EXECUTION")
-      CALL GSTATS_LABEL(1, "CAT 1","WORK 1")
-      CALL GSTATS_LABEL(2, "CAT 1","WORK 2")
 
     END SUBROUTINE TEST_INIT
     ! ---------------------------------------------------------------------
     
     SUBROUTINE TEST_END
-      CALL MPL_END(LDMEMINFO=.FALSE.)
+      USE MPL_MODULE, ONLY : MPL_END, MPL_NUMPROC
+      IF (MPL_NUMPROC > 0) THEN
+        CALL MPL_END(LDMEMINFO=.FALSE.)
+      ENDIF
     END SUBROUTINE TEST_END
     ! ---------------------------------------------------------------------
     
     SUBROUTINE CHECK_OUTPUT
+      USE MPL_MODULE, ONLY : MPL_RANK, MPL_NUMPROC
       IMPLICIT NONE
       LOGICAL :: EXISTS
       CHARACTER(LEN=32) :: FNAME
       INTEGER :: U
-      
-      WRITE(FNAME, '(A,I0,A)') 'gstats.', MYPROC, '.csv'    
+      INTEGER :: MYPROC
+
+      MYPROC = 1
+      IF (MPL_NUMPROC > 0) THEN
+        MYPROC = MPL_RANK
+      ENDIF
+      WRITE(FNAME, '(A,I0,A)') 'gstats.', MYPROC, '.csv'
+
       INQUIRE(FILE=FNAME, EXIST=EXISTS)
     
       IF (.NOT. EXISTS) THEN
@@ -132,5 +153,32 @@ PROGRAM TEST_GSTATS
     END SUBROUTINE CHECK_OUTPUT
     ! ---------------------------------------------------------------------
     
+    function detect_mpirun() result(lmpi_required)
+      logical :: lmpi_required
+      integer :: ilen
+      integer, parameter :: nvars = 5
+      character(len=32), dimension(nvars) :: cmpirun_detect
+      character(len=4) :: clenv_dr_hook_assert_mpi_initialized
+      integer :: ivar
+      lmpi_required = .false.
+#if defined(NOMPI)
+      return
+#endif
+      ! Environment variables that are set when mpirun, srun, aprun, ... are used
+      cmpirun_detect(1) = 'OMPI_COMM_WORLD_SIZE'  ! openmpi
+      cmpirun_detect(2) = 'ALPS_APP_PE'           ! cray pe
+      cmpirun_detect(3) = 'PMI_SIZE'              ! intel
+      cmpirun_detect(4) = 'SLURM_NTASKS'          ! slurm
+      cmpirun_detect(5) = 'FIAT_USE_MPI'          ! forced
+
+      do ivar = 1, nvars
+        call get_environment_variable(name=trim(cmpirun_detect(ivar)), length=ilen)
+        if (ilen > 0) then
+          lmpi_required = .true.
+          exit ! break
+        endif
+      enddo
+    end function
+
     END PROGRAM TEST_GSTATS
     
