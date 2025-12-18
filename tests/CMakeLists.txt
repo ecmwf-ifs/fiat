@@ -288,8 +288,8 @@ add_test(NAME fiat_test_namelist
 # ----------------------------------------------------------------------------------------
 # Tests: test_gstats_fortran (only gstats print csv so far)
 ecbuild_add_test(
-    TARGET  test_gstats_fortran
-    SOURCES test_gstats_fortran.F90 
+    TARGET  fiat_test_gstats
+    SOURCES test_gstats.F90 
     LIBS    fiat
     LINKER_LANGUAGE Fortran
     )
