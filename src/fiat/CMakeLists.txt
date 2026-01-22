@@ -25,6 +25,14 @@ if( FIAT_ATTRIBUTE_CONSTRUCTOR_SUPPORTED )
   list( APPEND FIAT_DEFINITIONS FIAT_ATTRIBUTE_CONSTRUCTOR_SUPPORTED )
 endif()
 
+# GPU-aware trickery for device-resident arguments to MPL_xx routines
+if( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC" )
+  list( APPEND FIAT_DEFINITIONS "IGNORE_DEVICE=!DIR$ IGNORE_TKR(d)")
+else()
+  list( APPEND FIAT_DEFINITIONS "IGNORE_DEVICE=!!not using IGNORE_TKR for")
+endif()
+
+
 ### Compilation flags
 
 if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
