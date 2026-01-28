@@ -2756,8 +2756,11 @@ process_options()
       else if (strequ(p,"CALLPATH")) {
         opt_callpath = 1;
         OPTPRINT(fp,"%s%s",comma,"CALLPATH"); comma = ",";
+      }
+      else if (strequ(p,"NONE")) {
+         continue; /* Used in certain applications to explictly denote no DR_HOOK_OPT options */
       } else {
-        printf("DrHook: Warning - no match for HOOK_OPT : %s\n",p);
+        OPTPRINT(fp,"\nDrHook: Warning - no match for HOOK_OPT : %s\n",p);
       }
       p = strtok(NULL,delim);
     }
