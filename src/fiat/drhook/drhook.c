@@ -2650,6 +2650,13 @@ process_options()
       char *out = recognised_opts;
       int* len = &recognised_opts_len;
 
+      /*
+       * Some options have both shorthand and canonical names. Here we assume
+       * we are given the canonical name by default, and then change the pointer
+       * in the relevant option handler if we were given the shorthand instead.
+       * Not all options have a shorthand name, e.g. "ALL", so by default p
+       * must point ot the canonical name if matched.
+       */
       char* opt_name = p;
       /* Assume that everything is OFF by default */
       if (strequ(p,"ALL")) { /* all except profiler data */
@@ -2765,9 +2772,7 @@ process_options()
         out = unrecognised_opts;
         len = &unrecognised_opts_len;
       }
-      /*
-       *  If there is something in the output buffer, i.e. we are extending the list
-       */
+      /* If there is something in the output buffer, i.e. we are extending the list. */
       if (*len) {
         out[*len] = ',';
         *len += 1;
