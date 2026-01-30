@@ -56,6 +56,10 @@ public :: fletcher16_type, fletcher16, fletcher16_hex
 #define fletcher16_digest_t c_int32_t
 #endif
 #endif
+#ifdef AOCC
+#undef  fletcher16_digest_t
+#define fletcher16_digest_t c_int32_t
+#endif
 
 type :: fletcher16_type
   integer(c_int32_t) :: handle = 0
