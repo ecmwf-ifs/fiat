@@ -39,7 +39,9 @@ add_test(NAME fiat_test_abort_exception_handler
   "-DEXECUTABLE=$<TARGET_FILE:fiat-test-abort-exception-handler>"
   "-DLAUNCH=${LAUNCH}"
   "-DPASS_REGULAR_EXPRESSION=problem in function_2"
-  -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
+  -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake
+  RESOURCE_LOCK drhook_lockfile
+)
 endif()
 
 add_subdirectory( drhook )
@@ -83,6 +85,7 @@ add_test( NAME fiat_test_drhook_abort_abor1fl
 set_tests_properties(fiat_test_drhook_abort_abor1fl PROPERTIES
     ENVIRONMENT "DR_HOOK_ASSERT_MPI_INITIALIZED=0"
     PASS_REGULAR_EXPRESSION "ABOR1.*EC_DRHOOK.*\[DrHookCallTree\]"
+    RESOURCE_LOCK drhook_lockfile
 )
 
 add_test( NAME fiat_test_drhook_abort_custom_abort
@@ -90,6 +93,7 @@ add_test( NAME fiat_test_drhook_abort_custom_abort
 set_tests_properties(fiat_test_drhook_abort_custom_abort PROPERTIES
     ENVIRONMENT "CUSTOM_ABORT=1;DR_HOOK_ASSERT_MPI_INITIALIZED=0"
     PASS_REGULAR_EXPRESSION "custom_abort.*EC_DRHOOK.*\[DrHookCallTree\]"
+    RESOURCE_LOCK drhook_lockfile
 )
 
 # ----------------------------------------------------------------------------------------
@@ -102,7 +106,9 @@ ecbuild_add_test(
     DEFINITIONS ${FCKIT_DEFINITIONS})
 set_tests_properties(fiat_test_drhook_fortran PROPERTIES
     ENVIRONMENT "MPL=0;DR_HOOK_ASSERT_MPI_INITIALIZED=0;DR_HOOK_OPT=NOPROPAGATE_SIGNALS"
-    PASS_REGULAR_EXPRESSION "EC_DRHOOK.*\[DrHookCallTree\]" )
+    PASS_REGULAR_EXPRESSION "EC_DRHOOK.*\[DrHookCallTree\]"
+    RESOURCE_LOCK drhook_lockfile
+)
 
 
 # ----------------------------------------------------------------------------------------
@@ -239,7 +245,9 @@ add_test(NAME fiat_test_abor1
       COMMAND ${CMAKE_COMMAND}
       "-DEXECUTABLE=$<TARGET_FILE:fiat-test-abor1>"
       "-DPASS_REGULAR_EXPRESSION=ABOR1.*aborting from OpenMP parallel region"
-      -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake
+      RESOURCE_LOCK drhook_lockfile
+)
 
 #-----------------------------------------------------------------------------------------
 # Tests:  fiat_test_alltoallv
