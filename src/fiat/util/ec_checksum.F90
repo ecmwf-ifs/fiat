@@ -49,14 +49,15 @@ private
 public :: fletcher16_type, fletcher16, fletcher16_hex
 
 #define fletcher16_digest_t c_int16_t
-#ifdef __NVCOMPILER
+
+! Workaround an internal compiler error in function digest() for NVHPC <= 22 and Classic Flang (PGI-based)
+#if defined(__NVCOMPILER)
 #if __NVCOMPILER_MAJOR__ <= 22
-! Workaround an internal compiler error in function digest()
 #undef  fletcher16_digest_t
 #define fletcher16_digest_t c_int32_t
 #endif
-#endif
-#ifdef AOCC
+#elif defined(__FLANG)
+! Classic Flang (PGI-based), includes also AOCC/4.0. Note, LLVM Flang defines __flang__ and __llvm__ instead.
 #undef  fletcher16_digest_t
 #define fletcher16_digest_t c_int32_t
 #endif
