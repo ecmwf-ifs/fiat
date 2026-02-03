@@ -2625,7 +2625,6 @@ process_options()
   env = getenv("DR_HOOK_OPT");
   if (env) {
     const char delim[] = ", \t/";
-    char *comma = " DR_HOOK_OPT=\"";
     char *s = strdup_drhook(env);
     char *p = s;
 
