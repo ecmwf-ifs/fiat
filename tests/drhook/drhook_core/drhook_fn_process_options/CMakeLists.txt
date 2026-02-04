@@ -30,7 +30,7 @@ add_test( NAME fiat_test_drhook_fn_process_options_cannon_names
         )
 
 set_tests_properties(fiat_test_drhook_fn_process_options_cannon_names PROPERTIES
-        ENVIRONMENT "DR_HOOK=1;DR_HOOK_OPT=${DRHOOK_OPTS_CANNONICAL_NAMES_STRING}"
+        ENVIRONMENT "DR_HOOK=1;DR_HOOK_ASSERT_MPI_INITIALIZED=0;DR_HOOK_OPT=${DRHOOK_OPTS_CANNONICAL_NAMES_STRING}"
         )
 
 # ------------------------------------------------------------------------------
@@ -52,7 +52,7 @@ add_test( NAME fiat_test_drhook_fn_process_options_short_names1
         )
 
 set_tests_properties(fiat_test_drhook_fn_process_options_short_names1 PROPERTIES
-        ENVIRONMENT "DR_HOOK=1;DR_HOOK_OPT=${DRHOOK_OPTS_SHORT1_NAMES_STRING}"
+        ENVIRONMENT "DR_HOOK=1;DR_HOOK_ASSERT_MPI_INITIALIZED=0;DR_HOOK_OPT=${DRHOOK_OPTS_SHORT1_NAMES_STRING}"
         )
 
 # ------------------------------------------------------------------------------
@@ -74,7 +74,7 @@ add_test( NAME fiat_test_drhook_fn_process_options_short_names2
         )
 
 set_tests_properties(fiat_test_drhook_fn_process_options_short_names2 PROPERTIES
-        ENVIRONMENT "DR_HOOK=1;DR_HOOK_OPT=${DRHOOK_OPTS_SHORT2_NAMES_STRING}"
+        ENVIRONMENT "DR_HOOK=1;DR_HOOK_ASSERT_MPI_INITIALIZED=0;DR_HOOK_OPT=${DRHOOK_OPTS_SHORT2_NAMES_STRING}"
         )
 
 # ------------------------------------------------------------------------------
@@ -92,7 +92,7 @@ add_test( NAME fiat_test_drhook_fn_process_options_delimiters
         )
 
 set_tests_properties(fiat_test_drhook_fn_process_options_delimiters PROPERTIES
-        ENVIRONMENT "DR_HOOK=1;DR_HOOK_OPT=${DRHOOK_OPTS_DELIMITED_STRING}"
+        ENVIRONMENT "DR_HOOK=1;DR_HOOK_ASSERT_MPI_INITIALIZED=0;DR_HOOK_OPT=${DRHOOK_OPTS_DELIMITED_STRING}"
         )
 
 # ------------------------------------------------------------------------------
@@ -111,7 +111,7 @@ add_test( NAME fiat_test_drhook_fn_process_options_only_invalid
         )
 
 set_tests_properties(fiat_test_drhook_fn_process_options_only_invalid PROPERTIES
-        ENVIRONMENT "DR_HOOK=1;DR_HOOK_OPT=${DRHOOK_OPTS_ONLY_INVALID_STRING}"
+        ENVIRONMENT "DR_HOOK=1;DR_HOOK_ASSERT_MPI_INITIALIZED=0;DR_HOOK_OPT=${DRHOOK_OPTS_ONLY_INVALID_STRING}"
         )
 
 
@@ -130,7 +130,7 @@ add_test( NAME fiat_test_drhook_fn_process_options_invalid
         )
 
 set_tests_properties(fiat_test_drhook_fn_process_options_invalid PROPERTIES
-        ENVIRONMENT "DR_HOOK=1;DR_HOOK_OPT=${DRHOOK_OPTS_INVALID_STRING}"
+        ENVIRONMENT "DR_HOOK=1;DR_HOOK_ASSERT_MPI_INITIALIZED=0;DR_HOOK_OPT=${DRHOOK_OPTS_INVALID_STRING}"
         )
 
 # ------------------------------------------------------------------------------
@@ -148,5 +148,5 @@ add_test( NAME fiat_test_drhook_fn_process_options_empty
         )
 
 set_tests_properties(fiat_test_drhook_fn_process_options_empty PROPERTIES
-        ENVIRONMENT "DR_HOOK=1;DR_HOOK_OPT=${DRHOOK_OPTS_EMPTY_STRING}"
+        ENVIRONMENT "DR_HOOK=1;DR_HOOK_ASSERT_MPI_INITIALIZED=0;DR_HOOK_OPT=${DRHOOK_OPTS_EMPTY_STRING}"
         )
