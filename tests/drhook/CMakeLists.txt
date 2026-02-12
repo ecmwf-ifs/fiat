@@ -77,6 +77,8 @@ ecbuild_add_test( TARGET fiat_test_drhook_ex5
 # TODO:
 # Better parse output to see if it matches.
 
+add_subdirectory(drhook_core)
+
 # ------------------------------------------------------------------------------
 #  External Library Tests
 # ------------------------------------------------------------------------------
