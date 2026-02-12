@@ -45,14 +45,14 @@ ecbuild_add_test( TARGET fiat_test_drhook_ex1
                   ENVIRONMENT DR_HOOK=1 DR_HOOK_TRAPFPE=1 DR_HOOK_ASSERT_MPI_INITIALIZED=0 DR_HOOK_OPT=NOPROPAGATE_SIGNALS )
 
 if( FPE_TRAPPING_SUPPORTED )
-  set_tests_properties( fiat_test_drhook_ex1 PROPERTIES WILL_FAIL TRUE )
+  set_tests_properties( fiat_test_drhook_ex1 PROPERTIES WILL_FAIL TRUE RESOURCE_LOCK drhook_lockfile )
 endif()
 
 # Test watchpoint point trapping
 ecbuild_add_test( TARGET fiat_test_drhook_ex2
                   COMMAND drhook_ex2
                   ENVIRONMENT DR_HOOK=1 DR_HOOK_ASSERT_MPI_INITIALIZED=0 DR_HOOK_OPT=NOPROPAGATE_SIGNALS )
-set_tests_properties( fiat_test_drhook_ex2 PROPERTIES WILL_FAIL TRUE )
+set_tests_properties( fiat_test_drhook_ex2 PROPERTIES WILL_FAIL TRUE RESOURCE_LOCK drhook_lockfile )
 
 # Play with profiling options
 ecbuild_add_test( TARGET fiat_test_drhook_ex3
@@ -64,7 +64,7 @@ ecbuild_add_test( TARGET fiat_test_drhook_ex4
                   COMMAND drhook_ex4
                   ENVIRONMENT DR_HOOK=1 SIGFPE=1 DR_HOOK_ASSERT_MPI_INITIALIZED=0 DR_HOOK_OPT=NOPROPAGATE_SIGNALS )
 if( FPE_TRAPPING_SUPPORTED )
-  set_tests_properties( fiat_test_drhook_ex4 PROPERTIES WILL_FAIL TRUE )
+  set_tests_properties( fiat_test_drhook_ex4 PROPERTIES WILL_FAIL TRUE RESOURCE_LOCK drhook_lockfile )
 endif()
 
 # Play MPI and dr_hook together
