@@ -83,9 +83,15 @@ ecbuild_list_exclude_pattern( LIST fiat_src REGEX drhook/extensions/*)
 set( fiat_src ${fiat_src} PARENT_SCOPE )
 
 if( HAVE_MPI )
-  set( FIAT_MPI_LIBRARIES MPI::MPI_Fortran )
+    set( FIAT_MPI_LIBRARIES MPI::MPI_Fortran )
 else()
-  set( FIAT_MPI_LIBRARIES ${MPI_SERIAL_LIBRARIES} )
+    set( FIAT_MPI_LIBRARIES ${MPI_SERIAL_LIBRARIES} )
+endif()
+
+# work around problem when linking privately to MPI libraries with NVHPC
+set(LINK_FIAT_MPI_LIBRARIES PRIVATE_LIBS ${FIAT_MPI_LIBRARIES})
+if (CMAKE_Fortran_COMPILER_ID MATCHES NVHPC)
+    set(LINK_FIAT_MPI_LIBRARIES PUBLIC_LIBS ${FIAT_MPI_LIBRARIES})
 endif()
 
 set( FIAT_DEPENDENCE )
@@ -111,8 +117,7 @@ foreach( LIB_TYPE ${LIB_TYPES} )
     PRIVATE_LIBS 
         ${CMAKE_DL_LIBS}
         ${RT_LIB}
-        PRIVATE_LIBS
-            ${FIAT_MPI_LIBRARIES}
+    ${LINK_FIAT_MPI_LIBRARIES}
     PRIVATE_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/drhook/internal
         ${CMAKE_CURRENT_SOURCE_DIR}/ecsort/internal
