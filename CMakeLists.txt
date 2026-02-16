@@ -88,6 +88,8 @@ ecbuild_add_option( FEATURE DR_HOOK_ROCTX
 ecbuild_find_package( NAME Realtime QUIET )
 
 ### Sources
+# define MPI_SERIAL_LIBRARIES before including src folder, for use in fiat library declaration
+set(MPI_SERIAL_LIBRARIES ${_whole_archive} mpi_serial ${_no_whole_archive})
 
 include( fiat_compiler_warnings )
 add_subdirectory(src)

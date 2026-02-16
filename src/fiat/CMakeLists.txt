@@ -82,12 +82,42 @@ ecbuild_list_exclude_pattern( LIST fiat_src REGEX drhook/extensions/*)
 
 set( fiat_src ${fiat_src} PARENT_SCOPE )
 
-ecbuild_add_library( TARGET fiat
+if( HAVE_MPI )
+    set( FIAT_MPI_LIBRARIES MPI::MPI_Fortran )
+else()
+    set( FIAT_MPI_LIBRARIES ${MPI_SERIAL_LIBRARIES} )
+endif()
+
+# work around problem when linking privately to MPI libraries with NVHPC
+set(LINK_FIAT_MPI_LIBRARIES PRIVATE_LIBS ${FIAT_MPI_LIBRARIES})
+if (CMAKE_Fortran_COMPILER_ID MATCHES NVHPC)
+    set(LINK_FIAT_MPI_LIBRARIES PUBLIC_LIBS ${FIAT_MPI_LIBRARIES})
+endif()
+
+set( FIAT_DEPENDENCE )
+if( ${BUILD_SHARED_LIBS} MATCHES "BOTH" )
+    set( LIB_TYPES SHARED STATIC )
+    set( FIAT_DEPENDENCE fiat )
+elseif( BUILD_SHARED_LIBS )
+    set( LIB_TYPES SHARED )
+else()
+    set( LIB_TYPES STATIC )
+endif()
+
+foreach( LIB_TYPE ${LIB_TYPES} )
+    if( ${LIB_TYPE} MATCHES "STATIC" )
+        set( fiatlib "fiat-static" )
+    else()
+        set( fiatlib "fiat")
+    endif()
+    ecbuild_add_library( TARGET ${fiatlib}
     LINKER_LANGUAGE Fortran
     SOURCES ${fiat_src} ${CMAKE_CURRENT_BINARY_DIR}/version.c
+        TYPE ${LIB_TYPE}
     PRIVATE_LIBS 
         ${CMAKE_DL_LIBS}
         ${RT_LIB}
+    ${LINK_FIAT_MPI_LIBRARIES}
     PRIVATE_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/drhook/internal
         ${CMAKE_CURRENT_SOURCE_DIR}/ecsort/internal
@@ -99,85 +129,89 @@ ecbuild_add_library( TARGET fiat
         $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include/fiat>
         $<INSTALL_INTERFACE:include>
         $<INSTALL_INTERFACE:include/fiat>
-)
+            ${MPI_Fortran_INCLUDE_DIRS}
+        OUTPUT_NAME fiat
+        DEPENDS ${FIAT_DEPENDENCE}
+    )
 
-if (HAVE_DR_HOOK_NVTX)
-    # Files from within DrHook
-    ecbuild_list_add_pattern( LIST fiat_nvtx_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/nvtx)
-    target_sources(fiat PRIVATE ${fiat_nvtx_src})
-    target_include_directories(fiat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/nvtx)
-    target_compile_definitions(fiat PRIVATE DR_HOOK_HAVE_NVTX=1 HAVE_NVTX3=${HAVE_NVTX3} )
+    if (HAVE_DR_HOOK_NVTX)
+        # Files from within DrHook
+        ecbuild_list_add_pattern( LIST fiat_nvtx_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/nvtx)
+        target_sources(${fiatlib} PRIVATE ${fiat_nvtx_src})
+        target_include_directories(${fiatlib} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/nvtx)
+        target_compile_definitions(${fiatlib} PRIVATE DR_HOOK_HAVE_NVTX=1 HAVE_NVTX3=${HAVE_NVTX3} )
 
-    # Link with NVTX
-    target_link_libraries     (fiat PRIVATE ${NVTX_LIBRARIES})
-    target_include_directories(fiat PRIVATE ${NVTX_INCLUDE_DIRS})
-endif()
+        # Link with NVTX
+        target_link_libraries     (${fiatlib} PRIVATE ${NVTX_LIBRARIES})
+        target_include_directories(${fiatlib} PRIVATE ${NVTX_INCLUDE_DIRS})
+    endif()
 
-if (HAVE_DR_HOOK_ROCTX)
-    # Files from within DrHook
-    ecbuild_list_add_pattern( LIST fiat_roctx_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/roctx)
-    target_sources(fiat PRIVATE ${fiat_roctx_src})
-    target_include_directories(fiat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/roctx)
-    target_compile_definitions(fiat PRIVATE DR_HOOK_HAVE_ROCTX=1 HAVE_ROCPROFILER_SDK_ROCTX=${HAVE_ROCPROFILER_SDK_ROCTX})
+    if (HAVE_DR_HOOK_ROCTX)
+        # Files from within DrHook
+        ecbuild_list_add_pattern( LIST fiat_roctx_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/roctx)
+        target_sources(fiat PRIVATE ${fiat_roctx_src})
+        target_include_directories(${fiatlib} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/roctx)
+        target_compile_definitions(${fiatlib} PRIVATE DR_HOOK_HAVE_ROCTX=1 HAVE_ROCPROFILER_SDK_ROCTX=${HAVE_ROCPROFILER_SDK_ROCTX})
 
-    # Link with ROCTX
-    target_link_libraries     (fiat PRIVATE ${ROCTX_LIBRARIES})
-    target_include_directories(fiat PRIVATE ${ROCTX_INCLUDE_DIRS})
-endif()
+        # Link with ROCTX
+        target_link_libraries     (${fiatlib} PRIVATE ${ROCTX_LIBRARIES})
+        target_include_directories(${fiatlib} PRIVATE ${ROCTX_INCLUDE_DIRS})
+    endif()
 
-if (HAVE_DR_HOOK_PAPI)
-    # Files from within DrHook
-    ecbuild_list_add_pattern( LIST fiat_papi_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/papi)
-    target_sources(fiat PRIVATE ${fiat_papi_src})
-    target_include_directories(fiat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/papi)
-    target_compile_definitions(fiat PRIVATE DR_HOOK_HAVE_PAPI=1)
+    if (HAVE_DR_HOOK_PAPI)
+        # Files from within DrHook
+        ecbuild_list_add_pattern( LIST fiat_papi_src GLOB *.c SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/papi)
+        target_sources(${fiatlib} PRIVATE ${fiat_papi_src})
+        target_include_directories(${fiatlib} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/drhook/extensions/papi)
+        target_compile_definitions(${fiatlib} PRIVATE DR_HOOK_HAVE_PAPI=1)
 
-    # Files defined externally
-    target_link_libraries      ( fiat PRIVATE ${PAPI_LIBRARIES} )
-    target_include_directories ( fiat PRIVATE ${PAPI_INCLUDE_DIRS} )
-endif()
+        # Files defined externally
+        target_link_libraries      ( ${fiatlib} PRIVATE ${PAPI_LIBRARIES} )
+        target_include_directories ( ${fiatlib} PRIVATE ${PAPI_INCLUDE_DIRS} )
+    endif()
 
-if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
-  # Following should not be necessary; 
-  # Probably a bug in the M1 prerelease of gfortran 10.2.0.4
-  target_compile_definitions( fiat PRIVATE $<$<COMPILE_LANG_AND_ID:Fortran,GNU>:__APPLE__>)
-endif()
+    if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
+        # Following should not be necessary; 
+        # Probably a bug in the M1 prerelease of gfortran 10.2.0.4
+        target_compile_definitions( ${fiatlib} PRIVATE $<$<COMPILE_LANG_AND_ID:Fortran,GNU>:__APPLE__>)
+    endif()
 
-if( NOT HAVE_MPI )
-    # define a preprocessor macro to improve messaging in dr_hook_init
-    target_compile_definitions( fiat PRIVATE NO_MPI_SUPPORT)
-endif()
+    if( NOT HAVE_MPI )
+        # define a preprocessor macro to improve messaging in dr_hook_init
+        target_compile_definitions( ${fiatlib} PRIVATE NO_MPI_SUPPORT)
+    endif()
 
-if( HAVE_MPL_F77_DEPRECATED)
-    target_compile_definitions( fiat PRIVATE MPL_F77_DEPRECATED )
-endif()
+    if( HAVE_MPL_F77_DEPRECATED)
+        target_compile_definitions( ${fiatlib} PRIVATE MPL_F77_DEPRECATED )
+    endif()
 
-if( HAVE_MPL_CHECK_CONTIG)
-    target_compile_definitions( fiat PRIVATE MPL_CHECK_CONTIG )
-endif()
+    if( HAVE_MPL_CHECK_CONTIG)
+        target_compile_definitions( ${fiatlib} PRIVATE MPL_CHECK_CONTIG )
+    endif()
 
-target_compile_definitions( fiat PRIVATE ${FIAT_DEFINITIONS} )
+    target_compile_definitions( ${fiatlib} PRIVATE ${FIAT_DEFINITIONS} )
 
-if( HAVE_FCKIT )
-    target_link_libraries( fiat PRIVATE fckit )
-endif()
+    if( HAVE_FCKIT )
+        target_link_libraries( ${fiatlib} PRIVATE fckit )
+    endif()
 
-if( HAVE_MPI )
-    target_link_libraries( fiat PUBLIC ${MPI_Fortran_LIBRARIES} )
-    target_include_directories( fiat PUBLIC ${MPI_Fortran_INCLUDE_DIRS} )
-else()
-    target_link_libraries( fiat PRIVATE  mpi_serial )
-endif()
+    if( HAVE_OMP )
+        target_link_libraries( ${fiatlib} PRIVATE OpenMP::OpenMP_Fortran )
+    endif()
 
-if( HAVE_OMP )
-    target_link_libraries( fiat PRIVATE OpenMP::OpenMP_Fortran )
-endif()
+    fiat_target_ignore_missing_symbols( TARGET ${fiatlib} SYMBOLS
+      _MallocExtension_GetNumericProperty
+      _MPI_Get_version
+      _MPI_Get_library_version
+    )
 
-fiat_target_ignore_missing_symbols( TARGET fiat SYMBOLS
-  _MallocExtension_GetNumericProperty
-  _MPI_Get_version
-  _MPI_Get_library_version
-)
+    fiat_target_fortran_module_directory(
+      TARGET ${fiatlib}
+      MODULE_DIRECTORY  ${CMAKE_BINARY_DIR}/module/fiat
+      INSTALL_DIRECTORY module/fiat
+    )
+
+endforeach()
 
 ## Install and Export ##
 
@@ -190,12 +224,6 @@ install(
 install(
   FILES       ${CMAKE_CURRENT_SOURCE_DIR}/version.h
   DESTINATION include/fiat
-)
-
-fiat_target_fortran_module_directory(
-  TARGET fiat
-  MODULE_DIRECTORY  ${CMAKE_BINARY_DIR}/module/fiat
-  INSTALL_DIRECTORY module/fiat
 )
 
 set( FIAT_DEFINITIONS ${FIAT_DEFINITIONS} PARENT_SCOPE )

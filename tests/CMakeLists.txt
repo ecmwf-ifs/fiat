@@ -17,6 +17,12 @@ else()
   set( LAUNCH ${CMAKE_CROSSCOMPILING_EMULATOR} )
 endif()
 
+# link tests against shared fiat library if it has been built, static library otherwise
+if (TARGET fiat)
+    set( fiatlib fiat )
+elseif( TARGET fiat-static )
+    set( fiatlib fiat-static )
+endif()
 
 if( HAVE_OMP )
   set( OMP OpenMP::OpenMP_Fortran )
@@ -31,7 +37,7 @@ if( HAVE_FCKIT AND fckit_VERSION VERSION_GREATER_EQUAL 0.9.1 )
 ecbuild_add_executable(
   TARGET  fiat-test-abort-exception-handler
   SOURCES test_abort_exception_handler.F90 test_abort_exception_handler.cc 
-  LIBS    fiat fckit
+  LIBS    ${fiatlib} fckit
   LINKER_LANGUAGE Fortran
   NOINSTALL)
 add_test(NAME fiat_test_abort_exception_handler
@@ -54,7 +60,7 @@ add_subdirectory( drhook )
 ecbuild_add_executable(
     TARGET  fiat-test-drhook-no-output
     SOURCES test_drhook_no_output.c 
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE C
     NOINSTALL )
 add_test( NAME fiat_test_drhook_no_output
@@ -75,7 +81,7 @@ set_tests_properties(fiat_test_drhook_no_output PROPERTIES
 ecbuild_add_executable(
     TARGET  fiat-test-drhook-abort
     SOURCES test_drhook_abort.c
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE C
     NOINSTALL )
 
@@ -101,7 +107,7 @@ set_tests_properties(fiat_test_drhook_abort_custom_abort PROPERTIES
 ecbuild_add_test(
     TARGET  fiat_test_drhook_fortran
     SOURCES test_drhook_fortran.F90 
-    LIBS    fiat ${OMP} ${FCKIT_LIB}
+    LIBS    ${fiatlib} ${OMP} ${FCKIT_LIB}
     LINKER_LANGUAGE Fortran
     DEFINITIONS ${FCKIT_DEFINITIONS})
 set_tests_properties(fiat_test_drhook_fortran PROPERTIES
@@ -119,7 +125,7 @@ if( HAVE_DR_HOOK_PAPI )
     SOURCES test_drhook_counters.F90
             test_drhook_counters_stream.F90
             test_drhook_counters_gemm.F90
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran
     ENVIRONMENT "DR_HOOK_ASSERT_MPI_INITIALIZED=0;FIAT_UNIT_TEST=1"
     )
@@ -158,7 +164,7 @@ ecbuild_add_test(
     TARGET  fiat_test_ec_args_fortran 
     SOURCES test_ec_args_fortran.F90 
     ARGS arg1 arg2 arg3
-    LIBS    fiat ${OMP}
+    LIBS    ${fiatlib} ${OMP}
     LINKER_LANGUAGE Fortran )
 
 # ----------------------------------------------------------------------------------------
@@ -167,7 +173,7 @@ ecbuild_add_test(
 ecbuild_add_test(
     TARGET  fiat_test_bytes_io 
     SOURCES test_bytes_io.F90 
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran )
 
 # ----------------------------------------------------------------------------------------
@@ -176,7 +182,7 @@ ecbuild_add_test(
 ecbuild_add_test(
     TARGET  fiat_test_byteswap
     SOURCES test_byteswap.F90
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran )
 
 # ----------------------------------------------------------------------------------------
@@ -185,7 +191,7 @@ ecbuild_add_test(
 ecbuild_add_test(
     TARGET  fiat_test_checksum_c 
     SOURCES test_checksum.c
-    LIBS    fiat )
+    LIBS    ${fiatlib} )
 
 # ----------------------------------------------------------------------------------------
 # Tests: fiat_test_checksum
@@ -193,7 +199,7 @@ ecbuild_add_test(
 ecbuild_add_test(
     TARGET  fiat_test_checksum
     SOURCES test_checksum.F90
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran )
 
 # ----------------------------------------------------------------------------------------
@@ -203,7 +209,7 @@ ecbuild_add_test(
 ecbuild_add_executable(
     TARGET  fiat-test-mpl-no-output
     SOURCES test_mpl_no_output.F90 
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran
     NOINSTALL )
 
@@ -220,7 +226,7 @@ add_test(NAME fiat_test_mpl_no_output
 ecbuild_add_executable(
     TARGET  fiat-test-mpl-split-comm
     SOURCES test_mpl_split_comm.F90
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran
     NOINSTALL )
 
@@ -238,7 +244,7 @@ ecbuild_add_test(
 ecbuild_add_executable(
     TARGET  fiat-test-abor1
     SOURCES test_abor1.F90 
-    LIBS    fiat ${OMP}
+    LIBS    ${fiatlib} ${OMP}
     LINKER_LANGUAGE Fortran
     NOINSTALL )
 add_test(NAME fiat_test_abor1
@@ -255,7 +261,7 @@ add_test(NAME fiat_test_abor1
 #
 ecbuild_add_test( TARGET fiat_test_alltoallv
     SOURCES alltoallv.F90
-    LIBS     fiat
+    LIBS     ${fiatlib}
     LINKER_LANGUAGE Fortran
     CONDITION HAVE_MPI
     MPI 2)
@@ -265,7 +271,7 @@ ecbuild_add_test( TARGET fiat_test_alltoallv
 #
 ecbuild_add_test( TARGET fiat_test_gatherv
     SOURCES gatherv.F90 
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran
     CONDITION HAVE_MPI
     MPI 2)
@@ -275,7 +281,7 @@ ecbuild_add_test( TARGET fiat_test_gatherv
 #
 ecbuild_add_test( TARGET fiat_test_allgatherv
     SOURCES allgatherv.F90 
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran
     CONDITION HAVE_MPI
     MPI 2)                  
@@ -285,7 +291,7 @@ ecbuild_add_test( TARGET fiat_test_allgatherv
 #
 ecbuild_add_test( TARGET fiat_test_scatterv
     SOURCES scatterv.F90 
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran
     CONDITION HAVE_MPI
     MPI 2)
@@ -295,8 +301,34 @@ ecbuild_add_test( TARGET fiat_test_scatterv
 # test the linled_list needed for the non-blocking collectives 
 ecbuild_add_test( TARGET fiat_test_displs_container
     SOURCES displs_container.F90
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran)
+
+#-----------------------------------------------------------------------------------------
+# Tests:  fiat_test_mpi_serial
+#
+#
+
+ecbuild_add_executable(
+    TARGET  fiat-test-mpi-serial
+    SOURCES test_mpi_serial.F90
+    LIBS    ${fiatlib} ${MPI_SERIAL_LIBRARIES}
+    LINKER_LANGUAGE Fortran
+    NOINSTALL )
+
+ecbuild_add_test( TARGET fiat_test_mpi_serial_n0
+    COMMAND fiat-test-mpi-serial)
+set_tests_properties(fiat_test_mpi_serial_n0 PROPERTIES
+    FAIL_REGULAR_EXPRESSION "My rank number is *1"
+)
+if (HAVE_MPI)
+  ecbuild_add_test( TARGET fiat_test_mpi_serial_n2
+      COMMAND fiat-test-mpi-serial
+      MPI 2)
+  set_tests_properties(fiat_test_mpi_serial_n2 PROPERTIES
+      FAIL_REGULAR_EXPRESSION "My rank number is *1"
+  )
+endif()
 
 # ----------------------------------------------------------------------------------------
 # Tests: fiat_test_namelist
@@ -304,7 +336,7 @@ ecbuild_add_test( TARGET fiat_test_displs_container
 ecbuild_add_executable(
     TARGET  fiat_test_namelist
     SOURCES test_namelist.F90
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran
     NOINSTALL )
 add_test(NAME fiat_test_namelist
