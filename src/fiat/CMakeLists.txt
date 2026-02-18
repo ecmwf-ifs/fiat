@@ -93,7 +93,7 @@ endif()
 # NOTE matching change required in fiat-import.cmake.in to ensure
 #      that downstream packages link to MPI::MPI_Fortran dependency.
 set(LINK_FIAT_MPI_LIBRARIES PRIVATE_LIBS ${FIAT_MPI_LIBRARIES})
-if (CMAKE_Fortran_COMPILER_ID MATCHES NVHPC)
+if (CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC|IntelLLVM")
     set(LINK_FIAT_MPI_LIBRARIES PUBLIC_LIBS ${FIAT_MPI_LIBRARIES})
 endif()
 
