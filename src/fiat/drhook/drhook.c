@@ -2824,7 +2824,7 @@ process_options()
 
 #if defined(DR_HOOK_HAVE_PAPI)
     if (opt_papi) {
-      newline = 0;
+      int newline = 0;
       env = getenv("DR_HOOK_PAPI_COUNTERS");
       if (env) {
         const char delim[] = ", \t/";
