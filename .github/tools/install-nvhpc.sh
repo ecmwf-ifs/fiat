@@ -62,14 +62,26 @@ ver="$(echo $version | tr -d . )"
 URL=$(curl -s "https://developer.nvidia.com/nvidia-hpc-sdk-$ver-downloads" | grep -oP "https://developer.download.nvidia.com/hpc-sdk/([0-9]{2}\.[0-9]+)/nvhpc_([0-9]{4})_([0-9]+)_Linux_$(uname -m)_cuda_([0-9\.]+).tar.gz" | sort | tail -1)
 FOLDER="$(basename "$(echo "${URL}" | grep -oP '[^/]+$')" .tar.gz)"
 
-if [ ! -d "${TEMPORARY_FILES}/${FOLDER}" ]; then
+MD5_HASH=$(curl -s "https://developer.download.nvidia.com/hpc-sdk/$ver/md5sum.txt" | grep -P "nvhpc_([0-9]{4})_([0-9]+)_Linux_$(uname -m)_cuda_([0-9\.]+).tar.gz" | awk '{print $1}')
+
+DOWNLOAD_REQUIRED=true
+if [ -d "${TEMPORARY_FILES}/${FOLDER}" ]; then
+  echo "Download already present in ${TEMPORARY_FILES}/${FOLDER}"
+  if [ "${MD5_HASH}" = "$(cat ${TEMPORARY_FILES}/${FOLDER}/md5sum.txt)" ]; then
+    echo "MD5 hash matches expected value, using existing download"
+    DOWNLOAD_REQUIRED=false
+  else
+    echo "MD5 hash does not match expected value"
+  fi
+fi
+
+if [ ${DOWNLOAD_REQUIRED} = true ]; then
   echo "Downloading ${TEMPORARY_FILES}/${FOLDER} from URL [${URL}]"
   mkdir -p ${TEMPORARY_FILES}
   curl --location \
        --user-agent "pgi-travis (https://github.com/nemequ/pgi-travis)" \
        "${URL}" | tar zx -C "${TEMPORARY_FILES}"
-else
-   echo "Download already present in ${TEMPORARY_FILES}/${FOLDER}"
+  echo "${MD5_HASH}" >> "${TEMPORARY_FILES}/${FOLDER}/md5sum.txt"
 fi
 
 echo "+ ${TEMPORARY_FILES}/${FOLDER}/install"
