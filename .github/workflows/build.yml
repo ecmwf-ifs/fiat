@@ -135,7 +135,7 @@ jobs:
           brew install ninja
         else
           sudo apt-get update
-          sudo apt-get install ninja-build ${{ case( matrix.feature == 'DR_HOOK_PAPI', 'papi-tools', '') }}
+          sudo apt-get install ninja-build ${{ case( matrix.feature == 'DR_HOOK_PAPI', 'papi-tools', matrix.feature == 'DR_HOOK_ROCTX', 'rocprofiler-sdk', '') }}
         fi
 
         printenv
