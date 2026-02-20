@@ -137,7 +137,7 @@ jobs:
         echo "FC=${{ matrix.compiler_fc }}"     >> $GITHUB_ENV
 
         if [[ "${{ matrix.feature }}" == "DR_HOOK_ROCTX" ]]; then
-          wget https://repo.radeon.com/amdgpu-install/7.2/ubuntu/noble/amdgpu-install_7.2.70200-1_all.deb
+          wget https://repo.radeon.com/amdgpu-install/7.2/ubuntu/${{ case(matrix.os == 'ubuntu-22.04', 'jammy', 'nobel') }}/amdgpu-install_7.2.70200-1_all.deb
           sudo apt install ./amdgpu-install_7.2.70200-1_all.deb
         fi
 
