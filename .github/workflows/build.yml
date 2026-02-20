@@ -118,11 +118,12 @@ jobs:
             caching: true
             coverage: false
             cmake_options: -DMPI_SLOTS=4 -DMPI_ARGS=--oversubscribe
-          - exclude:
-            - name: macos
-              feature: DR_HOOK_ROCTX
-            - name: macos
-              feature: DR_HOOK_NVTX
+
+        exclude:
+          - name: macos
+            feature: DR_HOOK_ROCTX
+          - name: macos
+            feature: DR_HOOK_NVTX
 
     runs-on: ${{ matrix.os }}
     steps:
