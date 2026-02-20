@@ -12,7 +12,7 @@
 
 ecbuild_add_executable( TARGET drhook_papi_basic
   SOURCES drhook_papi_basic.F90
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE Fortran
   CONDITION HAVE_DR_HOOK_PAPI
   NOINSTALL )
@@ -45,7 +45,7 @@ endif()
 
 ecbuild_add_executable( TARGET drhook_papi_mpi
   SOURCES drhook_papi_mpi.F90
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE Fortran
   CONDITION HAVE_DR_HOOK_PAPI AND HAVE_MPI
   NOINSTALL )
@@ -76,7 +76,7 @@ endif()
 
 ecbuild_add_executable( TARGET drhook_papi_user_filename
         SOURCES drhook_papi_user_filename.F90
-        LIBS fiat
+        LIBS ${fiatlib}
         LINKER_LANGUAGE Fortran
         CONDITION HAVE_DR_HOOK_PAPI
         NOINSTALL )
@@ -103,7 +103,7 @@ endif()
 
 ecbuild_add_executable( TARGET drhook_papi_user_counters
   SOURCES drhook_papi_user_counters.F90
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE Fortran
   CONDITION HAVE_DR_HOOK_PAPI
   NOINSTALL )
@@ -122,7 +122,7 @@ endif()
 
 ecbuild_add_executable( TARGET drhook_papi_user_counters_more_than_max
   SOURCES drhook_papi_user_counters_more_than_max.F90
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE Fortran
   CONDITION HAVE_DR_HOOK_PAPI
   NOINSTALL )

@@ -13,7 +13,7 @@
 
 ecbuild_add_executable( TARGET drhook_roctx_basic
   SOURCES drhook_roctx_basic.F90
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE Fortran
   NOINSTALL )
 
@@ -27,7 +27,7 @@ ecbuild_add_test( TARGET fiat_test_drhook_roctx_basic
 
 ecbuild_add_executable( TARGET drhook_roctx_basic_c
   SOURCES drhook_roctx_basic_c.c
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE C
   NOINSTALL )
 
@@ -41,7 +41,7 @@ ecbuild_add_test( TARGET fiat_test_drhook_roctx_basic_c
 
 ecbuild_add_executable( TARGET drhook_roctx_mismatched_regions
         SOURCES drhook_roctx_mismatched_regions.F90
-        LIBS fiat
+        LIBS ${fiatlib}
         LINKER_LANGUAGE Fortran
         NOINSTALL )
 
@@ -58,7 +58,7 @@ set_tests_properties(fiat_test_drhook_roctx_mismatched_regions
 
 ecbuild_add_executable( TARGET drhook_roctx_skip_spam_regions
         SOURCES drhook_roctx_skip_spam_regions.F90
-        LIBS fiat
+        LIBS ${fiatlib}
         LINKER_LANGUAGE Fortran
         NOINSTALL )
 
@@ -75,7 +75,7 @@ set_tests_properties(fiat_test_drhook_roctx_skip_spam_regions
 
 ecbuild_add_executable( TARGET drhook_roctx_no_skip_spam_regions
         SOURCES drhook_roctx_no_skip_spam_regions.F90
-        LIBS fiat
+        LIBS ${fiatlib}
         LINKER_LANGUAGE Fortran
         NOINSTALL )
 
