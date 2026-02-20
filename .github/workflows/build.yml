@@ -170,9 +170,13 @@ jobs:
 
     - name: Install NVHPC compiler
       if: contains( matrix.compiler, 'nvhpc' )
+      env:
+        COMPILER_NAME: ${{ matrix.name }}
       shell: bash -eux {0}
+      # This uses a parameter expansion to strip the leading everything up to & including
+      # the last '-'
       run: |
-        ${FIAT_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc --version 25.1
+        ${FIAT_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc --version ${COMPILER_NAME##*-}
         source /opt/nvhpc/env.sh
         echo "${NVHPC_DIR}/compilers/bin"                   >> $GITHUB_PATH
         echo "NVHPC_ROOT=${NVHPC_DIR}"                      >> $GITHUB_ENV
