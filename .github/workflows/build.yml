@@ -118,6 +118,11 @@ jobs:
             caching: true
             coverage: false
             cmake_options: -DMPI_SLOTS=4 -DMPI_ARGS=--oversubscribe
+          - exclude:
+            - name: macos
+              feature: DR_HOOK_ROCTX
+            - name: macos
+              feature: DR_HOOK_NVTX
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -130,6 +135,11 @@ jobs:
         echo "CC=${{ matrix.compiler_cc }}"     >> $GITHUB_ENV
         echo "CXX=${{ matrix.compiler_cxx }}"   >> $GITHUB_ENV
         echo "FC=${{ matrix.compiler_fc }}"     >> $GITHUB_ENV
+
+        if [[ "${{ matrix.feature }}" == "DR_HOOK_ROCTX" ]]; then
+          wget https://repo.radeon.com/amdgpu-install/7.2/ubuntu/noble/amdgpu-install_7.2.70200-1_all.deb
+          sudo apt install ./amdgpu-install_7.2.70200-1_all.deb
+        fi
 
         if [[ "${{ matrix.os }}" =~ macos ]]; then
           brew install ninja
