@@ -146,7 +146,7 @@ jobs:
           brew install ninja
         else
           sudo apt-get update
-          sudo apt-get install ninja-build ${{ case( matrix.feature == 'DR_HOOK_PAPI', 'libpapi-dev', matrix.feature == 'DR_HOOK_ROCTX', 'rocprofiler-sdk-roctx', matrix.feature == 'DR_HOOK_NVTX', 'nsight-systems-target', '') }}
+          sudo apt-get install ninja-build ${{ case( matrix.feature == 'DR_HOOK_PAPI', 'libpapi-dev', matrix.feature == 'DR_HOOK_ROCTX', 'rocprofiler-sdk-roctx', matrix.feature == 'DR_HOOK_NVTX' && matrix.compiler != 'nvhpc-25.1' , 'nvidia-cuda-toolkit', '') }}
         fi
 
         printenv
