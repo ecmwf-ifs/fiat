@@ -141,6 +141,7 @@ jobs:
         if [[ "${{ matrix.feature }}" == "DR_HOOK_NVTX" ]]; then
             wget https://developer.download.nvidia.com/compute/cuda/repos/${{ case(matrix.os == 'ubuntu-22.04', 'ubuntu2204', 'ubuntu2404') }}/x86_64/cuda-keyring_1.1-1_all.deb
             sudo dpkg -i cuda-keyring_1.1-1_all.deb
+            export CUDAToolkit_ROOT=/usr/local/cuda-12.4
         fi
 
         # https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/quick-start.html
@@ -153,7 +154,7 @@ jobs:
           brew install ninja
         else
           sudo apt-get update
-          sudo apt-get install ninja-build ${{ case( matrix.feature == 'DR_HOOK_PAPI', 'libpapi-dev', matrix.feature == 'DR_HOOK_ROCTX', 'rocprofiler-sdk-roctx', matrix.feature == 'DR_HOOK_NVTX' && matrix.compiler != 'nvhpc-25.1' , 'cuda-nvtx-12-* nsight-systems', '') }}
+          sudo apt-get install ninja-build ${{ case( matrix.feature == 'DR_HOOK_PAPI', 'libpapi-dev', matrix.feature == 'DR_HOOK_ROCTX', 'rocprofiler-sdk-roctx', matrix.feature == 'DR_HOOK_NVTX' && matrix.compiler != 'nvhpc-25.1' , 'cuda-nvtx-12-4 nsight-systems', '') }}
         fi
 
         printenv
