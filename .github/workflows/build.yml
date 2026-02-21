@@ -141,7 +141,7 @@ jobs:
         if [[ "${{ matrix.feature }}" == "DR_HOOK_NVTX" ]]; then
             wget https://developer.download.nvidia.com/compute/cuda/repos/${{ case(matrix.os == 'ubuntu-22.04', 'ubuntu2204', 'ubuntu2404') }}/x86_64/cuda-keyring_1.1-1_all.deb
             sudo dpkg -i cuda-keyring_1.1-1_all.deb
-            export CUDAToolkit_ROOT=/usr/local/cuda-12.4
+            echo "CUDAToolkit_ROOT=/usr/local/cuda-12.4" >> $GITHUB_ENV
         fi
 
         # https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/quick-start.html
