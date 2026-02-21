@@ -153,7 +153,11 @@ jobs:
           brew install ninja
         else
           sudo apt-get update
-          sudo apt-get install ninja-build ${{ case( matrix.feature == 'DR_HOOK_PAPI', 'libpapi-dev', matrix.feature == 'DR_HOOK_ROCTX', 'rocprofiler-sdk-roctx', matrix.feature == 'DR_HOOK_NVTX' && matrix.compiler != 'nvhpc-25.1' , format('nsight-systems cuda-nvtx-12-{0} cuda-nvcc-12-{0}', case(matrix.os == 'ubuntu-24.04', '5', '4')), '') }}
+          sudo apt-get install ninja-build ${{ case( matrix.feature == 'DR_HOOK_PAPI', 'libpapi-dev', matrix.feature == 'DR_HOOK_ROCTX', 'rocprofiler-sdk-roctx', matrix.feature == 'DR_HOOK_NVTX' && matrix.compiler != 'nvhpc-25.1' , 'nsight-systems cuda-nvtx-12-5 cuda-nvcc-12-5', '') }}
+        fi
+        if [[ "${{ matrix.feature }}" == "DR_HOOK_NVTX" ]]; then
+          dpkg -L nsight-systems | grep nsys
+          ls /opt/nvidia/
         fi
 
         printenv
