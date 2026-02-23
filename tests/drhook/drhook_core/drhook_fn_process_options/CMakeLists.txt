@@ -10,7 +10,7 @@
 
 ecbuild_add_executable( TARGET fiat_test_drhook_fn_process_options_dummy
         SOURCES dummy.F90
-        LIBS fiat
+        LIBS ${fiatlib}
         LINKER_LANGUAGE Fortran
         NOINSTALL )
 
