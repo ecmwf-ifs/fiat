@@ -15,7 +15,7 @@ if( NOT rocprofiler-sdk-roctx_FOUND )
     if ( NOT DEFINED ROCM_PATH OR NOT ROCM_PATH_FOUND )
         find_path(
             ROCM_PATH
-            NAMES include/roctracer/roctx.h
+            NAMES include/roctracer/roctx.h include/rocprofiler-sdk-roctx/roctx.h
             HINTS ENV ROCM_DIR ENV ROCM_PATH ENV HIP_PATH ENV ROCM_ROOT_DIR /opt/rocm
         )
         ecbuild_info( "ROCM path: ${ROCM_PATH}" )
