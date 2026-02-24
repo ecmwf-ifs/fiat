@@ -160,10 +160,12 @@ jobs:
         fi
 
         if [[ "${{ matrix.feature }}" == "DR_HOOK_ROCTX" ]]; then
+          echo "/opt/rocm/include"
           ls /opt/rocm/include
+          echo "/opt/rocm/lib"
           ls /opt/rocm/lib
+          echo "/opt/rocm/lib/cmake"
           ls /opt/rocm/lib/cmake
-          ls /opt/rocm/include/roctracer
         fi
 
         printenv
