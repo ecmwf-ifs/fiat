@@ -277,15 +277,17 @@ INTEGER(KIND=JPIM) :: I
 LOGICAL :: LLFOUND
 
 IF (THIS%LIST_SIZE == 0) RETURN
-
- ! This subroutine could be expensive if the requests array is large
- ! This could happen if non-blocking collectives request are mixed
- ! point to point non-blocking requests
- ! The application programmer should avoid this by using different
- ! call to mpl_wait for the different types of requests
+ ! This subroutine can become a bottleneck if the request array grows large.
+ ! This happens when point-to-point non-blocking communications are interleaved
+ ! with a non-blocking collective (NBC) that lacks explicit displacement arrays.
+ ! Since the MPI does not distingueshes between the requests for point to point or collective comms,
+ ! the linked list must be checked by every mpl_wait call.
+ ! To avoid this, the programmer should provide explicit displacement
+ ! arrays for the NBC calls whose completion epoch overlaps with other non-blocking comms epochs.
 IF (IWARNING < IMAX_WARNINGS) THEN
   IF (SIZE(KREQ) > MAX(INT(0.1 * THIS%HEAD%NPROC), 10)) THEN
-    WRITE(MPL_ERRUNIT,*) 'WARNING: rank ', MPL_RANK, 'REMOVE_REQ called with a request array of size ', &
+    WRITE(MPL_ERRUNIT,*) 'WARNING: FIAT::mpl_displs_container_mod.F90:  rank ', &
+      & MPL_RANK, 'REMOVE_REQ called with a request array of size ', &
       & SIZE(KREQ)
     IWARNING = IWARNING + 1
   ENDIF
