@@ -49,7 +49,7 @@ ecbuild_add_test( TARGET fiat_test_drhook_roctx_mismatched_regions
         TYPE SCRIPT
         COMMAND "rocprofv3"
         ARGS --marker-trace --output-file rocprofv3.drhook_roctx_mismatched_regions --output-format pftrace -- ./drhook_roctx_mismatched_regions
-        ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1 )
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1 DR_HOOK_OPT=NOPROPAGATE_SIGNALS)
 
 set_tests_properties(fiat_test_drhook_roctx_mismatched_regions
         PROPERTIES WILL_FAIL TRUE )
