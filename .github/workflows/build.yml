@@ -124,6 +124,8 @@ jobs:
             feature: DR_HOOK_ROCTX
           - name: macos
             feature: DR_HOOK_NVTX
+          - name: macos
+            feature: DR_HOOK_PAPI
 
     runs-on: ${{ matrix.os }}
     steps:
