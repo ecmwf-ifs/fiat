@@ -13,7 +13,7 @@
 
 ecbuild_add_executable( TARGET drhook_nvtx_basic
   SOURCES drhook_nvtx_basic.F90
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE Fortran
   CONDITION HAVE_DR_HOOK_NVTX
   NOINSTALL )
@@ -29,7 +29,7 @@ ecbuild_add_test( TARGET fiat_test_drhook_nvtx_basic
 
 ecbuild_add_executable( TARGET drhook_nvtx_basic_c
   SOURCES drhook_nvtx_basic_c.c
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE C
   CONDITION HAVE_DR_HOOK_NVTX
   NOINSTALL )
@@ -45,7 +45,7 @@ ecbuild_add_test( TARGET fiat_test_drhook_nvtx_basic_c
 
 ecbuild_add_executable( TARGET drhook_nvtx_mismatched_regions
         SOURCES drhook_nvtx_mismatched_regions.F90
-        LIBS fiat
+        LIBS ${fiatlib}
         LINKER_LANGUAGE Fortran
         CONDITION HAVE_DR_HOOK_NVTX
         NOINSTALL )
@@ -66,7 +66,7 @@ endif()
 
 ecbuild_add_executable( TARGET drhook_nvtx_skip_spam_regions
         SOURCES drhook_nvtx_skip_spam_regions.F90
-        LIBS fiat
+        LIBS ${fiatlib}
         LINKER_LANGUAGE Fortran
         CONDITION HAVE_DR_HOOK_NVTX
         NOINSTALL )
@@ -87,7 +87,7 @@ endif()
 
 ecbuild_add_executable( TARGET drhook_nvtx_no_skip_spam_regions
         SOURCES drhook_nvtx_no_skip_spam_regions.F90
-        LIBS fiat
+        LIBS ${fiatlib}
         LINKER_LANGUAGE Fortran
         CONDITION HAVE_DR_HOOK_NVTX
         NOINSTALL )

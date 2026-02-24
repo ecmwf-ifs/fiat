@@ -93,14 +93,18 @@ endif()
 # NOTE matching change required in fiat-import.cmake.in to ensure
 #      that downstream packages link to MPI::MPI_Fortran dependency.
 set(LINK_FIAT_MPI_LIBRARIES PRIVATE_LIBS ${FIAT_MPI_LIBRARIES})
-if (CMAKE_Fortran_COMPILER_ID MATCHES NVHPC)
+if (CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC|IntelLLVM")
     set(LINK_FIAT_MPI_LIBRARIES PUBLIC_LIBS ${FIAT_MPI_LIBRARIES})
 endif()
 
-set( FIAT_DEPENDENCE )
+set( fiatlib_SHARED fiat)
+set( fiatlib_STATIC fiat)
+set( FIAT_DEPENDENCE_STATIC )
+set( FIAT_DEPENDENCE_SHARED )
 if( ${BUILD_SHARED_LIBS} MATCHES "BOTH" )
     set( LIB_TYPES SHARED STATIC )
-    set( FIAT_DEPENDENCE fiat )
+    set( fiatlib_STATIC fiat-static)
+    set( FIAT_DEPENDENCE_STATIC ${fiatlib_SHARED} )
 elseif( BUILD_SHARED_LIBS )
     set( LIB_TYPES SHARED )
 else()
@@ -108,11 +112,7 @@ else()
 endif()
 
 foreach( LIB_TYPE ${LIB_TYPES} )
-    if( ${LIB_TYPE} MATCHES "STATIC" )
-        set( fiatlib "fiat-static" )
-    else()
-        set( fiatlib "fiat")
-    endif()
+    set( fiatlib ${fiatlib_${LIB_TYPE}} )
     ecbuild_add_library( TARGET ${fiatlib}
     LINKER_LANGUAGE Fortran
     SOURCES ${fiat_src} ${CMAKE_CURRENT_BINARY_DIR}/version.c
@@ -132,9 +132,9 @@ foreach( LIB_TYPE ${LIB_TYPES} )
         $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include/fiat>
         $<INSTALL_INTERFACE:include>
         $<INSTALL_INTERFACE:include/fiat>
-            ${MPI_Fortran_INCLUDE_DIRS}
-        OUTPUT_NAME fiat
-        DEPENDS ${FIAT_DEPENDENCE}
+        ${MPI_Fortran_INCLUDE_DIRS}
+    OUTPUT_NAME fiat
+    DEPENDS ${FIAT_DEPENDENCE_${LIB_TYPE}}
     )
 
     if (HAVE_DR_HOOK_NVTX)
