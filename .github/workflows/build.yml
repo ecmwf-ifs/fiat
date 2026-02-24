@@ -162,6 +162,8 @@ jobs:
         if [[ "${{ matrix.feature }}" == "DR_HOOK_ROCTX" ]]; then
           echo "/opt/rocm/include"
           ls /opt/rocm/include
+          echo "/opt/rocm/include/rocprofiler-sdk-roctx"
+          ls /opt/rocm/include/rocprofiler-sdk-roctx
           echo "/opt/rocm/lib"
           ls /opt/rocm/lib
           echo "/opt/rocm/lib/cmake"
