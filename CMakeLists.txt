@@ -87,6 +87,13 @@ ecbuild_add_option( FEATURE DR_HOOK_ROCTX
 
 ecbuild_find_package( NAME Realtime QUIET )
 
+if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  set(_whole_archive "-Wl,-force_load")
+  set(_no_whole_archive "")
+else()
+  set(_whole_archive "-Wl,--whole-archive")
+  set(_no_whole_archive "-Wl,--no-whole-archive")
+endif()
 ### Sources
 # define MPI_SERIAL_LIBRARIES before including src folder, for use in fiat library declaration
 set(MPI_SERIAL_LIBRARIES ${_whole_archive} mpi_serial ${_no_whole_archive})
