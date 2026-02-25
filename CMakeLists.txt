@@ -107,6 +107,12 @@ else()
 set (fiat_HAVE_MPL_F08 1)
 endif()
 
+set( fiat_REQUIRES_PRIVATE_DEPENDENCIES FALSE )
+get_target_property( target_build_type fiat TYPE )
+if( target_build_type STREQUAL STATIC_LIBRARY OR TARGET fiat-static )
+  set( fiat_REQUIRES_PRIVATE_DEPENDENCIES TRUE )
+endif()
+
 ecbuild_install_project( NAME fiat )
 
 ecbuild_print_summary()
