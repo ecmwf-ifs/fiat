@@ -48,8 +48,10 @@ ecbuild_add_executable( TARGET drhook_roctx_mismatched_regions
 ecbuild_add_test( TARGET fiat_test_drhook_roctx_mismatched_regions
         TYPE SCRIPT
         COMMAND "rocprofv3"
+        # Need to disable signal handlers because rocprof will just bounce the signal back to DrHook until it gets harakiri'ed.
+        # DR_HOOK_OPT=NOPROP isn't enough as intel compilers hang when passing the signal to DrHook.
         ARGS --disable-signal-handlers --marker-trace --output-file rocprofv3.drhook_roctx_mismatched_regions --output-format pftrace -- ./drhook_roctx_mismatched_regions
-        ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1 DR_HOOK_OPT=NOPROPAGATE_SIGNALS)
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1 )
 
 set_tests_properties(fiat_test_drhook_roctx_mismatched_regions
         PROPERTIES WILL_FAIL TRUE )
