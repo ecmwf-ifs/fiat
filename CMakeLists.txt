@@ -87,6 +87,13 @@ ecbuild_add_option( FEATURE DR_HOOK_ROCTX
 
 ecbuild_find_package( NAME Realtime QUIET )
 
+if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  set(_whole_archive "-Wl,-force_load")
+  set(_no_whole_archive "")
+else()
+  set(_whole_archive "-Wl,--whole-archive")
+  set(_no_whole_archive "-Wl,--no-whole-archive")
+endif()
 ### Sources
 # define MPI_SERIAL_LIBRARIES before including src folder, for use in fiat library declaration
 set(MPI_SERIAL_LIBRARIES ${_whole_archive} mpi_serial ${_no_whole_archive})
@@ -105,6 +112,12 @@ if (fiat_HAVE_MPL_F77_DEPRECATED)
 set (fiat_HAVE_MPL_F08 0)
 else()
 set (fiat_HAVE_MPL_F08 1)
+endif()
+
+set( fiat_REQUIRES_PRIVATE_DEPENDENCIES FALSE )
+get_target_property( target_build_type fiat TYPE )
+if( target_build_type STREQUAL STATIC_LIBRARY OR TARGET fiat-static )
+  set( fiat_REQUIRES_PRIVATE_DEPENDENCIES TRUE )
 endif()
 
 ecbuild_install_project( NAME fiat )
