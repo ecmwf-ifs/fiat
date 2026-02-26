@@ -121,10 +121,10 @@ contains
           rcounts_c=6 ! 
           call mpl_gatherv(sbufc,kroot,rbufc,rcounts_c, KMP_TYPE = JP_NON_BLOCKING_STANDARD,KREQUEST=request_c)
         else
-          call mpl_gatherv(sbuf,kroot,rbuf,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
-          call mpl_gatherv(sbufr,kroot,rbufr,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_r)
-          call mpl_gatherv(sbufd,kroot,rbufd,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_d)
-          call mpl_gatherv(sbufc,kroot,rbufc,rcounts, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_c)
+          call mpl_gatherv(sbuf,kroot, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
+          call mpl_gatherv(sbufr,kroot, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_r)
+          call mpl_gatherv(sbufd,kroot, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_d)
+          call mpl_gatherv(sbufc,kroot, KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_c)
         endif
           call work1(res)
         if ( res > 0 ) write(0,*) "error in work1 non-blocking alltoallv" ! this should not happen ever !!!
