@@ -2659,8 +2659,11 @@ process_options()
       char* opt_name = p;
       /* Assume that everything is OFF by default */
       if (strequ(p,"ALL")) { /* all except profiler data */
-        opt_papi = opt_gethwm = opt_getstk = opt_getrss = opt_getpag = opt_walltime = opt_cputime = opt_cycles = 1;
+        opt_gethwm = opt_getstk = opt_getrss = opt_getpag = opt_walltime = opt_cputime = opt_cycles = 1;
         opt_calls = 1;
+#ifdef DR_HOOK_HAVE_PAPI
+        opt_papi = 1;
+#endif
         any_memstat++;
       }
       else if (strequ(p,"MEM") || strequ(p,"MEMORY")) {
@@ -2732,7 +2735,9 @@ process_options()
         opt_cpuprof = 0; /* Note: Switches cpuprof OFF */
         opt_calls = 1;
         opt_cycles = 1;
+#ifdef DR_HOOK_HAVE_PAPI
         opt_papi = 1;
+#endif
       }
       else if (strequ(p,"CPUPROF")) {
         opt_cpuprof = 1;

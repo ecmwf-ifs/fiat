@@ -120,40 +120,42 @@ set_tests_properties(fiat_test_drhook_fortran PROPERTIES
 # ----------------------------------------------------------------------------------------
 # Tests: fiat_test_drhook_counters
 
-ecbuild_add_test(TARGET fiat_test_drhook_counters
-  SOURCES test_drhook_counters.F90
-          test_drhook_counters_stream.F90
-          test_drhook_counters_gemm.F90
-  LIBS    ${fiatlib}
-  LINKER_LANGUAGE Fortran
-  ENVIRONMENT "DR_HOOK_ASSERT_MPI_INITIALIZED=0;FIAT_UNIT_TEST=1"
-  LABELS "PAPI_BROKEN_GITHUB_CI"
-  )
-target_compile_definitions( fiat_test_drhook_counters PRIVATE OMP )
-if( NOT HAVE_MPI )
-  target_compile_definitions( fiat_test_drhook_counters PRIVATE NOMPI )
-endif()
-
-if( CMAKE_Fortran_COMPILER_ID MATCHES Intel )
-  set_source_files_properties(test_drhook_counters_stream.F90
-    PROPERTIES COMPILE_OPTIONS "-qopt-prefetch-distance=64,12;-qopt-streaming-cache-evict=0;-qopt-streaming-stores always;-qopt-zmm-usage=high")
-endif()
-
-find_package( OpenMP COMPONENTS Fortran )
-if( TARGET OpenMP::OpenMP_Fortran )
-  target_link_libraries( fiat_test_drhook_counters OpenMP::OpenMP_Fortran )
-endif()
-if( NOT BLAS_LIBRARIES )
-  find_package( MKL QUIET )
-  if( MKL_LIBRARIES )
-    set( BLAS_LIBRARIES ${MKL_LIBRARIES} )
-  else()
-    find_package( BLAS QUIET )
+if( HAVE_DR_HOOK_PAPI )
+  ecbuild_add_test(TARGET fiat_test_drhook_counters
+    SOURCES test_drhook_counters.F90
+            test_drhook_counters_stream.F90
+            test_drhook_counters_gemm.F90
+    LIBS    ${fiatlib}
+    LINKER_LANGUAGE Fortran
+    ENVIRONMENT "DR_HOOK_ASSERT_MPI_INITIALIZED=0;FIAT_UNIT_TEST=1"
+    LABELS "PAPI_BROKEN_GITHUB_CI"
+    )
+  target_compile_definitions( fiat_test_drhook_counters PRIVATE OMP )
+  if( NOT HAVE_MPI )
+    target_compile_definitions( fiat_test_drhook_counters PRIVATE NOMPI )
   endif()
-endif()
-if( BLAS_LIBRARIES )
-  target_link_libraries( fiat_test_drhook_counters ${BLAS_LIBRARIES} )
-  target_compile_definitions( fiat_test_drhook_counters PUBLIC HAVE_BLAS )
+
+  if( CMAKE_Fortran_COMPILER_ID MATCHES Intel )
+    set_source_files_properties(test_drhook_counters_stream.F90
+      PROPERTIES COMPILE_OPTIONS "-qopt-prefetch-distance=64,12;-qopt-streaming-cache-evict=0;-qopt-streaming-stores always;-qopt-zmm-usage=high")
+  endif()
+
+  find_package( OpenMP COMPONENTS Fortran )
+  if( TARGET OpenMP::OpenMP_Fortran )
+    target_link_libraries( fiat_test_drhook_counters OpenMP::OpenMP_Fortran )
+  endif()
+  if( NOT BLAS_LIBRARIES )
+    find_package( MKL QUIET )
+    if( MKL_LIBRARIES )
+      set( BLAS_LIBRARIES ${MKL_LIBRARIES} )
+    else()
+      find_package( BLAS QUIET )
+    endif()
+  endif()
+  if( BLAS_LIBRARIES )
+    target_link_libraries( fiat_test_drhook_counters ${BLAS_LIBRARIES} )
+    target_compile_definitions( fiat_test_drhook_counters PUBLIC HAVE_BLAS )
+  endif()
 endif()
 
 # ----------------------------------------------------------------------------------------
