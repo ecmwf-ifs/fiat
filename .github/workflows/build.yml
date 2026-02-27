@@ -120,7 +120,7 @@ jobs:
             cmake_options: -DMPI_SLOTS=4 -DMPI_ARGS=--oversubscribe
 
           - feature: DR_HOOK_PAPI
-            ctest_options: -E ".*(papi|counters).*"
+            ctest_options: -LE PAPI_BROKEN_GITHUB_CI
 
         exclude:
           - name: macos
