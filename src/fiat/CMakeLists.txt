@@ -145,9 +145,15 @@ foreach( LIB_TYPE ${LIB_TYPES} )
         target_compile_definitions(${fiatlib} PRIVATE DR_HOOK_HAVE_NVTX=1 HAVE_NVTX3=${HAVE_NVTX3} )
 
         # Link with NVTX
-        target_link_libraries     (${fiatlib} PRIVATE ${NVTX_LIBRARIES})
-        target_include_directories(${fiatlib} PRIVATE ${NVTX_INCLUDE_DIRS})
+	#if (CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC|IntelLLVM")
+	#    target_link_libraries     (${fiatlib} PUBLIC ${NVTX_LIBRARIES})
+	#    target_include_directories(${fiatlib} PUBLIC ${NVTX_INCLUDE_DIRS})
+	#else()
+            target_link_libraries     (${fiatlib} PRIVATE ${NVTX_LIBRARIES})
+            target_include_directories(${fiatlib} PRIVATE ${NVTX_INCLUDE_DIRS})
+	#endif()
     endif()
+    set(LINK_FIAT_MPI_LIBRARIES PUBLIC_LIBS ${FIAT_MPI_LIBRARIES})
 
     if (HAVE_DR_HOOK_ROCTX)
         # Files from within DrHook
@@ -157,8 +163,8 @@ foreach( LIB_TYPE ${LIB_TYPES} )
         target_compile_definitions(${fiatlib} PRIVATE DR_HOOK_HAVE_ROCTX=1 HAVE_ROCPROFILER_SDK_ROCTX=${HAVE_ROCPROFILER_SDK_ROCTX})
 
         # Link with ROCTX
-        target_link_libraries     (${fiatlib} PRIVATE ${ROCTX_LIBRARIES})
-        target_include_directories(${fiatlib} PRIVATE ${ROCTX_INCLUDE_DIRS})
+	target_link_libraries     (${fiatlib} PRIVATE ${ROCTX_LIBRARIES})
+	target_include_directories(${fiatlib} PRIVATE ${ROCTX_INCLUDE_DIRS})
     endif()
 
     if (HAVE_DR_HOOK_PAPI)
