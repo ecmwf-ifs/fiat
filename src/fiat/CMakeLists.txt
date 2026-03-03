@@ -54,15 +54,6 @@ ecbuild_list_add_pattern( LIST fiat_src GLOB
     util/*.c util/*.F*
     )
 
-# Two MPL interface styles
-# - DEPRECATED F77 based interface, relies on mpif.h, can't take non-contiguous arrays
-# - MPI_F08 based interface, relies on mpi_f08 module
-# NB : both interfaces can be compiled without MPI, and then link to mpi_serial library
-if( HAVE_MPI AND NOT MPI_Fortran_HAVE_F08_MODULE )
-    ecbuild_info( "MPI present, but no MPI-F08 support so building F77 MPL" )
-    set( HAVE_MPL_F77_DEPRECATED 1 )
-endif()
-
 if( HAVE_MPL_F77_DEPRECATED)
     ecbuild_list_add_pattern( LIST fiat_src GLOB
       "mpl/internal_deprecated/*.c" "mpl/internal_deprecated/*.F*"
