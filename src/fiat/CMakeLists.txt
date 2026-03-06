@@ -145,13 +145,8 @@ foreach( LIB_TYPE ${LIB_TYPES} )
         target_compile_definitions(${fiatlib} PRIVATE DR_HOOK_HAVE_NVTX=1 HAVE_NVTX3=${HAVE_NVTX3} )
 
         # Link with NVTX
-	#if (CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC|IntelLLVM")
-	#    target_link_libraries     (${fiatlib} PUBLIC ${NVTX_LIBRARIES})
-	#    target_include_directories(${fiatlib} PUBLIC ${NVTX_INCLUDE_DIRS})
-	#else()
-            target_link_libraries     (${fiatlib} PRIVATE ${NVTX_LIBRARIES})
-            target_include_directories(${fiatlib} PRIVATE ${NVTX_INCLUDE_DIRS})
-	#endif()
+        target_link_libraries     (${fiatlib} PRIVATE ${NVTX_LIBRARIES})
+        target_include_directories(${fiatlib} PRIVATE ${NVTX_INCLUDE_DIRS})
     endif()
     set(LINK_FIAT_MPI_LIBRARIES PUBLIC_LIBS ${FIAT_MPI_LIBRARIES})
 
