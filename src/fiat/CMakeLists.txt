@@ -158,8 +158,8 @@ foreach( LIB_TYPE ${LIB_TYPES} )
         target_compile_definitions(${fiatlib} PRIVATE DR_HOOK_HAVE_ROCTX=1 HAVE_ROCPROFILER_SDK_ROCTX=${HAVE_ROCPROFILER_SDK_ROCTX})
 
         # Link with ROCTX
-	target_link_libraries     (${fiatlib} PRIVATE ${ROCTX_LIBRARIES})
-	target_include_directories(${fiatlib} PRIVATE ${ROCTX_INCLUDE_DIRS})
+        target_link_libraries     (${fiatlib} PRIVATE ${ROCTX_LIBRARIES})
+        target_include_directories(${fiatlib} PRIVATE ${ROCTX_INCLUDE_DIRS})
     endif()
 
     if (HAVE_DR_HOOK_PAPI)
