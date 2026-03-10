@@ -6,22 +6,23 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-set( HAVE_ROCPROFILER_SDK_ROCTX 0)	
+set( HAVE_ROCPROFILER_SDK_ROCTX 0)
 set( ROCTX_REQUIRED_VARS ROCTX_LIBRARIES )
 
-find_package( rocprofiler-sdk-roctx CONFIG PATHS ${ROCM_PATH}/lib )
+if ( NOT DEFINED ROCM_PATH OR NOT ROCM_PATH_FOUND )
+    find_path(
+            ROCM_PATH
+            NAMES include/roctracer/roctx.h include/rocprofiler-sdk-roctx/roctx.h
+            HINTS ENV ROCM_DIR ENV ROCM_PATH ENV HIP_PATH ENV ROCM_ROOT_DIR /opt/rocm
+    )
+    ecbuild_info( "ROCM path: ${ROCM_PATH}" )
+endif()
+
+find_package( rocprofiler-sdk-roctx CONFIG PATHS ${ROCM_PATH}/lib ${ROCM_PATH}/lib/cmake )
 if( NOT rocprofiler-sdk-roctx_FOUND )
     ecbuild_info( "rocprofiler-sdk-roctx libraries not found" )
-    if ( NOT DEFINED ROCM_PATH OR NOT ROCM_PATH_FOUND )
-        find_path(
-            ROCM_PATH
-            NAMES include/roctracer/roctx.h
-            HINTS ENV ROCM_DIR ENV ROCM_PATH ENV HIP_PATH ENV ROCM_ROOT_DIR /opt/rocm
-        )
-        ecbuild_info( "ROCM path: ${ROCM_PATH}" )
-    endif()
 
-    find_path( ROCTX_INCLUDE_DIRS NAMES roctx.h HINTS ${ROCM_PATH}/include/roctracer/ )
+    find_path( ROCTX_INCLUDE_DIRS NAMES roctx.h HINTS ${ROCM_PATH}/include/roctracer/ ${ROCM_PATH}/include/rocprofiler-sdk-roctx )
     list( APPEND ROCTX_REQUIRED_VARS ROCTX_INCLUDE_DIRS )
     find_path( ROCTX_LIBRARY_PATH NAMES libroctx64.so HINTS ${ROCM_PATH}/lib/ )
 
@@ -31,8 +32,8 @@ if( NOT rocprofiler-sdk-roctx_FOUND )
 else()
     if( TARGET ${rocprofiler-sdk-roctx_LIBRARIES} )
         set( ROCTX_LIBRARIES ${rocprofiler-sdk-roctx_LIBRARIES} )
-	set( ROCTX_INCLUDE_DIRS ${rocprofiler-sdk-roctx_INCLUDE_DIR} )
-	list( APPEND ROCTX_REQUIRED_VARS ROCTX_INCLUDE_DIRS )
+    set( ROCTX_INCLUDE_DIRS ${rocprofiler-sdk-roctx_INCLUDE_DIR} )
+    list( APPEND ROCTX_REQUIRED_VARS ROCTX_INCLUDE_DIRS )
         set( HAVE_ROCPROFILER_SDK_ROCTX 1 )
     endif()
 endif()

@@ -13,7 +13,7 @@
 
 ecbuild_add_executable( TARGET drhook_roctx_basic
   SOURCES drhook_roctx_basic.F90
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE Fortran
   NOINSTALL )
 
@@ -27,7 +27,7 @@ ecbuild_add_test( TARGET fiat_test_drhook_roctx_basic
 
 ecbuild_add_executable( TARGET drhook_roctx_basic_c
   SOURCES drhook_roctx_basic_c.c
-  LIBS fiat
+  LIBS ${fiatlib}
   LINKER_LANGUAGE C
   NOINSTALL )
 
@@ -41,15 +41,17 @@ ecbuild_add_test( TARGET fiat_test_drhook_roctx_basic_c
 
 ecbuild_add_executable( TARGET drhook_roctx_mismatched_regions
         SOURCES drhook_roctx_mismatched_regions.F90
-        LIBS fiat
+        LIBS ${fiatlib}
         LINKER_LANGUAGE Fortran
         NOINSTALL )
 
 ecbuild_add_test( TARGET fiat_test_drhook_roctx_mismatched_regions
         TYPE SCRIPT
         COMMAND "rocprofv3"
-        ARGS --marker-trace --output-file rocprofv3.drhook_roctx_mismatched_regions --output-format pftrace -- ./drhook_roctx_mismatched_regions
-        ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1 )
+        # Need to disable signal handlers because rocprof will just bounce the signal back to DrHook until it gets harakiri'ed.
+        # DR_HOOK_OPT=NOPROPAGATE_SIGNALS alone isn't enough as intel compilers hang when rocprof passes the signal back due to them also having a signal handler.
+        ARGS --disable-signal-handlers --marker-trace --output-file rocprofv3.drhook_roctx_mismatched_regions --output-format pftrace -- ./drhook_roctx_mismatched_regions
+        ENVIRONMENT DR_HOOK=1 DR_HOOK_ROCTX=1 DR_HOOK_OPT=NOPROPAGATE_SIGNALS )
 
 set_tests_properties(fiat_test_drhook_roctx_mismatched_regions
         PROPERTIES WILL_FAIL TRUE )
@@ -58,7 +60,7 @@ set_tests_properties(fiat_test_drhook_roctx_mismatched_regions
 
 ecbuild_add_executable( TARGET drhook_roctx_skip_spam_regions
         SOURCES drhook_roctx_skip_spam_regions.F90
-        LIBS fiat
+        LIBS ${fiatlib}
         LINKER_LANGUAGE Fortran
         NOINSTALL )
 
@@ -75,7 +77,7 @@ set_tests_properties(fiat_test_drhook_roctx_skip_spam_regions
 
 ecbuild_add_executable( TARGET drhook_roctx_no_skip_spam_regions
         SOURCES drhook_roctx_no_skip_spam_regions.F90
-        LIBS fiat
+        LIBS ${fiatlib}
         LINKER_LANGUAGE Fortran
         NOINSTALL )
 

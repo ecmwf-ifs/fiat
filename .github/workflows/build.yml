@@ -30,6 +30,8 @@ jobs:
 
       matrix:
         build_type: [Release,Debug]
+        lib_type: [Shared,Static]
+        feature: [None,DR_HOOK_PAPI,DR_HOOK_NVTX,DR_HOOK_ROCTX]
         name:
           - linux gnu-10
           - linux gnu-12
@@ -117,6 +119,17 @@ jobs:
             coverage: false
             cmake_options: -DMPI_SLOTS=4 -DMPI_ARGS=--oversubscribe
 
+          - feature: DR_HOOK_PAPI
+            ctest_options: -LE PAPI_BROKEN_GITHUB_CI
+
+        exclude:
+          - name: macos
+            feature: DR_HOOK_ROCTX
+          - name: macos
+            feature: DR_HOOK_NVTX
+          - name: macos
+            feature: DR_HOOK_PAPI
+
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout Repository
@@ -129,11 +142,25 @@ jobs:
         echo "CXX=${{ matrix.compiler_cxx }}"   >> $GITHUB_ENV
         echo "FC=${{ matrix.compiler_fc }}"     >> $GITHUB_ENV
 
+        # https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=24.04&target_type=deb_network
+        if [[ "${{ matrix.feature }}" == "DR_HOOK_NVTX" ]]; then
+            wget https://developer.download.nvidia.com/compute/cuda/repos/${{ case(matrix.os == 'ubuntu-22.04', 'ubuntu2204', 'ubuntu2404') }}/x86_64/cuda-keyring_1.1-1_all.deb
+            sudo dpkg -i cuda-keyring_1.1-1_all.deb
+            echo "/usr/lib/nsight-systems/bin" >> "$GITHUB_PATH"
+        fi
+
+        # https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/quick-start.html
+        if [[ "${{ matrix.feature }}" == "DR_HOOK_ROCTX" ]]; then
+          wget https://repo.radeon.com/amdgpu-install/7.2/ubuntu/${{ case(matrix.os == 'ubuntu-22.04', 'jammy', 'noble') }}/amdgpu-install_7.2.70200-1_all.deb
+          sudo apt install ./amdgpu-install_7.2.70200-1_all.deb
+          echo "/opt/rocm/bin" >> "$GITHUB_PATH"
+        fi
+
         if [[ "${{ matrix.os }}" =~ macos ]]; then
           brew install ninja
         else
           sudo apt-get update
-          sudo apt-get install ninja-build
+          sudo apt-get install ninja-build ${{ case( matrix.feature == 'DR_HOOK_PAPI', 'libpapi-dev', matrix.feature == 'DR_HOOK_ROCTX', 'rocprofiler-sdk-roctx rocprofiler-sdk comgr hsa-amd-aqlprofile', matrix.feature == 'DR_HOOK_NVTX' && matrix.compiler != 'nvhpc-25.1' , 'nsight-systems cuda-nvtx-12-5 cuda-nvcc-12-5', '') }}
         fi
 
         printenv
@@ -168,9 +195,13 @@ jobs:
 
     - name: Install NVHPC compiler
       if: contains( matrix.compiler, 'nvhpc' )
+      env:
+        COMPILER_NAME: ${{ matrix.name }}
       shell: bash -eux {0}
+      # This uses a parameter expansion to strip the leading everything up to & including
+      # the last '-'
       run: |
-        ${FIAT_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc --version 25.1
+        ${FIAT_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc --tmpdir ${{ env.DEPS_DIR }} --version ${COMPILER_NAME##*-}
         source /opt/nvhpc/env.sh
         echo "${NVHPC_DIR}/compilers/bin"                   >> $GITHUB_PATH
         echo "NVHPC_ROOT=${NVHPC_DIR}"                      >> $GITHUB_ENV
@@ -212,7 +243,7 @@ jobs:
 
     - name: Build & Test
       id: build-test
-      uses: ecmwf-actions/build-package@v2
+      uses: ecmwf/build-package@v2
       with:
         self_coverage: ${{ matrix.coverage }}
         force_build: true
@@ -226,8 +257,8 @@ jobs:
         dependency_cmake_options: |
           ecmwf/eckit: "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_TESTS=OFF -DENABLE_ECKIT_CMD=OFF -DENABLE_ECKIT_SQL=OFF -DENABLE_MPI=ON -DENABLE_OMP=OFF"
           ecmwf/fckit: "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_TESTS=OFF"
-        cmake_options: "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_options }} -DENABLE_MPI=ON"
-        ctest_options: "${{ matrix.ctest_options }}"
+        cmake_options: "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_SHARED_LIBS=${{ case(matrix.lib_type == 'Shared', 'ON', matrix.lib_type == 'Static', 'OFF', 'ON') }} ${{ case(matrix.feature == 'None', '', format('-DENABLE_{0}=ON', matrix.feature)) }} ${{ matrix.cmake_options }} -DENABLE_MPI=ON"
+        ctest_options: ${{ matrix.ctest_options }}
 
 #    - name: Verify tools
 #      run: |

@@ -135,6 +135,8 @@ if( target_build_type STREQUAL STATIC_LIBRARY OR TARGET fiat-static )
   set( fiat_REQUIRES_PRIVATE_DEPENDENCIES TRUE )
 endif()
 
+set(FIAT_CMAKEMACROS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 ecbuild_install_project( NAME fiat )
 
 ecbuild_print_summary()

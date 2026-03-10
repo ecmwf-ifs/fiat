@@ -128,6 +128,7 @@ if( HAVE_DR_HOOK_PAPI )
     LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran
     ENVIRONMENT "DR_HOOK_ASSERT_MPI_INITIALIZED=0;FIAT_UNIT_TEST=1"
+    LABELS "PAPI_BROKEN_GITHUB_CI"
     )
   target_compile_definitions( fiat_test_drhook_counters PRIVATE OMP )
   if( NOT HAVE_MPI )

@@ -139,6 +139,7 @@ foreach( LIB_TYPE ${LIB_TYPES} )
         target_link_libraries     (${fiatlib} PRIVATE ${NVTX_LIBRARIES})
         target_include_directories(${fiatlib} PRIVATE ${NVTX_INCLUDE_DIRS})
     endif()
+    set(LINK_FIAT_MPI_LIBRARIES PUBLIC_LIBS ${FIAT_MPI_LIBRARIES})
 
     if (HAVE_DR_HOOK_ROCTX)
         # Files from within DrHook
