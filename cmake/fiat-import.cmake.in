@@ -26,11 +26,6 @@ set( fiat_REQUIRES_PRIVATE_DEPENDENCIES @fiat_REQUIRES_PRIVATE_DEPENDENCIES@ )
 set( fiat_SOURCE_FILENAMES      @fiat_SOURCE_FILENAMES@ )
 
 
-# This variable picks up the source dir location for builds
-set(FIAT_CMAKEMACROS_DIR @FIAT_CMAKEMACROS_DIR@)
-list(APPEND CMAKE_MODULE_PATH ${FIAT_CMAKEMACROS_DIR})
-
-
 if( fiat_HAVE_OMP AND NOT TARGET OpenMP::OpenMP_Fortran )
     if( NOT CMAKE_Fortran_COMPILER_LOADED )
         enable_language( Fortran )
@@ -48,16 +43,22 @@ if( fiat_HAVE_MPI AND NOT TARGET MPI::MPI_Fortran )
     endif()
 endif()
 
-if( fiat_HAVE_DR_HOOK_NVTX AND fiat_REQUIRES_PRIVATE_DEPENDENCIES ) 
-    find_dependency( NVTX )
-endif()
+if (fiat_REQUIRES_PRIVATE_DEPENDENCIES)
+    set(BACKUP_CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}")
+    list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
-if( fiat_HAVE_DR_HOOK_ROCTX AND fiat_REQUIRES_PRIVATE_DEPENDENCIES ) 
-    find_dependency( ROCTX )
-endif()
+    if( fiat_HAVE_DR_HOOK_NVTX )
+        find_dependency( NVTX )
+    endif()
 
-if( fiat_HAVE_DR_HOOK_PAPI AND fiat_REQUIRES_PRIVATE_DEPENDENCIES ) 
-    find_dependency( PAPI )
+    if( fiat_HAVE_DR_HOOK_ROCTX )
+        find_dependency( ROCTX )
+    endif()
+
+    if( fiat_HAVE_DR_HOOK_PAPI )
+        find_dependency( PAPI )
+    endif()
+    set(CMAKE_MODULE_PATH ${BACKUP_CMAKE_MODULE_PATH})
 endif()
 
 if( fiat_HAVE_FCKIT AND NOT TARGET fckit )
