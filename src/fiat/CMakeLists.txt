@@ -34,6 +34,11 @@ else()
   list( APPEND FIAT_DEFINITIONS "IGNORE_CONTIG_DEVICE=!!not using IGNORE_TKR for")
 endif()
 
+if( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC" )
+  set_property( SOURCE mpl/internal_f08/mpl_send_implementation_mod.F90 APPEND PROPERTY COMPILE_OPTIONS "-w" )
+  # Disable warnings for following:
+  #    NVFORTRAN-W-0435-Array declared with zero size ( ZDUM(1:0) )
+endif()
 
 ### Compilation flags
 
