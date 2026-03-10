@@ -28,8 +28,10 @@ endif()
 # GPU-aware trickery for device-resident arguments to MPL_xx routines
 if( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC" )
   list( APPEND FIAT_DEFINITIONS "IGNORE_DEVICE=!DIR$ IGNORE_TKR(d)")
+  list( APPEND FIAT_DEFINITIONS "IGNORE_CONTIG_DEVICE=!DIR$ IGNORE_TKR(cd)")
 else()
   list( APPEND FIAT_DEFINITIONS "IGNORE_DEVICE=!!not using IGNORE_TKR for")
+  list( APPEND FIAT_DEFINITIONS "IGNORE_CONTIG_DEVICE=!!not using IGNORE_TKR for")
 endif()
 
 
