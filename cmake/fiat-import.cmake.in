@@ -48,15 +48,15 @@ if( fiat_HAVE_MPI AND NOT TARGET MPI::MPI_Fortran )
     endif()
 endif()
 
-if( fiat_HAVE_DR_HOOK_NVTX ) 
+if( fiat_HAVE_DR_HOOK_NVTX AND fiat_REQUIRES_PRIVATE_DEPENDENCIES ) 
     find_dependency( NVTX )
 endif()
 
-if( fiat_HAVE_DR_HOOK_ROCTX ) 
+if( fiat_HAVE_DR_HOOK_ROCTX AND fiat_REQUIRES_PRIVATE_DEPENDENCIES ) 
     find_dependency( ROCTX )
 endif()
 
-if( fiat_HAVE_DR_HOOK_PAPI ) 
+if( fiat_HAVE_DR_HOOK_PAPI AND fiat_REQUIRES_PRIVATE_DEPENDENCIES ) 
     find_dependency( PAPI )
 endif()
 
