@@ -97,6 +97,8 @@ ecbuild_add_option( FEATURE DR_HOOK_ROCTX
 
 ecbuild_find_package( NAME Realtime QUIET )
 
+fiat_find_fypp()
+
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(_whole_archive "-Wl,-force_load")
   set(_no_whole_archive "")

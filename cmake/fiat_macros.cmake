@@ -45,4 +45,4 @@ endif()
 
 include( fiat_target_fortran_module_directory )
 include( fiat_target_ignore_missing_symbols )
-
+include( fiat_preprocess_fypp )
