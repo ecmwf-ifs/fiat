@@ -63,7 +63,15 @@ TYPE(MPI_INFO)     :: MPI_INFO_NULL
 !! symbols defined in mpi_serial library, and picked up via a 'USE MPL_MPI' important statement
 !!==============================================================================================
 
-EXTERNAL :: MPI_COMM_SIZE, MPI_TYPE_SIZE, MPI_ALLREDUCE, MPI_COMM_CREATE, MPI_COMM_GROUP
+EXTERNAL :: MPI_COMM_SIZE, MPI_TYPE_SIZE, MPI_ALLREDUCE, MPI_COMM_CREATE, MPI_COMM_GROUP, &
+ &          MPI_ALLTOALLV, MPI_IALLTOALLV,&
+ &          MPI_ALLGATHERV, MPI_IALLGATHERV, &
+ &          MPI_RECV, MPI_IRECV, &
+ &          MPI_SEND, MPI_ISEND, MPI_BSEND, MPI_IBSEND, MPI_SSEND, &
+ &          MPI_BCAST, MPI_IBCAST, &
+ &          MPI_SCATTERV, MPI_ISCATTERV, &
+ &          MPI_GATHERV, MPI_IGATHERV
+
 
 END MODULE MPI_F08
 
