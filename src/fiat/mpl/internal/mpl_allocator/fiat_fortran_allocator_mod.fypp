@@ -1,0 +1,103 @@
+! (C) Copyright 2026- ECMWF.
+! (C) Copyright 2026- Meteo-France.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
+MODULE FIAT_FORTRAN_ALLOCATOR_MOD
+
+#:set ranks  = [1,2,3,4,5]
+#:set dim    = ['',':',':,:',':,:,:',':,:,:,:',':,:,:,:,:']
+#:set dtypes = ['INT32','INT64','REAL32','REAL64']
+#:set type   = dict(zip(dtypes, ['INTEGER(INT32)', 'INTEGER(INT64)', 'REAL(KIND=REAL32)', 'REAL(KIND=REAL64)']))
+
+USE, INTRINSIC :: ISO_FORTRAN_ENV, ONLY : INT32, INT64, REAL32, REAL64
+
+IMPLICIT NONE
+PRIVATE 
+
+PUBLIC :: FIAT_FORTRAN_ALLOCATOR
+
+TYPE FIAT_FORTRAN_ALLOCATOR
+  INTEGER(INT64) :: ALLOCATED_BYTES = 0
+CONTAINS
+
+  PROCEDURE :: ALLOCATED => FIAT_FORTRAN_ALLOCATOR_ALLOCATED
+
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  PROCEDURE, PRIVATE :: ALLOCATE_LABEL_${ARRAY}$_BOUNDS
+#:endfor
+#:endfor
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  PROCEDURE, PRIVATE :: ALLOCATE_LABEL_${ARRAY}$_SHAPE
+#:endfor
+#:endfor
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  GENERIC :: ALLOCATE => ALLOCATE_LABEL_${ARRAY}$_BOUNDS, ALLOCATE_LABEL_${ARRAY}$_SHAPE
+#:endfor
+#:endfor
+
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  PROCEDURE, PRIVATE :: DEALLOCATE_LABEL_${ARRAY}$
+#:endfor
+#:endfor
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  GENERIC :: DEALLOCATE => DEALLOCATE_LABEL_${ARRAY}$
+#:endfor
+#:endfor
+END TYPE FIAT_FORTRAN_ALLOCATOR
+
+INTERFACE
+  MODULE FUNCTION FIAT_FORTRAN_ALLOCATOR_ALLOCATED(SELF) RESULT(ALLOCATED)
+    INTEGER(INT64) :: ALLOCATED
+    CLASS (FIAT_FORTRAN_ALLOCATOR), INTENT(IN) :: SELF
+  END FUNCTION FIAT_FORTRAN_ALLOCATOR_ALLOCATED
+
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  MODULE SUBROUTINE ALLOCATE_LABEL_${ARRAY}$_BOUNDS(SELF, LABEL, ARRAY, LBOUNDS, UBOUNDS)
+    CLASS (FIAT_FORTRAN_ALLOCATOR), INTENT(INOUT) :: SELF
+    CHARACTER(LEN=*),         INTENT(IN)    :: LABEL                !! Label used for tracing or debugging
+    ${type[dtype]}$, POINTER, INTENT(INOUT) :: ARRAY(${dim[rank]}$) !! Array to be allocated
+    INTEGER(INT32),           INTENT(IN)    :: LBOUNDS(${rank}$)    !! Lower bounds for each dimension of the array
+    INTEGER(INT32),           INTENT(IN)    :: UBOUNDS(${rank}$)    !! Upper bounds (inclusive) for each dimension of the array
+  END SUBROUTINE ALLOCATE_LABEL_${ARRAY}$_BOUNDS
+  MODULE SUBROUTINE ALLOCATE_LABEL_${ARRAY}$_SHAPE(SELF, LABEL, ARRAY, SHAPE)
+    CLASS (FIAT_FORTRAN_ALLOCATOR), INTENT(INOUT) :: SELF
+    CHARACTER(LEN=*),         INTENT(IN)    :: LABEL                 !! Label used for tracing or debugging
+    ${type[dtype]}$, POINTER, INTENT(INOUT) :: ARRAY(${dim[rank]}$)  !! Array to be allocated
+    INTEGER(INT32),           INTENT(IN)    :: SHAPE(${rank}$)       !! Shape of the array (number of elements in each dimension)
+  END SUBROUTINE ALLOCATE_LABEL_${ARRAY}$_SHAPE
+#:endfor
+#:endfor
+END INTERFACE
+
+INTERFACE
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  MODULE SUBROUTINE DEALLOCATE_LABEL_${ARRAY}$(SELF, LABEL, ARRAY)
+    CLASS (FIAT_FORTRAN_ALLOCATOR), INTENT(INOUT) :: SELF
+    CHARACTER(LEN=*),               INTENT(IN)    :: LABEL                !! Label used for tracing or debugging
+    ${type[dtype]}$, POINTER,       INTENT(INOUT) :: ARRAY(${dim[rank]}$) !! Array to be deallocated
+  END SUBROUTINE DEALLOCATE_LABEL_${ARRAY}$
+#:endfor
+#:endfor
+END INTERFACE
+
+END MODULE FIAT_FORTRAN_ALLOCATOR_MOD
+

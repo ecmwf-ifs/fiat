@@ -1,0 +1,174 @@
+! (C) Copyright 2026- ECMWF.
+! (C) Copyright 2026- Meteo-France.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
+MODULE MPL_ALLOCATOR_MOD
+  !! This module defines the interface for the MPL allocator to allocate arrays that are used for MPI buffers.
+  !! These buffers are ideally allocated via a memory pool so the MPI library can make use of registered memory
+  !! and avoid repeated page-locking (pinning) within its subroutines.
+
+USE, INTRINSIC :: ISO_FORTRAN_ENV
+
+#:set ranks  = [1,2,3,4,5]
+#:set dim    = ['',':',':,:',':,:,:',':,:,:,:',':,:,:,:,:']
+#:set dtypes = ['INT32','INT64','REAL32','REAL64']
+#:set type   = dict(zip(dtypes, ['INTEGER(INT32)', 'INTEGER(INT64)', 'REAL(KIND=REAL32)', 'REAL(KIND=REAL64)']))
+
+IMPLICIT NONE
+PRIVATE
+PUBLIC :: MPL_ALLOCATOR_INIT
+PUBLIC :: MPL_ALLOCATOR_FINAL
+PUBLIC :: MPL_ALLOCATOR_INITIALIZED
+PUBLIC :: MPL_ALLOCATOR_RESERVE
+PUBLIC :: MPL_ALLOCATOR_CAPACITY
+PUBLIC :: MPL_ALLOCATOR_ALLOCATED
+PUBLIC :: MPL_ALLOCATOR_RESOURCE
+PUBLIC :: MPL_ALLOCATE
+PUBLIC :: MPL_DEALLOCATE
+
+INTERFACE
+
+MODULE SUBROUTINE MPL_ALLOCATOR_INIT(RESOURCE, SIZE)
+  !! Initialize the MPL_ALLOCATOR with a specified memory resource and configuration.
+
+  ! Arguments:
+  CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: RESOURCE
+    !! The memory resource to use for the pool allocator. This can be used to select between different underlying memory management
+    !! strategies (e.g. a memory pool, a custom allocator, or the system allocator).
+  INTEGER(INT64), INTENT(IN), OPTIONAL :: SIZE
+    !! The amount of memory to reserve in the pool resource, in bytes.
+    !! Depending on the underlying RESOURCE, this may be treated as a soft limit (e.g. for a memory pool)
+    !! or a hard limit (e.g. for a custom allocator that directly reserves memory from the system).
+    !! Any allocation request that exceeds the reserved amount may cause an error or trigger additional memory management behavior,
+    !! depending on the implementation.
+    !! There are following cases to consider:
+    !!   - SIZE > 0: The underlying pool is initialized with the specified size, and is not allowed to grow beyond this size.
+    !!               Any allocation request that exceeds this size will cause an error.
+    !!               The environment variable "MPL_ALLOCATOR_GROW" can be set to be set to a REAL value > 0 to avoid the hard
+    !!               limit and allow the pool to grow by the specified factor when the reserved size is exceeded.
+    !!   - SIZE = 0: The underlying pool is initialized upon first allocation request with a size that is determined by the
+    !!               implementation (e.g. based on the first allocation request or a default size).
+    !!               This value can be steered by setting the environment variable "MPL_ALLOCATOR_SIZE" to an INTEGER value > 0
+    !!               representing the initial size in bytes.
+    !!               The pool is allowed to grow as needed to accommodate allocation requests that exceed the initially reserved size.
+    !!               The environment variable "MPL_ALLOCATOR_GROW" can be set to be set to a REAL value > 0 to control the
+    !!               grow factor when the pool needs to grow. By default the grow factor is set to 1 (100% growth of current capacity = 2x).
+    !!   - SIZE not present: The behavior is the same as SIZE=0
+END SUBROUTINE MPL_ALLOCATOR_INIT
+
+MODULE FUNCTION MPL_ALLOCATOR_INITIALIZED() RESULT(INITIALIZED)
+  !! Return whether the MPL_ALLOCATOR was initialized using MPL_ALLOCATOR_INIT
+  LOGICAL :: INITIALIZED
+END FUNCTION MPL_ALLOCATOR_INITIALIZED
+
+MODULE SUBROUTINE MPL_ALLOCATOR_FINAL()
+  !! Finalize the MPL allocator
+END SUBROUTINE MPL_ALLOCATOR_FINAL
+
+MODULE SUBROUTINE MPL_ALLOCATOR_RESERVE(SIZE)
+  !! Reserve this amount of memory in bytes in the pool resource.
+  !! Depending on the underlying resource and its configuration, this may grow an underlying memory pool.
+  !! Depending on the GROW_FACTOR behaviour set up via MPL_ALLOCATOR_INIT, the pool can potentially grow by
+  !! that factor until the requested SIZE is reserved.
+  INTEGER(INT64) :: SIZE
+END SUBROUTINE MPL_ALLOCATOR_RESERVE
+
+MODULE FUNCTION MPL_ALLOCATOR_CAPACITY() RESULT (CAPACITY)
+  !! The amount of memory which is reserved in an underlying memory pool
+  INTEGER(INT64) :: CAPACITY
+END FUNCTION MPL_ALLOCATOR_CAPACITY
+
+MODULE FUNCTION MPL_ALLOCATOR_ALLOCATED() RESULT (ALLOCATED)
+  !! The amount of memory which is currently used from an underlying memory pool in bytes
+  INTEGER(INT64) :: ALLOCATED
+END FUNCTION MPL_ALLOCATOR_ALLOCATED
+
+MODULE FUNCTION MPL_ALLOCATOR_RESOURCE() RESULT(RESOURCE)
+  !! Returns the name of the currently initialized memory resource for the MPL allocator
+  CHARACTER(LEN=:), ALLOCATABLE :: RESOURCE
+END FUNCTION MPL_ALLOCATOR_RESOURCE
+
+END INTERFACE
+
+INTERFACE MPL_ALLOCATE
+  !! Allocate arrays using the MPL allocator
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  MODULE PROCEDURE :: MPL_ALLOCATE_LABEL_${ARRAY}$_BOUNDS
+    #! Overload of MPL_ALLOCATE for ${dtype} RANK ${rank}$ array to allocate an array with specified LBOUNDS and UBOUNDS
+    #! Arguments:
+    #!   CHARACTER(LEN=*),  INTENT(IN)    :: LABEL         !! Label used for tracing or debugging
+    #!   TYPE(*), POINTER,  INTENT(INOUT) :: ARRAY(..)     !! Array to be allocated
+    #!   INTEGER(INT32),    INTENT(IN)    :: LBOUNDS(:)    !! Lower bounds for each dimension of the array
+    #!   INTEGER(INT32),    INTENT(IN)    :: UBOUNDS(:)    !! Upper bounds (inclusive) for each dimension of the array
+    #!
+  MODULE PROCEDURE :: MPL_ALLOCATE_LABEL_${ARRAY}$_SHAPE
+    #! Overload of MPL_ALLOCATE for ${dtype} RANK ${rank}$ array to allocate an array with specified SHAPE
+    #! Arguments:
+    #!   CHARACTER(LEN=*),  INTENT(IN)    :: LABEL         !! Label used for tracing or debugging
+    #!   TYPE(*), POINTER,  INTENT(INOUT) :: ARRAY(..)     !! Array to be allocated
+    #!   INTEGER(INT32),    INTENT(IN)    :: SHAPE(:)      !! Shape of the array (number of elements in each dimension)
+    #!
+#:endfor
+#:endfor
+END INTERFACE MPL_ALLOCATE
+
+
+INTERFACE MPL_DEALLOCATE
+  !! Deallocate array using the MPL allocator
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  MODULE PROCEDURE :: MPL_DEALLOCATE_LABEL_${ARRAY}$
+    #! Overload of MPL_DEALLOCATE for ${dtype} RANK ${rank}$ array to deallocate an array
+    #! Arguments:
+    #!   CHARACTER(LEN=*),  INTENT(IN)    :: LABEL         !! Label used for tracing or debugging
+    #!   TYPE(*), POINTER,  INTENT(INOUT) :: ARRAY(..)     !! Array to be deallocated
+#:endfor
+#:endfor
+END INTERFACE MPL_DEALLOCATE
+
+!----------------------------------------------------------------------------------------------------------------------------------
+! Overloads for MPL_ALLOCATE and MPL_DEALLOCATE
+
+INTERFACE
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  MODULE SUBROUTINE MPL_ALLOCATE_LABEL_${ARRAY}$_BOUNDS(LABEL, ARRAY, LBOUNDS, UBOUNDS) !! Overload of MPL_ALLOCATE
+    CHARACTER(LEN=*),         INTENT(IN)    :: LABEL                !! Label used for tracing or debugging
+    ${type[dtype]}$, POINTER, INTENT(INOUT) :: ARRAY(${dim[rank]}$) !! Array to be allocated
+    INTEGER(INT32),           INTENT(IN)    :: LBOUNDS(${rank}$)    !! Lower bounds for each dimension of the array
+    INTEGER(INT32),           INTENT(IN)    :: UBOUNDS(${rank}$)    !! Upper bounds (inclusive) for each dimension of the array
+  END SUBROUTINE MPL_ALLOCATE_LABEL_${ARRAY}$_BOUNDS
+  MODULE SUBROUTINE MPL_ALLOCATE_LABEL_${ARRAY}$_SHAPE(LABEL, ARRAY, SHAPE) !! Overload of MPL_ALLOCATE
+    USE, INTRINSIC :: ISO_FORTRAN_ENV, ONLY : ${dtype}$, INT32
+    ! Arguments:
+    CHARACTER(LEN=*),         INTENT(IN)    :: LABEL                 !! Label used for tracing or debugging
+    ${type[dtype]}$, POINTER, INTENT(INOUT) :: ARRAY(${dim[rank]}$)  !! Array to be allocated
+    INTEGER(INT32),           INTENT(IN)    :: SHAPE(${rank}$)       !! Shape of the array (number of elements in each dimension)
+  END SUBROUTINE MPL_ALLOCATE_LABEL_${ARRAY}$_SHAPE
+#:endfor
+#:endfor
+END INTERFACE
+
+INTERFACE
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  MODULE SUBROUTINE MPL_DEALLOCATE_LABEL_${ARRAY}$(LABEL, ARRAY)    !! Overload of MPL_DEALLOCATE
+    CHARACTER(LEN=*),         INTENT(IN)    :: LABEL                !! Label used for tracing or debugging
+    ${type[dtype]}$, POINTER, INTENT(INOUT) :: ARRAY(${dim[rank]}$) !! Array to be deallocated
+  END SUBROUTINE MPL_DEALLOCATE_LABEL_${ARRAY}$
+#:endfor
+#:endfor
+END INTERFACE
+END MODULE
+
+!----------------------------------------------------------------------------------------------------------------------------------
