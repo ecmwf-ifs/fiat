@@ -237,6 +237,10 @@ ecbuild_add_test(
     MPI 4 )
 
 # ----------------------------------------------------------------------------------------
+
+add_subdirectory(mpl_allocator)
+
+# ----------------------------------------------------------------------------------------
 # Tests: fiat_test_abor1
 #
 # Test abor1 function, and check the error message is printed
