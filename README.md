@@ -21,6 +21,8 @@ License
 FIAT is distributed under the Apache License Version 2.0.
 See `LICENSE` file for details.
 
+FIAT includes the third-party component [buddy_alloc](https://github.com/spaskalev/buddy_alloc) by Stanislav Paskalev, licensed under the BSD Zero Clause License.
+
 Installing FIAT 
 ===============
 
