@@ -133,6 +133,17 @@ set( fiat_REQUIRES_PRIVATE_DEPENDENCIES FALSE )
 get_target_property( target_build_type fiat TYPE )
 if( target_build_type STREQUAL STATIC_LIBRARY OR TARGET fiat-static )
   set( fiat_REQUIRES_PRIVATE_DEPENDENCIES TRUE )
+  # Make find_package modules available to downstream packages
+  foreach( find_module
+    FindNVTX.cmake
+    FindROCTX.cmake
+    FindPAPI.cmake )
+    ecbuild_warn_var(find_module)
+    if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/${find_module}")
+      execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${find_module}" "${CMAKE_CURRENT_BINARY_DIR}/${find_module}" )
+    endif()
+    install( FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${find_module}" DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/fiat" )
+  endforeach()
 endif()
 
 ecbuild_install_project( NAME fiat )

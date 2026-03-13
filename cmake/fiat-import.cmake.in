@@ -15,12 +15,16 @@ set( fiat_VERSION_STR @fiat_VERSION_STR@ )
 set( fiat_HAVE_MPI    @fiat_HAVE_MPI@ )
 set( fiat_HAVE_OMP    @fiat_HAVE_OMP@ )
 set( fiat_HAVE_FCKIT  @fiat_HAVE_FCKIT@ )
+set( fiat_HAVE_DR_HOOK_NVTX   @fiat_HAVE_DR_HOOK_NVTX@ )
+set( fiat_HAVE_DR_HOOK_ROCTX  @fiat_HAVE_DR_HOOK_ROCTX@ )
+set( fiat_HAVE_DR_HOOK_PAPI   @fiat_HAVE_DR_HOOK_PAPI@ )
 set( fiat_HAVE_SINGLE_PRECISION   @fiat_HAVE_SINGLE_PRECISION@ )
 set( fiat_HAVE_DOUBLE_PRECISION   @fiat_HAVE_DOUBLE_PRECISION@ )
 set( fiat_HAVE_MPL_F08 @fiat_HAVE_MPL_F08@ )
 set( fiat_REQUIRES_PRIVATE_DEPENDENCIES @fiat_REQUIRES_PRIVATE_DEPENDENCIES@ )
 
 set( fiat_SOURCE_FILENAMES      @fiat_SOURCE_FILENAMES@ )
+
 
 if( fiat_HAVE_OMP AND NOT TARGET OpenMP::OpenMP_Fortran )
     if( NOT CMAKE_Fortran_COMPILER_LOADED )
@@ -37,6 +41,24 @@ if( fiat_HAVE_MPI AND NOT TARGET MPI::MPI_Fortran )
     if (CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC|IntelLLVM" OR fiat_REQUIRES_PRIVATE_DEPENDENCIES)
         find_dependency( MPI COMPONENTS Fortran )
     endif()
+endif()
+
+if (fiat_REQUIRES_PRIVATE_DEPENDENCIES)
+    set(BACKUP_CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}")
+    list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
+
+    if( fiat_HAVE_DR_HOOK_NVTX )
+        find_dependency( NVTX )
+    endif()
+
+    if( fiat_HAVE_DR_HOOK_ROCTX )
+        find_dependency( ROCTX )
+    endif()
+
+    if( fiat_HAVE_DR_HOOK_PAPI )
+        find_dependency( PAPI )
+    endif()
+    set(CMAKE_MODULE_PATH ${BACKUP_CMAKE_MODULE_PATH})
 endif()
 
 if( fiat_HAVE_FCKIT AND NOT TARGET fckit )
