@@ -1,0 +1,107 @@
+! (C) Copyright 2026- ECMWF.
+! (C) Copyright 2026- Meteo-France.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
+MODULE FIAT_BUDDY_MOD
+
+#:set ranks  = [1,2,3,4,5]
+#:set dim    = ['',':',':,:',':,:,:',':,:,:,:',':,:,:,:,:']
+#:set dtypes = ['INT32','INT64','REAL32','REAL64']
+#:set type   = dict(zip(dtypes, ['INTEGER(JPIM)', 'INTEGER(JPIB)', 'REAL(KIND=JPRM)', 'REAL(KIND=JPRD)']))
+
+USE EC_PARKIND, ONLY : JPIM, JPIB, JPRM, JPRD
+USE, INTRINSIC :: ISO_C_BINDING, ONLY : C_PTR, C_SIZE_T, C_NULL_PTR
+
+IMPLICIT NONE
+PRIVATE 
+
+PUBLIC :: FIAT_BUDDY
+
+TYPE FIAT_BUDDY
+  TYPE (C_PTR) :: PTR = C_NULL_PTR
+CONTAINS
+  PROCEDURE :: INIT => FIAT_BUDDY_INIT
+  PROCEDURE :: FINAL => FIAT_BUDDY_FINAL
+  PROCEDURE :: RESERVE => FIAT_BUDDY_RESERVE
+  PROCEDURE :: CAPACITY => FIAT_BUDDY_CAPACITY
+  PROCEDURE :: ALLOCATED => FIAT_BUDDY_ALLOCATED
+
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  PROCEDURE, PRIVATE :: FIAT_BUDDY_ALLOCATE_${ARRAY}$
+#:endfor
+#:endfor
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  GENERIC :: ALLOCATE => FIAT_BUDDY_ALLOCATE_${ARRAY}$
+#:endfor
+#:endfor
+
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  PROCEDURE, PRIVATE :: FIAT_BUDDY_DEALLOCATE_${ARRAY}$
+#:endfor
+#:endfor
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+  GENERIC :: DEALLOCATE => FIAT_BUDDY_DEALLOCATE_${ARRAY}$
+#:endfor
+#:endfor
+END TYPE FIAT_BUDDY
+
+INTERFACE
+MODULE SUBROUTINE FIAT_BUDDY_INIT (SELF, SIZE, GROW_FACTOR)
+  CLASS (FIAT_BUDDY) :: SELF
+  INTEGER (KIND=C_SIZE_T), INTENT (IN) :: SIZE
+  INTEGER (KIND=C_SIZE_T), INTENT (IN) :: GROW_FACTOR
+END SUBROUTINE
+
+MODULE SUBROUTINE FIAT_BUDDY_FINAL (SELF)
+  CLASS (FIAT_BUDDY) :: SELF
+END SUBROUTINE
+
+MODULE FUNCTION FIAT_BUDDY_CAPACITY (SELF) RESULT (CAPACITY)
+  INTEGER(KIND=C_SIZE_T) :: CAPACITY
+  CLASS (FIAT_BUDDY) :: SELF
+END FUNCTION
+
+MODULE FUNCTION FIAT_BUDDY_ALLOCATED (SELF) RESULT (ALLOCATED)
+  INTEGER(KIND=C_SIZE_T) :: ALLOCATED
+  CLASS (FIAT_BUDDY) :: SELF
+END FUNCTION
+
+MODULE SUBROUTINE FIAT_BUDDY_RESERVE (SELF, SIZE)
+  CLASS (FIAT_BUDDY) :: SELF
+  INTEGER (KIND=C_SIZE_T), INTENT (IN) :: SIZE
+END SUBROUTINE
+
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+MODULE SUBROUTINE FIAT_BUDDY_ALLOCATE_${ARRAY}$ (SELF, P, UBOUNDS, LBOUNDS)
+  CLASS (FIAT_BUDDY) :: SELF
+  ${type[dtype]}$, POINTER :: P (${dim[rank]}$)
+  INTEGER (KIND=JPIM), INTENT (IN) :: UBOUNDS (${rank}$)
+  INTEGER (KIND=JPIM), INTENT (IN), OPTIONAL :: LBOUNDS (${rank}$)
+END SUBROUTINE
+
+MODULE SUBROUTINE FIAT_BUDDY_DEALLOCATE_${ARRAY}$ (SELF, P)
+  CLASS (FIAT_BUDDY) :: SELF
+  ${type[dtype]}$, POINTER :: P(${dim[rank]}$)
+END SUBROUTINE
+
+#:endfor
+#:endfor
+END INTERFACE
+
+END MODULE FIAT_BUDDY_MOD
+
