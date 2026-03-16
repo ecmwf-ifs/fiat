@@ -20,7 +20,7 @@ try_run(DRHOOK_HW_FPE_NOT_SUPPORTED # This is the runtime result of the check
 
 ecbuild_add_executable( TARGET drhook_no_hw_fpe_basic
   SOURCES drhook_no_hw_fpe_basic.F90 drhook_no_hw_fpe_disabled_fpes.c
-  LIBS fiat m
+  LIBS ${fiatlib} m
   LINKER_LANGUAGE Fortran
   NOINSTALL )
 
@@ -52,7 +52,7 @@ if ( NOT APPLE ) # The faked libs don't work on macOS. They don't propagate to f
 
         ecbuild_add_executable( TARGET drhook_no_hw_fpe_basic_faked_support
           SOURCES drhook_no_hw_fpe_basic.F90 drhook_no_hw_fpe_disabled_fpes.c
-          LIBS fiat drhook_no_hw_fpe_basic_faked_support_lib
+          LIBS ${fiatlib} drhook_no_hw_fpe_basic_faked_support_lib
           LINKER_LANGUAGE Fortran m
           NOINSTALL )
 
@@ -74,7 +74,7 @@ if ( NOT APPLE ) # The faked libs don't work on macOS. They don't propagate to f
 
         ecbuild_add_executable( TARGET drhook_no_hw_fpe_basic_faked_no_support
           SOURCES drhook_no_hw_fpe_basic.F90 drhook_no_hw_fpe_disabled_fpes.c
-          LIBS fiat drhook_no_hw_fpe_basic_faked_no_support_lib m
+          LIBS ${fiatlib} drhook_no_hw_fpe_basic_faked_no_support_lib m
           LINKER_LANGUAGE Fortran
           NOINSTALL )
 
