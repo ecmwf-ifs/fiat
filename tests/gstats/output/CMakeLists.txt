@@ -11,7 +11,7 @@
 ecbuild_add_test(
     TARGET  fiat_test_gstats_csv_output
     SOURCES gstats_csv_basic.F90
-    LIBS    fiat
+    LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran
     )
 # ----------------------------------------------------------------------------------------
