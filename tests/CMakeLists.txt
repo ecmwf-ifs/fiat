@@ -44,6 +44,8 @@ endif()
 
 add_subdirectory( drhook )
 
+add_subdirectory( gstats )
+
 # ----------------------------------------------------------------------------------------
 # Test: fiat_test_drhook_no_output
 #
@@ -284,17 +286,6 @@ add_test(NAME fiat_test_namelist
       -P ${CMAKE_CURRENT_SOURCE_DIR}/test_program_output.cmake )
 
 # ----------------------------------------------------------------------------------------
-
-# ----------------------------------------------------------------------------------------
-# Tests: test_gstats_fortran (only gstats print csv so far)
-ecbuild_add_test(
-    TARGET  fiat_test_gstats
-    SOURCES test_gstats.F90 
-    LIBS    fiat
-    LINKER_LANGUAGE Fortran
-    )
-# ----------------------------------------------------------------------------------------
-
 # Test installation of fiat is working
 
 configure_file( test-install.sh.in ${CMAKE_CURRENT_BINARY_DIR}/test-install.sh @ONLY )
