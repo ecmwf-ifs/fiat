@@ -7,7 +7,8 @@
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
 !
-
+#ifndef GSTATS_SETUP_INTFB_H
+#define GSTATS_SETUP_INTFB_H
 INTERFACE
 SUBROUTINE GSTATS_SETUP( KPROC,KMYPROC,KPRCIDS,&
  & LDSTATS,LDSTATSCPU,LDSYNCSTATS,LDDETAILED_STATS,LDBARRIER_STATS,LDBARRIER_STATS2,&
@@ -34,4 +35,4 @@ LOGICAL :: LDXML_STATS
 LOGICAL, OPTIONAL :: LDCSV_STATS
 END SUBROUTINE
 END INTERFACE
-
+#endif
