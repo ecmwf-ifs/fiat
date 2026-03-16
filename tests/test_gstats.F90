@@ -1,9 +1,11 @@
-! (C) COPYRIGHT 2005- ECMWF.
+! (C) Copyright 2026- ECMWF.
 !
-! LICENSE: APACHE LICENSE VERSION 2.0
-! SEE http://www.apache.org/licenses/LICENSE-2.0
-! IN APPLYING THIS LICENCE, ECMWF DOES NOT WAIVE ANY PRIVILEGES
-! AND DOES NOT SUBMIT TO ANY JURISDICTION.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 
 PROGRAM TEST_GSTATS
     USE YOMGSTATS, ONLY : JPMAXSTAT
