@@ -156,6 +156,15 @@ IF(LBARRIER_STATS2) THEN
   ENDDO
 ENDIF
 
+! Number 400 and 401 are reserved for overall GSTATS timing, so if no label is set, use "GSTATS" and "GSTATS HOOK"
+! These are the labels used in gstats_ifs_setup.F90
+IF (LEN_TRIM(CCDESC(400)) == 0) THEN
+  CCDESC(400) = 'GSTATS'
+ENDIF
+IF (LEN_TRIM(CCDESC(401)) == 0) THEN
+  CCDESC(401) = 'GSTATS HOOK'
+ENDIF
+
 ! CSV OUTPUT FOR EACH RANK
 IF (LSTATS .AND. LCSV_STATS) THEN
   ! OPENING THE FILE
