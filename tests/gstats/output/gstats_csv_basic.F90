@@ -38,7 +38,7 @@ CONTAINS
       INTEGER :: I
       X = 0.0_JPRD
       DO I = 1, 5000000
-         X = X + SIN(REAL(I))
+         X = X + SIN(REAL(I, JPRD))
       END DO
     END SUBROUTINE WORK_SECTION_1
     ! ---------------------------------------------------------------------
@@ -47,7 +47,7 @@ CONTAINS
       IMPLICIT NONE
       REAL(JPRD) :: X
       INTEGER :: I
-      X = 1.0
+      X = 1.0_JPRD
       DO I = 1, 4000000
          X = X * 1.0000001_JPRD
       END DO
@@ -145,12 +145,12 @@ CONTAINS
       INQUIRE(FILE=FNAME, EXIST=EXISTS)
     
       IF (.NOT. EXISTS) THEN
-         PRINT *, "ERROR: GSTATS DID NOT CREATE FILE: ", TRIM(FNAME)
-         STOP 1
+        PRINT *, "ERROR: GSTATS DID NOT CREATE FILE: ", TRIM(FNAME)
+        STOP 1
       ELSE
-         OPEN(NEWUNIT=U, FILE=FNAME, STATUS='OLD')
-         CLOSE(U, STATUS='DELETE')
-         PRINT *, "OK: FILE GENERATED: ", TRIM(FNAME)
+        OPEN(NEWUNIT=U, FILE=FNAME, STATUS='OLD')
+        CLOSE(U, STATUS='DELETE')
+        PRINT *, "OK: FILE GENERATED: ", TRIM(FNAME)
       END IF
     END SUBROUTINE CHECK_OUTPUT
     ! ---------------------------------------------------------------------
@@ -158,20 +158,30 @@ CONTAINS
     function detect_mpirun() result(lmpi_required)
       logical :: lmpi_required
       integer :: ilen
-      integer, parameter :: nvars = 5
+      integer, parameter :: nvars = 4
       character(len=32), dimension(nvars) :: cmpirun_detect
-      character(len=4) :: clenv_dr_hook_assert_mpi_initialized
+      character(len=4) :: clenv_value
       integer :: ivar
       lmpi_required = .false.
-#if defined(NOMPI)
-      return
-#endif
+
+      call get_environment_variable(name='FIAT_USE_MPI', value=clenv_value, length=ilen)
+      write(0,*) "FIAT_USE_MPI: ", clenv_value
+      if (ilen > 0) then
+        if (clenv_value == '1' .or. clenv_value == 'TRUE' .or. clenv_value == 'ON') then
+          write(0,*) "FIAT_USE_MPI environment variable set to a true value, MPI will be used"
+          lmpi_required = .true.
+        else
+          write(0,*) "FIAT_USE_MPI environment variable set to a false value, MPI will NOT be used"
+          lmpi_required = .false.
+        endif
+        return
+      endif
+
       ! Environment variables that are set when mpirun, srun, aprun, ... are used
       cmpirun_detect(1) = 'OMPI_COMM_WORLD_SIZE'  ! openmpi
       cmpirun_detect(2) = 'ALPS_APP_PE'           ! cray pe
       cmpirun_detect(3) = 'PMI_SIZE'              ! intel
       cmpirun_detect(4) = 'SLURM_NTASKS'          ! slurm
-      cmpirun_detect(5) = 'FIAT_USE_MPI'          ! forced
 
       do ivar = 1, nvars
         call get_environment_variable(name=trim(cmpirun_detect(ivar)), length=ilen)

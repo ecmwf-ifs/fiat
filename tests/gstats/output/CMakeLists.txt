@@ -6,12 +6,36 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+if( NOT DEFINED fiatlib )
+    set(fiatlib fiat)
+endif()
+
 # ----------------------------------------------------------------------------------------
 # Tests: fiat_test_gstats_csv_output (only gstats print csv so far)
-ecbuild_add_test(
+
+ecbuild_add_executable(
     TARGET  fiat_test_gstats_csv_output
     SOURCES gstats_csv_basic.F90
     LIBS    ${fiatlib}
     LINKER_LANGUAGE Fortran
-    )
+    NOINSTALL
+)
+ecbuild_add_test(
+    TARGET  fiat_test_gstats_csv_output_mpi0
+    COMMAND fiat_test_gstats_csv_output
+    ENVIRONMENT "FIAT_USE_MPI=0"
+)
+ecbuild_add_test(
+    TARGET  fiat_test_gstats_csv_output_mpi1
+    COMMAND fiat_test_gstats_csv_output
+    MPI 1
+    CONDITION HAVE_MPI
+)
+ecbuild_add_test(
+    TARGET  fiat_test_gstats_csv_output_mpi2
+    COMMAND fiat_test_gstats_csv_output
+    MPI 2
+    CONDITION HAVE_MPI
+)
+
 # ----------------------------------------------------------------------------------------
