@@ -309,12 +309,21 @@ ecbuild_add_test( TARGET fiat_test_displs_container
 #
 #
 
-ecbuild_add_executable(
-    TARGET  fiat-test-mpi-serial
-    SOURCES test_mpi_serial.F90
-    LIBS    ${fiatlib} ${MPI_SERIAL_LIBRARIES}
-    LINKER_LANGUAGE Fortran
-    NOINSTALL )
+if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "NAG")
+  ecbuild_add_executable(
+      TARGET  fiat-test-mpi-serial
+      SOURCES test_mpi_serial.F90
+      LIBS    ${fiatlib} ${MPI_SERIAL_LIBRARIES}
+      LINKER_LANGUAGE CXX
+      NOINSTALL )
+else()
+  ecbuild_add_executable(
+      TARGET  fiat-test-mpi-serial
+      SOURCES test_mpi_serial.F90
+      LIBS    ${fiatlib} ${MPI_SERIAL_LIBRARIES}
+      LINKER_LANGUAGE Fortran
+      NOINSTALL )
+endif()
 
 ecbuild_add_test( TARGET fiat_test_mpi_serial_n0
     COMMAND fiat-test-mpi-serial)
