@@ -27,4 +27,3 @@ SUBROUTINE SET_ABOR1_EXCEPTION_HANDLER() BIND(C,name="set_abor1_exception_handle
 END SUBROUTINE SET_ABOR1_EXCEPTION_HANDLER
 
 END INTERFACE
-#include "gstats_setup.intfb.h"
