@@ -16,12 +16,17 @@ try_run(DRHOOK_HW_FPE_NOT_SUPPORTED # This is the runtime result of the check
         LINK_LIBRARIES m # Needed for fenv.h
         )
 
+if ( CMAKE_Fortran_COMPILER_ID MATCHES Intel )
+  set( DRHOOK_HW_FPE_FFLAGS '-fpe-all=0')
+endif ()
+
 # Test basic implementation
 
 ecbuild_add_executable( TARGET drhook_no_hw_fpe_basic
   SOURCES drhook_no_hw_fpe_basic.F90 drhook_no_hw_fpe_disabled_fpes.c
   LIBS ${fiatlib} m
   LINKER_LANGUAGE Fortran
+  FFLAGS ${DRHOOK_HW_FPE_FFLAGS}
   NOINSTALL )
 
 ecbuild_add_test( TARGET fiat_test_drhook_no_hw_fpe_native
@@ -54,6 +59,7 @@ if ( NOT APPLE ) # The faked libs don't work on macOS. They don't propagate to f
           SOURCES drhook_no_hw_fpe_basic.F90 drhook_no_hw_fpe_disabled_fpes.c
           LIBS ${fiatlib} drhook_no_hw_fpe_basic_faked_support_lib
           LINKER_LANGUAGE Fortran m
+          FFLAGS ${DRHOOK_HW_FPE_FFLAGS}
           NOINSTALL )
 
         ecbuild_add_test( TARGET fiat_test_drhook_no_hw_fpe_basic_faked_support
@@ -76,6 +82,7 @@ if ( NOT APPLE ) # The faked libs don't work on macOS. They don't propagate to f
           SOURCES drhook_no_hw_fpe_basic.F90 drhook_no_hw_fpe_disabled_fpes.c
           LIBS ${fiatlib} drhook_no_hw_fpe_basic_faked_no_support_lib m
           LINKER_LANGUAGE Fortran
+          FFLAGS ${DRHOOK_HW_FPE_FFLAGS}
           NOINSTALL )
 
         ecbuild_add_test( TARGET fiat_test_drhook_no_hw_fpe_basic_faked_no_support
