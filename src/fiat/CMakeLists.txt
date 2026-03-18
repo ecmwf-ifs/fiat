@@ -26,7 +26,7 @@ if( FIAT_ATTRIBUTE_CONSTRUCTOR_SUPPORTED )
 endif()
 
 # GPU-aware trickery for device-resident arguments to MPL_xx routines
-if( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC" )
+if( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC|LLVMFlang" )
   list( APPEND FIAT_DEFINITIONS "IGNORE_DEVICE=!DIR$ IGNORE_TKR(d)")
   list( APPEND FIAT_DEFINITIONS "IGNORE_CONTIG_DEVICE=!DIR$ IGNORE_TKR(cd)")
 else()
