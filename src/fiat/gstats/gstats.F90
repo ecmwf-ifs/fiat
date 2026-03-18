@@ -185,8 +185,6 @@ IF (LSTATS .AND. OML_MY_THREAD() == 1) THEN
     TTCPUSUM(:) = 0.0_JPRD
     TVCPUSUM(:) = 0.0_JPRD
     TIMELCALL(:) = ZCLOCK
-    CCDESC = ""
-    CCTYPE = ""
     NTMEM = 0
     NTMEM(:,5) = 99999999
     IIMEM = 0

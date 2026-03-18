@@ -52,6 +52,8 @@ endif()
 
 add_subdirectory( drhook )
 
+add_subdirectory( gstats )
+
 # ----------------------------------------------------------------------------------------
 # Test: fiat_test_drhook_no_output
 #
