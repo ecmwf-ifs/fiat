@@ -102,7 +102,7 @@ jobs:
             compiler_cc: nvc
             compiler_cxx: nvc++
             compiler_fc: nvfortran
-            cmake_options: -DCMAKE_CXX_FLAGS=--diag_suppress177
+            cmake_options: -DCMAKE_CXX_FLAGS=--diag_suppress177 -DMPI_ARGS=--oversubscribe
             caching: true
             coverage: false
 
@@ -115,7 +115,7 @@ jobs:
             compiler_fc: gfortran-13
             caching: true
             coverage: false
-            cmake_options: -DMPI_SLOTS=4
+            cmake_options: -DMPI_SLOTS=4 -DMPI_ARGS=--oversubscribe
 
     runs-on: ${{ matrix.os }}
     steps:

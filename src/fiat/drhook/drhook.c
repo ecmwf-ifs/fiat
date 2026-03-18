@@ -2256,7 +2256,7 @@ process_options()
   char *pfx = "";
   char *env;
   FILE *fp = NULL;
-  int tid, ienv, newline;
+  int tid, ienv;
   static int processed = 0;
   if (processed) return;
 
@@ -2622,79 +2622,97 @@ process_options()
   if (strict_regions_opt_touched)
     OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_STRICT_REGIONS=%d\n",pfx,TIMESTR(tid),FFL,opt_strict_regions);
 
-  newline = 0;
   env = getenv("DR_HOOK_OPT");
   if (env) {
     const char delim[] = ", \t/";
-    char *comma = " DR_HOOK_OPT=\"";
     char *s = strdup_drhook(env);
     char *p = s;
+
+    int n = strlen(s);
+    /*
+     * Due to 'NOPROP' being expanded to 'NOPROPAGATE_SIGNALS', we can
+     * potentially need up to 4 times more output buffer length vs input.
+     */
+    char *recognised_opts = calloc_drhook((4*n)+1, sizeof(*recognised_opts));
+    int recognised_opts_len = 0;
+
+    char *unrecognised_opts = calloc_drhook(n+1, sizeof(*unrecognised_opts));
+    int unrecognised_opts_len = 0;
+
     while (*p) {
       if (islower(*p)) *p = toupper(*p);
       p++;
     }
     p = strtok(s,delim);
-    /* if (p) OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_OPT=\"",pfx,TIMESTR(tid)); */
-    if (p && fp) {
-      fprintf(fp,"%s %s [%s@%s:%d]",pfx,TIMESTR(tid),FFL);
-      newline = 1;
-    }
     while (p) {
+      /* Assume that we are handling a recognised opt by default */
+      char *out = recognised_opts;
+      int* len = &recognised_opts_len;
+
+      /*
+       * Some options have both shorthand and canonical names. Here we assume
+       * we are given the canonical name by default, and then change the pointer
+       * in the relevant option handler if we were given the shorthand instead.
+       * Not all options have a shorthand name, e.g. "ALL", so by default p
+       * must point ot the canonical name if matched.
+       */
+      char* opt_name = p;
       /* Assume that everything is OFF by default */
       if (strequ(p,"ALL")) { /* all except profiler data */
-        opt_papi = opt_gethwm = opt_getstk = opt_getrss = opt_getpag = opt_walltime = opt_cputime = opt_cycles = 1;
+        opt_gethwm = opt_getstk = opt_getrss = opt_getpag = opt_walltime = opt_cputime = opt_cycles = 1;
         opt_calls = 1;
+#ifdef DR_HOOK_HAVE_PAPI
+        opt_papi = 1;
+#endif
         any_memstat++;
-        OPTPRINT(fp,"%s%s",comma,"ALL"); comma = ",";
       }
       else if (strequ(p,"MEM") || strequ(p,"MEMORY")) {
         opt_gethwm = opt_getstk = opt_getrss = 1;
         opt_calls = 1;
         any_memstat++;
-        OPTPRINT(fp,"%s%s",comma,"MEMORY"); comma = ",";
+        opt_name = "MEMORY";
       }
       else if (strequ(p,"TIME") || strequ(p,"TIMES")) {
         opt_walltime = opt_cputime = 1;
         opt_calls = 1;
-        OPTPRINT(fp,"%s%s",comma,"TIMES"); comma = ",";
+        opt_name = "TIMES";
       }
       else if (strequ(p,"HWM") || strequ(p,"HEAP")) {
         opt_gethwm = 1;
         opt_calls = 1;
         any_memstat++;
-        OPTPRINT(fp,"%s%s",comma,"HEAP"); comma = ",";
+        opt_name = "HEAP";
       }
       else if (strequ(p,"STK") || strequ(p,"STACK")) {
         opt_getstk = 1;
         opt_calls = 1;
         any_memstat++;
-        OPTPRINT(fp,"%s%s",comma,"STACK"); comma = ",";
+        opt_name = "STACK";
       }
       else if (strequ(p,"RSS")) {
         opt_getrss = 1;
         opt_calls = 1;
         any_memstat++;
-        OPTPRINT(fp,"%s%s",comma,"RSS"); comma = ",";
       }
       else if (strequ(p,"PAG") || strequ(p,"PAGING")) {
         opt_getpag = 1;
         opt_calls = 1;
         any_memstat++;
-        OPTPRINT(fp,"%s%s",comma,"PAGING"); comma = ",";
+        opt_name = "PAGING";
       }
       else if (strequ(p,"WALL") || strequ(p,"WALLTIME")) {
         opt_walltime = 1;
         opt_calls = 1;
-        OPTPRINT(fp,"%s%s",comma,"WALLTIME"); comma = ",";
+        opt_name = "WALLTIME";
       }
       else if (strequ(p,"CPU") || strequ(p,"CPUTIME")) {
         opt_cputime = 1;
         opt_calls = 1;
-        OPTPRINT(fp,"%s%s",comma,"CPUTIME"); comma = ",";
+        opt_name = "CPUTIME";
       }
       else if (strequ(p,"CALLS") || strequ(p,"COUNT")) {
         opt_calls = 1;
-        OPTPRINT(fp,"%s%s",comma,"CALLS"); comma = ",";
+        opt_name = "CALLS";
       }
       else if (strequ(p,"MEMPROF")) {
         opt_memprof = 1;
@@ -2702,7 +2720,6 @@ process_options()
         opt_getpag = 1;
         opt_calls = 1;
         any_memstat++;
-        OPTPRINT(fp,"%s%s",comma,"MEMPROF"); comma = ",";
       }
       else if (strequ(p,"PROF") || strequ(p,"WALLPROF") || strequ(p,"CYCLES")) {
         opt_wallprof = 1;
@@ -2710,7 +2727,7 @@ process_options()
         opt_cpuprof = 0; /* Note: Switches cpuprof OFF */
         opt_calls = 1;
         opt_cycles = 1;
-        OPTPRINT(fp,"%s%s",comma,"WALLPROF"); comma = ",";
+        opt_name = "WALLPROF";
       }
       else if (strequ(p,"COUNTERS") ) {
         opt_wallprof = 1;
@@ -2718,55 +2735,69 @@ process_options()
         opt_cpuprof = 0; /* Note: Switches cpuprof OFF */
         opt_calls = 1;
         opt_cycles = 1;
+#ifdef DR_HOOK_HAVE_PAPI
         opt_papi = 1;
-        OPTPRINT(fp,"%s%s",comma,"COUNTERS"); comma = ",";
+#endif
       }
       else if (strequ(p,"CPUPROF")) {
         opt_cpuprof = 1;
         opt_cputime = 1;
         opt_wallprof = 0; /* Note: Switches walprof OFF */
         opt_calls = 1;
-        OPTPRINT(fp,"%s%s",comma,"CPUPROF"); comma = ",";
       }
       else if (strequ(p,"TRIM")) {
         opt_trim = 1;
-        OPTPRINT(fp,"%s%s",comma,"TRIM"); comma = ",";
       }
       else if (strequ(p,"SELF")) {
         opt_self = 2;
-        OPTPRINT(fp,"%s%s",comma,"SELF"); comma = ",";
       }
       else if (strequ(p,"NOSELF")) {
         opt_self = 0;
-        OPTPRINT(fp,"%s%s",comma,"NOSELF"); comma = ",";
       }
       else if (strequ(p,"NOPROP") || strequ(p,"NOPROPAGATE") ||
                strequ(p,"NOPROPAGATE_SIGNALS")) {
         opt_propagate_signals = 0;
-        OPTPRINT(fp,"%s%s",comma,"NOPROPAGATE_SIGNALS"); comma = ",";
+        opt_name = "NOPROPAGATE_SIGNALS";
       }
       else if (strequ(p,"NOSIZE") || strequ(p,"NOSIZEINFO")) {
         opt_sizeinfo = 0;
-        OPTPRINT(fp,"%s%s",comma,"NOSIZEINFO"); comma = ",";
+        opt_name = "NOSIZEINFO";
       }
       else if (strequ(p,"CLUSTER") || strequ(p,"CLUSTERINFO")) {
         opt_clusterinfo = 1;
-        OPTPRINT(fp,"%s%s",comma,"CLUSTERINFO"); comma = ",";
+        opt_name = "CLUSTERINFO";
       }
       else if (strequ(p,"CALLPATH")) {
         opt_callpath = 1;
-        OPTPRINT(fp,"%s%s",comma,"CALLPATH"); comma = ",";
-      } else {
-        printf("DrHook: Warning - no match for HOOK_OPT : %s\n",p);
       }
+      else if (strequ(p,"NONE")) {
+        /* Used in certain applications to explictly denote no DR_HOOK_OPT options. Has no effect. */
+      } else {
+        out = unrecognised_opts;
+        len = &unrecognised_opts_len;
+      }
+      /* If there is something in the output buffer, i.e. we are extending the list. */
+      if (*len) {
+        out[*len] = ',';
+        *len += 1;
+      }
+      /* Copy the current opt into the buffer */
+      strcpy(out + *len, opt_name);
+      *len += strlen(opt_name);
+
       p = strtok(NULL,delim);
     }
     free_drhook(s);
-    if (*comma == ',') {
-      OPTPRINT(fp,"\"\n");
-      newline = 0;
+
+    if (recognised_opts_len) {
+      OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_OPT=\"%s\"\n",pfx,TIMESTR(tid),FFL,recognised_opts);
     }
-    if (newline) OPTPRINT(fp,"\n");
+    free_drhook(recognised_opts);
+
+    if (unrecognised_opts_len) {
+      OPTPRINT(fp,"%s %s [%s@%s:%d] Warning - no match for DR_HOOK_OPT=\"%s\"\n",pfx,TIMESTR(tid),FFL,unrecognised_opts);
+    }
+    free_drhook(unrecognised_opts);
 
     if (opt_callpath) {
       env = getenv("DR_HOOK_CALLPATH_INDENT");
@@ -2798,7 +2829,7 @@ process_options()
 
 #if defined(DR_HOOK_HAVE_PAPI)
     if (opt_papi) {
-      newline = 0;
+      int newline = 0;
       env = getenv("DR_HOOK_PAPI_COUNTERS");
       if (env) {
         const char delim[] = ", \t/";

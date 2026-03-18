@@ -12,7 +12,9 @@ MODULE PARKIND1
 !
 !     *** Define usual kinds for strong typing ***
 !
+USE, INTRINSIC :: ISO_C_BINDING, ONLY : C_INTPTR_T
 IMPLICIT NONE
+PRIVATE :: C_INTPTR_T
 SAVE
 !
 !     Integer Kinds
@@ -25,11 +27,7 @@ INTEGER, PARAMETER :: JPIB = SELECTED_INT_KIND(12)
 
 !Special integer type to be used for sensative adress calculations
 !should be *8 for a machine with 8byte adressing for optimum performance
-#ifdef ADDRESS64
-INTEGER, PARAMETER :: JPIA = JPIB
-#else
-INTEGER, PARAMETER :: JPIA = JPIM
-#endif
+INTEGER, PARAMETER :: JPIA = C_INTPTR_T
 
 !
 !     Real Kinds

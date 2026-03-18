@@ -36,7 +36,7 @@ void expect_equal(const uint16_t digest, const char* expected, int line_number) 
 int main(int argc, char* argv[]) {
 
     const int N = 100000;
-    double array[N];
+    double* array = (double*)malloc(N*sizeof(double));
     for( int i=0; i<N; ++i) {
         array[i] = 1+i;
     }
@@ -55,8 +55,8 @@ int main(int argc, char* argv[]) {
 
     const int N1 = N/3;
     const int N2 = N - N1;
-    double array1[N1];
-    double array2[N2];
+    double* array1 = (double*)malloc(N1*sizeof(double));
+    double* array2 = (double*)malloc(N2*sizeof(double));
     for( int i=0; i<N1; ++i) {
         array1[i] = 1+i;
     }
@@ -77,5 +77,8 @@ int main(int argc, char* argv[]) {
     else {
         printf("TEST PASSED\n");
     }
+    free(array);
+    free(array1);
+    free(array2);
     return err;
 }

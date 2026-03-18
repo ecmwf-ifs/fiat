@@ -11,15 +11,25 @@ find_package( ecbuild 3.3 REQUIRED )
 project( fiat_test_install VERSION 0.0.0 LANGUAGES Fortran )
 
 find_package( fiat REQUIRED )
+find_package( MPI REQUIRED )
+
+message("fiat_HAVE_MPL_F08: ${fiat_HAVE_MPL_F08}")
+if(TARGET fiat)
+  set( fiatlib fiat)
+elseif(TARGET fiat-static)
+  set( fiatlib fiat-static)
+else()
+  message("Neither fiat nor fiat-static is exported by fiat build!")
+endif()
 
 if( TARGET parkind_dp )
 ecbuild_add_executable( TARGET  main_dp
                         SOURCES main.F90
-                        LIBS    fiat parkind_dp )
+                        LIBS    ${fiatlib} parkind_dp )
 endif()
 
 if( TARGET parkind_sp )
 ecbuild_add_executable( TARGET  main_sp
                         SOURCES main.F90
-                        LIBS    fiat parkind_sp )
+                        LIBS    ${fiatlib} parkind_sp )
 endif()

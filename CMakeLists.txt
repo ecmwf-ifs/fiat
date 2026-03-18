@@ -31,6 +31,7 @@ ecbuild_add_option( FEATURE MPI
                     REQUIRED_PACKAGES "MPI COMPONENTS Fortran" )
 
 ecbuild_add_option( FEATURE DR_HOOK_PAPI
+                    DEFAULT OFF
                     DESCRIPTION "Support for HW counters in DR_HOOK via PAPI"
                     REQUIRED_PACKAGES "PAPI")
 
@@ -55,6 +56,25 @@ ecbuild_add_option( FEATURE DUMMY_MPI_HEADER
                     DEFAULT ON
                     DESCRIPTION "[DANGEROUS] Install a dummy MPI header" )
 
+# Two MPL interface styles
+# - DEPRECATED F77 based interface, relies on mpif.h, can't take non-contiguous arrays
+# - MPI_F08 based interface, relies on mpi_f08 module
+# NB : both interfaces can be compiled without MPI, and then link to mpi_serial library
+set( MPL_F77_DEPRECATED_DEFAULT OFF )
+if( HAVE_MPI AND NOT MPI_Fortran_HAVE_F08_MODULE )
+    ecbuild_warn( "MPI Fortran present, but no MPI-F08 support found, so building with FEATURE MPL_F77_DEPRECATED DEFAULT ON. "
+                  "Please check your MPI installation for MPI-F08 support." )
+    set( MPL_F77_DEPRECATED_DEFAULT ON )
+endif()
+ecbuild_add_option( FEATURE MPL_F77_DEPRECATED
+                    DESCRIPTION "[DEPRECATED] Compile deprecated 'mpif.h'-based MPL instead of MPI_F08 version"
+                    REQUIRED_PACKAGES "MPI COMPONENTS Fortran"
+                    DEFAULT ${MPL_F77_DEPRECATED_DEFAULT} )
+
+ecbuild_add_option( FEATURE MPL_CHECK_CONTIG
+                    DESCRIPTION "Enable runtime check of contiguity of array arguments passed to MPL routines"
+                    DEFAULT OFF )
+
 ecbuild_add_option( FEATURE WARNINGS
                     DEFAULT ON
                     DESCRIPTION "Add warnings to compiler" )
@@ -77,7 +97,21 @@ ecbuild_add_option( FEATURE DR_HOOK_ROCTX
 
 ecbuild_find_package( NAME Realtime QUIET )
 
+if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  set(_whole_archive "-Wl,-force_load")
+  set(_no_whole_archive "")
+else()
+  if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "NAG")
+    set(_whole_archive "-Wl,-Wl,,--whole-archive")
+    set(_no_whole_archive "-Wl,-Wl,,--no-whole-archive")
+  else()
+    set(_whole_archive "-Wl,--whole-archive")
+    set(_no_whole_archive "-Wl,--no-whole-archive")
+  endif()
+endif()
 ### Sources
+# define MPI_SERIAL_LIBRARIES before including src folder, for use in fiat library declaration
+set(MPI_SERIAL_LIBRARIES ${_whole_archive} mpi_serial ${_no_whole_archive})
 
 include( fiat_compiler_warnings )
 add_subdirectory(src)
@@ -88,6 +122,28 @@ add_subdirectory(share)
 add_subdirectory(tests)
 
 ### Export
+
+if (fiat_HAVE_MPL_F77_DEPRECATED)
+set (fiat_HAVE_MPL_F08 0)
+else()
+set (fiat_HAVE_MPL_F08 1)
+endif()
+
+set( fiat_REQUIRES_PRIVATE_DEPENDENCIES FALSE )
+get_target_property( target_build_type fiat TYPE )
+if( target_build_type STREQUAL STATIC_LIBRARY OR TARGET fiat-static )
+  set( fiat_REQUIRES_PRIVATE_DEPENDENCIES TRUE )
+  # Make find_package modules available to downstream packages
+  foreach( find_module
+    FindNVTX.cmake
+    FindROCTX.cmake
+    FindPAPI.cmake )
+    if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/${find_module}")
+      execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${find_module}" "${CMAKE_CURRENT_BINARY_DIR}/${find_module}" )
+    endif()
+    install( FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${find_module}" DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/fiat" )
+  endforeach()
+endif()
 
 ecbuild_install_project( NAME fiat )
 

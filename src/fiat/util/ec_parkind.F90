@@ -12,7 +12,9 @@ MODULE EC_PARKIND
 !
 !     *** Define usual kinds for strong typing ***
 !
+USE, INTRINSIC :: ISO_C_BINDING, ONLY : C_INTPTR_T
 IMPLICIT NONE
+PRIVATE :: C_INTPTR_T
 SAVE
 !
 !     Integer Kinds
@@ -20,6 +22,7 @@ SAVE
 !
 INTEGER, PARAMETER :: JPIM = SELECTED_INT_KIND(9)
 INTEGER, PARAMETER :: JPIB = SELECTED_INT_KIND(12)
+INTEGER, PARAMETER :: JPIA = C_INTPTR_T
 
 !
 !     Real Kinds

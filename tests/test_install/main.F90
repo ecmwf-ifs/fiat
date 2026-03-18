@@ -13,10 +13,11 @@ program main
   use yomhook      ! assert found
   use mpl_module   ! assert found
 ! From library parkind_(dp|sp)
-  use parkind1, only: JPRB ! assert found
+  use parkind1, only: JPRB, JPIA ! assert found
 
 implicit none
 
 write(0,*) "JPRB =",JPRB ! depending on link with parkind_sp or parkind_dp this will print 4 or 8
+write(0,*) "JPIA =",JPIA ! depending system this will print 4 or 8
 
 end program
