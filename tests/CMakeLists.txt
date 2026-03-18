@@ -309,21 +309,19 @@ ecbuild_add_test( TARGET fiat_test_displs_container
 #
 #
 
-if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "NAG")
-  ecbuild_add_executable(
-      TARGET  fiat-test-mpi-serial
-      SOURCES test_mpi_serial.F90
-      LIBS    ${fiatlib} ${MPI_SERIAL_LIBRARIES}
-      LINKER_LANGUAGE CXX
-      NOINSTALL )
-else()
-  ecbuild_add_executable(
-      TARGET  fiat-test-mpi-serial
-      SOURCES test_mpi_serial.F90
-      LIBS    ${fiatlib} ${MPI_SERIAL_LIBRARIES}
-      LINKER_LANGUAGE Fortran
-      NOINSTALL )
+set (USING_MPI_WRAPPER "OFF")
+if (MPI_Fortran_FOUND)
+  if (NOT MPI_Fortran_LIBRARIES)
+    set (USING_MPI_WRAPPER "ON")
+  endif()
 endif()
+
+ecbuild_add_executable(
+    TARGET  fiat-test-mpi-serial
+    SOURCES test_mpi_serial.F90
+    LIBS    ${fiatlib} ${MPI_SERIAL_LIBRARIES}
+    LINKER_LANGUAGE Fortran
+    NOINSTALL )
 
 ecbuild_add_test( TARGET fiat_test_mpi_serial_n0
     COMMAND fiat-test-mpi-serial)
@@ -331,12 +329,14 @@ set_tests_properties(fiat_test_mpi_serial_n0 PROPERTIES
     FAIL_REGULAR_EXPRESSION "My rank number is *1"
 )
 if (HAVE_MPI)
-  ecbuild_add_test( TARGET fiat_test_mpi_serial_n2
-      COMMAND fiat-test-mpi-serial
-      MPI 2)
-  set_tests_properties(fiat_test_mpi_serial_n2 PROPERTIES
-      FAIL_REGULAR_EXPRESSION "My rank number is *1"
-  )
+  if (NOT USING_MPI_WRAPPER)
+    ecbuild_add_test( TARGET fiat_test_mpi_serial_n2
+        COMMAND fiat-test-mpi-serial
+        MPI 2)
+    set_tests_properties(fiat_test_mpi_serial_n2 PROPERTIES
+        FAIL_REGULAR_EXPRESSION "My rank number is *1"
+    )
+  endif()
 endif()
 
 # ----------------------------------------------------------------------------------------
