@@ -8,6 +8,23 @@
  * nor does it submit to any jurisdiction.
  */
 
+#include <fenv.h>
+
+void silently_disable_all_fpes_() {
+  fenv_t envp;
+  feholdexcept(&envp);
+}
+
+#ifdef MOCK_HARDWARE_FPE_SUPPORT
+
 int feenableexcept(int excepts) {
   return excepts;
 }
+
+#elifdef MOCK_NO_HARDWARE_FPE_SUPPORT
+
+int feenableexcept(int excepts) {
+  return -1;
+}
+
+#endif
