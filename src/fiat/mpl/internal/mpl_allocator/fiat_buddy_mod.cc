@@ -13,9 +13,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <string>
 
 #include "abor1.h"
+
+#define MAX(a,b) (((a) > (b)) ? (a) : (b))
+#define FIAT_BUDDY_DEFAULT_INITIAL_SIZE size_t(256*1024*1024)
+
+#define FIAT_BUDDY_DEBUG 0
 
 #define FIAT_BUDDY_ABORT(...) do { \
     char buffer[1024]; \
@@ -32,7 +36,6 @@ namespace {
 #undef BUDDY_ALLOC_IMPLEMENTATION
 }
 
-#define FIAT_BUDDY_DEBUG 0
 
 namespace fiat {
 
@@ -51,7 +54,7 @@ struct buddy_alloc_pool_node {
 
 struct buddy_alloc_pool {
     buddy_alloc_pool_node* head;
-    size_t grow_factor;
+    float grow_factor;
 };
 
 namespace {
@@ -118,7 +121,7 @@ void buddy_alloc_pool_node_delete(buddy_alloc_pool_node* node) {
     delete node;
 }
 
-buddy_alloc_pool* buddy_alloc_pool_new (size_t size, size_t grow_factor) {
+buddy_alloc_pool* buddy_alloc_pool_new (size_t size, float grow_factor) {
     buddy_alloc_pool *pool = new buddy_alloc_pool;
     pool->grow_factor = grow_factor;
     if (size > 0) {
@@ -145,19 +148,27 @@ void buddy_alloc_pool_delete (buddy_alloc_pool* pool) {
   delete pool;
 }
 
-void buddy_alloc_pool_grow(buddy_alloc_pool* pool, size_t min_size) {
+size_t next_power_of_2(size_t n) {
+    size_t power = 1;
+    while (power < n) {
+        power *= 2;
+    }
+    return power;
+}
+
+void buddy_alloc_pool_grow(buddy_alloc_pool* pool, size_t size) {
     // Abort if grow_factor is 0. This means that the pool is not allowed to grow,
     // and thus the allocation should have succeeded in the current pool nodes.
     if (pool->grow_factor == 0) {
-         FIAT_BUDDY_ABORT("FIAT_BUDDY_ALLOCATE: Failed to grow pool with minimum %zuB. grow_factor is 0.", min_size);
+         FIAT_BUDDY_ABORT("FIAT_BUDDY_ALLOCATE: Failed to grow pool with minimum %zuB. grow_factor is 0.", size);
     }
 
     // Access the last node in linked list
     buddy_alloc_pool_node* curr = pool->head;
+    size_t current_capacity = 0;
     while (curr) {
-        if (!curr->next) {
-            break;
-        }
+        current_capacity += curr->value->size;
+        if (!curr->next) break;
         curr = curr->next;
     }
 
@@ -165,18 +176,16 @@ void buddy_alloc_pool_grow(buddy_alloc_pool* pool, size_t min_size) {
     // ensure that the new pool node has a size that is at least as large as the requested size,
     // i.e. the next power of 2.
     // Otherwise, grow with the specified grow_factor until the size is large enough.
-    size_t next_size = curr->value->size;
-    if (pool->grow_factor == 1 && next_size < min_size) {
-        // Ensure that the pool can grow with a size that is at least as large as the requested size, i.e. the next power of 2.
-        size_t next_power_of_2 = 1;
-        while(next_power_of_2 < min_size) {
-            next_power_of_2 *= 2;
+    size_t next_size = size_t(pool->grow_factor * current_capacity);
+    if (next_size < size) {
+        if (pool->grow_factor <= 1.0) {
+            // Ensure that the pool can grow with a size that is at least as large as the requested size, i.e. the next power of 2.
+            next_size = next_power_of_2(size);
         }
-        next_size = next_power_of_2;
-    }
-    else {
-        while( next_size < min_size ) {
-            next_size *= pool->grow_factor;
+        else {
+            while( next_size < size ) {
+                next_size = size_t(pool->grow_factor * next_size);
+            }
         }
     }
 
@@ -185,18 +194,28 @@ void buddy_alloc_pool_grow(buddy_alloc_pool* pool, size_t min_size) {
     curr->next = buddy_alloc_pool_node_new(next_size);
 }
 
+void* buddy_alloc_pool_allocate(buddy_alloc_pool* pool, size_t size);
+void buddy_alloc_pool_deallocate(buddy_alloc_pool* pool, void* ptr, size_t size);
+
+void buddy_alloc_pool_reserve (buddy_alloc_pool* pool, size_t size) {
+    if (FIAT_BUDDY_DEBUG) fprintf(stderr, "buddy_alloc_pool_reserve: size %zu\n", size);
+    if (pool->head == nullptr) {
+        if (FIAT_BUDDY_DEBUG) fprintf(stderr, "buddy_alloc_pool_allocate: Initialize first pool node with size %zu\n", size);
+        pool->head = buddy_alloc_pool_node_new(size);
+    }
+    else {
+        void* ptr = buddy_alloc_pool_allocate(pool, size);
+        buddy_alloc_pool_deallocate(pool, ptr, size);
+    }
+}
+
 void* buddy_alloc_pool_allocate(buddy_alloc_pool* pool, size_t size) {
     if (FIAT_BUDDY_DEBUG) fprintf(stderr, "buddy_alloc_pool_allocate: size %zu\n", size);
     void* ptr = nullptr;
 
     // Initialize if not yet initialized
     if (pool->head == nullptr) {
-      size_t initial_pool_size = 256*1024*1024; // Default to 256MB if no size is provided
-      if (size > initial_pool_size) {
-          initial_pool_size = size;
-      }
-      if (FIAT_BUDDY_DEBUG) fprintf(stderr, "buddy_alloc_pool_allocate: Initialize first pool node with size %zu\n", initial_pool_size);
-      pool->head = buddy_alloc_pool_node_new(initial_pool_size);
+        buddy_alloc_pool_reserve(pool, MAX(next_power_of_2(size), FIAT_BUDDY_DEFAULT_INITIAL_SIZE));
     }
 
     buddy_alloc_pool_node* curr = pool->head;
@@ -230,12 +249,6 @@ void buddy_alloc_pool_deallocate(buddy_alloc_pool* pool, void* ptr, size_t size)
     FIAT_BUDDY_ABORT("FIAT_BUDDY_DEALLOCATE: Failed to deallocate memory. ptr \"%p\" is out of bounds.", ptr);
 }
 
-
-void buddy_alloc_pool_reserve (buddy_alloc_pool* pool, size_t size) {
-    void* ptr = buddy_alloc_pool_allocate (pool, size);
-    buddy_alloc_pool_deallocate (pool, ptr, size);
-}
-
 size_t buddy_alloc_pool_capacity (buddy_alloc_pool* pool) {
     if (pool->head == nullptr) {
         return 0;
@@ -266,7 +279,7 @@ size_t buddy_alloc_pool_allocated (buddy_alloc_pool* pool) {
 
 extern "C" {
 
-void c_fiat_buddy_new (buddy_alloc_pool* &pool, size_t size, size_t grow_factor) {
+void c_fiat_buddy_new (buddy_alloc_pool* &pool, size_t size, float grow_factor) {
     pool = buddy_alloc_pool_new (size, grow_factor);
 }
 
