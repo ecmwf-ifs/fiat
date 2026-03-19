@@ -37,7 +37,7 @@ jobs:
           - linux clang-18
           - linux intel
           - linux intel-classic
-          - linux nvhpc-25.1
+          - linux nvhpc-26.1
           - macos
 
         include:
@@ -96,9 +96,9 @@ jobs:
             caching: true
             coverage: false
 
-          - name: linux nvhpc-25.1
+          - name: linux nvhpc-26.1
             os: ubuntu-24.04
-            compiler: nvhpc-25.1
+            compiler: nvhpc-26.1
             compiler_cc: nvc
             compiler_cxx: nvc++
             compiler_fc: nvfortran
@@ -170,7 +170,7 @@ jobs:
       if: contains( matrix.compiler, 'nvhpc' )
       shell: bash -eux {0}
       run: |
-        ${FIAT_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc --version 25.1
+        ${FIAT_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc --version 26.1
         source /opt/nvhpc/env.sh
         echo "${NVHPC_DIR}/compilers/bin"                   >> $GITHUB_PATH
         echo "NVHPC_ROOT=${NVHPC_DIR}"                      >> $GITHUB_ENV

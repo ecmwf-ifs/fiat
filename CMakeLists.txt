@@ -66,6 +66,11 @@ if( HAVE_MPI AND NOT MPI_Fortran_HAVE_F08_MODULE )
                   "Please check your MPI installation for MPI-F08 support." )
     set( MPL_F77_DEPRECATED_DEFAULT ON )
 endif()
+# oldddder NVHPC compilers have bugs in assumed-rank handling
+if( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC" AND CMAKE_Fortran_COMPILER_ID VERSION_LESS 26.1 )
+    set( MPL_F77_DEPRECATED_DEFAULT ON )
+endif()
+
 ecbuild_add_option( FEATURE MPL_F77_DEPRECATED
                     DESCRIPTION "[DEPRECATED] Compile deprecated 'mpif.h'-based MPL instead of MPI_F08 version"
                     REQUIRED_PACKAGES "MPI COMPONENTS Fortran"
