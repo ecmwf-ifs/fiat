@@ -19,7 +19,7 @@ try_run(DRHOOK_HW_FPE_NOT_SUPPORTED # This is the runtime result of the check
 if ( CMAKE_Fortran_COMPILER_ID MATCHES "Intel|IntelLLVM" )
   set( DRHOOK_HW_FPE_FFLAGS "-fpe-all=0")
 elseif( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC" )
-  set( DRHOOK_HW_FPE_FFLAGS "-Ktrap=fp" )
+  set( DRHOOK_HW_FPE_FFLAGS "-Ktrap=fp -Kieee -O0" )
 endif ()
 
 # Test basic implementation
