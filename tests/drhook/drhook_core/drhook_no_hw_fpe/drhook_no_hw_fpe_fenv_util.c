@@ -21,7 +21,7 @@ int feenableexcept(int excepts) {
   return excepts;
 }
 
-#elifdef MOCK_NO_HARDWARE_FPE_SUPPORT
+#elif defined(MOCK_NO_HARDWARE_FPE_SUPPORT)
 
 int feenableexcept(int excepts) {
   return -1;
