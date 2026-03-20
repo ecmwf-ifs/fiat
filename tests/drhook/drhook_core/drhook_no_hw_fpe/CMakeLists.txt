@@ -47,7 +47,7 @@ endif()
 
 # Test basic implementation, but with the opposite system behaviour faked
 
-if ( NOT APPLE ) # The faked libs don't work on macOS. They don't propagate to fiat/drhook
+if ( NOT APPLE ) # macOS doesn't implement feenableexcept()
   if ( NOT DRHOOK_HW_FPE_NOT_SUPPORTED )
     set( DRHOOK_HW_FPE_NO "no_" )
     set( DRHOOK_HW_FPE_MOCK_DEF "MOCK_NO_HARDWARE_FPE_SUPPORT")
@@ -64,18 +64,18 @@ if ( NOT APPLE ) # The faked libs don't work on macOS. They don't propagate to f
     NOINSTALL )
 
   ecbuild_add_test( TARGET fiat_test_drhook_no_hw_fpe_basic_faked_${DRHOOK_HW_FPE_NO}support
-      COMMAND drhook_no_hw_fpe_basic
+      COMMAND drhook_no_hw_fpe_basic_faked_${DRHOOK_HW_FPE_NO}support
       ENVIRONMENT DR_HOOK=1 DR_HOOK_TRAPFPE=1 DR_HOOK_SILENT=0 )
 
   if ( DRHOOK_HW_FPE_NOT_SUPPORTED )
-    if ( TEST fiat_test_drhook_no_hw_fpe_basic_faked_no_support )
-      set_tests_properties(fiat_test_drhook_no_hw_fpe_basic_faked_no_support
-          PROPERTIES PASS_REGULAR_EXPRESSION "Dr.Hook has detected an FPE on exit of region 'drhook_no_hw_fpe_basic': FE_DIVBYZERO" )
-    endif()
-  else()
     if ( TEST fiat_test_drhook_no_hw_fpe_basic_faked_support )
       set_tests_properties(fiat_test_drhook_no_hw_fpe_basic_faked_support
           PROPERTIES PASS_REGULAR_EXPRESSION "Hello, x is" )
+    endif()
+  else()
+    if ( TEST fiat_test_drhook_no_hw_fpe_basic_faked_no_support )
+      set_tests_properties(fiat_test_drhook_no_hw_fpe_basic_faked_no_support
+          PROPERTIES PASS_REGULAR_EXPRESSION "Dr.Hook has detected an FPE on exit of region 'drhook_no_hw_fpe_basic': FE_DIVBYZERO" )
     endif()
   endif()
 endif()
