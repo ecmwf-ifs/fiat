@@ -12,7 +12,7 @@
 # See <https://creativecommons.org/publicdomain/zero/1.0/> for
 # details.
 
-version=24.3
+version=26.1
 
 TEMPORARY_FILES="${TMPDIR:-/tmp}"
 export NVHPC_INSTALL_DIR=$(pwd)/nvhpc-install
@@ -58,8 +58,21 @@ fi
 # Example download URL for version 24.3
 #    https://developer.download.nvidia.com/hpc-sdk/24.3/nvhpc_2024_243_Linux_x86_64_cuda_12.3.tar.gz
 
+MAJOR_VER="${version%%.*}"
+if [ "$MAJOR_VER" -lt 26 ]; then
+    echo "Major version < 26"
+    # Example download URL for version 21.9
+    #    https://developer.download.nvidia.com/hpc-sdk/21.9/nvhpc_2020_219_Linux_x86_64_cuda_11.0.tar.gz
+
 ver="$(echo $version | tr -d . )"
 URL=$(curl -s "https://developer.nvidia.com/nvidia-hpc-sdk-$ver-downloads" | grep -oP "https://developer.download.nvidia.com/hpc-sdk/([0-9]{2}\.[0-9]+)/nvhpc_([0-9]{4})_([0-9]+)_Linux_$(uname -m)_cuda_([0-9\.]+).tar.gz" | sort | tail -1)
+else
+    echo "Major version >= 26"
+    # Example download URL for version 26.1
+    #    https://developer.download.nvidia.com/hpc-sdk/26.1/nvhpc_2026_261_Linux_x86_64_cuda_13.1.tar.gz
+    #    https://developer.nvidia.com/hpc-sdk/releases/26.1
+    URL=$(curl -s "https://developer.nvidia.com/hpc-sdk/releases/$version" | grep -oP "https://developer.download.nvidia.com/hpc-sdk/([0-9]{2}\.[0-9]+)/nvhpc_([0-9]{4})_([0-9]+)_Linux_$(uname -m)_cuda_([0-9\.]+).tar.gz" | sort | tail -1)
+fi
 FOLDER="$(basename "$(echo "${URL}" | grep -oP '[^/]+$')" .tar.gz)"
 
 if [ ! -d "${TEMPORARY_FILES}/${FOLDER}" ]; then

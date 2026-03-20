@@ -10,5 +10,8 @@
 
 MODULE MPL_MPI
 #include "mpif.h"
+
+EXTERNAL :: MPI_ABORT
+
 END MODULE
 
