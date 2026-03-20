@@ -44,6 +44,18 @@ if( NOT fiat_VERSION_PATCH )
 endif()
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/library/version.c.in ${CMAKE_CURRENT_BINARY_DIR}/version.c @ONLY )
 
+fiat_preprocess_fypp_sources( fiat_mpl_allocator_src
+    SOURCES
+        mpl/mpl_allocator_mod.fypp
+        mpl/mpl_allocator_smod.fypp
+        mpl/internal/mpl_allocator/fiat_buddy_mod.fypp
+        mpl/internal/mpl_allocator/fiat_buddy_smod.fypp
+)
+list( APPEND fiat_mpl_allocator_src
+    mpl/internal/mpl_allocator/fiat_buddy_mod.cc
+    mpl/internal/mpl_allocator/buddy_alloc/buddy_alloc.h
+)
+
 ecbuild_list_add_pattern( LIST fiat_src GLOB
     drhook/*.c drhook/*.F*
     ecsort/*.c ecsort/*.F*
@@ -106,8 +118,10 @@ foreach( LIB_TYPE ${LIB_TYPES} )
     set( fiatlib ${fiatlib_${LIB_TYPE}} )
     ecbuild_add_library( TARGET ${fiatlib}
     LINKER_LANGUAGE Fortran
-    SOURCES ${fiat_src} ${CMAKE_CURRENT_BINARY_DIR}/version.c
-        TYPE ${LIB_TYPE}
+    SOURCES ${fiat_src}
+            ${fiat_mpl_allocator_src}
+            ${CMAKE_CURRENT_BINARY_DIR}/version.c
+    TYPE ${LIB_TYPE}
     PRIVATE_LIBS 
         ${CMAKE_DL_LIBS}
         ${RT_LIB}
@@ -127,6 +141,11 @@ foreach( LIB_TYPE ${LIB_TYPES} )
     OUTPUT_NAME fiat
     DEPENDS ${FIAT_DEPENDENCE_${LIB_TYPE}}
     )
+
+    if (HAVE_PLUTO)
+        target_link_libraries( ${fiatlib} PRIVATE pluto_f )
+    endif()
+    target_compile_definitions( ${fiatlib} PRIVATE HAVE_PLUTO=${HAVE_PLUTO} )
 
     if (HAVE_DR_HOOK_NVTX)
         # Files from within DrHook
