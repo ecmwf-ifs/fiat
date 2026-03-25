@@ -2481,10 +2481,11 @@ process_options()
     feenableexcept(prev_enabled_exceptions);
     fedisableexcept(~prev_enabled_exceptions);
     if (!drhook_trapfpe_hw_support && drhook_trapfpe_sw == -1) {
-      if (!opt_silent)
+      if (!opt_silent) {
         fprintf(stderr, "%s %s [%s@%s:%d] WARNING: DR_HOOK_TRAPFPE is enabled, but hardware FPE trapping is not available."
                         " DrHook will check per region instead. Set DR_HOOK_TRAPFPE_SW=0 to disable this.\n",
                 pfx,TIMESTR(tid),FFL);
+      }
       drhook_trapfpe_sw = 1;
     } else if (drhook_trapfpe_hw_support && drhook_trapfpe_sw == -1) {
       drhook_trapfpe_sw = 0; // No need for software trapping if hardware support is available & the user hasn't explicitly enabled it
