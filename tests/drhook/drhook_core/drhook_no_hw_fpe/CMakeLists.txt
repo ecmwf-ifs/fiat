@@ -54,11 +54,11 @@ set_tests_properties(${test_name}
 
 # Test basic implementation, but with the opposite system behaviour faked
 
-if ( NOT DRHOOK_HW_FPE_NOT_SUPPORTED )
+if ( DRHOOK_HW_FPE_NOT_SUPPORTED )
+  set( DRHOOK_HW_FPE_MOCK_DEF "MOCK_HARDWARE_FPE_SUPPORT")
+else ()
   set( DRHOOK_HW_FPE_NO "no_" )
   set( DRHOOK_HW_FPE_MOCK_DEF "MOCK_NO_HARDWARE_FPE_SUPPORT")
-else ()
-  set( DRHOOK_HW_FPE_MOCK_DEF "MOCK_HARDWARE_FPE_SUPPORT")
 endif ()
 
 set (test_executable_name drhook_no_hw_fpe_basic_faked_${DRHOOK_HW_FPE_NO}support)
