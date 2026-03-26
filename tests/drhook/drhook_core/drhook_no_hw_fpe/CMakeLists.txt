@@ -36,9 +36,11 @@ ecbuild_add_executable( TARGET ${test_executable_name}
   NOINSTALL )
 
 if ( DRHOOK_HW_FPE_NOT_SUPPORTED )
-  set( PASS_REGULAR_EXPRESSION "Hello, x is" )
-else()
+  # If no hardware FPE support, then DrHook detects the FPE
   set( PASS_REGULAR_EXPRESSION "Dr.Hook has detected an FPE on exit of region 'drhook_no_hw_fpe_basic': FE_DIVBYZERO" )
+else()
+  # Else it's the OS sigfpe handler (but we silently disable it and instead get this output)
+  set( PASS_REGULAR_EXPRESSION "Hello, x is" )
 endif()
 add_test(${test_name}
     ${CMAKE_COMMAND}
