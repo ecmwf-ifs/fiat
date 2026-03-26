@@ -10,7 +10,7 @@
 
 #include <fenv.h>
 
-void silently_disable_all_fpes_() {
+void silently_disable_all_fpes() {
   fenv_t envp;
   feholdexcept(&envp);
 }

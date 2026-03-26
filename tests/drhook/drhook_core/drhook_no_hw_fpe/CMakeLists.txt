@@ -8,12 +8,14 @@
 # nor does it submit to any jurisdiction.
 #
 
+find_package(CMath)
+
 # Do we need to emulate no hardware support, or is it natively unsupported?
 try_run(DRHOOK_HW_FPE_NOT_SUPPORTED # This is the runtime result of the check
     DRHOOK_HW_FPE_SUPPORT_COMPILE_RESULT
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/drhook_check_hw_fpe_support.c
-    LINK_LIBRARIES m # Needed for fenv.h
+    LINK_LIBRARIES ${CMATH_LIBRARIES} # Needed for fenv.h
     )
 
 if ( CMAKE_Fortran_COMPILER_ID MATCHES "Intel|IntelLLVM" )
@@ -26,7 +28,7 @@ endif ()
 
 ecbuild_add_executable( TARGET drhook_no_hw_fpe_basic
   SOURCES drhook_no_hw_fpe_basic.F90 drhook_no_hw_fpe_fenv_util.c
-  LIBS ${fiatlib} m
+  LIBS ${fiatlib} ${CMATH_LIBRARIES}
   LINKER_LANGUAGE Fortran
   FFLAGS ${DRHOOK_HW_FPE_FFLAGS}
   NOINSTALL )
@@ -59,7 +61,7 @@ if ( NOT APPLE ) # macOS doesn't implement feenableexcept()
 
   ecbuild_add_executable( TARGET drhook_no_hw_fpe_basic_faked_${DRHOOK_HW_FPE_NO}support
     SOURCES drhook_no_hw_fpe_basic.F90 drhook_no_hw_fpe_fenv_util.c
-    LIBS ${fiatlib} m
+    LIBS ${fiatlib} ${CMATH_LIBRARIES}
     LINKER_LANGUAGE Fortran
     FFLAGS ${DRHOOK_HW_FPE_FFLAGS}
     DEFINITIONS ${DRHOOK_HW_FPE_MOCK_DEF}
