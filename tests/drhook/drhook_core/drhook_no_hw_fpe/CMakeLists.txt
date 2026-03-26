@@ -47,7 +47,7 @@ add_test(${test_name}
       "-DPASS_REGULAR_EXPRESSION=${PASS_REGULAR_EXPRESSION}"
       -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../test_program_output.cmake)
 set_tests_properties(${test_name}
-    PROPERTIES ENVIRONMENT "DR_HOOK=1;DR_HOOK_TRAPFPE=1;DR_HOOK_SILENT=0" )
+    PROPERTIES ENVIRONMENT "DR_HOOK=1;DR_HOOK_TRAPFPE=1;DR_HOOK_SILENT=0;DR_HOOK_ASSERT_MPI_INITIALIZED=0" )
 
 
 ################################################################################
