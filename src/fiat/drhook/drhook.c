@@ -209,8 +209,8 @@ extern int fegetexcept(void);
 
 #if defined(__APPLE__)
   /*  A temporary fix to link on macOS. Something more clever will be done later -REK. */
-__attribute__((weak)) int feenableexcept (int excepts) { return -1; } // -1 assumes hardware support for FPE trapping
-__attribute__((weak)) int fedisableexcept(int excepts) { return -1; } // -1 assumes hardware support for FPE trapping
+__attribute__((weak)) int feenableexcept (int excepts) { return -1; } // -1 assumes NO hardware support for FPE trapping
+__attribute__((weak)) int fedisableexcept(int excepts) { return -1; } // -1 assumes NO hardware support for FPE trapping
 __attribute__((weak)) int fegetexcept(void) { return 0; }
 #endif
 
