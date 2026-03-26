@@ -25,63 +25,64 @@ elseif( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC" )
 endif ()
 
 # Test basic implementation
+set (test_executable_name drhook_no_hw_fpe_basic)
+set (test_name fiat_test_drhook_no_hw_fpe_native)
 
-ecbuild_add_executable( TARGET drhook_no_hw_fpe_basic
+ecbuild_add_executable( TARGET ${test_executable_name}
   SOURCES drhook_no_hw_fpe_basic.F90 drhook_no_hw_fpe_fenv_util.c
   LIBS ${fiatlib} ${CMATH_LIBRARIES}
   LINKER_LANGUAGE Fortran
   FFLAGS ${DRHOOK_HW_FPE_FFLAGS}
   NOINSTALL )
 
-ecbuild_add_test( TARGET fiat_test_drhook_no_hw_fpe_native
-    COMMAND drhook_no_hw_fpe_basic
-    ENVIRONMENT DR_HOOK=1 DR_HOOK_TRAPFPE=1 DR_HOOK_SILENT=0 )
-
-if ( TEST fiat_test_drhook_no_hw_fpe_native )
-  if ( DRHOOK_HW_FPE_NOT_SUPPORTED )
-    set_tests_properties(fiat_test_drhook_no_hw_fpe_native
-        PROPERTIES WILL_FAIL TRUE PASS_REGULAR_EXPRESSION "Hello, x is" )
-  else()
-    set_tests_properties(fiat_test_drhook_no_hw_fpe_native
-        PROPERTIES WILL_FAIL TRUE PASS_REGULAR_EXPRESSION "Dr.Hook has detected an FPE on exit of region 'drhook_no_hw_fpe_basic': FE_DIVBYZERO" )
-  endif()
+if ( DRHOOK_HW_FPE_NOT_SUPPORTED )
+  set( PASS_REGULAR_EXPRESSION "Hello, x is" )
+else()
+  set( PASS_REGULAR_EXPRESSION "Dr.Hook has detected an FPE on exit of region 'drhook_no_hw_fpe_basic': FE_DIVBYZERO" )
 endif()
+add_test(${test_name}
+    ${CMAKE_COMMAND}
+      "-DEXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/${test_executable_name}"
+      "-DLAUNCH=${LAUNCH}"
+      "-DPASS_REGULAR_EXPRESSION=${PASS_REGULAR_EXPRESSION}"
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../test_program_output.cmake)
+set_tests_properties(${test_name}
+    PROPERTIES ENVIRONMENT "DR_HOOK=1;DR_HOOK_TRAPFPE=1;DR_HOOK_SILENT=0" )
+
 
 ################################################################################
 
 # Test basic implementation, but with the opposite system behaviour faked
 
-if ( NOT APPLE ) # macOS doesn't implement feenableexcept()
-  if ( NOT DRHOOK_HW_FPE_NOT_SUPPORTED )
-    set( DRHOOK_HW_FPE_NO "no_" )
-    set( DRHOOK_HW_FPE_MOCK_DEF "MOCK_NO_HARDWARE_FPE_SUPPORT")
-  else ()
-    set( DRHOOK_HW_FPE_MOCK_DEF "MOCK_HARDWARE_FPE_SUPPORT")
-  endif ()
+if ( NOT DRHOOK_HW_FPE_NOT_SUPPORTED )
+  set( DRHOOK_HW_FPE_NO "no_" )
+  set( DRHOOK_HW_FPE_MOCK_DEF "MOCK_NO_HARDWARE_FPE_SUPPORT")
+else ()
+  set( DRHOOK_HW_FPE_MOCK_DEF "MOCK_HARDWARE_FPE_SUPPORT")
+endif ()
 
-  ecbuild_add_executable( TARGET drhook_no_hw_fpe_basic_faked_${DRHOOK_HW_FPE_NO}support
-    SOURCES drhook_no_hw_fpe_basic.F90 drhook_no_hw_fpe_fenv_util.c
-    LIBS ${fiatlib} ${CMATH_LIBRARIES}
-    LINKER_LANGUAGE Fortran
-    FFLAGS ${DRHOOK_HW_FPE_FFLAGS}
-    DEFINITIONS ${DRHOOK_HW_FPE_MOCK_DEF}
-    NOINSTALL )
+set (test_executable_name drhook_no_hw_fpe_basic_faked_${DRHOOK_HW_FPE_NO}support)
+set (test_name fiat_test_${test_executable_name})
+ecbuild_add_executable( TARGET ${test_executable_name}
+  SOURCES drhook_no_hw_fpe_basic.F90 drhook_no_hw_fpe_fenv_util.c
+  LIBS ${fiatlib} ${CMATH_LIBRARIES}
+  LINKER_LANGUAGE Fortran
+  FFLAGS ${DRHOOK_HW_FPE_FFLAGS}
+  DEFINITIONS ${DRHOOK_HW_FPE_MOCK_DEF}
+  NOINSTALL )
 
-  ecbuild_add_test( TARGET fiat_test_drhook_no_hw_fpe_basic_faked_${DRHOOK_HW_FPE_NO}support
-      COMMAND drhook_no_hw_fpe_basic_faked_${DRHOOK_HW_FPE_NO}support
-      ENVIRONMENT DR_HOOK=1 DR_HOOK_TRAPFPE=1 DR_HOOK_SILENT=0 )
-
-  if ( DRHOOK_HW_FPE_NOT_SUPPORTED )
-    if ( TEST fiat_test_drhook_no_hw_fpe_basic_faked_support )
-      set_tests_properties(fiat_test_drhook_no_hw_fpe_basic_faked_support
-          PROPERTIES PASS_REGULAR_EXPRESSION "Hello, x is" )
-    endif()
-  else()
-    if ( TEST fiat_test_drhook_no_hw_fpe_basic_faked_no_support )
-      set_tests_properties(fiat_test_drhook_no_hw_fpe_basic_faked_no_support
-          PROPERTIES PASS_REGULAR_EXPRESSION "Dr.Hook has detected an FPE on exit of region 'drhook_no_hw_fpe_basic': FE_DIVBYZERO" )
-    endif()
-  endif()
+if ( DRHOOK_HW_FPE_NOT_SUPPORTED )
+  set( PASS_REGULAR_EXPRESSION "Hello, x is" )
+else()
+  set( PASS_REGULAR_EXPRESSION "Dr.Hook has detected an FPE on exit of region 'drhook_no_hw_fpe_basic': FE_DIVBYZERO" )
 endif()
+add_test(${test_name}
+    ${CMAKE_COMMAND}
+      "-DEXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/${test_executable_name}"
+      "-DLAUNCH=${LAUNCH}"
+      "-DPASS_REGULAR_EXPRESSION=${PASS_REGULAR_EXPRESSION}"
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../test_program_output.cmake)
+set_tests_properties(${test_name}
+    PROPERTIES ENVIRONMENT "DR_HOOK=1;DR_HOOK_TRAPFPE=1;DR_HOOK_SILENT=0" )
 
 ################################################################################

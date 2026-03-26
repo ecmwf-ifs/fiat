@@ -10,6 +10,13 @@
 
 #include <fenv.h>
 
+#ifdef __APPLE__
+/* Needed to pass compilation and pretend no hardware support */
+int feenableexcept(int mask) {
+  return -1;
+}
+#endif
+
 int main() {
   return feenableexcept(FE_ALL_EXCEPT) == -1;
 }
