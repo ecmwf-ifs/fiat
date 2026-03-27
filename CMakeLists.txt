@@ -107,7 +107,7 @@ else()
   set(_whole_archive "-Wl,--whole-archive")
   set(_no_whole_archive "-Wl,--no-whole-archive")
 endif()
-set(MPI_SERIAL_LIBRARIES "${_whole_archive} mpi_serial ${_no_whole_archive}")
+set(MPI_SERIAL_LIBRARIES ${_whole_archive} mpi_serial ${_no_whole_archive})
 
 if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "NAG")
   set(_whole_archive "-Wl,-Xlinker,--whole-archive")
