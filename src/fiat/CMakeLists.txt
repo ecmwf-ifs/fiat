@@ -25,6 +25,21 @@ if( FIAT_ATTRIBUTE_CONSTRUCTOR_SUPPORTED )
   list( APPEND FIAT_DEFINITIONS FIAT_ATTRIBUTE_CONSTRUCTOR_SUPPORTED )
 endif()
 
+# GPU-aware trickery for device-resident arguments to MPL_xx routines
+if( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC|LLVMFlang" )
+  list( APPEND FIAT_DEFINITIONS "IGNORE_DEVICE=!DIR$ IGNORE_TKR(d)")
+  list( APPEND FIAT_DEFINITIONS "IGNORE_CONTIG_DEVICE=!DIR$ IGNORE_TKR(cd)")
+else()
+  list( APPEND FIAT_DEFINITIONS "IGNORE_DEVICE=!!not using IGNORE_TKR for")
+  list( APPEND FIAT_DEFINITIONS "IGNORE_CONTIG_DEVICE=!!not using IGNORE_TKR for")
+endif()
+
+if( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC" )
+  set_property( SOURCE mpl/internal_f08/mpl_send_implementation_mod.F90 APPEND PROPERTY COMPILE_OPTIONS "-w" )
+  # Disable warnings for following:
+  #    NVFORTRAN-W-0435-Array declared with zero size ( ZDUM(1:0) )
+endif()
+
 ### Compilation flags
 
 if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
