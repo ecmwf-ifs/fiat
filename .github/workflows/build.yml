@@ -38,6 +38,7 @@ jobs:
           - linux intel
           - linux intel-classic
           - linux nvhpc-25.1
+          - linux flang-22
           - macos
 
         include:
@@ -105,6 +106,17 @@ jobs:
             cmake_options: -DCMAKE_CXX_FLAGS=--diag_suppress177 -DMPI_ARGS=--oversubscribe
             caching: true
             coverage: false
+
+          - name: linux flang-22
+            os: ubuntu-24.04
+            compiler: flang-22
+            compiler_cc: clang-22
+            compiler_cxx: clang++-22
+            compiler_fc: flang-22
+            caching: true
+            coverage: false
+            cmake_options: -DMPI_SLOTS=4 -DMPI_ARGS=--oversubscribe
+            openmpi_version: 5.0.7
 
           - name: macos
             # Xcode compiler requires empty environment variables, so we pass null (~) here
@@ -185,10 +197,22 @@ jobs:
         printenv >> $GITHUB_ENV
         echo "CACHE_SUFFIX=$CC-$($CC -dumpversion)" >> $GITHUB_ENV
 
+    - name: Install flang compiler
+      if: contains( matrix.compiler, 'flang' )
+      shell: bash -eux {0}
+      run: |
+        sudo apt-get install -y wget gpg software-properties-common
+        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/apt.llvm.org.gpg
+        echo "deb [signed-by=/usr/share/keyrings/apt.llvm.org.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-22 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        sudo apt-get update
+        sudo apt-get install -y clang-22 flang-22 libomp-22-dev
+        echo "CACHE_SUFFIX=${CACHE_SUFFIX}-llvm_flang_22" >> $GITHUB_ENV
+
     - name: Install MPI
       shell: bash -eux {0}
       run: |
-        FCFLAGS=-fPIC CFLAGS=-fPIC FFLAGS=-fPIC ${FIAT_TOOLS}/install-mpi.sh --mpi openmpi --prefix  ${DEPS_DIR}/openmpi
+        MPI_VERSION_FLAG="${{ matrix.openmpi_version && format('--version {0}', matrix.openmpi_version) || '' }}"
+        FCFLAGS=-fPIC CFLAGS=-fPIC FFLAGS=-fPIC ${FIAT_TOOLS}/install-mpi.sh --mpi openmpi --prefix  ${DEPS_DIR}/openmpi ${MPI_VERSION_FLAG}
         if [[ "${{ matrix.os }}" =~ macos ]]; then
            echo "CACHE_SUFFIX=${CACHE_SUFFIX}-mpi_$(mpirun --version | head -1 | awk '{print $4}')" >> $GITHUB_ENV
         fi
