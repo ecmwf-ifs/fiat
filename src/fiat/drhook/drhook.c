@@ -2973,13 +2973,13 @@ insertkey(int tid, const drhook_key_t *keyptr_in)
   return keyptr;
 }
 
-void check_fpe_flags(int raised, int tid, const char *name, int is_entry) {
+void check_fpe_flags(int raised, int tid, const char *name, int name_len, int is_entry) {
   char *pfx = PREFIX(tid);
   int comma_needed = 0;
 
   fprintf(stderr,
-          "%s %s [%s@%s:%d] : Dr.Hook has detected an FPE on %s of region '%s'%s: ",
-          pfx,TIMESTR(tid),FFL, is_entry? "entry" : "exit", name, is_entry? ". This is likely due to the parent region." : "");
+          "%s %s [%s@%s:%d] : Dr.Hook has detected an FPE on %s of region '%.*s'%s: ",
+          pfx,TIMESTR(tid),FFL, is_entry? "entry" : "exit", name_len, name, is_entry? ". This is likely due to the parent region." : "");
 
   if (raised & FE_INVALID) {
     fprintf(stderr, "FE_INVALID");
@@ -3015,7 +3015,7 @@ getkey(int tid, const char *name, int name_len,
       /* Potentially save a function call by checking here vs inside check_fpe_flags() */
       int raised = fetestexcept(drhook_trapfpe_flag_mask);
       if (raised) {
-        check_fpe_flags(raised, tid, name, 1);
+        check_fpe_flags(raised, tid, name, name_len, 1);
       }
     }
 
@@ -3217,7 +3217,7 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
       /* Potentially save a function call by checking here vs inside check_fpe_flags() */
       int raised = fetestexcept(drhook_trapfpe_flag_mask);
       if (raised) {
-        check_fpe_flags(raised, tid, name, 0);
+        check_fpe_flags(raised, tid, name, name_len, 0);
       }
     }
 
