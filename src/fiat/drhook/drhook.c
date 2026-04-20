@@ -231,7 +231,6 @@ static unsigned long long fenv_to_fpcr(unsigned int fenv_flag) {
   }
   // Better to assume nothing and be explicit...
   if (fenv_flag == FE_ALL_EXCEPT ) {
-    // TODO: __fpcr_trap_inexact causes DrHook to SIGILL immediately
     fpcr_flags |= __fpcr_trap_inexact & __fpcr_trap_underflow & __fpcr_trap_overflow &
       __fpcr_trap_divbyzero & __fpcr_trap_invalid & __fpcr_flush_to_zero;
   }
@@ -2627,7 +2626,7 @@ process_options()
     // Not all platforms, e.g. Nvidia's Grace, support trapping FPEs,
     // so we have to check if trapping is enabled
     int prev_enabled_exceptions = fegetexcept();
-    int drhook_trapfpe_hw_support = feenableexcept(FE_ALL_EXCEPT) != -1;
+    int drhook_trapfpe_hw_support = feenableexcept(FE_INVALID & FE_DIVBYZERO & FE_OVERFLOW) != -1;
     // Even if we failed above, we should still try to restore the flags
     feenableexcept(prev_enabled_exceptions);
     fedisableexcept(~prev_enabled_exceptions);
