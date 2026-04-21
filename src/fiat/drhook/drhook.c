@@ -1864,29 +1864,23 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
           if (TFV_set) {
             // Now know this is actually a SIGFPE, not a SIGILL
             SIGFPE_via_SIGILL = 1;
-            if ( TEST_ESR(FPE_FLTDIV) ) {
-              s = "floating-point divide by zero";
-            }
-            else if ( TEST_ESR(FPE_FLTOVF) ) {
-              s = "floating-point overflow";
-            }
-            else if ( TEST_ESR(FPE_FLTUND) ) {
-              s = "floating-point underflow";
-            }
-            else if ( TEST_ESR(FPE_FLTRES) ) {
-              s = "floating-point inexact result";
-            }
-            else if ( TEST_ESR(FPE_FLTINV) ) {
+            if ( TEST_ESR(0) ) {
               s = "floating-point invalid operation";
             }
-            else if ( TEST_ESR(FPE_FLTSUB) ) {
-              s = "subscript out of range";
+            else if ( TEST_ESR(1) ) {
+              s = "floating-point divide by zero";
             }
-            else if ( TEST_ESR(FPE_INTDIV) ) {
-              s = "integer divide by zero";
+            else if ( TEST_ESR(2) ) {
+              s = "floating-point overflow";
             }
-            else if ( TEST_ESR(FPE_INTOVF) ) {
-              s =  "integer overflow";
+            else if ( TEST_ESR(3) ) {
+              s = "floating-point underflow";
+            }
+            else if ( TEST_ESR(4) ) {
+              s = "floating-point inexact result";
+            }
+            else if ( TEST_ESR(7) ) {
+              s = "floating-point denormal";
             }
             else {
               s = "unrecognized si_code for SIGFPE";
