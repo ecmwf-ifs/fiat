@@ -13,7 +13,7 @@ use yomhook, only : jphook, dr_hook
 
 implicit none
 
-real(jphook) :: zhook_handle, zhook_handle_a
+real(jphook) :: zhook_handle
 real :: x
 real, volatile :: y ! This is needed because some compilers are smart enough to perform constant folding at compile time, which prevents FPE flags being set a runtime
 
