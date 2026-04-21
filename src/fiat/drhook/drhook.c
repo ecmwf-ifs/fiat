@@ -296,6 +296,7 @@ __attribute__((weak)) int fedisableexcept(int excepts) {
 
   return fesetenv(&fenv) ? -1 : old_excepts;
 }
+
 __attribute__((weak)) int fegetexcept(void) {
   fenv_t fenv;
 
@@ -2628,6 +2629,10 @@ process_options()
     int prev_enabled_exceptions = fegetexcept();
     int drhook_trapfpe_hw_support = feenableexcept(FE_INVALID & FE_DIVBYZERO & FE_OVERFLOW) != -1;
     // Even if we failed above, we should still try to restore the flags
+#if defined(__APPLE__) && defined(__arm64__)
+    // This seems to be enabled by default, but causes DrHook to raise a SIGILL in the OPTPRINTs below
+    prev_enabled_exceptions &= ~FE_INEXACT;
+#endif
     feenableexcept(prev_enabled_exceptions);
     fedisableexcept(~prev_enabled_exceptions);
     if (!drhook_trapfpe_hw_support && drhook_trapfpe_sw == -1) {
