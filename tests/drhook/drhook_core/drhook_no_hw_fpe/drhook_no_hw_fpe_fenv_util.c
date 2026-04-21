@@ -9,11 +9,18 @@
  */
 
 #include <fenv.h>
+#include <signal.h>
 
 void silently_disable_all_fpes() {
   fenv_t envp;
   feholdexcept(&envp);
 }
+
+#if defined(__APPLE__) && defined(__arm64__)
+void raise_sigill() {
+  raise(SIGILL);
+}
+#endif
 
 #ifdef MOCK_HARDWARE_FPE_SUPPORT
 
