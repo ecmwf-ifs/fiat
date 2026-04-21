@@ -66,7 +66,7 @@ static unsigned int fpcr_to_fenv(unsigned long long fpcr_flags) {
   }
   unsigned long long all_fpcr_flags = __fpcr_trap_inexact & __fpcr_trap_underflow &
     __fpcr_trap_overflow & __fpcr_trap_divbyzero & __fpcr_trap_invalid & __fpcr_flush_to_zero;
-  if (fenv_flag == all_fpcr_flags ) {
+  if (fpcr_flags == all_fpcr_flags ) {
     return FE_ALL_EXCEPT;
   }
   return fenv_flag;
@@ -95,5 +95,5 @@ int feenableexcept(int mask) {
 #endif
 
 int main() {
-  return feenableexcept(FE_INVALID & FE_DIVBYZERO & FE_OVERFLOW) == -1;
+  return feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW) == -1;
 }
