@@ -231,8 +231,8 @@ static unsigned long long fenv_to_fpcr(unsigned int fenv_flag) {
   }
   // Better to assume nothing and be explicit...
   if (fenv_flag == FE_ALL_EXCEPT ) {
-    fpcr_flags |= __fpcr_trap_inexact & __fpcr_trap_underflow & __fpcr_trap_overflow &
-      __fpcr_trap_divbyzero & __fpcr_trap_invalid & __fpcr_flush_to_zero;
+    fpcr_flags |= __fpcr_trap_inexact | __fpcr_trap_underflow | __fpcr_trap_overflow |
+      __fpcr_trap_divbyzero | __fpcr_trap_invalid | __fpcr_flush_to_zero;
   }
   return fpcr_flags;
 }
@@ -257,8 +257,8 @@ static unsigned int fpcr_to_fenv(unsigned long long fpcr_flags) {
   if (fpcr_flags & __fpcr_flush_to_zero) {
     fenv_flag |= FE_FLUSHTOZERO;
   }
-  unsigned long long all_fpcr_flags = __fpcr_trap_inexact & __fpcr_trap_underflow &
-    __fpcr_trap_overflow & __fpcr_trap_divbyzero & __fpcr_trap_invalid & __fpcr_flush_to_zero;
+  unsigned long long all_fpcr_flags = __fpcr_trap_inexact | __fpcr_trap_underflow |
+    __fpcr_trap_overflow | __fpcr_trap_divbyzero | __fpcr_trap_invalid | __fpcr_flush_to_zero;
   if (fenv_flag == all_fpcr_flags ) {
     return FE_ALL_EXCEPT;
   }
