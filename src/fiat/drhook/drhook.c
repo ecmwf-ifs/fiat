@@ -307,8 +307,8 @@ __attribute__((weak)) int fegetexcept(void) {
   return fpcr_to_fenv(fenv.__fpcr) & FE_ALL_EXCEPT;
 }
 
-#elif defined(__APPLE__)
-// #if defined(__APPLE__)
+#elif defined(__APPLE__) && !defined(__arm64__)
+  /*  If we are dealing with an Intel Mac  */
   /*  A temporary fix to link on macOS. Something more clever will be done later -REK. */
 __attribute__((weak)) int feenableexcept (int excepts) { return -1; } // -1 assumes NO hardware support for FPE trapping
 __attribute__((weak)) int fedisableexcept(int excepts) { return -1; } // -1 assumes NO hardware support for FPE trapping
@@ -1588,8 +1588,6 @@ ignore_signals(int silent)
     trapfpe_treatment(x,0);                                                                                           \
   }
 
-#define TEST_ESR(sigcode) (uc->uc_mcontext->__es.__esr & 0x1 << sigcode)
-
 #define DRH_STRUCT_RLIMIT struct rlimit
 #define DRH_GETRLIMIT getrlimit
 #define DRH_SETRLIMIT setrlimit
@@ -1859,6 +1857,8 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
           //    https://github.com/ecmwf/atlas/blob/develop/src/atlas/library/FloatingPointExceptions.cc
           //
 
+#define TEST_ESR(sigcode) (uc->uc_mcontext->__es.__esr & 0x1 << sigcode)
+
           // Check the Trapped Fault Valid bit
           int TFV_set = uc->uc_mcontext->__es.__esr & 0x1 << 23;
           if (TFV_set) {
@@ -1902,6 +1902,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
             }
 #if defined(__APPLE__) && defined(__arm64__)
           }
+#undef TEST_ESR
 #endif
         }
         else if (sig == SIGSEGV) {
