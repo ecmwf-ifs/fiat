@@ -88,3 +88,26 @@ set_tests_properties(${test_name}
     PROPERTIES ENVIRONMENT "DR_HOOK=1;DR_HOOK_TRAPFPE=1;DR_HOOK_SILENT=0;DR_HOOK_ASSERT_MPI_INITIALIZED=0" )
 
 ################################################################################
+# This test is to show that true SIGILL exceptions (i.e. not FPEs raised as SIGILLs) are still handled correctly on Apple Silicon.
+# This is because is raises FPEs as SIGILLs and not the SIGFPEs as would be expected on other platforms.
+if (APPLE AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm64")
+
+ecbuild_add_executable( TARGET drhook_no_hw_fpe_Apple_Silicon_SIGILL
+    SOURCES drhook_no_hw_fpe_Apple_Silicon_SIGILL.F90 drhook_no_hw_fpe_fenv_util.c
+    LIBS ${fiatlib} ${CMATH_LIBRARIES}
+    LINKER_LANGUAGE Fortran
+    FFLAGS ${DRHOOK_HW_FPE_FFLAGS}
+    NOINSTALL )
+
+add_test(fiat_test_drhook_no_hw_fpe_Apple_Silicon_SIGILL
+    ${CMAKE_COMMAND}
+    "-DEXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/drhook_no_hw_fpe_Apple_Silicon_SIGILL"
+    "-DLAUNCH=${LAUNCH}"
+    "-DPASS_REGULAR_EXPRESSION='Program received signal SIGILL: Illegal instruction'"
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../test_program_output.cmake)
+set_tests_properties(fiat_test_drhook_no_hw_fpe_Apple_Silicon_SIGILL
+    PROPERTIES ENVIRONMENT "DR_HOOK=1;DR_HOOK_TRAPFPE=1;DR_HOOK_SILENT=0;DR_HOOK_ASSERT_MPI_INITIALIZED=0" )
+
+endif ()
+
+################################################################################

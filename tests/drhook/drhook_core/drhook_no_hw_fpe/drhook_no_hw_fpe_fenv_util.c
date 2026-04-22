@@ -9,10 +9,15 @@
  */
 
 #include <fenv.h>
+#include <signal.h>
 
 void silently_disable_all_fpes() {
   fenv_t envp;
   feholdexcept(&envp);
+}
+
+void raise_sigill() {
+  raise(SIGILL);
 }
 
 #ifdef MOCK_HARDWARE_FPE_SUPPORT
