@@ -208,6 +208,7 @@ extern int fedisableexcept(int excepts);
 extern int fegetexcept(void);
 
 #if defined(__APPLE__) && defined(__arm64__)
+// If we are dealing with an Apple Silicon Mac
 // Borrowed from Atlas https://github.com/ecmwf/atlas/blob/develop/src/atlas/library/FloatingPointExceptions.cc
 static unsigned long long fenv_to_fpcr(unsigned int fenv_flag) {
   unsigned long long fpcr_flags = 0;

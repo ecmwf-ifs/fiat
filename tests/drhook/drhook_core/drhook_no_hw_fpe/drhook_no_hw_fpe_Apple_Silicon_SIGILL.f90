@@ -22,6 +22,9 @@ program drhook_no_hw_fpe_Apple_Silicon_SIGILL
 
   call dr_hook('drhook_no_hw_fpe_Apple_Silicon_SIGILL', 0, zhook_handle)
 
+  ! Ensure that DrHook still processes legitamate SIGILLs, as signal_drhook()
+  ! converts SIGFPEs posing as SIGILLs to SIGFPEs.
+  ! https://developer.apple.com/forums/thread/689159?answerId=733736022
   call raise_sigill()
 
   call dr_hook('drhook_no_hw_fpe_Apple_Silicon_SIGILL', 1, zhook_handle)
