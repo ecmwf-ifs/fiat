@@ -30,12 +30,14 @@ ecbuild_add_test(
     COMMAND fiat_test_gstats_csv_output
     MPI 1
     CONDITION HAVE_MPI
+    TEST_DEPENDS fiat_test_gstats_csv_output_mpi0
 )
 ecbuild_add_test(
     TARGET  fiat_test_gstats_csv_output_mpi2
     COMMAND fiat_test_gstats_csv_output
     MPI 2
     CONDITION HAVE_MPI
+    TEST_DEPENDS fiat_test_gstats_csv_output_mpi1
 )
 
 # ----------------------------------------------------------------------------------------
