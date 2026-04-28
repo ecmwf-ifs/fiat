@@ -71,6 +71,7 @@ Extra options can be added to the `cmake` command to control the build:
  - `-DENABLE_MPI=<ON|OFF>`                               # if OFF, MPL links against dummy mpi_serial library
  - `-DENABLE_OMP=<ON|OFF>`
  - `-DENABLE_MPL_F77_DEPRECATED=<ON|OFF>` default=OFF    # build F77-based MPL instead of MPI_F08-based MPL
+ - `-DENABLE_MPL_F90_MODULE=<ON|OFF>` default=OFF        # build 'USE MPI' module-based MPL instead of MPI_F08-based MPL
  - `-DENABLE_MPL_CHECK_CONTIG=<ON|OFF>` default=OFF      # enable run-time checks of contiguous status of arrays passed to MPL
  - `-DENABLE_DUMMY_MPI_HEADER=<ON|OFF>` default=ON
  - `-DCMAKE_INSTALL_PREFIX=<install-prefix>`

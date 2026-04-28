@@ -56,20 +56,31 @@ ecbuild_add_option( FEATURE DUMMY_MPI_HEADER
                     DEFAULT ON
                     DESCRIPTION "[DANGEROUS] Install a dummy MPI header" )
 
-# Two MPL interface styles
+# Three MPL interface styles
 # - DEPRECATED F77 based interface, relies on mpif.h, can't take non-contiguous arrays
+# - F90 MODULE based interface, relies on 'USE MPI' module (Fortran 90+)
 # - MPI_F08 based interface, relies on mpi_f08 module
-# NB : both interfaces can be compiled without MPI, and then link to mpi_serial library
+# NB : all interfaces can be compiled without MPI, and then link to mpi_serial library
 set( MPL_F77_DEPRECATED_DEFAULT OFF )
+set( MPL_F90_MODULE_DEFAULT OFF )
 if( HAVE_MPI AND NOT MPI_Fortran_HAVE_F08_MODULE )
-    ecbuild_warn( "MPI Fortran present, but no MPI-F08 support found, so building with FEATURE MPL_F77_DEPRECATED DEFAULT ON. "
+    ecbuild_warn( "MPI Fortran present, but no MPI-F08 support found, so building with FEATURE MPL_F90_MODULE DEFAULT ON. "
                   "Please check your MPI installation for MPI-F08 support." )
-    set( MPL_F77_DEPRECATED_DEFAULT ON )
+    set( MPL_F90_MODULE_DEFAULT ON )
 endif()
 ecbuild_add_option( FEATURE MPL_F77_DEPRECATED
                     DESCRIPTION "[DEPRECATED] Compile deprecated 'mpif.h'-based MPL instead of MPI_F08 version"
                     REQUIRED_PACKAGES "MPI COMPONENTS Fortran"
                     DEFAULT ${MPL_F77_DEPRECATED_DEFAULT} )
+
+ecbuild_add_option( FEATURE MPL_F90_MODULE
+                    DESCRIPTION "Compile 'USE MPI' module-based MPL instead of MPI_F08 version"
+                    REQUIRED_PACKAGES "MPI COMPONENTS Fortran"
+                    DEFAULT ${MPL_F90_MODULE_DEFAULT} )
+
+if( HAVE_MPL_F77_DEPRECATED AND HAVE_MPL_F90_MODULE )
+    ecbuild_critical( "MPL_F77_DEPRECATED and MPL_F90_MODULE are mutually exclusive. Please enable only one." )
+endif()
 
 ecbuild_add_option( FEATURE MPL_CHECK_CONTIG
                     DESCRIPTION "Enable runtime check of contiguity of array arguments passed to MPL routines"
@@ -125,11 +136,12 @@ add_subdirectory(tests)
 
 ### Export
 
-if (fiat_HAVE_MPL_F77_DEPRECATED)
+if (fiat_HAVE_MPL_F77_DEPRECATED OR fiat_HAVE_MPL_F90_MODULE)
 set (fiat_HAVE_MPL_F08 0)
 else()
 set (fiat_HAVE_MPL_F08 1)
 endif()
+set (fiat_HAVE_MPL_F90_MODULE ${fiat_HAVE_MPL_F90_MODULE})
 
 set( fiat_REQUIRES_PRIVATE_DEPENDENCIES FALSE )
 get_target_property( target_build_type fiat TYPE )

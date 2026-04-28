@@ -59,6 +59,11 @@ if( HAVE_MPL_F77_DEPRECATED)
       "mpl/internal_deprecated/*.c" "mpl/internal_deprecated/*.F*"
       "mpl/mpl_module.F90" "mpl/mpl_bindc.F90" )
     ecbuild_info( "FIAT building with *deprecated* F77 (mpif.h) MPL interface" )
+elseif( HAVE_MPL_F90_MODULE)
+    ecbuild_list_add_pattern( LIST fiat_src GLOB
+      "mpl/internal_deprecated/*.c" "mpl/internal_deprecated/*.F*"
+      "mpl/mpl_module.F90" "mpl/mpl_bindc.F90" )
+    ecbuild_info( "FIAT building with F90 (USE MPI) MPL interface" )
 else()
     ecbuild_list_add_pattern( LIST fiat_src GLOB
       "mpl/internal_f08/*.c" "mpl/internal_f08/*.F*"
@@ -177,6 +182,10 @@ foreach( LIB_TYPE ${LIB_TYPES} )
 
     if( HAVE_MPL_F77_DEPRECATED)
         target_compile_definitions( ${fiatlib} PRIVATE MPL_F77_DEPRECATED )
+    endif()
+
+    if( HAVE_MPL_F90_MODULE)
+        target_compile_definitions( ${fiatlib} PRIVATE MPL_F90_MODULE )
     endif()
 
     if( HAVE_MPL_CHECK_CONTIG)

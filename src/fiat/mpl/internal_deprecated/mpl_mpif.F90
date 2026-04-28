@@ -9,6 +9,10 @@
 !
 
 MODULE MPL_MPIF
+#ifdef MPL_F90_MODULE
+USE MPI
+#else
 #include "mpif.h"
+#endif
 END MODULE MPL_MPIF
 
