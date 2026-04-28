@@ -30,14 +30,20 @@ ecbuild_add_test(
     COMMAND fiat_test_gstats_csv_output
     MPI 1
     CONDITION HAVE_MPI
-    TEST_DEPENDS fiat_test_gstats_csv_output_mpi0
 )
 ecbuild_add_test(
     TARGET  fiat_test_gstats_csv_output_mpi2
     COMMAND fiat_test_gstats_csv_output
     MPI 2
     CONDITION HAVE_MPI
-    TEST_DEPENDS fiat_test_gstats_csv_output_mpi1
 )
+
+foreach( test fiat_test_gstats_csv_output_mpi0
+              fiat_test_gstats_csv_output_mpi1
+              fiat_test_gstats_csv_output_mpi2 )
+  if( TEST ${test} )
+    set_tests_properties(${test} PROPERTIES RESOURCE_LOCK gstats_csv_output )
+  endif()
+endforeach()
 
 # ----------------------------------------------------------------------------------------
