@@ -63,7 +63,7 @@ TYPE(MPI_INFO)     :: MPI_INFO_NULL
 !! symbols defined in mpi_serial library, and picked up via a 'USE MPL_MPI' important statement
 !!==============================================================================================
 
-EXTERNAL :: MPI_COMM_SIZE, MPI_TYPE_SIZE, MPI_ALLREDUCE, MPI_COMM_CREATE, MPI_COMM_GROUP
+EXTERNAL :: MPI_COMM_SIZE, MPI_TYPE_SIZE, MPI_ALLREDUCE, MPI_COMM_CREATE, MPI_COMM_GROUP, MPI_COMM_FREE
 
 END MODULE MPI_F08
 
