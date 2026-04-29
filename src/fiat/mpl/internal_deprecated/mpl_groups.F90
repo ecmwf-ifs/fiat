@@ -39,11 +39,6 @@ PUBLIC MPL_COMM_GRID, MPL_ALL_LEVS_COMM, MPL_ALL_MS_COMM, &
 
 INTEGER(KIND=JPIM) :: MPL_COMM_GRID, MPL_ALL_LEVS_COMM, MPL_ALL_MS_COMM, &
            & MPL_GP_GRID
-<<<<<<< HEAD
-=======
-LOGICAL,SAVE :: LGROUPSETUP=.FALSE.
-INTEGER(KIND=JPIM),SAVE :: ICOMM_PARENT=MPI_COMM_NULL
->>>>>>> 0775273 (using MPI_COMM_NULL for initialisations)
 CONTAINS
 ! ------------------------------------------------------------------
 
