@@ -31,7 +31,7 @@ if( fiat_HAVE_OMP AND NOT TARGET OpenMP::OpenMP_Fortran )
     if( NOT CMAKE_Fortran_COMPILER_LOADED )
         enable_language( Fortran )
     endif()
-    find_dependency( OpenMP COMPONENTS Fortran )
+    find_dependency( OpenMP COMPONENTS C Fortran )
 endif()
 
 # Workaround NVHPC linking issue (see https://github.com/ecmwf-ifs/fiat/pull/79)

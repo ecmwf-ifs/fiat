@@ -56,14 +56,14 @@ TYPE(MPI_OP)       :: MPI_MAX, MPI_MIN, MPI_SUM, MPI_BXOR
 
 TYPE(MPI_REQUEST)  :: MPI_REQUEST_NULL
 
-TYPE(MPI_COMM)     :: MPI_COMM_WORLD, MPI_COMM_NULL
+TYPE(MPI_COMM), PARAMETER :: MPI_COMM_WORLD = MPI_COMM(0), MPI_COMM_NULL = MPI_COMM(-1)
 
 TYPE(MPI_INFO)     :: MPI_INFO_NULL
 
 !! symbols defined in mpi_serial library, and picked up via a 'USE MPL_MPI' important statement
 !!==============================================================================================
 
-EXTERNAL :: MPI_COMM_SIZE, MPI_TYPE_SIZE, MPI_ALLREDUCE, MPI_COMM_CREATE, MPI_COMM_GROUP
+EXTERNAL :: MPI_COMM_SIZE, MPI_TYPE_SIZE, MPI_ALLREDUCE, MPI_COMM_CREATE, MPI_COMM_GROUP, MPI_COMM_FREE
 
 END MODULE MPI_F08
 

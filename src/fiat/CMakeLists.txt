@@ -199,7 +199,7 @@ foreach( LIB_TYPE ${LIB_TYPES} )
     endif()
 
     if( HAVE_OMP )
-        target_link_libraries( ${fiatlib} PRIVATE OpenMP::OpenMP_Fortran )
+        target_link_libraries( ${fiatlib} PRIVATE OpenMP::OpenMP_Fortran OpenMP::OpenMP_C )
     endif()
 
     fiat_target_ignore_missing_symbols( TARGET ${fiatlib} SYMBOLS

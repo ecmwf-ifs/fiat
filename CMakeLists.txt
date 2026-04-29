@@ -24,7 +24,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 ecbuild_add_option( FEATURE OMP
                     DESCRIPTION "Support for OpenMP shared memory parallelism"
-                    REQUIRED_PACKAGES "OpenMP COMPONENTS Fortran" )
+                    REQUIRED_PACKAGES "OpenMP COMPONENTS C Fortran" )
+
+# Workaround: CMake's FindOpenMP only sets INTERFACE_LINK_OPTIONS for Fujitsu/IntelLLVM.
+# Cray compiler wrappers also need the OpenMP flag at link time (not just compile time).
+if( HAVE_OMP AND CMAKE_Fortran_COMPILER_ID MATCHES "Cray" )
+    if( TARGET OpenMP::OpenMP_Fortran )
+        set_property(TARGET OpenMP::OpenMP_Fortran APPEND PROPERTY
+            INTERFACE_LINK_OPTIONS "SHELL:${OpenMP_Fortran_FLAGS}")
+    endif()
+    if( TARGET OpenMP::OpenMP_C )
+        set_property(TARGET OpenMP::OpenMP_C APPEND PROPERTY
+            INTERFACE_LINK_OPTIONS "SHELL:${OpenMP_C_FLAGS}")
+    endif()
+endif()
 
 ecbuild_add_option( FEATURE MPI
                     DESCRIPTION "Support for MPI distributed parallelism"
