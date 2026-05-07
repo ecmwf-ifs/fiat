@@ -21,6 +21,7 @@ USE, INTRINSIC :: ISO_FORTRAN_ENV
 
 IMPLICIT NONE
 PRIVATE
+PUBLIC :: MPL_ALLOCATOR_CONFIG
 PUBLIC :: MPL_ALLOCATOR_INIT
 PUBLIC :: MPL_ALLOCATOR_FINAL
 PUBLIC :: MPL_ALLOCATOR_INITIALIZED
@@ -31,6 +32,21 @@ PUBLIC :: MPL_ALLOCATOR_RESOURCE
 PUBLIC :: MPL_ALLOCATE
 PUBLIC :: MPL_DEALLOCATE
 
+
+TYPE :: MPL_ALLOCATOR_CONFIG_TYPE
+  INTEGER(INT32)                :: MPL_MANAGED = -1
+    !! Controls whether the lifecycle of the MPL_ALLOCATOR is managed by MPL or manually by the user.
+    !! The behavior is as follows:
+    !! *  1: the MPL_ALLOCATOR will be initialized by MPL_INIT and finalized by MPL_END,
+    !!       and its lifecycle will be managed by MPL.
+    !! *  0: the MPL_ALLOCATOR will need to be initialized and finalized manually by calling
+    !!       MPL_ALLOCATOR_INIT and MPL_ALLOCATOR_FINAL.
+    !! *  -1 (default): the behavior will be determined by checking the environment variable "MPL_ALLOCATOR_MPL_MANAGED"
+  CHARACTER(LEN=:), ALLOCATABLE :: RESOURCE
+  INTEGER(INT64)                :: SIZE = 0
+END TYPE MPL_ALLOCATOR_CONFIG_TYPE
+TYPE(MPL_ALLOCATOR_CONFIG_TYPE), SAVE :: MPL_ALLOCATOR_CONFIG
+
 INTERFACE
 
 MODULE SUBROUTINE MPL_ALLOCATOR_INIT(RESOURCE, SIZE)
@@ -38,27 +54,36 @@ MODULE SUBROUTINE MPL_ALLOCATOR_INIT(RESOURCE, SIZE)
 
   ! Arguments:
   CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: RESOURCE
-    !! The memory resource to use for the pool allocator. This can be used to select between different underlying memory management
-    !! strategies (e.g. a memory pool, a custom allocator, or the system allocator).
+    !! The memory resource to use for the pool allocator. This can be used to select between different underlying memory
+    !! management strategies (e.g. a memory pool, a custom allocator, or the system allocator).
+    !! FIAT provides some built-in resources:
+    !!   - "FORTRAN":    A simple allocator that uses Fortran's ALLOCATE and DEALLOCATE statements.
+    !!   - "FIAT_BUDDY": A buddy allocator that uses a memory pool for efficient allocation and deallocation.
+    !! Note, if FIAT has been built with PLUTO support, more pluto-registered resources will be available.
+    !! If RESOURCE is not provided (optional argument). The used resource will be determined by the following logic:
+    !!   - Use content of variable MPL_ALLOCATOR_CONFIG%RESOURCE if available.
+    !!   - Use content of environment variable MPL_ALLOCATOR_RESOURCE if available.
+    !!   - Use default resource: "FIAT_BUDDY".
   INTEGER(INT64), INTENT(IN), OPTIONAL :: SIZE
     !! The amount of memory to reserve in the pool resource, in bytes.
     !! Depending on the underlying RESOURCE, this may be treated as a soft limit (e.g. for a memory pool)
     !! or a hard limit (e.g. for a custom allocator that directly reserves memory from the system).
-    !! Any allocation request that exceeds the reserved amount may cause an error or trigger additional memory management behavior,
-    !! depending on the implementation.
+    !! Any allocation request that exceeds the reserved amount may cause an error or trigger additional memory management
+    !! behavior, depending on the implementation.
     !! There are following cases to consider:
     !!   - SIZE > 0: The underlying pool is initialized with the specified size, and is not allowed to grow beyond this size.
     !!               Any allocation request that exceeds this size will cause an error.
-    !!               The environment variable "MPL_ALLOCATOR_GROW" can be set to be set to a REAL value > 0 to avoid the hard
+    !!               The environment variable "MPL_ALLOCATOR_GROW" can be set to a REAL value > 0 to avoid the hard
     !!               limit and allow the pool to grow by the specified factor when the reserved size is exceeded.
     !!   - SIZE = 0: The underlying pool is initialized upon first allocation request with a size that is determined by the
     !!               implementation (e.g. based on the first allocation request or a default size).
     !!               This value can be steered by setting the environment variable "MPL_ALLOCATOR_SIZE" to an INTEGER value > 0
     !!               representing the initial size in bytes.
-    !!               The pool is allowed to grow as needed to accommodate allocation requests that exceed the initially reserved size.
+    !!               The pool is allowed to grow as needed to accommodate allocation requests that exceed the initially reserved
+    !!               size. By default the grow factor is set to 1 (100% growth of current capacity = 2x).
     !!               The environment variable "MPL_ALLOCATOR_GROW" can be set to be set to a REAL value > 0 to control the
-    !!               grow factor when the pool needs to grow. By default the grow factor is set to 1 (100% growth of current capacity = 2x).
-    !!   - SIZE not present: The behavior is the same as SIZE=0
+    !!               grow factor when the pool needs to grow.
+    !!   - SIZE not present: Simulate argument SIZE=MPL_ALLOCATOR_CONFIG%SIZE
 END SUBROUTINE MPL_ALLOCATOR_INIT
 
 MODULE FUNCTION MPL_ALLOCATOR_INITIALIZED() RESULT(INITIALIZED)

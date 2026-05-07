@@ -31,6 +31,18 @@ ecbuild_add_executable(
     NOINSTALL
 )
 
+ecbuild_add_executable(
+    TARGET fiat_test_mpl_init_allocator
+    SOURCES test_mpl_init_allocator.F90
+    LIBS    ${fiatlib} ${MPI_SERIAL_LIBRARIES}
+    # Link with mpi-serial because we really don't want to test mpi, but rather that MPL_INIT
+    # initialises the allocator correctly even when MPI is available.
+    # This also allows the test to link and run successfully in case MPI_Init would fail
+    # (e.g. blocked by a missing MPI runtime like slurm on login nodes)
+    LINKER_LANGUAGE Fortran
+    NOINSTALL
+)
+
 add_test(
     NAME "fiat_test_fiat_buddy_capacity_uninitialized${___SEP___}ASSERT_ABORT"
     COMMAND ${CMAKE_COMMAND}
@@ -78,6 +90,50 @@ ecbuild_add_test(
     COMMAND fiat_test_mpl_allocator
     ARGS fiat_test_mpl_allocator_no_init
     ENVIRONMENT "MPL=0"
+)
+
+ecbuild_add_test(
+    TARGET fiat_test_mpl_init_allocator${___SEP___}ENV={MPL_ALLOCATOR_MPL_MANAGED=0}
+    COMMAND fiat_test_mpl_init_allocator
+    ARGS fiat_test_mpl_init_allocator_env_managed0
+    ENVIRONMENT "MPL_ALLOCATOR_MPL_MANAGED=0"
+)
+
+ecbuild_add_test(
+    TARGET fiat_test_mpl_init_allocator${___SEP___}ENV={MPL_ALLOCATOR_MPL_MANAGED=1}
+    COMMAND fiat_test_mpl_init_allocator
+    ARGS fiat_test_mpl_init_allocator_env_managed1
+    ENVIRONMENT "MPL_ALLOCATOR_MPL_MANAGED=1" "EXPECTED_MPL_ALLOCATOR_RESOURCE=FIAT_BUDDY"
+)
+
+ecbuild_add_test(
+    TARGET fiat_test_mpl_init_allocator${___SEP___}MPL_ALLOCATOR_CONFIG%MPL_MANAGED=0
+    COMMAND fiat_test_mpl_init_allocator
+    ARGS fiat_test_mpl_init_allocator_config_managed0
+)
+
+ecbuild_add_test(
+    TARGET fiat_test_mpl_init_allocator${___SEP___}MPL_ALLOCATOR_CONFIG%MPL_MANAGED=1
+    COMMAND fiat_test_mpl_init_allocator
+    ARGS fiat_test_mpl_init_allocator_config_managed1
+    ENVIRONMENT "MPL_ALLOCATOR_RESOURCE=FIAT_BUDDY" "EXPECTED_MPL_ALLOCATOR_RESOURCE=FIAT_BUDDY"
+)
+
+ecbuild_add_test(
+    TARGET fiat_test_mpl_init_allocator${___SEP___}ASSERT_GROWING
+    COMMAND fiat_test_mpl_init_allocator
+    ARGS fiat_test_mpl_init_allocator_default_allow_growth
+)
+
+add_test(
+    NAME "fiat_test_mpl_init_allocator${___SEP___}ENV={MPL_ALLOCATOR_SIZE=1024}${___SEP___}ASSERT_ABORT_FAILED_TO_GROW"
+    COMMAND ${CMAKE_COMMAND}
+        "-DEXECUTABLE=$<TARGET_FILE:fiat_test_mpl_init_allocator>;fiat_test_mpl_init_allocator_env_size_forbids_grow"
+        "-DPASS_REGULAR_EXPRESSION=ABOR1.*Failed to grow"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/../test_program_output.cmake
+)
+set_tests_properties("fiat_test_mpl_init_allocator${___SEP___}ENV={MPL_ALLOCATOR_SIZE=1024}${___SEP___}ASSERT_ABORT_FAILED_TO_GROW" PROPERTIES
+    ENVIRONMENT "EXPECTED_MPL_ALLOCATOR_RESOURCE=FIAT_BUDDY;MPL_ALLOCATOR_SIZE=1024"
 )
 
 set( DEFAULT_MPL_ALLOCATOR_RESOURCE "FIAT_BUDDY" )

@@ -29,7 +29,7 @@ implicit none
 integer(jpim) :: nprocs
 logical :: verbose = .false.
 
-call mpl_init(KPROCS=nprocs,ldinfo=verbose,ldenv=.true.)
+call mpl_init(KPROCS=nprocs,ldinfo=verbose,ldenv=.true.,koutput=0)
 
 if( nprocs == 0 )            FAIL("nprocs must be > 0")
 if( mpl_rank == 0 )          FAIL("mpl_rank must be >= 1")
