@@ -97,9 +97,18 @@ ecbuild_add_option( FEATURE DR_HOOK_ROCTX
 
 ecbuild_find_package( NAME Realtime QUIET )
 
+fiat_find_fypp()
+fiat_find_pluto()
+
+# ecbuild_add_option( FEATURE PLUTO
+#                     DEFAULT ON
+#                     DESCRIPTION "Support using pluto as backend to MPL_ALLOCATOR"
+#                     REQUIRED_PACKAGES pluto )
+
 ### Sources
 
 # define MPI_SERIAL_LIBRARIES before including src folder, for use in fiat library declaration
+
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(_whole_archive "-Wl,-force_load")
   set(_no_whole_archive "")

@@ -1,0 +1,148 @@
+! (C) Copyright 2026- ECMWF.
+! (C) Copyright 2026- Meteo-France.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
+MODULE TEST_FIAT_BUDDY
+USE EC_PARKIND, ONLY: JPIM, JPIB
+USE, INTRINSIC :: ISO_C_BINDING, ONLY : C_FLOAT, C_SIZE_T
+USE FIAT_BUDDY_MOD, ONLY : FIAT_BUDDY
+IMPLICIT NONE
+PUBLIC
+
+CONTAINS
+
+SUBROUTINE FAIL(MSG)
+    USE MPL_ABORT_MOD, ONLY : MPL_ABORT
+    CHARACTER(LEN=*), INTENT(IN) :: MSG
+    CALL MPL_ABORT(MSG)
+END SUBROUTINE
+
+SUBROUTINE TEST_CAPACITY_UNINITIALIZED()
+    TYPE(FIAT_BUDDY) :: BUDDY
+    INTEGER(C_SIZE_T) :: CAPACITY
+
+    CAPACITY = BUDDY%CAPACITY()
+    WRITE(0,'(A,I0)') "Unexpected CAPACITY from uninitialized FIAT_BUDDY: ", CAPACITY
+    CALL FAIL("Expected FIAT_BUDDY%CAPACITY() on an uninitialized allocator to abort")
+END SUBROUTINE TEST_CAPACITY_UNINITIALIZED
+
+SUBROUTINE TEST_ALLOCATED_UNINITIALIZED()
+    TYPE(FIAT_BUDDY) :: BUDDY
+    INTEGER(C_SIZE_T) :: ALLOCATED
+
+    ALLOCATED = BUDDY%ALLOCATED()
+    WRITE(0,'(A,I0)') "Unexpected ALLOCATED from uninitialized FIAT_BUDDY: ", ALLOCATED
+    CALL FAIL("Expected FIAT_BUDDY%ALLOCATED() on an uninitialized allocator to abort")
+END SUBROUTINE TEST_ALLOCATED_UNINITIALIZED
+
+SUBROUTINE TEST_RESERVE_UNINITIALIZED()
+    TYPE(FIAT_BUDDY) :: BUDDY
+
+    CALL BUDDY%RESERVE(INT(1024, C_SIZE_T))
+    CALL FAIL("Expected FIAT_BUDDY%RESERVE() on an uninitialized allocator to abort")
+END SUBROUTINE TEST_RESERVE_UNINITIALIZED
+
+SUBROUTINE TEST_RESERVE_ZERO_THEN_ALLOCATE()
+    TYPE(FIAT_BUDDY) :: BUDDY
+    INTEGER(JPIB), POINTER :: ARRAY(:)
+
+    CALL BUDDY%INIT(INT(0, C_SIZE_T), 2.0_C_FLOAT)
+    CALL BUDDY%RESERVE(INT(0, C_SIZE_T))
+    CALL BUDDY%ALLOCATE(ARRAY, UBOUNDS=[1])
+    CALL BUDDY%DEALLOCATE(ARRAY)
+    CALL BUDDY%FINAL()
+END SUBROUTINE TEST_RESERVE_ZERO_THEN_ALLOCATE
+
+SUBROUTINE TEST_REMOVE_MIDDLE_NODE()
+    TYPE(FIAT_BUDDY) :: BUDDY
+    INTEGER(JPIB), POINTER :: ARRAY_1(:), ARRAY_2(:), ARRAY_3(:)
+    INTEGER(C_SIZE_T) :: CAPACITY
+
+    CALL BUDDY%INIT(INT(1024, C_SIZE_T), 1.0_C_FLOAT)
+
+    CALL BUDDY%ALLOCATE(ARRAY_1, UBOUNDS=[100])
+    CALL BUDDY%ALLOCATE(ARRAY_2, UBOUNDS=[100])
+    CALL BUDDY%ALLOCATE(ARRAY_3, UBOUNDS=[225])
+
+    CALL BUDDY%DEALLOCATE(ARRAY_2)
+
+    CAPACITY = BUDDY%CAPACITY()
+    IF (CAPACITY /= INT(3072, C_SIZE_T)) THEN
+        WRITE(0,'(A,I0)') "Unexpected capacity after removing middle pool node: ", CAPACITY
+        CALL FAIL("Expected FIAT_BUDDY capacity to remain consistent after removing a fully deallocated middle pool node")
+    ENDIF
+
+    CALL BUDDY%DEALLOCATE(ARRAY_1)
+    CALL BUDDY%DEALLOCATE(ARRAY_3)
+    CALL BUDDY%FINAL()
+END SUBROUTINE TEST_REMOVE_MIDDLE_NODE
+
+SUBROUTINE TEST_REMOVE_HEAD_NODE()
+    TYPE(FIAT_BUDDY) :: BUDDY
+    INTEGER(JPIB), POINTER :: ARRAY_1(:), ARRAY_2(:), ARRAY_3(:)
+    INTEGER(C_SIZE_T) :: CAPACITY
+
+    CALL BUDDY%INIT(INT(1024, C_SIZE_T), 1.0_C_FLOAT)
+
+    CALL BUDDY%ALLOCATE(ARRAY_1, UBOUNDS=[100])
+    CALL BUDDY%ALLOCATE(ARRAY_2, UBOUNDS=[100])
+    CALL BUDDY%ALLOCATE(ARRAY_3, UBOUNDS=[225])
+
+    CALL BUDDY%DEALLOCATE(ARRAY_1)
+
+    CAPACITY = BUDDY%CAPACITY()
+    IF (CAPACITY /= INT(3072, C_SIZE_T)) THEN
+        WRITE(0,'(A,I0)') "Unexpected capacity after removing head pool node: ", CAPACITY
+        CALL FAIL("Expected FIAT_BUDDY capacity to remain consistent after removing a fully deallocated head pool node")
+    ENDIF
+
+    CALL BUDDY%DEALLOCATE(ARRAY_2)
+    CALL BUDDY%DEALLOCATE(ARRAY_3)
+    CALL BUDDY%FINAL()
+END SUBROUTINE TEST_REMOVE_HEAD_NODE
+
+END MODULE TEST_FIAT_BUDDY
+
+PROGRAM TEST_FIAT_BUDDY_DRIVER
+USE TEST_FIAT_BUDDY
+USE, INTRINSIC :: ISO_FORTRAN_ENV, ONLY : OUTPUT_UNIT
+IMPLICIT NONE
+
+INTEGER :: ARGC, IARG
+CHARACTER(LEN=512), ALLOCATABLE :: ARGV(:)
+CHARACTER(LEN=512) :: TEST_NAME
+
+ARGC = COMMAND_ARGUMENT_COUNT()
+ALLOCATE(ARGV(ARGC))
+DO IARG = 1, ARGC
+    CALL GET_COMMAND_ARGUMENT(IARG, ARGV(IARG))
+END DO
+
+IF (ARGC > 0) THEN
+    TEST_NAME = ARGV(1)
+    WRITE(OUTPUT_UNIT,'(A)') "Running test: "//TRIM(TEST_NAME)
+    IF (TEST_NAME == "fiat_test_fiat_buddy_capacity_uninitialized") THEN
+        CALL TEST_CAPACITY_UNINITIALIZED()
+    ELSE IF (TEST_NAME == "fiat_test_fiat_buddy_allocated_uninitialized") THEN
+        CALL TEST_ALLOCATED_UNINITIALIZED()
+    ELSE IF (TEST_NAME == "fiat_test_fiat_buddy_reserve_uninitialized") THEN
+        CALL TEST_RESERVE_UNINITIALIZED()
+    ELSE IF (TEST_NAME == "fiat_test_fiat_buddy_reserve_zero_then_allocate") THEN
+        CALL TEST_RESERVE_ZERO_THEN_ALLOCATE()
+    ELSE IF (TEST_NAME == "fiat_test_fiat_buddy_remove_middle_node") THEN
+        CALL TEST_REMOVE_MIDDLE_NODE()
+    ELSE IF (TEST_NAME == "fiat_test_fiat_buddy_remove_head_node") THEN
+        CALL TEST_REMOVE_HEAD_NODE()
+    ELSE
+        CALL FAIL("Unrecognized testname "//TRIM(TEST_NAME))
+    ENDIF
+ELSE
+    CALL FAIL("No test name provided as argument")
+ENDIF
+
+END PROGRAM TEST_FIAT_BUDDY_DRIVER
