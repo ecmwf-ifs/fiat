@@ -377,8 +377,10 @@ foreach( lang C CXX Fortran )
   endif()
 endforeach()
 
-add_test( NAME fiat_test_install
-          COMMAND ${CMAKE_CURRENT_BINARY_DIR}/test-install.sh ${_test_args} )
+if(HAVE_MPI)
+  add_test( NAME fiat_test_install
+            COMMAND ${CMAKE_CURRENT_BINARY_DIR}/test-install.sh ${_test_args} )
+endif()
 
 # ----------------------------------------------------------------------------------------
 
