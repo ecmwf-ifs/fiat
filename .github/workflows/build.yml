@@ -173,7 +173,7 @@ jobs:
     - name: Retrieve cached dependencies
       if: matrix.caching
       id: deps-restore-cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         path: ${{ env.DEPS_DIR }}
         key: deps-${{ matrix.os }}-${{ matrix.compiler }}-${{ env.CACHE_SUFFIX }}
@@ -223,7 +223,7 @@ jobs:
       # There seems to be a problem with cached NVHPC dependencies, leading to SIGILL perhaps due to slightly different architectures
       if: matrix.caching && matrix.build_type == 'Debug'
       id: deps-save-cache
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v6
       with:
         path: ${{ env.DEPS_DIR }}
         key: ${{ steps.deps-restore-cache.outputs.cache-primary-key }}
