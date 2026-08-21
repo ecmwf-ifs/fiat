@@ -1,0 +1,64 @@
+! (C) Copyright 2026- ECMWF.
+! (C) Copyright 2026- Meteo-France.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
+SUBMODULE(FIAT_FORTRAN_ALLOCATOR_MOD) FIAT_FORTRAN_ALLOCATOR_SMOD
+
+#:set ranks  = [1,2,3,4,5]
+#:set dtypes = ['INT32','INT64','REAL32','REAL64']
+#:set sizeof = dict(zip(dtypes, ['4', '8', '4', '8']))
+
+USE, INTRINSIC :: ISO_C_BINDING, ONLY : C_SIZE_T
+
+IMPLICIT NONE
+
+CONTAINS
+
+MODULE PROCEDURE FIAT_FORTRAN_ALLOCATOR_ALLOCATED
+  ALLOCATED = SELF%ALLOCATED_BYTES
+END PROCEDURE
+
+#:for rank in ranks
+#:for dtype in dtypes
+#:set ARRAY = dtype + '_R' + str(rank)
+MODULE PROCEDURE ALLOCATE_LABEL_${ARRAY}$_BOUNDS
+  INTEGER(C_SIZE_T) :: BYTES
+  ALLOCATE (ARRAY (${','.join (map (lambda i: "LBOUNDS(" + str (i) + "):UBOUNDS (" + str (i) + ")", range (1, rank+1)))}$))
+  BYTES = ${sizeof[dtype]}$
+#:for jdim in range(1, rank+1)
+  BYTES = BYTES * INT (UBOUNDS(${jdim}$) - LBOUNDS(${jdim}$) + 1, C_SIZE_T)
+#:endfor
+  SELF%ALLOCATED_BYTES = SELF%ALLOCATED_BYTES + BYTES
+END PROCEDURE
+
+MODULE PROCEDURE ALLOCATE_LABEL_${ARRAY}$_SHAPE
+  INTEGER(C_SIZE_T) :: BYTES
+  ALLOCATE (ARRAY (${','.join (map (lambda i: "SHAPE(" + str (i) + ")", range (1, rank+1)))}$))
+  BYTES = ${sizeof[dtype]}$
+#:for jdim in range(1, rank+1)
+  BYTES = BYTES * INT (SHAPE(${jdim}$), C_SIZE_T)
+#:endfor
+  SELF%ALLOCATED_BYTES = SELF%ALLOCATED_BYTES + BYTES
+END PROCEDURE
+
+MODULE PROCEDURE DEALLOCATE_LABEL_${ARRAY}$
+  INTEGER(C_SIZE_T) :: BYTES
+  IF (ASSOCIATED(ARRAY)) THEN
+    BYTES = ${sizeof[dtype]}$
+#:for jdim in range(1, rank+1)
+    BYTES = BYTES * SIZE(ARRAY,${jdim}$, C_SIZE_T)
+#:endfor
+    SELF%ALLOCATED_BYTES = SELF%ALLOCATED_BYTES - BYTES
+    DEALLOCATE(ARRAY)
+  ENDIF
+END PROCEDURE
+#:endfor
+#:endfor
+
+END SUBMODULE FIAT_FORTRAN_ALLOCATOR_SMOD
+
