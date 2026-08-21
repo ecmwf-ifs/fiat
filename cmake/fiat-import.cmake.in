@@ -74,6 +74,12 @@ else()
 endif()
 set(MPI_SERIAL_LIBRARIES ${_whole_archive} mpi_serial ${_no_whole_archive})
 
+if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "NAG")
+  set(_whole_archive "-Wl,-Xlinker,--whole-archive")
+  set(_no_whole_archive "-Wl,-Xlinker,--no-whole-archive")
+  set(MPI_SERIAL_LIBRARIES $<$<LINK_LANGUAGE:Fortran>:${_whole_archive} mpi_serial ${_no_whole_archive}>)
+endif()
+
 ##################################################################
 ## Handle components
 

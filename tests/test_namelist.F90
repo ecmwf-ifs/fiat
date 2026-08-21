@@ -16,9 +16,6 @@
 
 program test_namelist
 use namelist_mod
-#ifdef NAGFOR
-use f90_unix_dir, only: unlink
-#endif
 implicit none
 
 character(len=*),parameter :: cfile = 'fort.4'
@@ -61,7 +58,8 @@ logical :: lexist
 inquire(file=cfile, exist=lexist)
 if (lexist) then
   print*, "Removing", cfile
-  call unlink(cfile)
+  open(iunit, file=cfile, status='OLD')
+  close(iunit, status='DELETE')
 endif
 open(iunit, file=cfile, status='NEW')
 write(iunit,*) '&NAMBLOCK1'

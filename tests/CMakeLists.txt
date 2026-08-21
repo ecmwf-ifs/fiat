@@ -311,6 +311,13 @@ ecbuild_add_test( TARGET fiat_test_displs_container
 #
 #
 
+set (USING_MPI_WRAPPER "OFF")
+if (MPI_Fortran_FOUND)
+  if (NOT MPI_Fortran_LIBRARIES)
+    set (USING_MPI_WRAPPER "ON")
+  endif()
+endif()
+
 ecbuild_add_executable(
     TARGET  fiat-test-mpi-serial
     SOURCES test_mpi_serial.F90
@@ -324,12 +331,14 @@ set_tests_properties(fiat_test_mpi_serial_n0 PROPERTIES
     FAIL_REGULAR_EXPRESSION "My rank number is *1"
 )
 if (HAVE_MPI)
-  ecbuild_add_test( TARGET fiat_test_mpi_serial_n2
-      COMMAND fiat-test-mpi-serial
-      MPI 2)
-  set_tests_properties(fiat_test_mpi_serial_n2 PROPERTIES
-      FAIL_REGULAR_EXPRESSION "My rank number is *1"
-  )
+  if (NOT USING_MPI_WRAPPER)
+    ecbuild_add_test( TARGET fiat_test_mpi_serial_n2
+        COMMAND fiat-test-mpi-serial
+        MPI 2)
+    set_tests_properties(fiat_test_mpi_serial_n2 PROPERTIES
+        FAIL_REGULAR_EXPRESSION "My rank number is *1"
+    )
+  endif()
 endif()
 
 # ----------------------------------------------------------------------------------------

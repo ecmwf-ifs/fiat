@@ -20,6 +20,8 @@ SAVE
 !     Integer Kinds
 !     -------------
 !
+! NOTE: If any symbols herein are updated, please also update the 
+!       corresponding symbols in PARKIND1
 INTEGER, PARAMETER :: JPIM = SELECTED_INT_KIND(9)
 INTEGER, PARAMETER :: JPIB = SELECTED_INT_KIND(12)
 INTEGER, PARAMETER :: JPIA = C_INTPTR_T
@@ -31,5 +33,6 @@ INTEGER, PARAMETER :: JPIA = C_INTPTR_T
 INTEGER, PARAMETER :: JPRM = SELECTED_REAL_KIND(6,37)
 INTEGER, PARAMETER :: JPRD = SELECTED_REAL_KIND(13,300)
 
+INTEGER, PARAMETER :: JPLM = JPIM   !Standard logical type
 
 END MODULE EC_PARKIND

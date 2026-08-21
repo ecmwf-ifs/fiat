@@ -194,6 +194,8 @@ static int drhook_trapfpe = 1;
 static int drhook_trapfpe_invalid = 1;
 static int drhook_trapfpe_divbyzero = 1;
 static int drhook_trapfpe_overflow = 1;
+static int drhook_trapfpe_sw = -1;
+static int drhook_trapfpe_flag_mask = 0;
 
 #if (defined(LINUX) || defined(__APPLE__)) && !defined(CYGWIN)
 
@@ -205,11 +207,113 @@ extern int feenableexcept(int excepts);
 extern int fedisableexcept(int excepts);
 extern int fegetexcept(void);
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && defined(__arm64__)
+// If we are dealing with an Apple Silicon Mac
+// Borrowed from Atlas https://github.com/ecmwf/atlas/blob/develop/src/atlas/library/FloatingPointExceptions.cc
+static unsigned long long fenv_to_fpcr(unsigned int fenv_flag) {
+  unsigned long long fpcr_flags = 0;
+  if (fenv_flag & FE_INEXACT ) {
+    fpcr_flags |= __fpcr_trap_inexact;
+  }
+  if (fenv_flag & FE_UNDERFLOW ) {
+    fpcr_flags |= __fpcr_trap_underflow;
+  }
+  if (fenv_flag & FE_OVERFLOW ) {
+    fpcr_flags |= __fpcr_trap_overflow;
+  }
+  if (fenv_flag & FE_DIVBYZERO ) {
+    fpcr_flags |= __fpcr_trap_divbyzero;
+  }
+  if (fenv_flag & FE_INVALID ) {
+    fpcr_flags |= __fpcr_trap_invalid;
+  }
+  if (fenv_flag & FE_FLUSHTOZERO ) {
+    fpcr_flags |= __fpcr_flush_to_zero;
+  }
+  // Better to assume nothing and be explicit...
+  if (fenv_flag == FE_ALL_EXCEPT ) {
+    fpcr_flags |= __fpcr_trap_inexact | __fpcr_trap_underflow | __fpcr_trap_overflow |
+      __fpcr_trap_divbyzero | __fpcr_trap_invalid | __fpcr_flush_to_zero;
+  }
+  return fpcr_flags;
+}
+
+static unsigned int fpcr_to_fenv(unsigned long long fpcr_flags) {
+  unsigned int fenv_flag = 0;
+  if (fpcr_flags & __fpcr_trap_inexact) {
+    fenv_flag |= FE_INEXACT;
+  }
+  if (fpcr_flags & __fpcr_trap_underflow) {
+    fenv_flag |= FE_UNDERFLOW;
+  }
+  if (fpcr_flags & __fpcr_trap_overflow) {
+    fenv_flag |= FE_OVERFLOW;
+  }
+  if (fpcr_flags & __fpcr_trap_divbyzero) {
+    fenv_flag |= FE_DIVBYZERO;
+  }
+  if (fpcr_flags & __fpcr_trap_invalid) {
+    fenv_flag |= FE_INVALID;
+  }
+  if (fpcr_flags & __fpcr_flush_to_zero) {
+    fenv_flag |= FE_FLUSHTOZERO;
+  }
+  unsigned long long all_fpcr_flags = __fpcr_trap_inexact | __fpcr_trap_underflow |
+    __fpcr_trap_overflow | __fpcr_trap_divbyzero | __fpcr_trap_invalid | __fpcr_flush_to_zero;
+  if (fpcr_flags == all_fpcr_flags ) {
+    return FE_ALL_EXCEPT;
+  }
+  return fenv_flag;
+}
+
+__attribute__((weak)) int feenableexcept (int excepts) {
+  fenv_t fenv;
+  unsigned int new_excepts = excepts & FE_ALL_EXCEPT;
+  unsigned int old_excepts; // previous masks
+
+  if (fegetenv(&fenv)) {
+    return -1;
+  }
+
+  old_excepts = fpcr_to_fenv(fenv.__fpcr) & FE_ALL_EXCEPT;
+
+  fenv.__fpcr |= fenv_to_fpcr(new_excepts);
+
+  return fesetenv(&fenv) ? -1 : old_excepts;
+}
+
+__attribute__((weak)) int fedisableexcept(int excepts) {
+  fenv_t fenv;
+  unsigned int new_excepts = excepts & FE_ALL_EXCEPT;
+  unsigned int old_excepts; // previous masks
+
+  if (fegetenv(&fenv)) {
+    return -1;
+  }
+
+  old_excepts = fpcr_to_fenv(fenv.__fpcr) & FE_ALL_EXCEPT;
+
+  fenv.__fpcr &= ~fenv_to_fpcr(new_excepts);
+
+  return fesetenv(&fenv) ? -1 : old_excepts;
+}
+
+__attribute__((weak)) int fegetexcept(void) {
+  fenv_t fenv;
+
+  if (fegetenv(&fenv)) {
+    return -1;
+  }
+
+  return fpcr_to_fenv(fenv.__fpcr) & FE_ALL_EXCEPT;
+}
+
+#elif defined(__APPLE__) && !defined(__arm64__)
+  /*  If we are dealing with an Intel Mac  */
   /*  A temporary fix to link on macOS. Something more clever will be done later -REK. */
-int feenableexcept (int excepts) { return 0; }
-int fedisableexcept(int excepts) { return 0; }
-int fegetexcept(void) { return 0; }
+__attribute__((weak)) int feenableexcept (int excepts) { return -1; } // -1 assumes NO hardware support for FPE trapping
+__attribute__((weak)) int fedisableexcept(int excepts) { return -1; } // -1 assumes NO hardware support for FPE trapping
+__attribute__((weak)) int fegetexcept(void) { return 0; }
 #endif
 
 #if defined(__NEC__)
@@ -1721,6 +1825,8 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
         void *addr = sigcode->si_addr;
         void *bt = addr;
         ucontext_t *uc = (ucontext_t *)sigcontextptr;
+
+        int SIGFPE_via_SIGILL = 0;
 #ifdef __powerpc64__
         bt = uc ? (void *) uc->uc_mcontext.regs->nip : NULL;   // Trick from PAPI_overflow()
 #elif defined(__x86_64__) && defined(REG_RIP) // gcc specific
@@ -1744,18 +1850,61 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
           }
         }
         else if (sig == SIGILL) {
-          switch (sigcode->si_code) {
-          case ILL_ILLOPC: s = "illegal opcode"; break;
-          case ILL_ILLOPN: s = "illegal operand"; break;
-          case ILL_ILLADR: s = "illegal addressing mode"; break;
-          case ILL_ILLTRP: s = "illegal trap"; break;
-          case ILL_PRVOPC: s = "privileged opcode"; break;
-          case ILL_PRVREG: s = "privileged register"; break;
-          case ILL_COPROC: s = "coprocessor error"; break;
-          case ILL_BADSTK: s = "internal stack error"; break;
-          default:
-            s = "unrecognized si_code for SIGILL";  break;
+#if defined(__APPLE__) && defined(__arm64__)
+          // On Apple Silicon a SIGFPE may be posing as a SIGILL
+          // See:
+          //    https://developer.apple.com/forums/thread/689159?answerId=733736022
+          //    https://developer.arm.com/documentation/ddi0595/2020-12/AArch64-Registers/ESR-EL1--Exception-Syndrome-Register--EL1-?lang=en#fieldset_0-24_0_16-1_1
+          //    https://github.com/ecmwf/atlas/blob/develop/src/atlas/library/FloatingPointExceptions.cc
+          //
+
+#define TEST_ESR(sigcode) (uc->uc_mcontext->__es.__esr & 0x1 << sigcode)
+
+          // Check the Trapped Fault Valid bit
+          int TFV_set = uc->uc_mcontext->__es.__esr & 0x1 << 23;
+          if (TFV_set) {
+            // Now know this is actually a SIGFPE, not a SIGILL
+            SIGFPE_via_SIGILL = 1;
+            if ( TEST_ESR(0) ) {
+              s = "floating-point invalid operation";
+            }
+            else if ( TEST_ESR(1) ) {
+              s = "floating-point divide by zero";
+            }
+            else if ( TEST_ESR(2) ) {
+              s = "floating-point overflow";
+            }
+            else if ( TEST_ESR(3) ) {
+              s = "floating-point underflow";
+            }
+            else if ( TEST_ESR(4) ) {
+              s = "floating-point inexact result";
+            }
+            else if ( TEST_ESR(7) ) {
+              s = "floating-point denormal";
+            }
+            else {
+              s = "unrecognized si_code for SIGFPE";
+            }
+          } else {
+            // Else it's a true SIGILL
+#endif
+            switch (sigcode->si_code) {
+            case ILL_ILLOPC: s = "illegal opcode"; break;
+            case ILL_ILLOPN: s = "illegal operand"; break;
+            case ILL_ILLADR: s = "illegal addressing mode"; break;
+            case ILL_ILLTRP: s = "illegal trap"; break;
+            case ILL_PRVOPC: s = "privileged opcode"; break;
+            case ILL_PRVREG: s = "privileged register"; break;
+            case ILL_COPROC: s = "coprocessor error"; break;
+            case ILL_BADSTK: s = "internal stack error"; break;
+            default:
+              s = "unrecognized si_code for SIGILL";  break;
+            }
+#if defined(__APPLE__) && defined(__arm64__)
           }
+#undef TEST_ESR
+#endif
         }
         else if (sig == SIGSEGV) {
           switch (sigcode->si_code) {
@@ -1789,7 +1938,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
           else
             dlworks = 1;
 
-          if (sig == SIGFPE) {
+          if (sig == SIGFPE || SIGFPE_via_SIGILL) {
             extern int fegetexcept(void);
             int excepts = fegetexcept();
             fprintf(stderr,
@@ -2085,6 +2234,7 @@ signal_drhook_init(int enforce)
       drhook_run_omp_parallel_ipfstr_(&ntids,set_ec_drhook_label,hostname,hlen);
     }
   }
+
   process_options();
   for (j=1; j<=NSIG; j++) { /* Initialize */
     drhook_sig_t *sl = &siglist[j];
@@ -2092,6 +2242,7 @@ signal_drhook_init(int enforce)
     sl->active = 0;
     sl->ignore_atexit = 0;
   }
+
   ignore_signals(silent); /* These signals will not be handled by DR_HOOK */
   restore_default_signals(silent); /* These signals will be restored with SIG_DFL status (regardless if to-be-caught with DrHook or ATP or anyhing else) */
   SETSIG(SIGABRT,0); /* Good to be first */
@@ -2462,6 +2613,38 @@ process_options()
   }
   OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_TRAPFPE=%d\n",pfx,TIMESTR(tid),FFL,drhook_trapfpe);
 
+  env = getenv("DR_HOOK_TRAPFPE_SW");
+  if (env) {
+    int value = atoi(env);
+    drhook_trapfpe_sw = (value != 0) ? 1 : 0; /* currently accept just 0 or 1 */
+  }
+
+  if (drhook_trapfpe) {
+    // Not all platforms, e.g. Nvidia's Grace, support trapping FPEs,
+    // so we have to check if trapping is enabled
+    int prev_enabled_exceptions = fegetexcept();
+    int drhook_trapfpe_hw_support = feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW) != -1;
+    // Even if we failed above, we should still try to restore the flags
+#if defined(__APPLE__) && defined(__arm64__)
+    // This seems to be enabled by default, but causes DrHook to raise a SIGILL in the OPTPRINTs below
+    prev_enabled_exceptions &= ~FE_INEXACT;
+#endif
+    feenableexcept(prev_enabled_exceptions);
+    fedisableexcept(~prev_enabled_exceptions);
+    if (!drhook_trapfpe_hw_support && drhook_trapfpe_sw == -1) {
+      if (!opt_silent) {
+        fprintf(stderr, "%s %s [%s@%s:%d] WARNING: DR_HOOK_TRAPFPE is enabled, but hardware FPE trapping is not available."
+                        " DrHook will check per region instead. Set DR_HOOK_TRAPFPE_SW=0 to disable this.\n",
+                pfx,TIMESTR(tid),FFL);
+      }
+      drhook_trapfpe_sw = 1;
+    } else if (drhook_trapfpe_hw_support && drhook_trapfpe_sw == -1) {
+      drhook_trapfpe_sw = 0; // No need for software trapping if hardware support is available & the user hasn't explicitly enabled it
+    }
+  }
+
+  OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_TRAPFPE_SW=%d\n",pfx,TIMESTR(tid),FFL,drhook_trapfpe_sw);
+
   env = getenv("DR_HOOK_TRAPFPE_INVALID");
   if (env) {
     int value = atoi(env);
@@ -2483,6 +2666,10 @@ process_options()
   }
   OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_TRAPFPE_OVERFLOW=%d\n",pfx,TIMESTR(tid),FFL,drhook_trapfpe_overflow);
 
+  drhook_trapfpe_flag_mask =
+      (drhook_trapfpe_invalid   ? FE_INVALID   : 0) |
+      (drhook_trapfpe_divbyzero ? FE_DIVBYZERO : 0) |
+      (drhook_trapfpe_overflow  ? FE_OVERFLOW  : 0);
 
   env = getenv("DR_HOOK_TIMED_KILL");
   if (env) {
@@ -2937,6 +3124,33 @@ insertkey(int tid, const drhook_key_t *keyptr_in)
   return keyptr;
 }
 
+void check_fpe_flags(int raised, int tid, const char *name, int name_len, int is_entry) {
+  char *pfx = PREFIX(tid);
+  int comma_needed = 0;
+
+  fprintf(stderr,
+          "%s %s [%s@%s:%d] : Dr.Hook has detected an FPE on %s of region '%.*s'%s: ",
+          pfx,TIMESTR(tid),FFL, is_entry? "entry" : "exit", name_len, name, is_entry? ". This is likely due to the parent region." : "");
+
+  if (raised & FE_INVALID) {
+    fprintf(stderr, "FE_INVALID");
+    comma_needed = 1;
+  }
+
+  if (raised & FE_DIVBYZERO) {
+    fprintf(stderr, "%sFE_DIVBYZERO", comma_needed ? ", " : "");
+    comma_needed = 1;
+  }
+
+  if (raised & FE_OVERFLOW) {
+    fprintf(stderr, "%sFE_OVERFLOW", comma_needed ? ", " : "");
+  }
+
+  fprintf(stderr, "\n");
+
+  raise(SIGFPE);
+}
+
 /*--- getkey ---*/
 
 static drhook_key_t *
@@ -2948,6 +3162,14 @@ getkey(int tid, const char *name, int name_len,
 {
   drhook_key_t *keyptr = NULL;
   if (tid >= 1 && tid <= numthreads) {
+    if (drhook_trapfpe_sw) {
+      /* Potentially save a function call by checking here vs inside check_fpe_flags() */
+      int raised = fetestexcept(drhook_trapfpe_flag_mask);
+      if (raised) {
+        check_fpe_flags(raised, tid, name, name_len, 1);
+      }
+    }
+
     unsigned int hash, fullhash;
     if (opt_trim) name = trim(name, &name_len);
     hash = hashfunc(name, name_len);
@@ -3141,6 +3363,15 @@ putkey(int tid, drhook_key_t *keyptr, const char *name, int name_len,
     DRHOOK_ABORT();
   }
   else if (tid >= 1 && tid <= numthreads) {
+
+    if (drhook_trapfpe_sw) {
+      /* Potentially save a function call by checking here vs inside check_fpe_flags() */
+      int raised = fetestexcept(drhook_trapfpe_flag_mask);
+      if (raised) {
+        check_fpe_flags(raised, tid, name, name_len, 0);
+      }
+    }
+
     double delta_wall = 0;
     double delta_cpu  = 0;
     long long int delta_cycles  = 0;

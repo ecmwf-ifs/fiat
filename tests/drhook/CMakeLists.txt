@@ -35,9 +35,6 @@ ecbuild_add_executable( TARGET drhook_ex5
 
 
 set( FPE_TRAPPING_SUPPORTED 1 )
-if( APPLE )
-  set( FPE_TRAPPING_SUPPORTED 0 )
-endif()
 
 # Test floating point trapping
 ecbuild_add_test( TARGET fiat_test_drhook_ex1

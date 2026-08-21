@@ -125,7 +125,8 @@ case "$os" in
                   echo "libmpi.so found -- nothing to build."
                 else
                   echo "Downloading openmpi source..."
-                  wget --no-check-certificate https://www.open-mpi.org/software/ompi/v4.1/downloads/openmpi-$OMPIVER.tar.gz
+                  OMPI_MAJOR_MINOR=$(echo $OMPIVER | sed 's/\([0-9]*\.[0-9]*\).*/\1/')
+                  wget --no-check-certificate https://www.open-mpi.org/software/ompi/v${OMPI_MAJOR_MINOR}/downloads/openmpi-$OMPIVER.tar.gz
                   tar -zxf openmpi-$OMPIVER.tar.gz
                   rm openmpi-$OMPIVER.tar.gz
                   echo "Configuring and building openmpi..."

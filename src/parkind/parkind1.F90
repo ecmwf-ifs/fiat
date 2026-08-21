@@ -16,6 +16,10 @@ USE, INTRINSIC :: ISO_C_BINDING, ONLY : C_INTPTR_T
 IMPLICIT NONE
 PRIVATE :: C_INTPTR_T
 SAVE
+
+! NOTE: If JPIM, JPIB, JPIA, JPRM, JPRD or JPLM are updated
+!       please also update the corresponding symbols in EC_PARKIND
+
 !
 !     Integer Kinds
 !     -------------
