@@ -11,7 +11,6 @@ find_package( ecbuild 3.3 REQUIRED )
 project( fiat_test_install VERSION 0.0.0 LANGUAGES Fortran )
 
 find_package( fiat REQUIRED )
-find_package( MPI REQUIRED )
 
 message("fiat_HAVE_MPL_F08: ${fiat_HAVE_MPL_F08}")
 if(TARGET fiat)
