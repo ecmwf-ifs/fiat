@@ -16,6 +16,7 @@ implicit none
 real(jphook) :: zhook_handle
 real :: x
 real, volatile :: y ! This is needed because some compilers are smart enough to perform constant folding at compile time, which prevents FPE flags being set a runtime
+character(len=100) :: y_result
 
 interface
   subroutine silently_disable_all_fpes() bind(C, name="silently_disable_all_fpes")
@@ -28,8 +29,13 @@ call dr_hook('drhook_no_hw_fpe_basic', 0, zhook_handle)
 ! DrHook can't see this, so it thinks FPEs are still enabled & gives the behaviour we want, but the test won't fail to an FPE
 call silently_disable_all_fpes()
 
+y = 0
 ! This is needed because some compilers are smart enough to throw an error at compile time
-y = 0.0
+call get_environment_variable("Y_INPUT", y_result)
+if (y_result /= "") then
+  read(y_result, *) y
+endif
+
 x = 1.0/y
 
 call dr_hook('drhook_no_hw_fpe_basic', 1, zhook_handle)
