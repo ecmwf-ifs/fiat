@@ -41,5 +41,6 @@ real(jphook) :: zhook_handle
 call dr_hook('sub2',0,zhook_handle)
 write(0,*) s
 s = 1._8/s ! divide by zero
+write(0,*) s
 call dr_hook('sub2',1,zhook_handle)
 end subroutine sub2
