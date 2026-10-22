@@ -2641,6 +2641,8 @@ process_options()
     } else if (drhook_trapfpe_hw_support && drhook_trapfpe_sw == -1) {
       drhook_trapfpe_sw = 0; // No need for software trapping if hardware support is available & the user hasn't explicitly enabled it
     }
+  } else {
+    drhook_trapfpe_sw = 0; // Explicitly disable software trapping if trapping is off
   }
 
   OPTPRINT(fp,"%s %s [%s@%s:%d] DR_HOOK_TRAPFPE_SW=%d\n",pfx,TIMESTR(tid),FFL,drhook_trapfpe_sw);

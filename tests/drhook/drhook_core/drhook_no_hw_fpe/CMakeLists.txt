@@ -88,6 +88,20 @@ set_tests_properties(${test_name}
     PROPERTIES ENVIRONMENT "DR_HOOK=1;DR_HOOK_TRAPFPE=1;DR_HOOK_SILENT=0;DR_HOOK_ASSERT_MPI_INITIALIZED=0" )
 
 ################################################################################
+
+# With DR_HOOK_TRAPFPE=0, software FPE detection is also implicitly off
+
+add_test(fiat_test_drhook_no_hw_fpe_trapfpe_sw_disabled
+    ${CMAKE_COMMAND}
+      "-DEXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/drhook_no_hw_fpe_basic"
+      "-DLAUNCH=${LAUNCH}"
+      "-DPASS_REGULAR_EXPRESSION=Hello, x is"
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../test_program_output.cmake)
+set_tests_properties(fiat_test_drhook_no_hw_fpe_trapfpe_sw_disabled
+    PROPERTIES ENVIRONMENT "DR_HOOK=1;DR_HOOK_TRAPFPE=0;DR_HOOK_TRAPFPE_SW=1;DR_HOOK_SILENT=0;DR_HOOK_ASSERT_MPI_INITIALIZED=0" )
+
+################################################################################
+
 # This test is to show that true SIGILL exceptions (i.e. not FPEs raised as SIGILLs) are still handled correctly on Apple Silicon.
 # This is because is raises FPEs as SIGILLs and not the SIGFPEs as would be expected on other platforms.
 if (APPLE AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm64")
